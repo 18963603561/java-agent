@@ -66,8 +66,16 @@ Examples of foundational tasks (adjust based on your project):
 - [ ] T005 [P] Implement authentication/authorization framework
 - [ ] T006 [P] Setup API routing and middleware structure
 - [ ] T007 Create base models/entities that all stories depend on
-- [ ] T008 Configure error handling and logging infrastructure
-- [ ] T009 Setup environment configuration management
+- [ ] T008 配置错误处理与日志基础设施（使用 `slf4j`，关键路径 `info`，异常 `error`）
+- [ ] T009 配置环境与参数管理
+- [ ] T00X [P] 定义统一输出对象结构与错误语义（包含流式事件）
+- [ ] T00X [P] 建立多租户解析接口与鉴权过滤器扩展点
+- [ ] T00X [P] 建立令牌预算计量点、存储接口与可观测性指标
+- [ ] T00X [P] 输出 `Shannon` 源模块/目录/文件到 `Java` 模块/`package`/
+  `interface`/`class` 的映射表（写入 `spec.md`）
+- [ ] T00X [P] 标注不对齐项的差异原因与替代设计（写入 `spec.md`）
+- [ ] T00X [P] 确认 `Spring` 生态组件选型与 `Spring Boot Starter` 依赖策略
+  （写入 `plan.md`）
 
 **Checkpoint**: Foundation ready - user story implementation can now begin in parallel
 

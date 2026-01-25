@@ -3,6 +3,7 @@
 [CmdletBinding()]
 param(
     [switch]$Json,
+    [switch]$JsonOutput,
     [string]$ShortName,
     [int]$Number = 0,
     [switch]$Help,
@@ -34,6 +35,8 @@ if (-not $FeatureDescription -or $FeatureDescription.Count -eq 0) {
 }
 
 $featureDesc = ($FeatureDescription -join ' ').Trim()
+
+$jsonRequested = $Json -or $JsonOutput
 
 # Resolve repository root. Prefer git information when available, but fall back
 # to searching for repository markers so the workflow still functions in repositories that
@@ -265,7 +268,7 @@ if (Test-Path $template) {
 # Set the SPECIFY_FEATURE environment variable for the current session
 $env:SPECIFY_FEATURE = $branchName
 
-if ($Json) {
+if ($jsonRequested) {
     $obj = [PSCustomObject]@{ 
         BRANCH_NAME = $branchName
         SPEC_FILE = $specFile
@@ -280,4 +283,3 @@ if ($Json) {
     Write-Output "HAS_GIT: $hasGit"
     Write-Output "SPECIFY_FEATURE environment variable set to: $branchName"
 }
-

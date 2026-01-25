@@ -82,6 +82,21 @@
   Fill them out with the right functional requirements.
 -->
 
+### 宪章约束（必填）
+
+- 技术栈必须使用 `Java 17`、`Spring Boot 3`、`WebFlux`，流式输出使用 `SSE`。
+- 对外接口与事件输出必须使用统一的输出对象结构与错误语义。
+- 日志必须使用 `slf4j`，关键路径有 `info`，异常有 `error` 且包含上下文与堆栈。
+- 多租户与鉴权必须预留扩展点（接口、过滤器、上下文）。
+- 令牌预算跟踪必须包含计量点、存储接口与可观测性指标。
+- 如涉及 `Java` 代码，注释必须为中文，类名、方法名、变量名、包名、配置 `key` 必须为英文。
+- 代码结构、模块划分、核心接口命名必须尽量对齐 `vendor/Shannon` 的工程结构与术语体系。
+- 规格必须提供映射表：`Shannon` 源模块/目录/文件 -> `Java` 模块/`package`/
+  `interface`/`class`，并作为实现阶段的唯一设计依据。
+- 无法 `1:1` 对齐时必须说明差异原因、`Java` 侧替代设计与兼容边界。
+- 技术选型必须优先使用 `Spring` 生态组件，非 `Spring` 组件需给出不可满足原因与风险评估。
+- 新增依赖尽量通过 `Spring Boot Starter` 管理版本，避免显式版本锁定。
+
 ### Functional Requirements
 
 - **FR-001**: System MUST [specific capability, e.g., "allow users to create accounts"]

@@ -31,7 +31,17 @@
 
 *GATE: Must pass before Phase 0 research. Re-check after Phase 1 design.*
 
-[Gates determined based on constitution file]
+- 必须确认技术栈使用 `Java 17`、`Spring Boot 3`、`WebFlux`，流式输出为 `SSE`。
+- 必须定义统一的输出对象结构与错误语义，并在接口与事件中一致使用。
+- 关键路径必须具备 `slf4j` 的 `info` 日志；异常必须记录 `error` 日志并包含上下文与堆栈。
+- 多租户与鉴权必须预留扩展点（接口、过滤器、上下文）。
+- 令牌预算跟踪必须包含计量点、存储接口与可观测性指标。
+- 必须与 `vendor/Shannon` 的工程结构与术语体系对齐，核心概念命名优先复用。
+- 规格说明必须包含 `Shannon` 源模块/目录/文件到 `Java` 模块/`package`/
+  `interface`/`class` 的映射表。
+- 无法 `1:1` 对齐时必须在规格说明中说明差异原因、替代设计与兼容边界。
+- 技术选型必须优先使用 `Spring` 生态组件，非 `Spring` 组件需给出不可满足原因与风险评估。
+- 新增依赖应尽量通过 `Spring Boot Starter` 管理版本，避免显式版本锁定。
 
 ## Project Structure
 
