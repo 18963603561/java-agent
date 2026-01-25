@@ -40,6 +40,10 @@ class FlywayMigrationTest {
             assertTableExists(connection, "task_step");
             assertTableExists(connection, "event_log");
             assertTableExists(connection, "audit_log");
+            assertTableExists(connection, "tool_registry");
+            assertTableExists(connection, "tenant_quota");
+            assertTableExists(connection, "cost_ledger");
+            assertTableExists(connection, "context_snapshot");
 
             assertIndexExists(connection, "task_run", "idx_task_run_tenant_id");
             assertIndexExists(connection, "task_run", "idx_task_run_status");
@@ -52,6 +56,18 @@ class FlywayMigrationTest {
             assertIndexExists(connection, "audit_log", "idx_audit_log_tenant_id");
             assertIndexExists(connection, "audit_log", "idx_audit_log_timestamp");
             assertIndexExists(connection, "audit_log", "idx_audit_log_action");
+            assertIndexExists(connection, "tool_registry", "idx_tool_registry_tenant_id");
+            assertIndexExists(connection, "tool_registry", "idx_tool_registry_tool_name_version");
+            assertIndexExists(connection, "tool_registry", "idx_tool_registry_tool_id");
+            assertIndexExists(connection, "tenant_quota", "idx_tenant_quota_tenant_id");
+            assertIndexExists(connection, "tenant_quota", "idx_tenant_quota_status");
+            assertIndexExists(connection, "tenant_quota", "idx_tenant_quota_effective_from");
+            assertIndexExists(connection, "cost_ledger", "idx_cost_ledger_tenant_id");
+            assertIndexExists(connection, "cost_ledger", "idx_cost_ledger_tenant_time");
+            assertIndexExists(connection, "cost_ledger", "idx_cost_ledger_tenant_tool_time");
+            assertIndexExists(connection, "context_snapshot", "idx_context_snapshot_tenant_id");
+            assertIndexExists(connection, "context_snapshot", "idx_context_snapshot_session_id");
+            assertIndexExists(connection, "context_snapshot", "idx_context_snapshot_tenant_session_time");
         }
     }
 
