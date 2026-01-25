@@ -1,0 +1,17 @@
+你在仓库根目录工作（F:\ai-code\java-agent）。现在只推进一个任务：{TASK_ID}。
+
+必须遵守：
+1) 以 spec/04-tasks.md 中 {TASK_ID} 的 Scope/Modules/Data/Events/Acceptance Criteria 为唯一实现依据。
+2) 在实现前，读取 scripts/m1-tasks.ps1 与 run/m1-status.json：
+   - 校验 {TASK_ID} 的 deps 都已在 m1-status.json 中 exitCode==0；否则立即停止并打印缺失依赖。
+3) 只改动满足该任务范围的代码，不要顺手实现别的任务。
+4) 为 {TASK_ID} 补齐可验证的 testCmd：
+   - 优先用 `mvn -q -pl <module> test`
+   - 必要时补充 Testcontainers 测试（优先）或 docker compose（次选）
+5) 实现完成后必须运行 testCmd：
+   - 若失败：分析日志/测试报告并修复，最多重试 3 次
+6) testCmd 通过后：
+   - 更新 scripts/m1-tasks.ps1：将 {TASK_ID} 的 enabled=true，并把 testCmd 改为真实命令（不得 echo TODO）
+   - 输出本次变更文件列表与关键说明（简短）
+
+现在开始：定位 {TASK_ID} 在 spec/04-tasks.md 的定义并完成实现。

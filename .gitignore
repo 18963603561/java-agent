@@ -1,6 +1,9 @@
-
+/vebdor/
+vendor/
 .codex/
-
-
-.codex/
-
+target/
+*.log
+*.iml
+.idea/
+.DS_Store
+*.gz

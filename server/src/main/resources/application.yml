@@ -1,0 +1,17 @@
+server:
+  port: 8080
+
+spring:
+  application:
+    name: agent-server
+
+logging:
+  level:
+    root: INFO
+    com.example.agent: INFO
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
