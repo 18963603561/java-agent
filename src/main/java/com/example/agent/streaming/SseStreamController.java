@@ -42,14 +42,23 @@ public class SseStreamController {
     private final EventStreamService eventStreamService;
     private final AuthService authService;
 
-    @Value("${streaming.sse.first-event-timeout:30s}")
-    private Duration firstEventTimeout;
+    private Duration firstEventTimeout = Duration.ofSeconds(30);
 
     private Scheduler timeoutScheduler = Schedulers.parallel();
 
     public SseStreamController(EventStreamService eventStreamService, AuthService authService) {
         this.eventStreamService = eventStreamService;
         this.authService = authService;
+    }
+
+    /**
+     * 配置首事件超时时间。
+     *
+     * @param timeoutSeconds 超时秒数
+     */
+    @Value("${agent.sse.timeoutSeconds:30}")
+    public void setFirstEventTimeoutSeconds(long timeoutSeconds) {
+        this.firstEventTimeout = Duration.ofSeconds(timeoutSeconds);
     }
 
     /**

@@ -76,6 +76,20 @@
 - [ ] CHK039 是否完成任务历史查询延迟基线验证？（通过: `p95` 查询延迟 <= 3 秒且基线已记录；不通过: 缺少基线或不满足阈值）[Blocker][`Non-Functional`][Spec §Success Criteria][Task T4-7]
 - [ ] CHK040 是否完成越权访问与存在性泄漏验证？（通过: 跨租户访问返回 `NOT_FOUND` 且无泄漏；不通过: 返回码不一致或存在性泄漏）[Blocker][`Non-Functional`][Spec §Success Criteria][Task T4-8]
 - [ ] CHK041 是否完成预算覆盖率与内存增长/清理基线验证？（通过: 覆盖率 100% 且清理基线已记录；不通过: 覆盖率不足或缺少基线）[Blocker][`Non-Functional`][Spec §Success Criteria][Task T4-9]
+- [ ] CHK042 是否完成多租户越权验证覆盖新增接口？（通过: `timeline/steps`、`mcp/tools`、`replay` 等入口跨租户访问返回 `NOT_FOUND`；不通过: 任一入口可越权读取）[Blocker][`Security`][Spec §多租户与鉴权策略][Task T1.5-10][Task T3-10]
+- [ ] CHK043 是否完成预算触发模型降级验证？（通过: 预算超限触发 `MODEL_FALLBACK_APPLIED` 且记录可追溯；不通过: 未触发或记录缺失）[Blocker][`Governance`][Spec §预算计量与存储][Task T3-14]
+- [ ] CHK044 是否完成 `OPA` 拒绝验证？（通过: 触发策略拒绝返回 `POLICY_DENIED` 并写入审计；不通过: 返回码不一致或审计缺失）[Blocker][`Security`][Spec §Enterprise 安全][Task T3-12]
+- [ ] CHK045 是否完成 `WASI` 沙箱资源限制验证？（通过: 文件/网络/资源限制触发 `SANDBOX_DENIED` 或 `SANDBOX_VIOLATION`；不通过: 限制未生效）[Blocker][`Security`][Spec §Enterprise 安全][Task T3-13]
+
+## 错误码与安全验证
+
+- [ ] CHK046 是否完成 `TENANT_MISSING` 错误验证？（通过: 缺失 `X-Tenant-Id` 调用接口返回 `HTTP 400` 且 `ErrorResponse.code=TENANT_MISSING`，日志包含 `tenantId`、`userId`、`traceId`、`requestId`；不通过: 状态码或错误码不一致，或日志字段缺失）[Blocker][`Security`][Spec §错误码与异常策略][Spec §多租户与鉴权策略]
+- [ ] CHK047 是否完成 `AUTH_FAILED` 错误验证？（通过: 使用无效 `X-API-Key` 返回 `HTTP 401` 且 `ErrorResponse.code=UNAUTHORIZED`，日志包含 `tenantId`、`userId`、`traceId`、`requestId` 并记录 `AUTH_FAILED`；不通过: 状态码或错误码不一致，或日志字段缺失）[Blocker][`Security`][Spec §错误码与异常策略][Spec §多租户与鉴权策略]
+- [ ] CHK048 是否完成 `MCP_UNAVAILABLE` 错误验证？（通过: 模拟 `MCP` 不可用返回 `HTTP 503` 且 `ErrorResponse.code=MCP_UNAVAILABLE`，日志包含 `tenantId`、`userId`、`traceId`、`requestId`；不通过: 状态码或错误码不一致，或日志字段缺失）[Blocker][`Reliability`][Spec §错误码与异常策略][Spec §MCP/Skills/Hooks]
+- [ ] CHK049 是否完成 `POLICY_DENY` 错误验证？（通过: 策略拒绝返回 `HTTP 403` 且 `ErrorResponse.code=POLICY_DENIED`（别名 `POLICY_DENY`），日志包含 `tenantId`、`userId`、`traceId`、`requestId`；不通过: 状态码或错误码不一致，或日志字段缺失）[Blocker][`Security`][Spec §错误码与异常策略][Spec §Enterprise 安全]
+- [ ] CHK050 是否完成 `SANDBOX_DENY` 错误验证？（通过: 沙箱拒绝返回 `HTTP 403` 且 `ErrorResponse.code=SANDBOX_DENIED`（别名 `SANDBOX_DENY`），日志包含 `tenantId`、`userId`、`traceId`、`requestId`；不通过: 状态码或错误码不一致，或日志字段缺失）[Blocker][`Security`][Spec §错误码与异常策略][Spec §Enterprise 安全]
+- [ ] CHK051 是否完成 `REPLAY_NOT_FOUND` 错误验证？（通过: 回放不存在返回 `HTTP 404` 且 `ErrorResponse.code=REPLAY_NOT_FOUND`，日志包含 `tenantId`、`userId`、`traceId`、`requestId`；不通过: 状态码或错误码不一致，或日志字段缺失）[Blocker][`Reliability`][Spec §错误码与异常策略][Spec §Production 治理]
+- [ ] CHK052 是否完成 `HOOK_BLOCKED` 错误验证？（通过: 启用阻断型 `Hook` 返回 `HTTP 409` 且 `ErrorResponse.code=HOOK_BLOCKED`，日志包含 `tenantId`、`userId`、`traceId`、`requestId`；不通过: 状态码或错误码不一致，或日志字段缺失）[Blocker][`Security`][Spec §错误码与异常策略][Spec §MCP/Skills/Hooks]
 
 ## Notes
 

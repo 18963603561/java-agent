@@ -80,7 +80,7 @@ class SecurityValidationTest {
                 .header("X-API-Key", "invalid-key")
                 .bodyValue(request)
                 .exchange()
-                .expectStatus().isForbidden();
+                .expectStatus().isUnauthorized();
     }
 
     @Test

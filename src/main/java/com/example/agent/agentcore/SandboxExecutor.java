@@ -1,23 +1,42 @@
 package com.example.agent.agentcore;
 
+import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.sandbox.SandboxRequest;
+import com.example.agent.sandbox.SandboxResult;
+import com.example.agent.sandbox.WasiSandboxExecutor;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * 沙箱执行器，预留隔离执行扩展点。
+ * 沙箱执行器适配器，衔接工具执行与 WASI 沙箱。
  */
 @Component
 public class SandboxExecutor {
 
+    private final WasiSandboxExecutor wasiSandboxExecutor;
+
+    public SandboxExecutor(WasiSandboxExecutor wasiSandboxExecutor) {
+        this.wasiSandboxExecutor = wasiSandboxExecutor;
+    }
+
     /**
-     * 执行工具调用。
+     * 执行工具调用并经过沙箱校验。
      *
      * @param toolName 工具名称
      * @param request 任务请求
+     * @param tenantContext 租户上下文
+     * @param arguments 工具参数
      * @return 执行结果
      */
-    public Map<String, Object> execute(String toolName, TaskRequest request) {
-        return Map.of("tool", toolName, "result", "ok");
+    public Map<String, Object> execute(String toolName,
+                                       TaskRequest request,
+                                       TenantContext tenantContext,
+                                       Map<String, Object> arguments) {
+        SandboxRequest sandboxRequest = new SandboxRequest();
+        sandboxRequest.setToolName(toolName);
+        sandboxRequest.setInput(arguments);
+        SandboxResult result = wasiSandboxExecutor.execute(sandboxRequest, tenantContext);
+        return result.getOutput();
     }
 }

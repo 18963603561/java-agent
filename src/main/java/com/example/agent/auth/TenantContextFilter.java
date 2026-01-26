@@ -1,9 +1,9 @@
 package com.example.agent.auth;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import com.example.agent.common.ErrorCodeException;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ServerWebExchange;
@@ -41,7 +41,12 @@ public class TenantContextFilter implements WebFilter {
         }
         TenantContext tenantContext = tenantResolver.resolve(exchange);
         if (tenantContext == null) {
-            log.warn("租户标识缺失, path={}", exchange.getRequest().getPath());
+            String tenantId = exchange.getRequest().getHeaders().getFirst("X-Tenant-Id");
+            String userId = exchange.getRequest().getHeaders().getFirst("X-User-Id");
+            String traceId = exchange.getRequest().getHeaders().getFirst("X-Trace-Id");
+            String requestId = exchange.getRequest().getHeaders().getFirst("X-Request-Id");
+            log.warn("TENANT_MISSING, tenantId={}, userId={}, traceId={}, requestId={}, path={}",
+                    tenantId, userId, traceId, requestId, exchange.getRequest().getPath());
             return Mono.error(new ErrorCodeException(HttpStatus.BAD_REQUEST,
                     "TENANT_MISSING", "租户标识缺失"));
         }

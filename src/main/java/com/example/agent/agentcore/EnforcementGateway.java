@@ -1,6 +1,7 @@
 package com.example.agent.agentcore;
 
 import com.example.agent.auth.TenantContext;
+import com.example.agent.common.ErrorCodeProvider;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
@@ -37,27 +38,50 @@ public class EnforcementGateway {
      * @param workflowId 工作流标识
      * @param taskId 任务标识
      * @param seqCounter 事件序列计数器
+     * @param toolName 工具名称
+     * @return 工具执行结果
      */
-    public void execute(TaskRequest request, TenantContext tenantContext, String workflowId, String taskId,
-                        AtomicLong seqCounter) {
-        log.info("Tool execution started, tenantId={}, workflowId={}", tenantContext.getTenantId(), workflowId);
+    public Map<String, Object> execute(TaskRequest request,
+                                       TenantContext tenantContext,
+                                       String workflowId,
+                                       String taskId,
+                                       AtomicLong seqCounter,
+                                       String toolName) {
+        log.info("工具执行开始, tenantId={}, workflowId={}, tool={}",
+                tenantContext.getTenantId(), workflowId, toolName);
         long invokedSeq = nextSeq(seqCounter);
         String usageId = buildUsageId(taskId, invokedSeq);
         Map<String, Object> invokedPayload = new HashMap<>();
+        invokedPayload.put("tool", toolName);
         invokedPayload.put("query", request.getQuery());
-        invokedPayload.put("tokenUsage", buildTokenUsage(tenantContext, taskId, usageId));
+        invokedPayload.put("usageId", usageId);
         StreamEvent invoked = buildEvent(tenantContext, workflowId, EventType.TOOL_INVOKED, invokedSeq,
                 invokedPayload);
         eventPublisher.publishEvent(invoked);
 
-        Map<String, Object> result = toolExecutor.execute(request, tenantContext, usageId);
-        ensureUsageContext(result, tenantContext, taskId, usageId);
-        long observationSeq = nextSeq(seqCounter);
-        StreamEvent observation = buildEvent(tenantContext, workflowId, EventType.TOOL_OBSERVATION, observationSeq,
-                result);
-        eventPublisher.publishEvent(observation);
-
-        log.info("Tool execution completed, tenantId={}, workflowId={}", tenantContext.getTenantId(), workflowId);
+        try {
+            Map<String, Object> result = toolExecutor.execute(request, tenantContext, usageId, toolName, taskId);
+            ensureUsageContext(result, tenantContext, taskId, usageId);
+            long observationSeq = nextSeq(seqCounter);
+            StreamEvent observation = buildEvent(tenantContext, workflowId, EventType.TOOL_OBSERVATION, observationSeq,
+                    result);
+            eventPublisher.publishEvent(observation);
+            log.info("工具执行完成, tenantId={}, workflowId={}, tool={}",
+                    tenantContext.getTenantId(), workflowId, toolName);
+            return result;
+        } catch (RuntimeException ex) {
+            long errorSeq = nextSeq(seqCounter);
+            StreamEvent error = buildEvent(tenantContext, workflowId, EventType.TOOL_ERROR, errorSeq,
+                    Map.of(
+                            "tool", toolName,
+                            "error", ex.getMessage() == null ? "tool_failed" : ex.getMessage(),
+                            "errorCode", resolveErrorCode(ex)
+                    ));
+            eventPublisher.publishEvent(error);
+            log.error("工具执行失败, tenantId={}, workflowId={}, tool={}",
+                    tenantContext.getTenantId(), workflowId, toolName, ex);
+            throw ex;
+        }
     }
 
     private long nextSeq(AtomicLong seqCounter) {
@@ -71,22 +95,10 @@ public class EnforcementGateway {
         return taskId + ":" + seq;
     }
 
-    private Map<String, Object> buildTokenUsage(TenantContext tenantContext, String taskId, String usageId) {
-        Map<String, Object> tokenUsage = new HashMap<>();
-        tokenUsage.put("usageId", usageId);
-        tokenUsage.put("tenantId", tenantContext.getTenantId());
-        if (taskId != null) {
-            tokenUsage.put("taskId", taskId);
-        }
-        tokenUsage.put("inputTokens", 0);
-        tokenUsage.put("outputTokens", 0);
-        tokenUsage.put("totalTokens", 0);
-        tokenUsage.put("costUsd", 0);
-        return tokenUsage;
-    }
-
-    private void ensureUsageContext(Map<String, Object> result, TenantContext tenantContext,
-                                    String taskId, String usageId) {
+    private void ensureUsageContext(Map<String, Object> result,
+                                    TenantContext tenantContext,
+                                    String taskId,
+                                    String usageId) {
         Object tokenUsage = result.get("tokenUsage");
         if (tokenUsage instanceof Map<?, ?> usageMap) {
             Map<Object, Object> mutable = new HashMap<>(usageMap);
@@ -96,8 +108,6 @@ public class EnforcementGateway {
                 mutable.putIfAbsent("taskId", taskId);
             }
             result.put("tokenUsage", mutable);
-        } else {
-            result.put("tokenUsage", buildTokenUsage(tenantContext, taskId, usageId));
         }
     }
 
@@ -115,5 +125,12 @@ public class EnforcementGateway {
         event.setTenantId(tenantContext.getTenantId());
         event.setPayload(payload);
         return event;
+    }
+
+    private String resolveErrorCode(Throwable ex) {
+        if (ex instanceof ErrorCodeProvider provider) {
+            return provider.getErrorCode();
+        }
+        return "INTERNAL_ERROR";
     }
 }

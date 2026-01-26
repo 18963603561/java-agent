@@ -38,3 +38,88 @@ tenant:
   whitelist-paths:
     - /actuator/health
     - /actuator/info
+
+agent:
+  openapi:
+    contract-path: specs/001-agent-core-spec/contracts/openapi.yaml
+  runtime:
+    max-retries: 1
+  sse:
+    timeoutSeconds: 30
+  mcp:
+    servers:
+      - id: mcp-default
+        available: true
+        base-url: http://localhost:9999
+  hook:
+    enabled: true
+    blocked-tools: []
+  sandbox:
+    wasi:
+      enabled: true
+      blocked-tools: []
+  model:
+    models:
+      planner:
+        model-id: planner
+        provider: local
+        endpoint: local
+        input-cost-usd: 0
+        output-cost-usd: 0
+        max-tokens: 4096
+      reflect:
+        model-id: reflect
+        provider: local
+        endpoint: local
+        input-cost-usd: 0
+        output-cost-usd: 0
+        max-tokens: 4096
+      research:
+        model-id: research
+        provider: local
+        endpoint: local
+        input-cost-usd: 0
+        output-cost-usd: 0
+        max-tokens: 4096
+      cheap:
+        model-id: cheap
+        provider: local
+        endpoint: local
+        input-cost-usd: 0
+        output-cost-usd: 0
+        max-tokens: 2048
+    routes:
+      planner: planner
+      reflect: reflect
+      research: research
+      cheap: cheap
+    fallback-enabled: true
+    fallback-model-id: cheap
+  profiles:
+    items:
+      - agent-id: planner
+        model-id: planner
+        prompt: planner
+        allow-tools:
+          - demo_tool
+        budget-tokens: 2000
+      - agent-id: reflector
+        model-id: reflect
+        prompt: reflect
+        allow-tools:
+          - demo_tool
+        budget-tokens: 2000
+  deep-research:
+    steps:
+      - name: gather
+        model-id: research
+      - name: synthesize
+        model-id: reflect
+  budget:
+    enabled: true
+    threshold-tokens: 10000
+  rate-limit:
+    max-per-minute: 100
+  circuit:
+    failure-threshold: 3
+    open-seconds: 30

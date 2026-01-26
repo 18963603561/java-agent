@@ -9,7 +9,6 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.server.ServerWebExchange;
 
 /**
@@ -38,13 +37,13 @@ public class ApiKeyAuthenticator implements AuthService {
     @Override
     public UserContext authenticate(String apiKey, ServerWebExchange exchange) {
         if (!StringUtils.hasText(apiKey)) {
-            log.error("API Key 缺失, path={}", exchange.getRequest().getPath());
-            throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "API Key 缺失");
+            logAuthFailed(exchange, "API Key 缺失");
+            throw new ErrorCodeException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "API Key 缺失");
         }
         ApiKeyProperties.ApiKeyEntry entry = apiKeyProperties.getApiKeys().get(apiKey);
         if (entry == null || !StringUtils.hasText(entry.getUserId())) {
-            log.warn("API Key 无效, path={}", exchange.getRequest().getPath());
-            throw new ResponseStatusException(HttpStatus.FORBIDDEN, "API Key 无效");
+            logAuthFailed(exchange, "API Key 无效");
+            throw new ErrorCodeException(HttpStatus.UNAUTHORIZED, "UNAUTHORIZED", "API Key 无效");
         }
 
         UserContext userContext = new UserContext(entry.getUserId(), normalizeRoles(entry.getRoles()),
@@ -55,6 +54,18 @@ public class ApiKeyAuthenticator implements AuthService {
         exchange.getAttributes().put(UserContext.CONTEXT_KEY, userContext);
         log.info("鉴权成功, userId={}, path={}", userContext.getUserId(), exchange.getRequest().getPath());
         return userContext;
+    }
+
+    private void logAuthFailed(ServerWebExchange exchange, String reason) {
+        TenantContext tenantContext = exchange.getAttribute(TenantContext.CONTEXT_KEY);
+        String tenantId = tenantContext != null ? tenantContext.getTenantId() : null;
+        String traceId = tenantContext != null ? tenantContext.getTraceId()
+                : exchange.getRequest().getHeaders().getFirst("X-Trace-Id");
+        String requestId = tenantContext != null ? tenantContext.getRequestId()
+                : exchange.getRequest().getHeaders().getFirst("X-Request-Id");
+        log.warn("AUTH_FAILED, tenantId={}, userId={}, traceId={}, requestId={}, reason={}",
+                tenantId, tenantContext != null ? tenantContext.getUserId() : null,
+                traceId, requestId, reason);
     }
 
     private void applyTrustedUpstreamIfPresent(ServerWebExchange exchange, UserContext userContext) {

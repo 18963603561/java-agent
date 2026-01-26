@@ -127,6 +127,245 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+  /api/v1/timeline/steps:
+    get:
+      summary: 查询步骤时间线
+      parameters:
+        - name: workflowId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: size
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/StepTimelineResponse'
+        '400':
+          description: 参数错误，错误码：INVALID_REQUEST、INVALID_CURSOR、TENANT_MISSING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 访问被拒绝，错误码：POLICY_DENIED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在，错误码：NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 服务不可用，错误码：CIRCUIT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/mcp/tools/list:
+    post:
+      summary: MCP 工具列表
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpToolListRequest'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/McpToolListResponse'
+        '400':
+          description: 参数错误，错误码：INVALID_REQUEST、TENANT_MISSING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 访问被拒绝，错误码：POLICY_DENIED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在，错误码：NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 服务不可用，错误码：MCP_UNAVAILABLE、CIRCUIT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/mcp/tools/call:
+    post:
+      summary: MCP 工具调用
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/McpToolCallRequest'
+      responses:
+        '200':
+          description: 调用成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/McpToolCallResponse'
+        '400':
+          description: 参数错误，错误码：INVALID_REQUEST、TENANT_MISSING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 访问被拒绝，错误码：POLICY_DENIED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在，错误码：NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Hook 阻断，错误码：HOOK_BLOCKED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 服务不可用，错误码：MCP_UNAVAILABLE、CIRCUIT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/policy/evaluate:
+    post:
+      summary: 策略评估
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PolicyRequest'
+      responses:
+        '200':
+          description: 评估成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/PolicyDecision'
+        '400':
+          description: 参数错误，错误码：INVALID_REQUEST、TENANT_MISSING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 策略拒绝，错误码：POLICY_DENIED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在，错误码：NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 服务不可用，错误码：CIRCUIT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/replay:
+    post:
+      summary: 任务回放
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ReplayRequest'
+      responses:
+        '200':
+          description: 回放成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ReplayResponse'
+        '400':
+          description: 参数错误，错误码：INVALID_REQUEST、TENANT_MISSING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: 策略拒绝，错误码：POLICY_DENIED
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: 资源不存在，错误码：REPLAY_NOT_FOUND
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '503':
+          description: 服务不可用，错误码：CIRCUIT_OPEN
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/memory/search:
     post:
       summary: 记忆检索
@@ -325,6 +564,7 @@ components:
         requestId:
           type: string
     ErrorResponse:
+      description: 错误码命名以 POLICY_DENIED、SANDBOX_DENIED 为准，别名 POLICY_DENY、SANDBOX_DENY 仅用于兼容说明。
       type: object
       properties:
         code:
@@ -335,6 +575,9 @@ components:
           type: object
         traceId:
           type: string
+        requestId:
+          type: string
+          description: 请求唯一标识（来自请求上下文/请求头生成），用于端到端排查
     TaskRequest:
       type: object
       properties:
@@ -344,6 +587,8 @@ components:
           type: string
         context:
           type: object
+        idempotencyKey:
+          type: string
     TaskResponse:
       type: object
       properties:
@@ -367,6 +612,10 @@ components:
     StreamEvent:
       type: object
       properties:
+        eventId:
+          type: string
+        schemaVersion:
+          type: string
         workflowId:
           type: string
         type:
@@ -380,6 +629,8 @@ components:
         seq:
           type: integer
         streamId:
+          type: string
+        tenantId:
           type: string
         payload:
           type: object
@@ -458,6 +709,8 @@ components:
           type: string
         status:
           type: string
+        idempotencyKey:
+          type: string
     ScheduleResponse:
       type: object
       properties:
@@ -468,6 +721,8 @@ components:
     TokenUsageInput:
       type: object
       properties:
+        usageId:
+          type: string
         taskId:
           type: string
         agentId:
@@ -484,6 +739,8 @@ components:
           type: integer
         costUsd:
           type: number
+        tenantId:
+          type: string
     TokenUsageSummary:
       type: object
       properties:
@@ -493,3 +750,152 @@ components:
           type: integer
         totalCostUsd:
           type: number
+    StepRecord:
+      type: object
+      properties:
+        stepId:
+          type: string
+        workflowId:
+          type: string
+        stepSeq:
+          type: integer
+        type:
+          type: string
+        status:
+          type: string
+        attempt:
+          type: integer
+        input:
+          type: object
+        output:
+          type: object
+        errorCode:
+          type: string
+        tenantId:
+          type: string
+        startedAt:
+          type: string
+        completedAt:
+          type: string
+    StepTimelineResponse:
+      type: object
+      properties:
+        workflowId:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/StepRecord'
+        nextCursor:
+          type: string
+        hasMore:
+          type: boolean
+    McpToolDefinition:
+      type: object
+      properties:
+        name:
+          type: string
+        version:
+          type: string
+        description:
+          type: string
+        inputSchema:
+          type: object
+        outputSchema:
+          type: object
+        tags:
+          type: array
+          items:
+            type: string
+    McpToolListRequest:
+      type: object
+      properties:
+        serverId:
+          type: string
+        cursor:
+          type: string
+        size:
+          type: integer
+    McpToolListResponse:
+      type: object
+      properties:
+        tools:
+          type: array
+          items:
+            $ref: '#/components/schemas/McpToolDefinition'
+        nextCursor:
+          type: string
+        hasMore:
+          type: boolean
+    McpToolCallRequest:
+      type: object
+      properties:
+        callId:
+          type: string
+        serverId:
+          type: string
+        toolName:
+          type: string
+        arguments:
+          type: object
+        timeoutMs:
+          type: integer
+    McpToolCallResponse:
+      type: object
+      properties:
+        callId:
+          type: string
+        status:
+          type: string
+        result:
+          type: object
+        error:
+          type: object
+    PolicyRequest:
+      type: object
+      properties:
+        policyId:
+          type: string
+        action:
+          type: string
+        resource:
+          type: string
+        input:
+          type: object
+    PolicyDecision:
+      type: object
+      properties:
+        policyId:
+          type: string
+        decision:
+          type: string
+        reason:
+          type: string
+        evaluationId:
+          type: string
+        matchedRules:
+          type: array
+          items:
+            type: string
+    ReplayRequest:
+      type: object
+      properties:
+        taskId:
+          type: string
+        fromStepId:
+          type: string
+        toStepId:
+          type: string
+        mode:
+          type: string
+    ReplayResponse:
+      type: object
+      properties:
+        replayId:
+          type: string
+        status:
+          type: string
+        startedAt:
+          type: string
+        completedAt:
+          type: string

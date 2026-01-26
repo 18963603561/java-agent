@@ -58,6 +58,23 @@ description: "Task list for Java Shannon Agent Orchestrator Core"
   日志/指标: 记录 `error` 日志并输出 `traceId`、`requestId`；验证: 触发异常返回统一 `ErrorResponse`；
   路径: `src/main/java/com/example/agent/gateway/controller/GlobalExceptionHandler.java`；依赖: `T0-2`；
   验收标准: 控制器异常统一映射为 `ErrorResponse`。
+- [ ] T0-8 [P] 目标/交付: `OpenAPI` 文档暴露与导出配置（`springdoc`）；包/类/接口:
+  `com.example.agent.contracts.OpenApiConfig`；输入/输出: 服务启动 -> `/v3/api-docs` 输出契约；
+  日志/指标: 启动记录文档端点 `info` 日志；验证: `./mvnw spring-boot:run` 后
+  `curl http://localhost:8080/v3/api-docs` 返回包含 `/api/v1/timeline/steps`、`/api/v1/mcp/tools/list`、
+  `/api/v1/mcp/tools/call`、`/api/v1/policy/evaluate`、`/api/v1/replay`；
+  路径: `pom.xml`、`src/main/java/com/example/agent/contracts/OpenApiConfig.java`、
+  `src/main/resources/application.yml`；依赖: `T0-1`；
+  需求映射: `FR-016`、`FR-020`、`FR-023`、`FR-024`；
+  验收标准: `OpenAPI` 文档可访问且包含新增接口。
+- [ ] T0-9 [P] 目标/交付: `OpenAPI` 契约漂移校验；包/类/接口:
+  `com.example.agent.contracts.OpenApiContractDriftTest`；
+  输入/输出: `openapi` 导出结果 -> 与 `specs/001-agent-core-spec/contracts/openapi.yaml` 对比；
+  日志/指标: 校验失败记录差异摘要；验证: `./mvnw test -Dtest=OpenApiContractDriftTest`；
+  路径: `src/test/java/com/example/agent/contracts/OpenApiContractDriftTest.java`、
+  `specs/001-agent-core-spec/contracts/openapi.yaml`；依赖: `T0-8`；
+  需求映射: `FR-016`、`FR-020`、`FR-023`、`FR-024`；
+  验收标准: 漂移校验失败时输出差异且能阻断合并。
 
 ---
 
@@ -288,6 +305,127 @@ description: "Task list for Java Shannon Agent Orchestrator Core"
 
 ---
 
+---
+
+## `Phase 1.5`：Agent Runtime（ReAct/Step/Planner/Reflection/Tools）
+**Goal**: 构建 `ReAct` 决策循环与 `Step` 状态机，补齐失败恢复、`Planner`/`Reflection` 与 `MCP`/`Skill`/`Hook` 扩展能力
+**Independent Test**: 提交任务后可看到 `Think`/`Act`/`Observe` 步骤序列，触发工具失败后自动重试或分解并最终完成
+
+- [ ] T1.5-1 [P] 目标/交付: 步骤模型 DTO 与状态枚举；包/类/接口: `com.example.agent.runtime.StepRecord`、
+  `com.example.agent.runtime.StepRequest`、`com.example.agent.runtime.StepResponse`、
+  `com.example.agent.runtime.StepQuery`、`com.example.agent.runtime.StepTimelineResponse`、
+  `com.example.agent.runtime.StepState`；输入/输出: 步骤状态迁移 -> 步骤记录；
+  日志/指标: DTO 定义不新增日志；验证: 字段包含 `stepId`、`workflowId`、`stepSeq`、`type`、`status`、`attempt`、`tenantId`；
+  路径: `src/main/java/com/example/agent/runtime/StepRecord.java`、
+  `src/main/java/com/example/agent/runtime/StepRequest.java`、
+  `src/main/java/com/example/agent/runtime/StepResponse.java`、
+  `src/main/java/com/example/agent/runtime/StepQuery.java`、
+  `src/main/java/com/example/agent/runtime/StepTimelineResponse.java`、
+  `src/main/java/com/example/agent/runtime/StepState.java`；依赖: `T0-1`；
+  验收标准: 步骤模型字段与规格一致。
+- [ ] T1.5-2 目标/交付: `Step` 状态机与运行时服务；包/类/接口: `com.example.agent.runtime.StepStateMachine`、
+  `com.example.agent.runtime.StepRuntimeService`；输入/输出: `StepRequest` -> `StepResponse`；
+  日志/指标: 状态迁移记录 `info`，指标更新 `step.count`、`step.failure.count`；
+  验证: `stepSeq` 单调递增且状态迁移符合规则；
+  路径: `src/main/java/com/example/agent/runtime/StepStateMachine.java`、
+  `src/main/java/com/example/agent/runtime/StepRuntimeService.java`；依赖: `T1.5-1`、`T1-6`；
+  验收标准: `STEP_STARTED`/`STEP_COMPLETED`/`STEP_FAILED` 事件可追溯。
+- [ ] T1.5-3 目标/交付: `ReAct` 决策循环驱动；包/类/接口: `com.example.agent.runtime.AgentRuntime`；
+  输入/输出: `TaskRequest` -> 步骤序列与 `StreamEvent`；
+  日志/指标: 循环开始/结束记录 `info`，指标更新 `step.duration.ms`；
+  验证: `MaxIterations`/`ObservationWindow` 生效并输出终止原因；
+  路径: `src/main/java/com/example/agent/runtime/AgentRuntime.java`；依赖: `T1.5-2`、`T1-6`；
+  验收标准: `Think`/`Act`/`Observe` 顺序完整且可终止。
+- [ ] T1.5-4 目标/交付: 失败分类与恢复策略矩阵；包/类/接口: `com.example.agent.runtime.FailureClassifier`、
+  `com.example.agent.runtime.RecoveryStrategyManager`；输入/输出: 异常上下文 -> `retry`/`fallback`/`decompose`/`stop`；
+  日志/指标: 失败分类记录 `warn`，指标更新 `step.failure.count`；
+  验证: `POLICY_DENIED`、`SANDBOX_DENIED` 等错误触发对应策略；
+  路径: `src/main/java/com/example/agent/runtime/FailureClassifier.java`、
+  `src/main/java/com/example/agent/runtime/RecoveryStrategyManager.java`；依赖: `T1.5-2`；
+  验收标准: 失败恢复动作可在事件流中追溯。
+- [ ] T1.5-5 [P] 目标/交付: `Planner` 任务拆分与计划生成；包/类/接口: `com.example.agent.planning.PlannerService`、
+  `com.example.agent.planning.PlanRequest`、`com.example.agent.planning.PlanResult`；
+  输入/输出: 任务请求 -> `PlanResult`（含依赖关系）；
+  日志/指标: 规划生成记录 `info`，指标更新 `plan.generate.count`；
+  验证: `PlanResult` 包含 `nodes` 与 `dependencies`；
+  路径: `src/main/java/com/example/agent/planning/PlannerService.java`、
+  `src/main/java/com/example/agent/planning/PlanRequest.java`、
+  `src/main/java/com/example/agent/planning/PlanResult.java`；依赖: `T1.5-1`；
+  验收标准: 计划可持久化并可查询。
+- [ ] T1.5-6 [P] 目标/交付: `Reflection` 自检与重写；包/类/接口: `com.example.agent.reflection.ReflectionService`、
+  `com.example.agent.reflection.ReflectionRequest`、`com.example.agent.reflection.ReflectionResult`；
+  输入/输出: 输出结果 -> 评分与反馈；
+  日志/指标: 反思决策记录 `info`，指标更新 `reflection.retry.count`；
+  验证: `MaxReflections` 达到上限后停止；
+  路径: `src/main/java/com/example/agent/reflection/ReflectionService.java`、
+  `src/main/java/com/example/agent/reflection/ReflectionRequest.java`、
+  `src/main/java/com/example/agent/reflection/ReflectionResult.java`；依赖: `T1.5-5`；
+  验收标准: 自修复过程不产生无限循环。
+- [ ] T1.5-7 [P] 目标/交付: `MCP` 工具客户端（`tools/list`、`tools/call`）；包/类/接口:
+  `com.example.agent.tools.mcp.McpToolClient`、`com.example.agent.tools.mcp.McpToolListRequest`、
+  `com.example.agent.tools.mcp.McpToolListResponse`、`com.example.agent.tools.mcp.McpToolCallRequest`、
+  `com.example.agent.tools.mcp.McpToolCallResponse`；输入/输出: 工具列表/调用 -> 工具结果；
+  日志/指标: 调用记录 `info`，失败记录 `error`，指标更新 `tool.call.count`；
+  验证: 域名白名单、超时与响应大小限制生效；
+  路径: `src/main/java/com/example/agent/tools/mcp/McpToolClient.java`、
+  `src/main/java/com/example/agent/tools/mcp/McpToolListRequest.java`、
+  `src/main/java/com/example/agent/tools/mcp/McpToolCallRequest.java`；依赖: `T1-6`；
+  验收标准: `tools/list` 与 `tools/call` 可执行并返回一致结果。
+- [ ] T1.5-8 [P] 目标/交付: `Skill` 注册表与路由；包/类/接口:
+  `com.example.agent.tools.skill.SkillRegistry`、`com.example.agent.tools.skill.SkillDefinition`、
+  `com.example.agent.tools.skill.SkillRoute`、`com.example.agent.tools.skill.SkillVersion`；
+  输入/输出: 意图/标签 -> `SkillDefinition`；
+  日志/指标: 路由选择记录 `debug`，指标更新 `skill.route.count`；
+  验证: 版本匹配与 schema 校验生效；
+  路径: `src/main/java/com/example/agent/tools/skill/SkillRegistry.java`、
+  `src/main/java/com/example/agent/tools/skill/SkillDefinition.java`；依赖: `T1.5-7`；
+  验收标准: 路由规则可配置且版本可追溯。
+- [ ] T1.5-9 [P] 目标/交付: `Hook` 执行器（pre/post tool、pre/post step）；包/类/接口:
+  `com.example.agent.tools.hook.HookManager`、`com.example.agent.tools.hook.HookContext`、
+  `com.example.agent.tools.hook.HookDecision`；输入/输出: Hook 上下文 -> 放行/阻断决策；
+  日志/指标: 阻断记录 `warn`，指标更新 `hook.block.count`；
+  验证: 执行顺序与超时降级策略生效；
+  路径: `src/main/java/com/example/agent/tools/hook/HookManager.java`、
+  `src/main/java/com/example/agent/tools/hook/HookContext.java`、
+  `src/main/java/com/example/agent/tools/hook/HookDecision.java`；依赖: `T1.5-7`；
+  验收标准: Hook 可拦截高风险工具并输出审计记录。
+- [ ] T1.5-10 目标/交付: 步骤时间线接口；包/类/接口: `com.example.agent.gateway.controller.TimelineController`；
+  输入/输出: `/api/v1/timeline/steps` -> `ApiResponse<StepTimelineResponse>`；
+  日志/指标: 查询记录 `info`，指标更新 `step.query.count`；
+  验证: `tenantId` 过滤生效且支持游标分页；
+  路径: `src/main/java/com/example/agent/gateway/controller/TimelineController.java`；依赖: `T1.5-2`；
+  验收标准: 步骤时间线返回有序步骤且可断点续查。
+- [ ] T1.5-11 [P] 目标/交付: `LlmClient`/`ModelProvider` 抽象与多模型配置；
+  包/类/接口: `com.example.agent.model.LlmClient`、`com.example.agent.model.ModelProvider`、
+  `com.example.agent.model.ModelRequest`、`com.example.agent.model.ModelResponse`、
+  `com.example.agent.model.ModelConfigProperties`；
+  输入/输出: `ModelRequest` -> `ModelResponse`；
+  日志/指标: 模型调用记录 `info`，包含 `provider` 与 `model`；
+  验证: `./mvnw test -Dtest=ModelConfigPropertiesTest` 校验多模型配置绑定；
+  路径: `src/main/java/com/example/agent/model/LlmClient.java`、
+  `src/main/java/com/example/agent/model/ModelProvider.java`、
+  `src/main/java/com/example/agent/model/ModelConfigProperties.java`、
+  `src/main/resources/application.yml`、
+  `src/test/java/com/example/agent/model/ModelConfigPropertiesTest.java`；
+  依赖: `T1.5-1`；
+  需求映射: `FR-015`、`FR-018`、`FR-019`；
+  验收标准: 多模型配置可加载且 `Provider` 可实例化。
+- [ ] T1.5-12 [P] 目标/交付: `ModelRegistry`/`ModelRouter` 路由能力；
+  包/类/接口: `com.example.agent.model.ModelRegistry`、`com.example.agent.model.ModelRouter`、
+  `com.example.agent.model.ModelRouteDecision`；
+  输入/输出: 运行时上下文 -> 路由结果与目标模型；
+  日志/指标: 路由决策记录 `info`，包含选择结果与原因；
+  验证: `./mvnw test -Dtest=ModelRouterTest` 校验路由规则与回退策略；
+  路径: `src/main/java/com/example/agent/model/ModelRegistry.java`、
+  `src/main/java/com/example/agent/model/ModelRouter.java`、
+  `src/main/java/com/example/agent/model/ModelRouteDecision.java`、
+  `src/test/java/com/example/agent/model/ModelRouterTest.java`；
+  依赖: `T1.5-11`；
+  需求映射: `FR-015`、`FR-018`、`FR-019`、`FR-024`；
+  验收标准: 路由规则可配置且选型可追溯。
+
+---
+
 ## `Phase 2`：task-history / timeline + memory-system（`US2`，P2）
 
 **Goal**: 事件持久化、历史查询与时间线生成，记忆存取与检索
@@ -369,11 +507,97 @@ description: "Task list for Java Shannon Agent Orchestrator Core"
 
 ---
 
-## `Phase 3`：scheduled-tasks + authentication / multitenancy + token-budget-tracking（`US3`，P3）
+## `Phase 2.5`：Multi-agent + Advanced Reasoning
+**Goal**: 构建多智能体编排与高级推理能力，支持 `DAG`/`Supervisor`/`Handoff` 与 `ToT`/`Debate`/`Deep Research`
+**Independent Test**: 构造并行 `DAG` 任务触发交接，`ToT` 生成多候选并输出包含 `citations` 的研究结果
 
-**Goal**: 定时任务、鉴权增强与预算计量的完整闭环
+- [ ] T2.5-1 [P] 目标/交付: 多智能体 DTO；包/类/接口: `com.example.agent.multiagent.AgentRole`、
+  `com.example.agent.multiagent.AgentGraph`、`com.example.agent.multiagent.HandoffRequest`、
+  `com.example.agent.multiagent.HandoffResult`、`com.example.agent.multiagent.HandoffRecord`；
+  输入/输出: 角色配置/交接请求 -> 交接记录；日志/指标: DTO 定义不新增日志；
+  验证: 字段包含 `roleId`、`capabilities`、`permissions`、`budget`、`fromAgent`、`toAgent`；
+  路径: `src/main/java/com/example/agent/multiagent/AgentRole.java`、
+  `src/main/java/com/example/agent/multiagent/AgentGraph.java`、
+  `src/main/java/com/example/agent/multiagent/HandoffRequest.java`、
+  `src/main/java/com/example/agent/multiagent/HandoffResult.java`、
+  `src/main/java/com/example/agent/multiagent/HandoffRecord.java`；依赖: `T1.5-1`；
+  验收标准: 多智能体 DTO 与规格一致。
+- [ ] T2.5-2 目标/交付: `Supervisor` 调度与协调入口；包/类/接口:
+  `com.example.agent.multiagent.MultiAgentCoordinator`、`com.example.agent.multiagent.SupervisorCoordinator`；
+  输入/输出: `AgentGraph` -> 执行结果；日志/指标: 团队创建/解散记录 `info`，指标更新 `agent.handoff.count`；
+  验证: 角色分配与预算拆分生效；
+  路径: `src/main/java/com/example/agent/multiagent/MultiAgentCoordinator.java`、
+  `src/main/java/com/example/agent/multiagent/SupervisorCoordinator.java`；依赖: `T2.5-1`、`T1.5-3`；
+  验收标准: `Supervisor` 可按策略分配角色并追踪结果。
+- [ ] T2.5-3 目标/交付: `DAG` 执行器与失败传播；包/类/接口: `com.example.agent.multiagent.AgentGraphExecutor`；
+  输入/输出: 依赖图 -> 执行结果；并发隔离: 基于 `Reactor` 控制并行度；
+  日志/指标: 并行执行记录 `info`，指标更新 `agent.parallel.count`；
+  验证: `fail-fast` 与部分成功模式可配置；
+  路径: `src/main/java/com/example/agent/multiagent/AgentGraphExecutor.java`；依赖: `T2.5-2`；
+  验收标准: 依赖顺序正确且失败传播符合配置。
+- [ ] T2.5-4 目标/交付: `Handoff` 服务与上下文传递；包/类/接口: `com.example.agent.multiagent.HandoffService`；
+  输入/输出: `HandoffRequest` -> `HandoffResult`；
+  日志/指标: 交接记录 `info`，指标更新 `agent.handoff.count`；
+  验证: 权限校验与上下文注入生效；
+  路径: `src/main/java/com/example/agent/multiagent/HandoffService.java`；依赖: `T2.5-1`；
+  验收标准: 交接链路可追溯且不越权。
+- [ ] T2.5-5 [P] 目标/交付: `ToT` 推理引擎；包/类/接口: `com.example.agent.reasoning.ThoughtTreeService`、
+  `com.example.agent.reasoning.ThoughtNode`；输入/输出: 提示词 -> 多候选与评分；
+  日志/指标: 分支扩展记录 `debug`，指标更新 `reasoning.tot.branch.count`；
+  验证: `beamWidth` 与剪枝规则生效；
+  路径: `src/main/java/com/example/agent/reasoning/ThoughtTreeService.java`、
+  `src/main/java/com/example/agent/reasoning/ThoughtNode.java`；依赖: `T1.5-3`；
+  验收标准: `ToT` 可生成多候选并选择最佳结果。
+- [ ] T2.5-6 [P] 目标/交付: `Debate` 协调器；包/类/接口: `com.example.agent.reasoning.DebateCoordinator`、
+  `com.example.agent.reasoning.DebateRound`；输入/输出: 多立场 -> 综合结论；
+  日志/指标: 轮次记录 `info`，指标更新 `reasoning.debate.round.count`；
+  验证: 轮次上限与共识检测生效；
+  路径: `src/main/java/com/example/agent/reasoning/DebateCoordinator.java`、
+  `src/main/java/com/example/agent/reasoning/DebateRound.java`；依赖: `T2.5-5`；
+  验收标准: `Debate` 流程可选启用且无无限循环。
+- [ ] T2.5-7 [P] 目标/交付: `Deep Research` 管线与引用输出；包/类/接口:
+  `com.example.agent.research.ResearchPipeline`、`com.example.agent.research.ResearchCitation`；
+  输入/输出: 研究请求 -> 报告与 `citations`；
+  日志/指标: 引用收集记录 `info`，指标更新 `research.citation.count`；
+  验证: `web-search`/`web-fetch` 工具链调用成功且引用可追溯；
+  路径: `src/main/java/com/example/agent/research/ResearchPipeline.java`、
+  `src/main/java/com/example/agent/research/ResearchCitation.java`；依赖: `T1.5-7`、`T2.5-5`；
+  验收标准: 输出包含来源、片段与检索时间。
+- [ ] T2.5-8 [P] 目标/交付: `AgentProfile`/`AgentConfig` 配置层；
+  包/类/接口: `com.example.agent.multiagent.AgentProfile`、`com.example.agent.multiagent.AgentConfig`、
+  `com.example.agent.multiagent.AgentProfileProperties`；
+  输入/输出: `application.yml` 配置 -> 角色画像与权限边界；
+  日志/指标: 配置加载记录 `info`，包含 `profileId`；
+  验证: `./mvnw test -Dtest=AgentProfilePropertiesTest` 校验配置绑定与默认值；
+  路径: `src/main/java/com/example/agent/multiagent/AgentProfile.java`、
+  `src/main/java/com/example/agent/multiagent/AgentConfig.java`、
+  `src/main/java/com/example/agent/multiagent/AgentProfileProperties.java`、
+  `src/main/resources/application.yml`、
+  `src/test/java/com/example/agent/multiagent/AgentProfilePropertiesTest.java`；
+  依赖: `T2.5-1`；
+  需求映射: `FR-021`；
+  验收标准: 角色配置可加载且权限边界可追溯。
+- [ ] T2.5-9 [P] 目标/交付: `DeepResearchWorkflow` 配置层；
+  包/类/接口: `com.example.agent.research.DeepResearchWorkflowConfig`、
+  `com.example.agent.research.DeepResearchWorkflowProperties`；
+  输入/输出: `application.yml` 配置 -> 研究流程约束；
+  日志/指标: 配置加载记录 `info`；
+  验证: `./mvnw test -Dtest=DeepResearchWorkflowConfigTest` 校验配置绑定；
+  路径: `src/main/java/com/example/agent/research/DeepResearchWorkflowConfig.java`、
+  `src/main/java/com/example/agent/research/DeepResearchWorkflowProperties.java`、
+  `src/main/resources/application.yml`、
+  `src/test/java/com/example/agent/research/DeepResearchWorkflowConfigTest.java`；
+  依赖: `T2.5-7`；
+  需求映射: `FR-022`；
+  验收标准: 研究流程配置可加载且可被管线引用。
 
-**Independent Test**: 不同租户访问同一任务被拒绝，预算汇总可查询且无重复计量
+---
+
+## `Phase 3`：scheduled-tasks + authentication / multitenancy + token-budget-tracking + production / enterprise（`US3`，P3）
+
+**Goal**: 定时任务、鉴权增强、预算计量与生产治理/企业安全的完整闭环
+
+**Independent Test**: 不同租户访问同一任务被拒绝，预算汇总可查询且无重复计量；触发 `OPA` 拒绝与 `WASI` 资源限制可返回一致错误并记录审计
 
 - [ ] T3-1 [US3] 目标/交付: 鉴权与多租户策略增强（基于 `Phase 1` `MVP`）；
   包/类/接口: `com.example.agent.auth.AuthService`、`com.example.agent.auth.ApiKeyAuthenticator`、
@@ -463,6 +687,59 @@ description: "Task list for Java Shannon Agent Orchestrator Core"
   路径: `src/main/java/com/example/agent/agentcore/ToolExecutor.java`；
   依赖: `T1-6`、`T3-6`、`T3-8`；
   验收标准: 计量调用覆盖所有工具执行分支且不影响主流程。
+- [ ] T3-10 目标/交付: 回放与可重放调试服务；
+  包/类/接口: `com.example.agent.governance.ReplayService`、`com.example.agent.governance.ReplayRequest`、
+  `com.example.agent.governance.ReplayResponse`、`com.example.agent.governance.ReplaySession`；
+  输入/输出: `ReplayRequest` -> `ReplayResponse`；
+  日志/指标: 回放开始/结束记录 `info`，指标更新 `replay.count`；
+  验证: 回放输出事件序列与历史一致；
+  路径: `src/main/java/com/example/agent/governance/ReplayService.java`、
+  `src/main/java/com/example/agent/governance/ReplayRequest.java`、
+  `src/main/java/com/example/agent/governance/ReplayResponse.java`；依赖: `T1.5-2`、`T2-3`；
+  验收标准: 支持指定范围重放并可追溯差异。
+- [ ] T3-11 目标/交付: 限流/背压与熔断矩阵；
+  包/类/接口: `com.example.agent.governance.RateLimitService`、`com.example.agent.governance.CircuitBreakerManager`；
+  输入/输出: 请求上下文 -> 放行/背压/熔断决策；
+  日志/指标: 限流记录 `warn`，熔断记录 `error`，指标更新 `rate.limit.count`、`circuit.open.count`；
+  验证: 按租户与工具维度限流生效；
+  路径: `src/main/java/com/example/agent/governance/RateLimitService.java`、
+  `src/main/java/com/example/agent/governance/CircuitBreakerManager.java`；依赖: `T1.5-3`、`T1.5-7`；
+  验收标准: 背压触发 `BACKPRESSURE_APPLIED` 且熔断可恢复。
+- [ ] T3-12 目标/交付: `OPA` 策略评估引擎；
+  包/类/接口: `com.example.agent.policy.PolicyEngine`、`com.example.agent.policy.PolicyRequest`、
+  `com.example.agent.policy.PolicyDecision`；
+  输入/输出: 请求上下文 -> `PolicyDecision`；
+  日志/指标: `POLICY_DENIED` 记录 `warn`，指标更新 `policy.deny.count`；
+  验证: 默认拒绝规则生效且审计记录可查询；
+  路径: `src/main/java/com/example/agent/policy/PolicyEngine.java`、
+  `src/main/java/com/example/agent/policy/PolicyRequest.java`、
+  `src/main/java/com/example/agent/policy/PolicyDecision.java`；依赖: `T0-5`；
+  验收标准: `OPA` 拒绝返回 `POLICY_DENIED` 且不绕过租户校验。
+- [ ] T3-13 目标/交付: `WASI` 沙箱执行器；
+  包/类/接口: `com.example.agent.sandbox.WasiSandboxExecutor`、`com.example.agent.sandbox.SandboxRequest`、
+  `com.example.agent.sandbox.SandboxResult`；
+  输入/输出: 工具执行请求 -> 沙箱执行结果；
+  日志/指标: 违规记录 `error`，指标更新 `sandbox.violation.count`；
+  验证: 文件/网络/资源限制生效；
+  路径: `src/main/java/com/example/agent/sandbox/WasiSandboxExecutor.java`、
+  `src/main/java/com/example/agent/sandbox/SandboxRequest.java`、
+  `src/main/java/com/example/agent/sandbox/SandboxResult.java`；依赖: `T1-6`、`T3-11`；
+  验收标准: 资源耗尽与超时可触发 `SANDBOX_VIOLATION`。
+- [ ] T3-14 目标/交付: 预算触发模型降级策略；
+  包/类/接口: `com.example.agent.model.ModelFallbackPolicy`、`com.example.agent.model.ModelFallbackDecision`；
+  输入/输出: 预算阈值 -> 降级决策；
+  日志/指标: 降级记录 `warn`，指标更新 `model.fallback.count`；
+  验证: 预算超限触发模型降级且记录原因；
+  路径: `src/main/java/com/example/agent/model/ModelFallbackPolicy.java`、
+  `src/main/java/com/example/agent/model/ModelFallbackDecision.java`；依赖: `T3-8`、`T3-12`；
+  验收标准: 降级不绕过策略评估与租户隔离。
+- [ ] T3-15 目标/交付: 生产治理与安全表结构迁移；
+  包/类/接口: 数据迁移脚本；
+  输入/输出: 迁移脚本 -> `replay_sessions`、`runtime_limits`、`policy_audit`、`sandbox_runs`、`model_fallbacks`；
+  日志/指标: 迁移过程不新增日志；
+  验证: 表结构包含 `tenant_id`、`created_at` 与索引；
+  路径: `src/main/resources/db/migration/V1__governance_security_tables.sql`；依赖: `T3-10`、`T3-12`、`T3-13`、`T3-14`；
+  验收标准: 迁移脚本可在本地执行且结构符合规格。
 
 ---
 
@@ -474,7 +751,8 @@ description: "Task list for Java Shannon Agent Orchestrator Core"
   包/类/接口: `openapi` 定义；
   输入/输出: 规格与实现字段 -> `openapi.yaml`；
   日志/指标: 不新增日志；
-  验证: `StreamEvent`、`TaskRequest.idempotencyKey`、`TokenUsageInput.usageId` 字段齐全；
+  验证: `StreamEvent`、`TaskRequest.idempotencyKey`、`TokenUsageInput.usageId`、`StepRecord`、
+  `McpToolCallRequest`、`PolicyRequest`、`ReplayRequest` 字段齐全；
   路径: `specs/001-agent-core-spec/contracts/openapi.yaml`；依赖: `T1-2`、`T1-3`、`T3-6`；
   需求映射: `maintenance`（非需求任务）。
   验收标准: 契约与 `spec.md` 字段一致。
@@ -482,7 +760,7 @@ description: "Task list for Java Shannon Agent Orchestrator Core"
   包/类/接口: 快速启动文档；
   输入/输出: 新增参数 -> 验证步骤；
   日志/指标: 不新增日志；
-  验证: 手动执行 `quickstart.md` 步骤可完成一次任务提交与订阅；
+  验证: 手动执行 `quickstart.md` 步骤可完成任务提交、`SSE` 订阅与失败恢复/安全验证；
   路径: `specs/001-agent-core-spec/quickstart.md`；依赖: `T1-9`、`T1-8`；
   需求映射: `maintenance`（非需求任务）。
   验收标准: 文档步骤可复现且与接口一致。
@@ -554,8 +832,10 @@ description: "Task list for Java Shannon Agent Orchestrator Core"
 
 - **`Phase 0`**: 无依赖
 - **`Phase 1`**: 依赖 `Phase 0`
+- **`Phase 1.5`**: 依赖 `Phase 1`
 - **`Phase 2`**: 依赖 `Phase 1`
-- **`Phase 3`**: 依赖 `Phase 1` 与 `Phase 2` 的核心能力
+- **`Phase 2.5`**: 依赖 `Phase 1.5`
+- **`Phase 3`**: 依赖 `Phase 1`、`Phase 1.5`、`Phase 2` 与 `Phase 2.5` 的核心能力
 - **`Phase 4`**: 依赖所有实现任务完成
 
 ### User Story Dependencies
@@ -568,7 +848,9 @@ description: "Task list for Java Shannon Agent Orchestrator Core"
 
 - `Phase 0` 中标记 `[P]` 的任务可并行
 - `Phase 1` 中 `T1-1`、`T1-2`、`T1-3` 可并行
+- `Phase 1.5` 中 `T1.5-1`、`T1.5-5`、`T1.5-6`、`T1.5-7`、`T1.5-8`、`T1.5-9`、`T1.5-11` 可并行
 - `Phase 2` 中 `T2-1`、`T2-6` 可并行
+- `Phase 2.5` 中 `T2.5-1`、`T2.5-5`、`T2.5-6`、`T2.5-7` 可并行
 - `Phase 3` 中 `T3-2` 与 `T3-6` 可并行
 - `Phase 4` 中 `T4-1`~`T4-9` 可并行
 
@@ -608,10 +890,12 @@ T3-6 预算 DTO
 
 1. 完成 `Phase 0`
 2. 完成 `Phase 1`
-3. 验证 `US1` 独立可用（任务提交 + `SSE` 订阅）
+3. 完成 `Phase 1.5`
+4. 验证 `US1` 独立可用（任务提交 + `SSE` 订阅 + `ReAct` 循环）
 
 ### 增量交付
 
 1. `US1` 完成后进入 `US2`（历史与时间线）
-2. `US2` 完成后进入 `US3`（多租户、调度、预算）
-3. 最后同步契约与文档（`Phase 4`）
+2. 完成 `Phase 2.5`（多智能体与高级推理）
+3. 完成 `Phase 3`（生产治理与企业安全）
+4. 最后同步契约与文档（`Phase 4`）

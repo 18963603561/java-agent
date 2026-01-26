@@ -1,21 +1,21 @@
 package com.example.agent.orchestrator;
 
-import com.example.agent.agentcore.EnforcementGateway;
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.runtime.AgentRuntime;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.stereotype.Service;
 
 /**
- * 工作流路由器，用于将任务路由到执行网关。
+ * 工作流路由器，用于将任务路由到执行入口。
  */
 @Service
 public class WorkflowRouter {
 
-    private final EnforcementGateway enforcementGateway;
+    private final AgentRuntime agentRuntime;
 
-    public WorkflowRouter(EnforcementGateway enforcementGateway) {
-        this.enforcementGateway = enforcementGateway;
+    public WorkflowRouter(AgentRuntime agentRuntime) {
+        this.agentRuntime = agentRuntime;
     }
 
     /**
@@ -29,6 +29,6 @@ public class WorkflowRouter {
      */
     public void route(TaskRequest request, TenantContext tenantContext, String workflowId, String taskId,
                       AtomicLong seqCounter) {
-        enforcementGateway.execute(request, tenantContext, workflowId, taskId, seqCounter);
+        agentRuntime.run(request, tenantContext, workflowId, taskId, seqCounter);
     }
 }

@@ -92,6 +92,16 @@
 - **FR-013**: 规格必须提供 `Shannon` 源模块/目录/文件到 `Java` 模块/`package`/
   `interface`/`class` 的映射表，并作为实现阶段唯一设计依据。
 - **FR-014**: 对无法 `1:1` 对齐的模块或接口，必须说明差异原因、`Java` 侧替代设计与兼容边界。
+- **FR-015**: 系统必须提供 `ReAct` 决策循环（`Think`/`Act`/`Observe`）并支持可配置的终止条件与循环护栏。
+- **FR-016**: 系统必须提供 `Step` 模型与状态机，记录每步输入输出、状态迁移与可回放审计。
+- **FR-017**: 系统必须定义失败分类与恢复策略矩阵，支持 `retry`/`fallback`/`decompose`/`stop`。
+- **FR-018**: 系统必须提供 `Planner` 任务拆分与计划生成能力，输出依赖关系与执行策略。
+- **FR-019**: 系统必须提供 `Reflection`/`Self-check` 质量评估与失败自修复能力，避免无限循环。
+- **FR-020**: 系统必须支持 `MCP` 工具协议（`tools/list`、`tools/call`）、`Skill` 模型（schema/路由/版本）与 `Hook` 扩展（pre/post tool、pre/post step）。
+- **FR-021**: 系统必须支持多智能体编排（`DAG`/`Supervisor`/`Handoff`），并具备角色模型、权限边界与失败传播规则。
+- **FR-022**: 系统必须支持高级推理能力（`ToT`/`Debate`/`Deep Research`）并提供可追溯引用结构。
+- **FR-023**: 系统必须具备生产治理能力：回放/可重放调试、限流/背压、熔断/超时/重试矩阵与数据层落地。
+- **FR-024**: 系统必须提供企业级安全能力：`OPA` 策略评估、`WASI` 沙箱执行与预算触发的模型降级。
 
 ### Key Entities *(include if feature involves data)*
 
@@ -102,6 +112,20 @@
 - **`Schedule`**: 定时任务实体，包含 `cron`、预算、执行策略与 `tenantId`。
 - **`TokenUsage`**: 预算计量实体，包含输入输出 `token`、成本与 `tenantId`。
 - **`TenantContext`**: 多租户上下文，包含租户、用户与权限信息。
+- **`StepRecord`**: 运行时步骤记录，包含 `stepId`、`workflowId`、`type`、`status`、`attempt`、`input`、`output`、`errorCode` 与 `tenantId`。
+- **`Plan`**: 规划实体，包含任务拆分、依赖关系与执行策略。
+- **`ReflectionReport`**: 反思评估实体，包含评分、反馈与是否重试。
+- **`ToolInvocation`**: 工具调用记录，包含 `toolName`、参数、耗时与结果摘要。
+- **`SkillDefinition`**: 技能定义实体，包含 `name`、`version`、`schema`、`routes` 与约束。
+- **`HookRecord`**: Hook 执行记录，包含 `hookType`、阶段、决策与耗时。
+- **`AgentRole`**: 多智能体角色模型，包含能力、权限与预算边界。
+- **`HandoffRecord`**: 交接记录，包含 `fromAgent`、`toAgent`、上下文与状态。
+- **`ReasoningTree`**: 推理树实体，包含分支、评分与剪枝记录。
+- **`ResearchCitation`**: 引用实体，包含来源、片段与检索时间。
+- **`ReplaySession`**: 回放会话实体，包含 `replayId`、`taskId`、范围与状态。
+- **`PolicyDecision`**: 策略决策实体，包含 `policyId`、`decision`、`reason`。
+- **`SandboxRun`**: 沙箱执行实体，包含资源限制与执行结果。
+- **`ModelFallbackDecision`**: 模型降级记录，包含触发条件与目标模型。
 
 ### 功能需求验收要点
 
@@ -119,6 +143,16 @@
 - FR-012: 模块与接口、数据结构、事件流与存储的对应关系清晰可追溯。
 - FR-013: 映射表完整覆盖 `Shannon` 源模块并指向对应 `Java` 设计落点。
 - FR-014: 差异说明包含原因、替代设计与兼容边界。
+- FR-015: 决策循环支持 `Think`/`Act`/`Observe` 且终止条件可配置。
+- FR-016: `Step` 状态机与步骤时间线可查询且可回放。
+- FR-017: 失败分类与恢复策略矩阵生效且可追溯。
+- FR-018: 规划结果包含依赖关系与执行策略并可查询。
+- FR-019: 反思评估可触发自修复且不会无限循环。
+- FR-020: `MCP` 工具调用、`Skill` 路由版本与 `Hook` 执行可验证。
+- FR-021: 多智能体编排支持 `DAG`/`Supervisor`/`Handoff` 且失败传播规则清晰。
+- FR-022: 高级推理输出包含可追溯引用结构。
+- FR-023: 回放、限流/背压、熔断/超时/重试矩阵与数据层落地可验证。
+- FR-024: `OPA` 拒绝、`WASI` 限制与预算触发降级可验证。
 
 ## Success Criteria *(mandatory)*
 
@@ -188,6 +222,312 @@
 - 不提供终端用户通用界面。
 - 不保证覆盖所有第三方工具与外部系统。
 
+## Agent Runtime 与决策循环
+
+`Agent Runtime` 负责驱动 `ReAct` 决策循环（`Think`/`Act`/`Observe`），将任务执行拆解为可观测步骤序列，并在运行期应用终止护栏。
+
+### 功能需求
+- **FR-015**: 系统必须提供 `ReAct` 决策循环，支持 `Think`、`Act`、`Observe` 三阶段与可配置循环护栏（`MaxIterations`、`MinIterations`、`ObservationWindow`、`StepTimeout`、预算阈值、人工中断）。
+
+### 关键规则
+- 循环最小步数未满足时不得提前终止，除非触发安全护栏或显式取消。
+- `Observe` 结果必须写入步骤记录并进入下一轮 `Think`，禁止跳过观察导致状态漂移。
+- 终止后必须输出终止事件并记录终止原因与触发条件。
+
+### 验收口径
+- FR-015: 提交任务后可观察到 `Think`/`Act`/`Observe` 步骤序列，终止原因可追溯。
+- FR-015: 配置 `MaxIterations` 与 `ObservationWindow` 后，循环在限制内停止并输出对应事件。
+
+## Step 模型与状态机
+
+`Step` 是运行时最小执行单元，用于描述思考、行动、观察以及计划、反思与交接的状态演化。
+
+### 功能需求
+- **FR-016**: 系统必须提供 `Step` 模型与状态机，支持 `PENDING`、`RUNNING`、`SUCCEEDED`、`FAILED`、`SKIPPED`、`CANCELLED`、`WAITING`，并记录输入输出、重试次数、关联工具调用与租户信息。
+- **FR-016**: 系统必须提供步骤时间线查询能力（`timeline/steps`），按 `workflowId` 输出有序步骤。
+
+### 关键规则
+- `stepSeq` 在同一 `workflowId` 范围内单调递增，支持重放。
+- 每次状态迁移必须写入事件：`STEP_STARTED`、`STEP_COMPLETED`、`STEP_FAILED`、`STEP_SKIPPED`。
+- `WAITING` 状态只由背压、审批或外部依赖触发，恢复后进入 `RUNNING`。
+
+### 接口定义
+
+#### 步骤时间线查询
+
+方法与路径  
+`GET /api/v1/timeline/steps`
+
+请求头  
+`X-API-Key`  
+`X-Tenant-Id`  
+`X-Trace-Id`  
+`X-Request-Id`
+
+查询参数  
+- `workflowId`：必填，工作流标识。  
+- `cursor`：可选，分页游标。  
+- `size`：可选，分页大小，范围遵循分页通用约束。
+
+成功响应  
+- `ApiResponse<StepTimelineResponse>`  
+- `StepTimelineResponse`：`workflowId`、`steps`、`nextCursor`、`hasMore`  
+- `StepRecord`：`stepId`、`stepSeq`、`type`、`status`、`attempt`、`errorCode`、`startedAt`、`completedAt`
+
+错误响应  
+- `400`：`INVALID_REQUEST`、`INVALID_CURSOR`、`TENANT_MISSING`  
+- `403`：`POLICY_DENIED`  
+- `404`：`NOT_FOUND`  
+- `503`：`CIRCUIT_OPEN`
+
+事件与状态机关系  
+- 仅查询，不产生新的 `STEP_*` 事件。  
+- 返回的 `StepRecord.status` 必须满足状态机迁移规则。
+
+### 验收口径
+- FR-016: 状态机覆盖成功、失败、等待与取消场景，并支持重试计数。
+- FR-016: `timeline/steps` 返回步骤序列与状态变更时间。
+
+## 失败策略与恢复
+
+### 功能需求
+- **FR-017**: 系统必须定义失败分类与恢复策略矩阵，至少覆盖 `RETRYABLE`、`NON_RETRYABLE`、`POLICY_DENIED`、`SANDBOX_VIOLATION`、`BUDGET_EXCEEDED`、`TIMEOUT`、`DEPENDENCY_ERROR`，并支持 `retry`/`fallback`/`decompose`/`stop`。
+
+### 关键规则
+- `retry` 使用指数退避与最大次数限制，重试次数写入步骤记录。
+- `fallback` 支持工具替代与模型降级，必须记录触发原因与目标策略。
+- `decompose` 触发后进入 `Planner` 重新生成子任务并关联原步骤。
+- `stop` 需输出终止事件并保留失败上下文，禁止静默失败。
+
+### 验收口径
+- FR-017: 失败分类与策略矩阵配置生效，错误场景触发对应恢复动作。
+- FR-017: 失败事件与恢复动作可在事件流与时间线中追溯。
+
+## Planner/Reflection
+
+### 功能需求
+- **FR-018**: 系统必须提供 `Planner` 任务拆分与计划生成能力，输出依赖关系、执行策略与预算提示，支持 `DAG`。
+- **FR-019**: 系统必须提供 `Reflection`/`Self-check` 质量评估与失败自修复能力，支持反馈重写、阈值判定与最大迭代次数。
+
+### 关键规则
+- `Plan` 必须包含 `nodes`、`dependencies`、`expectedOutput`、`budgetHint`，并可持久化查询。
+- `Reflection` 失败必须返回可解释原因与改进建议，禁止无限循环（`MaxReflections`）。
+- 规划与反思结果必须写入事件并关联步骤。
+
+### 验收口径
+- FR-018: 复杂任务可生成包含依赖关系的计划并可查询。
+- FR-019: 质量评估触发重写且在阈值或上限达成后稳定结束。
+
+## MCP/Skills/Hooks
+
+### 功能需求
+- **FR-020**: 系统必须支持 `MCP` 工具协议（`tools/list`、`tools/call`），并提供 `Skill` 模型（schema/路由/版本）与 `Hook` 扩展（pre/post tool、pre/post step）。
+
+### 关键规则
+- `MCP` 调用必须支持域名白名单、超时、熔断与响应大小限制，默认拒绝未知域。
+- `Skill` 注册需包含 `name`、`version`、`schema`、`routes`、`constraints`，支持灰度与降级。
+- `Hook` 支持阻断/放行策略与超时降级，执行顺序可配置并写入审计记录。
+
+### 接口定义
+
+#### MCP 工具列表
+
+方法与路径  
+`POST /api/v1/mcp/tools/list`
+
+请求头  
+`X-API-Key`  
+`X-Tenant-Id`  
+`X-Trace-Id`  
+`X-Request-Id`
+
+请求体  
+`McpToolListRequest`  
+- `serverId`：必填，目标 `MCP` 服务标识。  
+- `cursor`：可选，分页游标。  
+- `size`：可选，分页大小，范围遵循分页通用约束。
+
+成功响应  
+- `ApiResponse<McpToolListResponse>`  
+- `McpToolListResponse`：`tools`、`nextCursor`、`hasMore`  
+- `McpToolDefinition`：`name`、`version`、`description`、`inputSchema`、`outputSchema`、`tags`
+
+错误响应  
+- `400`：`INVALID_REQUEST`、`TENANT_MISSING`  
+- `403`：`POLICY_DENIED`  
+- `404`：`NOT_FOUND`  
+- `503`：`MCP_UNAVAILABLE`、`CIRCUIT_OPEN`
+
+事件与状态机关系  
+- 启用 `Hook` 时记录 `HOOK_PRE_TOOL` 与 `HOOK_POST_TOOL`。  
+- 成功可记录 `TOOL_OBSERVATION`，失败记录 `TOOL_ERROR`。  
+- 仅查询工具清单，不推进 `Step` 状态机。
+
+#### MCP 工具调用
+
+方法与路径  
+`POST /api/v1/mcp/tools/call`
+
+请求头  
+`X-API-Key`  
+`X-Tenant-Id`  
+`X-Trace-Id`  
+`X-Request-Id`
+
+请求体  
+`McpToolCallRequest`  
+- `callId`：必填，调用幂等键。  
+- `serverId`：必填，目标 `MCP` 服务标识。  
+- `toolName`：必填，工具名称。  
+- `arguments`：可选，工具参数。  
+- `timeoutMs`：可选，超时毫秒。
+
+成功响应  
+- `ApiResponse<McpToolCallResponse>`  
+- `McpToolCallResponse`：`callId`、`status`、`result`、`error`
+
+错误响应  
+- `400`：`INVALID_REQUEST`、`TENANT_MISSING`  
+- `403`：`POLICY_DENIED`  
+- `404`：`NOT_FOUND`  
+- `409`：`HOOK_BLOCKED`  
+- `503`：`MCP_UNAVAILABLE`、`CIRCUIT_OPEN`
+
+事件与状态机关系  
+- 调用开始记录 `TOOL_INVOKED`，成功记录 `TOOL_OBSERVATION`，失败记录 `TOOL_ERROR`。  
+- 启用 `Hook` 时记录 `HOOK_PRE_TOOL` 与 `HOOK_POST_TOOL`。  
+- 在 `Step` 内调用时，失败会驱动对应步骤进入 `FAILED` 并遵循失败恢复策略。
+
+### 验收口径
+- FR-020: `tools/list` 可返回可用工具清单，`tools/call` 可返回执行结果或错误。
+- FR-020: `Skill` 路由与版本匹配生效，`Hook` 在 pre/post 阶段被触发并记录审计。
+
+## Multi-agent 编排
+
+### 功能需求
+- **FR-021**: 系统必须支持多智能体编排，包括 `DAG` 执行、`Supervisor` 调度与 `Handoff` 机制，并具备角色模型、权限边界与失败传播规则。
+
+### 关键规则
+- `Supervisor` 负责角色分配、预算拆分与失败阈值决策，并记录团队生命周期事件。
+- `Handoff` 需记录上下文传递与权限校验，支持顺序与并行交接。
+- 失败传播策略应支持 `fail-fast` 与部分成功两种模式，默认不隐藏失败原因。
+
+### 验收口径
+- FR-021: `DAG` 依赖执行与并行策略可配置且事件可追溯。
+- FR-021: `Handoff` 事件与权限校验记录完整，失败传播符合配置。
+
+## Advanced Reasoning
+
+### 功能需求
+- **FR-022**: 系统必须支持 `ToT`、`Debate` 与 `Deep Research` 等高级推理模式，并输出可追溯引用结构。
+
+### 关键规则
+- `ToT` 最小实现包含多分支候选生成、评分、剪枝与停止条件（`maxDepth`、`beamWidth`）。
+- `Debate` 支持立场生成、论辩轮次、共识检测与最终综合，允许可选启用。
+- `Deep Research` 使用 `web-search`/`web-fetch` 工具链，输出 `citations` 列表（来源、片段、检索时间、可信度）。
+
+### 验收口径
+- FR-022: `ToT` 能生成多候选并依据评分选择结果。
+- FR-022: `Deep Research` 输出报告包含引用结构且引用可追溯。
+
+## Production 治理
+
+### 功能需求
+- **FR-023**: 系统必须具备回放/可重放调试、限流/背压、熔断/超时/重试矩阵与数据层落地能力。
+
+### 关键规则
+- 回放以 `StepRecord` 与事件日志为基础，支持指定范围重放与差异对比。
+- 限流/背压按租户与任务维度配置，触发时进入 `WAITING` 并记录 `BACKPRESSURE_APPLIED`。
+- 熔断/超时/重试矩阵需覆盖外部调用（`HTTP`/`DB`/`MQ`/文件系统/`MCP`），并支持按工具类别配置。
+- 数据层必须提供表结构、迁移脚本与读写职责分层，避免业务逻辑与持久化耦合。
+
+### 接口定义
+
+#### 任务回放
+
+方法与路径  
+`POST /api/v1/replay`
+
+请求头  
+`X-API-Key`  
+`X-Tenant-Id`  
+`X-Trace-Id`  
+`X-Request-Id`
+
+请求体  
+`ReplayRequest`  
+- `taskId`：必填，任务标识。  
+- `fromStepId`：可选，回放起始步骤。  
+- `toStepId`：可选，回放结束步骤。  
+- `mode`：可选，回放模式。
+
+成功响应  
+- `ApiResponse<ReplayResponse>`  
+- `ReplayResponse`：`replayId`、`status`、`startedAt`、`completedAt`
+
+错误响应  
+- `400`：`INVALID_REQUEST`、`TENANT_MISSING`  
+- `403`：`POLICY_DENIED`  
+- `404`：`REPLAY_NOT_FOUND`  
+- `503`：`CIRCUIT_OPEN`
+
+事件与状态机关系  
+- 回放开始记录 `REPLAY_STARTED`，结束记录 `REPLAY_COMPLETED`。  
+- 回放仅基于历史重建，不产生新的 `STEP_*` 状态迁移。
+
+### 验收口径
+- FR-023: 重放可复现步骤序列并输出一致的事件轨迹。
+- FR-023: 限流/背压与熔断规则生效且可观测。
+
+## Enterprise 安全
+
+### 功能需求
+- **FR-024**: 系统必须提供 `OPA` 策略评估、`WASI` 沙箱执行与预算触发模型降级能力。
+
+### 关键规则
+- `OPA` 默认拒绝，评估输入包含租户、用户、动作、资源与上下文，结果写入审计日志。
+- `WASI` 沙箱限制文件系统、网络、环境变量与资源配额（CPU、内存、超时），并记录违规原因。
+- 预算触发降级需支持模型分层与回退记录，确保降级不绕过策略。
+
+### 接口定义
+
+#### 策略评估
+
+方法与路径  
+`POST /api/v1/policy/evaluate`
+
+请求头  
+`X-API-Key`  
+`X-Tenant-Id`  
+`X-Trace-Id`  
+`X-Request-Id`
+
+请求体  
+`PolicyRequest`  
+- `policyId`：必填，策略标识。  
+- `action`：必填，动作名称。  
+- `resource`：必填，资源标识。  
+- `input`：可选，上下文输入。
+
+成功响应  
+- `ApiResponse<PolicyDecision>`  
+- `PolicyDecision`：`policyId`、`decision`、`reason`、`evaluationId`、`matchedRules`
+
+错误响应  
+- `400`：`INVALID_REQUEST`、`TENANT_MISSING`  
+- `403`：`POLICY_DENIED`  
+- `404`：`NOT_FOUND`  
+- `503`：`CIRCUIT_OPEN`
+
+事件与状态机关系  
+- 评估成功记录 `POLICY_EVALUATED`，拒绝记录 `POLICY_DENIED`。  
+- 拒绝可驱动运行时步骤进入 `FAILED` 并记录失败分类 `POLICY_DENIED`。
+
+### 验收口径
+- FR-024: `OPA` 拒绝时返回一致错误码并记录审计日志。
+- FR-024: `WASI` 资源限制可通过测试用例验证。
+- FR-024: 预算阈值触发模型降级且事件可追溯。
+
 ## 流程图节点与模块映射
 
 以下映射基于 `vendor/data/` 的流程图节点与阶段，标明在 `Java` 模块中的落点。
@@ -200,6 +540,12 @@
 - **工具调用与观察** -> `ToolExecutor`、`ObservationCollector` 输出 `ToolResult`。
 - **反馈与记忆落盘** -> `MemoryStore` 输出 `MemoryRecord` 并写入存储。
 - **审计与观测** -> `EventLogService`、`MetricsPublisher` 输出 `EventLogRecord`。
+- **决策循环与步骤状态机** -> `AgentRuntime`、`StepEngine` 输出 `StepRecord`。
+- **规划与反思** -> `PlannerService`、`ReflectionService` 输出 `Plan` 与 `ReflectionReport`。
+- **多智能体编排与交接** -> `SupervisorCoordinator`、`HandoffService` 输出 `HandoffRecord`。
+- **高级推理与研究** -> `ThoughtTreeService`、`DebateCoordinator`、`ResearchPipeline` 输出 `ReasoningTree` 与 `ResearchCitation`。
+- **生产治理与回放** -> `ReplayService`、`RateLimitService`、`CircuitBreakerManager` 输出 `ReplaySession`。
+- **企业策略与沙箱** -> `PolicyEngine`、`WasiSandboxExecutor` 输出 `PolicyDecision` 与 `SandboxRun`。
 
 ## 模块划分
 
@@ -212,6 +558,13 @@
 7. **鉴权与租户模块（`authentication & multitenancy`）**: 鉴权入口与租户上下文解析。
 8. **预算与成本模块（`token budget tracking`）**: `token` 计量、成本聚合与阈值事件。
 9. **观测模块（`observability`）**: 指标、日志与链路追踪。
+10. **运行时模块（`runtime`）**: 决策循环、`Step` 状态机与终止条件控制。
+11. **规划与反思模块（`planning`/`reflection`）**: 任务拆分、计划生成与质量自检。
+12. **工具扩展模块（`tools`）**: `MCP` 工具接入、`Skill` 注册表与 `Hook` 执行。
+13. **多智能体编排模块（`multi-agent`）**: `Supervisor` 调度、`DAG` 执行与 `Handoff`。
+14. **高级推理模块（`reasoning`）**: `ToT`、`Debate` 与 `Deep Research` 流程。
+15. **生产治理模块（`governance`）**: 回放、限流/背压、熔断/超时/重试矩阵。
+16. **企业安全模块（`enterprise`）**: `OPA` 策略、`WASI` 沙箱与模型降级。
 
 ### 模块边界与职责约束
 - 内部事件总线采用 `Spring ApplicationEvent` + `Reactor Sinks`，由 `TaskOrchestrator` 发布 `StreamEvent`，
@@ -224,6 +577,12 @@
 - `memory system` 仅负责会话/语义/压缩记忆，不保存任务事件历史。
 - `authentication & multitenancy` 仅负责鉴权与租户上下文解析，禁止嵌入业务流程判断。
 - `token budget tracking` 仅负责计量、聚合与阈值事件发布，不负责鉴权与事件分发。
+- `runtime` 仅负责步骤状态机推进与终止判定，步骤持久化通过 `history` 模块落盘。
+- `planning`/`reflection` 仅负责计划与自检，不直接执行工具调用。
+- `tools` 仅负责工具注册、调用与 `Hook` 扩展，不管理任务生命周期。
+- `multi-agent` 仅负责编排、交接与失败传播，不直接执行业务工具。
+- `governance` 仅负责限流/背压/熔断/回放治理，不侵入业务规则。
+- `enterprise` 仅负责策略评估与沙箱隔离，拒绝结果不得绕过租户与预算约束。
 
 ## 模块到接口到数据结构到事件流到存储落点
 
@@ -236,6 +595,13 @@
 | 调度模块 | `ScheduleManager` | `ScheduleSpec`、`ScheduleExecutionRecord` | `SCHEDULE_TRIGGERED` | `scheduled_tasks` |
 | 预算与成本模块 | `TokenBudgetManager` | `TokenUsageRecord`、`TokenUsageSummary` | `BUDGET_THRESHOLD` | `token_usage` |
 | 鉴权与租户模块 | `AuthService` | `TenantContext`、`UserContext` | `AUTH_FAILED` | `auth.tenants` |
+| 运行时模块 | `StepRuntimeService` | `StepRecord`、`StepQuery` | `STEP_STARTED`、`STEP_COMPLETED` | `task_steps` |
+| 规划与反思模块 | `PlannerService`、`ReflectionService` | `Plan`、`ReflectionReport` | `PLAN_GENERATED`、`REFLECTION_COMPLETED` | `plans`、`reflection_reports` |
+| 工具扩展模块 | `McpToolClient`、`SkillRegistry`、`HookManager` | `McpToolDefinition`、`SkillDefinition`、`HookRecord` | `MCP_TOOL_LISTED`、`HOOK_EXECUTED` | `tool_registry`、`skill_registry` |
+| 多智能体编排模块 | `SupervisorCoordinator`、`HandoffService` | `AgentRole`、`HandoffRecord` | `HANDOFF_REQUESTED`、`HANDOFF_COMPLETED` | `agent_runs`、`agent_handoffs` |
+| 高级推理模块 | `ThoughtTreeService`、`ResearchPipeline` | `ReasoningTree`、`ResearchCitation` | `THOUGHT_EXPANDED`、`RESEARCH_SOURCE_ADDED` | `reasoning_runs`、`research_sources` |
+| 生产治理模块 | `ReplayService`、`RateLimitService`、`CircuitBreakerManager` | `ReplaySession`、`RateLimitRule`、`CircuitState` | `REPLAY_STARTED`、`CIRCUIT_OPENED`、`BACKPRESSURE_APPLIED` | `replay_sessions`、`runtime_limits` |
+| 企业安全模块 | `PolicyEngine`、`WasiSandboxExecutor` | `PolicyDecision`、`SandboxRun`、`ModelFallbackDecision` | `POLICY_DENIED`、`SANDBOX_VIOLATION`、`MODEL_FALLBACK_APPLIED` | `policy_audit`、`sandbox_runs`、`model_fallbacks` |
 
 ## `Shannon` 模块对齐映射表
 
@@ -255,8 +621,8 @@
 
 - `Shannon` 为多语言分层架构（`Go`/`Rust`/`Python`），`Java` 版本在单进程内以
   模块化方式承载 `orchestrator` 与 `agent core`，跨语言边界转为模块内接口调用。
-- `WASI` 沙箱在 `Java` 侧保留 `SandboxExecutor` 扩展点，默认不内置运行时；
-  若引入外部沙箱必须在规格中补充兼容边界。
+- `WASI` 沙箱在 `Java` 侧提供 `WasiSandboxExecutor` 落地实现，运行时通过可配置适配层接入；
+  必须在规格中给出资源限制、隔离范围与兼容边界。
 - `gRPC` 与 `HTTP` 边界在 `Java` 侧以 `WebFlux` 接口与 `Reactor` 流式抽象统一，
   仍保持事件类型与持久化语义一致。
 - 任何偏离映射表的新增抽象必须先更新本规格并说明原因。
@@ -304,6 +670,52 @@ public interface ScheduleManager {
 public interface TokenBudgetManager {
     void recordUsage(TokenUsageInput input, TenantContext tenantContext);
     TokenUsageSummary aggregate(TaskId taskId, TenantContext tenantContext);
+}
+
+public interface StepRuntimeService {
+    StepResponse runStep(StepRequest request, TenantContext tenantContext);
+    StepTimelineResponse querySteps(StepQuery query, TenantContext tenantContext);
+}
+
+public interface PlannerService {
+    PlanResult plan(PlanRequest request, TenantContext tenantContext);
+}
+
+public interface ReflectionService {
+    ReflectionResult reflect(ReflectionRequest request, TenantContext tenantContext);
+}
+
+public interface HookManager {
+    HookDecision preTool(HookContext context, TenantContext tenantContext);
+    HookDecision postTool(HookContext context, TenantContext tenantContext);
+    HookDecision preStep(HookContext context, TenantContext tenantContext);
+    HookDecision postStep(HookContext context, TenantContext tenantContext);
+}
+
+public interface SkillRegistry {
+    SkillDefinition resolve(SkillQuery query, TenantContext tenantContext);
+}
+
+public interface McpToolClient {
+    McpToolList list(McpToolListRequest request, TenantContext tenantContext);
+    McpToolResult call(McpToolCallRequest request, TenantContext tenantContext);
+}
+
+public interface MultiAgentCoordinator {
+    AgentGraphResult executeGraph(AgentGraphRequest request, TenantContext tenantContext);
+    HandoffResult handoff(HandoffRequest request, TenantContext tenantContext);
+}
+
+public interface ReplayService {
+    ReplayResponse replay(ReplayRequest request, TenantContext tenantContext);
+}
+
+public interface PolicyEngine {
+    PolicyDecision evaluate(PolicyRequest request, TenantContext tenantContext);
+}
+
+public interface WasiSandboxExecutor {
+    SandboxResult execute(SandboxRequest request, TenantContext tenantContext);
 }
 ```
 
@@ -354,15 +766,80 @@ public interface TokenBudgetManager {
 - **`TokenUsageInput`**
   - `usageId`、`taskId`、`agentId`、`model`、`provider`、`inputTokens`、`outputTokens`、`totalTokens`、
     `costUsd`、`tenantId`
+- **`StepRecord`**
+  - `stepId`、`workflowId`、`stepSeq`、`type`、`status`、`attempt`、`input`、`output`、`errorCode`、`startedAt`、
+    `completedAt`、`tenantId`
+- **`StepRequest`**
+  - `workflowId`、`type`、`input`、`context`、`idempotencyKey`
+- **`StepResponse`**
+  - `stepId`、`status`、`output`、`errorCode`
+- **`StepQuery`**
+  - `workflowId`、`status`、`cursor`、`size`
+- **`StepTimelineResponse`**
+  - `workflowId`、`steps`、`nextCursor`、`hasMore`
+- **`PlanRequest`**
+  - `taskId`、`query`、`context`、`constraints`
+- **`PlanResult`**
+  - `planId`、`nodes`、`dependencies`、`strategy`
+- **`ReflectionRequest`**
+  - `taskId`、`content`、`criteria`、`maxIterations`
+- **`ReflectionResult`**
+  - `score`、`feedback`、`retry`、`iteration`
+- **`SkillDefinition`**
+  - `name`、`version`、`schema`、`routes`、`constraints`
+- **`HookContext`**
+  - `hookType`、`stepId`、`toolName`、`payload`
+- **`HookDecision`**
+  - `action`、`reason`
+- **`McpToolListRequest`**
+  - `serverId`、`cursor`、`size`
+- **`McpToolListResponse`**
+  - `tools`、`nextCursor`、`hasMore`
+- **`McpToolDefinition`**
+  - `name`、`version`、`description`、`inputSchema`、`outputSchema`、`tags`
+- **`McpToolCallRequest`**
+  - `callId`、`serverId`、`toolName`、`arguments`、`timeoutMs`
+- **`McpToolCallResponse`**
+  - `callId`、`status`、`result`、`error`
+- **`HandoffRequest`**
+  - `fromAgent`、`toAgent`、`context`、`permissions`
+- **`HandoffResult`**
+  - `handoffId`、`status`
+- **`AgentGraph`**
+  - `nodes`、`edges`、`strategy`
+- **`ThoughtNode`**
+  - `nodeId`、`parentId`、`content`、`score`、`depth`
+- **`DebateRound`**
+  - `round`、`positions`、`scores`
+- **`ResearchCitation`**
+  - `sourceId`、`url`、`title`、`snippet`、`retrievedAt`、`confidence`
+- **`ReplayRequest`**
+  - `taskId`、`fromStepId`、`toStepId`、`mode`
+- **`ReplayResponse`**
+  - `replayId`、`status`、`startedAt`、`completedAt`
+- **`PolicyRequest`**
+  - `policyId`、`action`、`resource`、`input`
+- **`PolicyDecision`**
+  - `decision`、`reason`、`policyId`、`evaluationId`、`matchedRules`
+- **`SandboxRequest`**
+  - `toolName`、`input`、`limits`
+- **`SandboxResult`**
+  - `status`、`output`、`error`
 
 **事件类型（按类别）**:
 
 - 核心流程: `WORKFLOW_STARTED`、`WORKFLOW_COMPLETED`、`AGENT_STARTED`、`AGENT_COMPLETED`、`ERROR_OCCURRED`
 - LLM: `LLM_PROMPT`、`LLM_PARTIAL`、`LLM_OUTPUT`
 - 工具: `TOOL_INVOKED`、`TOOL_OBSERVATION`、`TOOL_ERROR`
+- 运行时步骤: `STEP_STARTED`、`STEP_COMPLETED`、`STEP_FAILED`、`STEP_SKIPPED`、`STEP_WAITING`
+- 规划与反思: `PLAN_GENERATED`、`PLAN_REVISED`、`REFLECTION_STARTED`、`REFLECTION_COMPLETED`
+- Hooks: `HOOK_PRE_TOOL`、`HOOK_POST_TOOL`、`HOOK_PRE_STEP`、`HOOK_POST_STEP`
 - 多智能体: `DELEGATION`、`TEAM_RECRUITED`、`TEAM_RETIRED`、`MESSAGE_SENT`、`MESSAGE_RECEIVED`、`ROLE_ASSIGNED`
 - 进度与状态: `PROGRESS`、`DATA_PROCESSING`、`WAITING`、`TEAM_STATUS`、`WORKSPACE_UPDATED`
 - 人机交互: `APPROVAL_REQUESTED`、`APPROVAL_DECISION`
+- 高级推理: `THOUGHT_EXPANDED`、`THOUGHT_PRUNED`、`DEBATE_ROUND_STARTED`、`DEBATE_ROUND_COMPLETED`、`RESEARCH_SOURCE_ADDED`、`RESEARCH_SYNTHESIZED`
+- 生产治理: `REPLAY_STARTED`、`REPLAY_COMPLETED`、`BACKPRESSURE_APPLIED`、`CIRCUIT_OPENED`、`CIRCUIT_HALF_OPEN`
+- 策略与沙箱: `POLICY_EVALUATED`、`POLICY_DENIED`、`SANDBOX_VIOLATION`、`MODEL_FALLBACK_APPLIED`
 
 ### 事件模型与顺序约束
 
@@ -373,6 +850,8 @@ public interface TokenBudgetManager {
 - 生命周期顺序：`WORKFLOW_STARTED` 先于任何业务事件，`WORKFLOW_COMPLETED` 作为最终事件。
 - `ERROR_OCCURRED` 可插入任何阶段，但必须在最终事件前出现。
 - 同一 `agentId` 的 `LLM_PARTIAL` 必须在对应 `LLM_OUTPUT` 之前出现。
+- 同一 `stepId` 的事件顺序必须满足 `STEP_STARTED` -> `STEP_COMPLETED`/`STEP_FAILED`，禁止跳序。
+- `stepSeq` 在同一 `workflowId` 范围内单调递增，用于步骤时间线与回放重建。
 
 ## 流式 `SSE` 接口定义
 
@@ -393,9 +872,11 @@ public interface TokenBudgetManager {
 - **事件持久化策略**:
   - `Redis` 保存全量事件，默认 24 小时 `TTL`，容量默认 256。
   - `PostgreSQL` 持久化关键事件，排除 `LLM_PARTIAL` 与心跳类事件。
+  - `task_steps` 持久化 `StepRecord`，用于步骤时间线与回放重建。
   - 持久化与查询必须按 `tenantId` 过滤。
 - **时间线生成**:
   - 基于工作流历史生成摘要与完整模式。
+  - 步骤时间线基于 `StepRecord` 生成，支持 `timeline/steps` 查询。
   - 支持 `persist=true` 异步写入 `event_logs`。
   - 时间线事件包含 `WF_`、`ACT_`、`SIG_` 等来源前缀。
 - **一致性与职责边界**:
@@ -404,6 +885,7 @@ public interface TokenBudgetManager {
     `ERROR_OCCURRED`，`errorCode` 使用 `EVENT_PERSIST_FAILED`。
   - `EventLogRecord` 以 `eventId` 作为幂等键，重复写入需去重。
   - 时间线仅基于已持久化事件生成，与实时流允许存在短暂延迟。
+  - 回放仅基于持久化事件与步骤记录重建，回放结果允许与实时流存在短暂延迟。
 
 ## 记忆抽象与落盘策略
 
@@ -433,6 +915,7 @@ public interface TokenBudgetManager {
 
 - 支持 `API Key` 与 `JWT` 扩展点。
 - 每个请求必须解析 `TenantContext` 并贯穿执行链路。
+- 关键入口在执行前进行 `OPA` 策略评估，拒绝时返回 `POLICY_DENIED` 并记录审计。
 - 所有查询必须按 `tenant_id` 过滤，跨租户访问返回未找到。
 - 缺失租户头时必须返回 `HTTP 400` 且错误码为 `TENANT_MISSING`，不使用 `NOT_FOUND`。
 - `SSE` 订阅仅能读取当前租户事件，`StreamEvent` 必须携带 `tenantId`。
@@ -449,6 +932,7 @@ public interface TokenBudgetManager {
 - 传播路径为 `agent core` -> `orchestrator` -> `token budget tracking`，聚合按 `taskId` 与 `tenantId` 维度。
 - `usageId` 推荐使用 `taskId:seq` 作为幂等键，避免重复计量。
 - 预算阈值触发 `BUDGET_THRESHOLD` 事件并写入 `token_usage`。
+- 预算阈值可触发模型分层降级，记录 `MODEL_FALLBACK_APPLIED` 并写入 `model_fallbacks`。
 
 ## 统一输出对象结构
 
@@ -461,7 +945,9 @@ public interface TokenBudgetManager {
 - 必须通过全局异常处理器统一映射为 `ErrorResponse`。
 - 错误码示例：`BAD_REQUEST`、`INVALID_REQUEST`、`INVALID_CURSOR`、`UNAUTHORIZED`、`FORBIDDEN`、
   `TENANT_MISSING`、`NOT_FOUND`、`BUDGET_EXCEEDED`、`STREAM_TIMEOUT`、`STREAM_GAP`、
-  `EVENT_PERSIST_FAILED`、`IDEMPOTENCY_CONFLICT`、`INTERNAL_ERROR`。
+  `EVENT_PERSIST_FAILED`、`IDEMPOTENCY_CONFLICT`、`POLICY_DENIED`、`SANDBOX_DENIED`、
+  `RATE_LIMITED`、`CIRCUIT_OPEN`、`MCP_UNAVAILABLE`、`REPLAY_NOT_FOUND`、`HOOK_BLOCKED`、`INTERNAL_ERROR`。
+- 命名兼容：`POLICY_DENY` 统一映射为 `POLICY_DENIED`，`SANDBOX_DENY` 统一映射为 `SANDBOX_DENIED`，对外输出以统一名称为准。
 - 缺失租户头返回 `TENANT_MISSING`，统一映射 `HTTP 400`。
 - 跨租户访问必须返回 `NOT_FOUND`，避免存在性泄漏。
 - 错误码与 `HTTP` 状态映射表如下（任务与测试以该表为准）：
@@ -474,12 +960,19 @@ public interface TokenBudgetManager {
 | `TENANT_MISSING` | `400` | 缺失租户上下文 | 否 |
 | `UNAUTHORIZED` | `401` | 未认证或凭证无效 | 是（需重新鉴权） |
 | `FORBIDDEN` | `403` | 已认证但无权限或被拒绝 | 否 |
+| `POLICY_DENIED` | `403` | 策略评估拒绝 | 否 |
+| `SANDBOX_DENIED` | `403` | 沙箱执行被拒绝或资源限制触发 | 否 |
 | `NOT_FOUND` | `404` | 资源不存在或跨租户隐藏 | 否 |
+| `REPLAY_NOT_FOUND` | `404` | 回放会话不存在 | 否 |
 | `STREAM_TIMEOUT` | `408` | 流式订阅超时无事件 | 是（可重连） |
 | `STREAM_GAP` | `409` | 事件序列缺口或窗口过期 | 否（需重置游标） |
 | `IDEMPOTENCY_CONFLICT` | `409` | 幂等键冲突或结果不一致 | 否 |
+| `HOOK_BLOCKED` | `409` | Hook 阻断执行 | 否 |
 | `BUDGET_EXCEEDED` | `429` | 预算超限 | 否 |
+| `RATE_LIMITED` | `429` | 限流或背压触发 | 是（可重试） |
 | `EVENT_PERSIST_FAILED` | `500` | 事件持久化失败 | 是（退避重试） |
+| `CIRCUIT_OPEN` | `503` | 熔断器打开 | 是（等待半开） |
+| `MCP_UNAVAILABLE` | `503` | MCP 工具不可用 | 是（退避重试） |
 | `INTERNAL_ERROR` | `500` | 未预期内部错误 | 是（退避重试） |
 
 ## 并发、幂等、重试与失败恢复
@@ -489,6 +982,8 @@ public interface TokenBudgetManager {
 - 事件发布采用至少一次语义，消费端以 `eventId` 去重。
 - 关键持久化与预算记录失败采用指数退避重试，达到上限后记录 `ERROR_OCCURRED` 并输出指标。
 - 任务失败时必须发出 `ERROR_OCCURRED`，最终以 `WORKFLOW_COMPLETED` 标记终态。
+- 失败恢复遵循 `retry`/`fallback`/`decompose`/`stop` 策略矩阵，禁止无限循环。
+- 预算触发降级时优先采用模型分层 `fallback`，并记录 `MODEL_FALLBACK_APPLIED` 事件。
 
 ## 观测指标（`Micrometer`/`OpenTelemetry`）
 
@@ -497,6 +992,12 @@ public interface TokenBudgetManager {
 - 预算：`budget.tokens.used`、`budget.cost.usd`、`budget.exceeded.count`
 - 存储：`storage.redis.hit`、`storage.db.latency.ms`
 - 调度：`schedule.run.count`、`schedule.run.fail.count`
+- 运行时：`step.count`、`step.duration.ms`、`step.failure.count`
+- 工具与 Hook：`tool.call.count`、`tool.call.latency.ms`、`hook.block.count`
+- 多智能体：`agent.handoff.count`、`agent.parallel.count`、`agent.fail.count`
+- 高级推理：`reasoning.tot.branch.count`、`reasoning.debate.round.count`、`research.citation.count`
+- 生产治理：`replay.count`、`rate.limit.count`、`circuit.open.count`
+- 企业安全：`policy.deny.count`、`sandbox.violation.count`、`model.fallback.count`
 
 ## `MVP` 与迭代版本拆分
 
@@ -529,6 +1030,21 @@ public interface TokenBudgetManager {
 - 定时任务可创建、暂停、恢复并记录执行历史。
 - 扩展事件可订阅并按类型过滤。
 
+### 迭代版本（`V3`）
+
+**范围**:
+- `Agent Runtime` 决策循环与 `Step` 状态机。
+- `Planner`/`Reflection` 自修复与计划能力。
+- `MCP` 工具协议、`Skill`/`Hook` 扩展。
+- 多智能体编排与高级推理（`ToT`/`Debate`/`Deep Research`）。
+- 生产治理与企业安全（回放、限流/背压、熔断、`OPA`、`WASI`、模型降级）。
+
+**验收标准**:
+- 决策循环可配置终止条件，`Step` 时间线可查询。
+- `MCP` 工具调用、`Hook` 执行与 `Skill` 路由可验证。
+- 多智能体编排与高级推理输出可追溯引用。
+- 回放、限流/背压与熔断生效，`OPA` 与 `WASI` 安全校验可通过。
+
 ## 推荐包结构与关键类名
 
 ```
@@ -546,6 +1062,77 @@ src/main/java/com/example/agent/
     ToolCache
     ToolExecutor
     SandboxExecutor
+  runtime/
+    StepRuntimeService
+    StepRecord
+    StepRequest
+    StepResponse
+    StepQuery
+    StepTimelineResponse
+    StepState
+    StepStateMachine
+    AgentRuntime
+  planning/
+    PlannerService
+    Plan
+    PlanRequest
+    PlanResult
+  reflection/
+    ReflectionService
+    ReflectionReport
+    ReflectionRequest
+    ReflectionResult
+  tools/
+    McpToolClient
+    McpToolDefinition
+    McpToolListRequest
+    McpToolCallRequest
+    HookManager
+    HookRecord
+    HookContext
+    HookDecision
+    SkillRegistry
+    SkillDefinition
+    SkillRoute
+    SkillVersion
+  multiagent/
+    SupervisorCoordinator
+    MultiAgentCoordinator
+    AgentGraphExecutor
+    HandoffService
+    AgentRole
+    AgentGraph
+    HandoffRequest
+    HandoffResult
+    HandoffRecord
+  reasoning/
+    ThoughtTreeService
+    ThoughtNode
+    DebateCoordinator
+    DebateRound
+  research/
+    ResearchPipeline
+    ResearchCitation
+  governance/
+    ReplayService
+    ReplaySession
+    ReplayRequest
+    ReplayResponse
+    RateLimitService
+    RateLimitRule
+    CircuitBreakerManager
+  policy/
+    PolicyEngine
+    PolicyDecision
+    PolicyRequest
+  sandbox/
+    WasiSandboxExecutor
+    SandboxRun
+    SandboxRequest
+    SandboxResult
+  model/
+    ModelFallbackPolicy
+    ModelFallbackDecision
   streaming/
     EventStreamService
     SseStreamController
@@ -597,3 +1184,6 @@ src/main/java/com/example/agent/
 - 存储层可用 `PostgreSQL` 与 `Redis`，向量存储可通过 `VectorStore` 接口替换。
 - 预算计量依赖模型返回 `token` 统计，无法获取时使用可配置的近似策略。
 - 在 `WebFlux` 场景下，阻塞式数据访问需通过专用线程池隔离；如改用 `R2DBC` 必须更新规格。
+- `OPA` 策略引擎通过独立服务或嵌入式运行时接入，策略文件由运维侧管理并支持热更新。
+- `WASI` 运行时可用且具备资源限制能力，`WASM` 模块来源可信并支持校验。
+- `web-search`/`web-fetch` 工具链可用且具备域名白名单与超时配置。

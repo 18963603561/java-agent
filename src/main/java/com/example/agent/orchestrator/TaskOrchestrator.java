@@ -82,7 +82,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
                 return createTask(tenantContext);
             });
             if (!created.get()) {
-                log.info("Idempotency hit, tenantId={}, taskId={}", tenantId, response.getTaskId());
+                log.info("幂等命中, tenantId={}, taskId={}", tenantId, response.getTaskId());
                 return response;
             }
             handleWorkflowRoute(request, tenantContext, response);
@@ -178,7 +178,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         String workflowId = UUID.randomUUID().toString();
         TaskResponse response = new TaskResponse(taskId, workflowId, "SUBMITTED");
 
-        TaskStatusResponse status = new TaskStatusResponse(taskId, workflowId, "SUBMITTED", Instant.now());
+        TaskStatusResponse status = new TaskStatusResponse(taskId, workflowId, "SUBMITTED", Instant.now(), null);
         taskStatusCache.put(taskId, status);
         taskTenantIndex.put(taskId, tenantId);
 
@@ -188,7 +188,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
                 Map.of("message", "workflow started")));
         metricsPublisher.increment("task.submit.count");
 
-        log.info("Task submitted, tenantId={}, taskId={}, workflowId={}", tenantId, taskId, workflowId);
+        log.info("任务提交, tenantId={}, taskId={}, workflowId={}", tenantId, taskId, workflowId);
         return response;
     }
 
@@ -196,16 +196,37 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         String workflowId = response.getWorkflowId();
         AtomicLong seqCounter = eventStreamService.sequenceCounter(tenantContext.getTenantId(), workflowId);
         long startNs = System.nanoTime();
+        TaskStatusResponse status = taskStatusCache.get(response.getTaskId());
+        if (status != null) {
+            status.setStatus("RUNNING");
+            status.setUpdatedAt(Instant.now());
+        }
         try {
             workflowRouter.route(request, tenantContext, workflowId, response.getTaskId(), seqCounter);
+            if (status != null) {
+                status.setStatus("COMPLETED");
+                status.setUpdatedAt(Instant.now());
+            }
         } catch (RuntimeException ex) {
-            log.error("Task route failed, tenantId={}, taskId={}, workflowId={}",
+            log.error("任务路由失败, tenantId={}, taskId={}, workflowId={}",
                     tenantContext.getTenantId(), response.getTaskId(), workflowId, ex);
             long errorSeq = seqCounter.incrementAndGet();
             publishEvent(buildEvent(tenantContext, workflowId, EventType.ERROR_OCCURRED, errorSeq,
                     Map.of("error", ex.getMessage() == null ? "route_failed" : ex.getMessage())));
+            if (status != null) {
+                status.setStatus("FAILED");
+                status.setUpdatedAt(Instant.now());
+                String errorMessage = ex.getMessage() == null ? "route_failed" : ex.getMessage();
+                status.setResult(Map.of("error", errorMessage));
+            }
             throw ex;
         } finally {
+            long endSeq = seqCounter.incrementAndGet();
+            String finalStatus = status != null && status.getStatus() != null
+                    ? status.getStatus()
+                    : "UNKNOWN";
+            publishEvent(buildEvent(tenantContext, workflowId, EventType.WORKFLOW_COMPLETED, endSeq,
+                    Map.of("status", finalStatus)));
             long costMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
             metricsPublisher.recordTime("task.duration.ms", costMs);
         }
@@ -230,7 +251,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
             }
         }
         if (evicted > 0) {
-            log.info("Task cache cleanup, evicted={}, tasks={}, idempotency={}",
+            log.info("任务缓存清理, evicted={}, tasks={}, idempotency={}",
                     evicted, taskStatusCache.size(), idempotencyCache.size());
         }
     }
@@ -260,9 +281,8 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
     private StreamEvent buildEvent(TenantContext tenantContext, String workflowId, EventType type, long seq,
                                    Map<String, Object> payload) {
         String streamId = workflowId;
-        String eventId = streamId + ":" + seq;
         StreamEvent event = new StreamEvent();
-        event.setEventId(eventId);
+        event.setEventId(streamId + ":" + seq);
         event.setSchemaVersion("v1");
         event.setWorkflowId(workflowId);
         event.setType(type);

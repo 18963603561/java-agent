@@ -55,8 +55,8 @@ public class GlobalExceptionHandler implements WebExceptionHandler {
         HttpStatus status = resolveStatus(ex);
         String code = resolveCode(ex, status);
         TenantContext context = exchange.getAttribute(TenantContext.CONTEXT_KEY);
-        String traceId = context != null ? context.getTraceId() : null;
-        String requestId = context != null ? context.getRequestId() : null;
+        String traceId = context != null ? context.getTraceId() : resolveHeader(exchange, "X-Trace-Id");
+        String requestId = context != null ? context.getRequestId() : resolveHeader(exchange, "X-Request-Id");
 
         log.error("Unhandled error, status={}, code={}, path={}", status, code,
                 exchange.getRequest().getPath(), ex);
@@ -142,5 +142,10 @@ public class GlobalExceptionHandler implements WebExceptionHandler {
             String fallback = "{\"code\":\"INTERNAL_ERROR\",\"message\":\"serialize_failed\"}";
             return fallback.getBytes(StandardCharsets.UTF_8);
         }
+    }
+
+    private String resolveHeader(ServerWebExchange exchange, String header) {
+        String value = exchange.getRequest().getHeaders().getFirst(header);
+        return value != null && !value.isBlank() ? value : null;
     }
 }

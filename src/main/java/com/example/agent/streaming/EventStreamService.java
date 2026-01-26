@@ -119,7 +119,9 @@ public class EventStreamService {
      * @param workflowId 宸ヤ綔娴佹爣璇?
      */
     public void evictSequence(String tenantId, String workflowId) {
-        sequenceCounters.remove(buildIndexKey(tenantId, workflowId));
+        String indexKey = buildIndexKey(tenantId, workflowId);
+        sequenceCounters.remove(indexKey);
+        streamIndex.remove(indexKey);
     }
 
     /**
@@ -161,7 +163,8 @@ public class EventStreamService {
         if (events == null || events.isEmpty() || !events.contains(lastEventId)) {
             log.warn("STREAM_GAP detected, tenantId={}, workflowId={}, lastEventId={}",
                     tenantContext.getTenantId(), workflowId, lastEventId);
-            throw new ResponseStatusException(HttpStatus.GONE, "STREAM_GAP");
+            throw new com.example.agent.common.ErrorCodeException(HttpStatus.CONFLICT,
+                    "STREAM_GAP", "STREAM_GAP");
         }
     }
 
@@ -189,14 +192,16 @@ public class EventStreamService {
         String trimmed = lastEventId.trim();
         if (trimmed.matches("\\d+")) {
             if (!StringUtils.hasText(workflowId)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor");
+            throw new com.example.agent.common.ErrorCodeException(HttpStatus.BAD_REQUEST,
+                    "INVALID_CURSOR", "Invalid cursor");
             }
             return workflowId + ":" + trimmed;
         }
         if (trimmed.contains(":")) {
             return trimmed;
         }
-        throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid cursor");
+        throw new com.example.agent.common.ErrorCodeException(HttpStatus.BAD_REQUEST,
+                "INVALID_CURSOR", "Invalid cursor");
     }
 
     private String buildIndexKey(String tenantId, String workflowId) {
