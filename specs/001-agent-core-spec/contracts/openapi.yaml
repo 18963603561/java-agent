@@ -1,0 +1,495 @@
+openapi: 3.0.3
+info:
+  title: Java Shannon Agent Orchestrator Core API
+  version: 1.0.0
+  description: Shannon 架构对齐的核心接口与事件流定义
+servers:
+  - url: /
+security:
+  - ApiKeyAuth: []
+paths:
+  /api/v1/tasks:
+    post:
+      summary: 提交任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TaskRequest'
+      responses:
+        '200':
+          description: 提交成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    get:
+      summary: 查询任务列表
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          schema:
+            type: string
+        - name: size
+          in: query
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/tasks/{taskId}:
+    get:
+      summary: 查询任务状态
+      parameters:
+        - name: taskId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/stream/sse:
+    get:
+      summary: 订阅事件流
+      parameters:
+        - name: workflow_id
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: types
+          in: query
+          schema:
+            type: string
+        - name: last_event_id
+          in: query
+          schema:
+            type: string
+        - name: Last-Event-ID
+          in: header
+          schema:
+            type: string
+      responses:
+        '200':
+          description: text/event-stream
+          content:
+            text/event-stream:
+              schema:
+                $ref: '#/components/schemas/StreamEvent'
+  /api/v1/events:
+    get:
+      summary: 查询事件日志
+      parameters:
+        - name: workflowId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/timeline:
+    get:
+      summary: 查询时间线
+      parameters:
+        - name: workflowId
+          in: query
+          required: true
+          schema:
+            type: string
+        - name: mode
+          in: query
+          schema:
+            type: string
+            enum: [summary, full]
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/memory/search:
+    post:
+      summary: 记忆检索
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryQuery'
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/memory/save:
+    post:
+      summary: 记忆保存
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MemoryRecord'
+      responses:
+        '200':
+          description: 保存成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/memory/compress:
+    post:
+      summary: 记忆压缩
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CompressionRequest'
+      responses:
+        '200':
+          description: 压缩成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/schedules:
+    post:
+      summary: 创建定时任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleSpec'
+      responses:
+        '200':
+          description: 创建成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    put:
+      summary: 更新定时任务
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ScheduleSpec'
+      responses:
+        '200':
+          description: 更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+    get:
+      summary: 查询定时任务
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: cursor
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/schedules/{scheduleId}/pause:
+    post:
+      summary: 暂停定时任务
+      parameters:
+        - name: scheduleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 暂停成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/schedules/{scheduleId}/resume:
+    post:
+      summary: 恢复定时任务
+      parameters:
+        - name: scheduleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 恢复成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/schedules/{scheduleId}:
+    delete:
+      summary: 删除定时任务
+      parameters:
+        - name: scheduleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 删除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/budget/usage:
+    post:
+      summary: 记录预算使用
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/TokenUsageInput'
+      responses:
+        '200':
+          description: 记录成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+  /api/v1/budget/summary:
+    get:
+      summary: 查询预算汇总
+      parameters:
+        - name: taskId
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 查询成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    ApiResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        data:
+          type: object
+        traceId:
+          type: string
+        requestId:
+          type: string
+    ErrorResponse:
+      type: object
+      properties:
+        code:
+          type: string
+        message:
+          type: string
+        details:
+          type: object
+        traceId:
+          type: string
+    TaskRequest:
+      type: object
+      properties:
+        query:
+          type: string
+        sessionId:
+          type: string
+        context:
+          type: object
+    TaskResponse:
+      type: object
+      properties:
+        taskId:
+          type: string
+        workflowId:
+          type: string
+        status:
+          type: string
+    TaskStatusResponse:
+      type: object
+      properties:
+        taskId:
+          type: string
+        workflowId:
+          type: string
+        status:
+          type: string
+        result:
+          type: object
+    StreamEvent:
+      type: object
+      properties:
+        workflowId:
+          type: string
+        type:
+          type: string
+        agentId:
+          type: string
+        message:
+          type: string
+        timestamp:
+          type: string
+        seq:
+          type: integer
+        streamId:
+          type: string
+        payload:
+          type: object
+    EventLogRecord:
+      type: object
+      properties:
+        eventId:
+          type: string
+        workflowId:
+          type: string
+        type:
+          type: string
+        timestamp:
+          type: string
+        payload:
+          type: object
+    TimelineResponse:
+      type: object
+      properties:
+        workflowId:
+          type: string
+        mode:
+          type: string
+        events:
+          type: array
+          items:
+            $ref: '#/components/schemas/EventLogRecord'
+        stats:
+          type: object
+    MemoryRecord:
+      type: object
+      properties:
+        memoryId:
+          type: string
+        sessionId:
+          type: string
+        taskId:
+          type: string
+        content:
+          type: string
+        summary:
+          type: string
+        embeddingRef:
+          type: string
+    MemoryQuery:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        query:
+          type: string
+        limit:
+          type: integer
+    MemorySearchResult:
+      type: object
+      properties:
+        records:
+          type: array
+          items:
+            $ref: '#/components/schemas/MemoryRecord'
+    CompressionRequest:
+      type: object
+      properties:
+        sessionId:
+          type: string
+        strategy:
+          type: string
+    ScheduleSpec:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+        cron:
+          type: string
+        timezone:
+          type: string
+        status:
+          type: string
+    ScheduleResponse:
+      type: object
+      properties:
+        scheduleId:
+          type: string
+        status:
+          type: string
+    TokenUsageInput:
+      type: object
+      properties:
+        taskId:
+          type: string
+        agentId:
+          type: string
+        model:
+          type: string
+        provider:
+          type: string
+        inputTokens:
+          type: integer
+        outputTokens:
+          type: integer
+        totalTokens:
+          type: integer
+        costUsd:
+          type: number
+    TokenUsageSummary:
+      type: object
+      properties:
+        taskId:
+          type: string
+        totalTokens:
+          type: integer
+        totalCostUsd:
+          type: number

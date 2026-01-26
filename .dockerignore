@@ -1,0 +1,11 @@
+.git/
+target/
+build/
+.gradle/
+.idea/
+.vscode/
+node_modules/
+vendor/
+*.log*
+.env*
+coverage/

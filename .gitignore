@@ -6,4 +6,15 @@ target/
 *.iml
 .idea/
 .DS_Store
+Thumbs.db
 *.gz
+*.tmp
+*.swp
+.gradle/
+build/
+*.class
+*.jar
+*.war
+*.ear
+.env*
+.vscode/
