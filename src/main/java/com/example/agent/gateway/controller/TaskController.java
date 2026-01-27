@@ -12,6 +12,7 @@ import com.example.agent.common.TaskResponse;
 import com.example.agent.common.TaskStatusResponse;
 import com.example.agent.orchestrator.TaskQueryService;
 import com.example.agent.orchestrator.TaskSubmissionService;
+import com.example.agent.observability.TracingPublisher;
 import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -24,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebExchange;
+import org.springframework.util.StringUtils;
 
 /**
  * 任务控制器，提供任务提交与查询接口。
@@ -37,13 +39,16 @@ public class TaskController {
     private final TaskSubmissionService taskSubmissionService;
     private final TaskQueryService taskQueryService;
     private final AuthService authService;
+    private final TracingPublisher tracingPublisher;
 
     public TaskController(TaskSubmissionService taskSubmissionService,
                           TaskQueryService taskQueryService,
-                          AuthService authService) {
+                          AuthService authService,
+                          TracingPublisher tracingPublisher) {
         this.taskSubmissionService = taskSubmissionService;
         this.taskQueryService = taskQueryService;
         this.authService = authService;
+        this.tracingPublisher = tracingPublisher;
     }
 
     /**
@@ -62,8 +67,9 @@ public class TaskController {
         TenantContext tenantContext = getTenantContext(exchange);
         tenantContext.applyUserContext(userContext);
         TaskResponse response = taskSubmissionService.submitTask(request, tenantContext);
-        log.info("任务提交完成, tenantId={}, userId={}, taskId={}",
-                tenantContext.getTenantId(), tenantContext.getUserId(), response.getTaskId());
+        log.info("任务提交完成, tenantId={}, userId={}, taskId={}, traceId={}",
+                tenantContext.getTenantId(), tenantContext.getUserId(), response.getTaskId(),
+                resolveTraceId(tenantContext));
         return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
     }
 
@@ -83,8 +89,9 @@ public class TaskController {
         TenantContext tenantContext = getTenantContext(exchange);
         tenantContext.applyUserContext(userContext);
         TaskStatusResponse response = taskQueryService.getTask(taskId, tenantContext);
-        log.info("任务状态查询, tenantId={}, userId={}, taskId={}",
-                tenantContext.getTenantId(), tenantContext.getUserId(), taskId);
+        log.info("任务状态查询, tenantId={}, userId={}, taskId={}, traceId={}",
+                tenantContext.getTenantId(), tenantContext.getUserId(), taskId,
+                resolveTraceId(tenantContext));
         return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
     }
 
@@ -104,7 +111,9 @@ public class TaskController {
         TenantContext tenantContext = getTenantContext(exchange);
         tenantContext.applyUserContext(userContext);
         TaskListResponse response = taskQueryService.listTasks(query, tenantContext);
-        log.info("任务列表查询, tenantId={}, userId={}", tenantContext.getTenantId(), tenantContext.getUserId());
+        log.info("任务列表查询, tenantId={}, userId={}, traceId={}",
+                tenantContext.getTenantId(), tenantContext.getUserId(),
+                resolveTraceId(tenantContext));
         return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
     }
 
@@ -114,5 +123,12 @@ public class TaskController {
             throw new ErrorCodeException(HttpStatus.BAD_REQUEST, "TENANT_MISSING", "租户标识缺失");
         }
         return context;
+    }
+
+    private String resolveTraceId(TenantContext tenantContext) {
+        if (tenantContext != null && StringUtils.hasText(tenantContext.getTraceId())) {
+            return tenantContext.getTraceId();
+        }
+        return tracingPublisher.currentTraceId();
     }
 }

@@ -49,3 +49,51 @@
 - 回归测试：
   - `src/test/java/com/example/agent/gateway/controller/McpToolEventTest.java#mcpToolCallEmitsToolEvents`
   - `src/test/java/com/example/agent/gateway/controller/QuickstartFlowTest.java#quickstartFlowCoversCoreEndpoints`
+
+## VF-P1-001 SSE 断线续传缺少 replay since
+- 现象：带 `last_event_id` 订阅仅做游标校验，不回放历史事件，导致断线后丢失事件。
+- 复现：调用 `/api/v1/stream/sse?workflow_id=...&last_event_id=...`，断线后再次订阅只收到新事件。
+- 根因：`EventStreamService#stream` 未从 Redis 回放 `last_event_id` 之后的事件。
+- 修复：
+  - 在 `EventStreamService#stream` 增加历史回放逻辑：从 Redis 读取并筛选 `seq > lastSeq` 的事件后再拼接实时流。
+  - 保留游标校验与类型过滤语义。
+- 影响面：`streaming api`、SSE 客户端断线续传体验。
+- 回归测试：`src/test/java/com/example/agent/streaming/EventStreamServiceTest.java#resumeReplaysEventsAfterCursor`
+- 关联 CHK/接口/错误码：
+  - 接口：`/api/v1/stream/sse`
+  - 错误码：`STREAM_GAP`、`INVALID_CURSOR`
+- Shannon 对齐证据：`vendor/Shannon/go/orchestrator/internal/streaming/manager.go#ReplaySince`
+
+## VF-P2-001 记忆分层与自动压缩缺失
+- 现象：记忆仅提供单层存取，缺少 recent/semantic/compressed 分层与自动压缩触发策略。
+- 复现：调用 `/api/v1/memory/save` 多次写入后，检索只返回单层记录，未触发自动压缩。
+- 根因：缺少分层存取与策略组件，压缩仅能手动调用。
+- 修复：
+  - 新增 `RecentMemoryStore`、`SemanticMemoryStore`、`CompressedMemoryStore` 与 `MemoryPolicy`。
+  - 引入 size/token/time 触发策略，保存与检索时自动触发压缩。
+  - 检索按层级聚合：语义 -> recent -> compressed。
+- 影响面：`memory system` 分层存取与压缩策略。
+- 回归测试：
+  - `src/test/java/com/example/agent/memory/MemoryStoreTest.java#autoCompressTriggeredBySizeThreshold`
+  - `src/test/java/com/example/agent/memory/MemoryStoreTest.java#autoCompressTriggeredByTimePolicy`
+  - `src/test/java/com/example/agent/memory/MemoryStoreTest.java#searchAggregatesRecentAndCompressed`
+- 关联 CHK/接口/错误码：
+  - 接口：`/api/v1/memory/save`、`/api/v1/memory/search`、`/api/v1/memory/compress`
+- Shannon 对齐证据：`vendor/Shannon/docs/memory-system-architecture.md`
+
+## VF-P2-002 Tracing 接入不足导致 traceId 不贯通
+- 现象：traceId 未统一注入关键日志、事件载荷与指标标签，导致观测链路不完整。
+- 复现：带 `X-Trace-Id` 请求调用任务与工具相关接口，事件 payload 与指标标签缺少 traceId。
+- 根因：缺少 TracingPublisher 注入与 traceId 透传逻辑。
+- 修复：
+  - 在 Gateway/Orchestrator/Runtime/ToolExecutor 注入 `TracingPublisher`。
+  - 事件 payload 补齐 `traceId/requestId`，指标计数与耗时增加 `traceId` 标签。
+  - 关键日志补齐 `traceId` 字段。
+- 影响面：`gateway`、`orchestrator`、`runtime`、`tools`、`observability`。
+- 回归测试：
+  - `src/test/java/com/example/agent/orchestrator/TaskOrchestratorTest.java#concurrentIdempotencyUsesSingleTask`
+  - `src/test/java/com/example/agent/agentcore/ToolExecutorTest.java#retriesOnRetryableError`
+- 关联 CHK/接口/错误码：
+  - 接口：`/api/v1/tasks`、`/api/v1/stream/sse`、`/api/v1/mcp/tools/call`
+  - 错误码：`TENANT_MISSING`、`UNAUTHORIZED`
+- Shannon 对齐证据：`vendor/Shannon/docs/agent-core-architecture.md`

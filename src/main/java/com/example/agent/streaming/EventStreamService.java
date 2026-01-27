@@ -69,10 +69,19 @@ public class EventStreamService {
     public Flux<StreamEvent> stream(TaskStreamRequest request, TenantContext tenantContext) {
         return Mono.fromRunnable(() -> validateCursor(request, tenantContext))
                 .subscribeOn(validationScheduler)
-                .thenMany(sink.asFlux()
-                        .filter(event -> tenantContext.getTenantId().equals(event.getTenantId()))
-                        .filter(event -> request.getWorkflowId().equals(event.getWorkflowId()))
-                        .filter(event -> matchTypes(request, event)));
+                .thenMany(Mono.fromSupplier(() -> loadHistoryEvents(request, tenantContext))
+                        .flatMapMany(history -> {
+                            Flux<StreamEvent> live = sink.asFlux()
+                                    .filter(event -> tenantContext.getTenantId().equals(event.getTenantId()))
+                                    .filter(event -> request.getWorkflowId().equals(event.getWorkflowId()))
+                                    .filter(event -> matchTypes(request, event));
+                            if (history.isEmpty()) {
+                                return live;
+                            }
+                            long lastSeq = parseSeq(request.getLastEventId());
+                            Flux<StreamEvent> filtered = live.filter(event -> isAfterCursor(event, lastSeq));
+                            return Flux.fromIterable(history).concatWith(filtered);
+                        }));
     }
 
     /**
@@ -143,6 +152,85 @@ public class EventStreamService {
             return true;
         }
         return request.getTypes().contains(event.getType().name());
+    }
+
+    private boolean isAfterCursor(StreamEvent event, long lastSeq) {
+        if (event == null) {
+            return false;
+        }
+        long seq = event.getSeq();
+        if (seq <= 0 && StringUtils.hasText(event.getEventId())) {
+            seq = parseSeq(event.getEventId());
+        }
+        if (lastSeq <= 0) {
+            return true;
+        }
+        return seq > lastSeq;
+    }
+
+    private List<StreamEvent> loadHistoryEvents(TaskStreamRequest request, TenantContext tenantContext) {
+        if (request == null || tenantContext == null) {
+            return List.of();
+        }
+        String cursor = request.getLastEventId();
+        if (!StringUtils.hasText(cursor)) {
+            return List.of();
+        }
+        String tenantId = tenantContext.getTenantId();
+        String workflowId = request.getWorkflowId();
+        if (!StringUtils.hasText(tenantId) || !StringUtils.hasText(workflowId)) {
+            return List.of();
+        }
+        long lastSeq = parseSeq(cursor);
+        if (lastSeq <= 0) {
+            return List.of();
+        }
+        StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
+        if (redisTemplate == null) {
+            log.warn("Redis not available for stream replay, tenantId={}, workflowId={}", tenantId, workflowId);
+            return List.of();
+        }
+        return readEventsFromRedis(tenantId, workflowId, lastSeq);
+    }
+
+    private List<StreamEvent> readEventsFromRedis(String tenantId, String workflowId, long lastSeq) {
+        StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
+        if (redisTemplate == null) {
+            return List.of();
+        }
+        String streamKey = "stream:" + workflowId;
+        List<MapRecord<String, Object, Object>> records = redisTemplate.opsForStream()
+                .range(streamKey, Range.unbounded());
+        if (records == null || records.isEmpty()) {
+            return List.of();
+        }
+        List<StreamEvent> events = new java.util.ArrayList<>();
+        for (MapRecord<String, Object, Object> record : records) {
+            Object payloadValue = record.getValue().get("event");
+            if (!(payloadValue instanceof String payload) || !StringUtils.hasText(payload)) {
+                continue;
+            }
+            try {
+                StreamEvent event = objectMapper.readValue(payload, StreamEvent.class);
+                if (event.getEventId() != null
+                        && tenantId.equals(event.getTenantId())
+                        && workflowId.equals(event.getWorkflowId())) {
+                    long seq = event.getSeq();
+                    if (seq <= 0) {
+                        seq = parseSeq(event.getEventId());
+                    }
+                    if (seq > lastSeq) {
+                        events.add(event);
+                    }
+                }
+            } catch (JsonProcessingException e) {
+                log.error("Redis stream parse failed, streamKey={}", streamKey, e);
+            }
+        }
+        events.sort((left, right) -> Long.compare(
+                left.getSeq() > 0 ? left.getSeq() : parseSeq(left.getEventId()),
+                right.getSeq() > 0 ? right.getSeq() : parseSeq(right.getEventId())));
+        return events;
     }
 
     private void validateCursor(TaskStreamRequest request, TenantContext tenantContext) {

@@ -11,6 +11,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.mockito.Mockito;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.mock.http.server.reactive.MockServerHttpRequest;
@@ -35,7 +36,9 @@ class SseStreamControllerTest {
 
     @Test
     void timeoutEmitsErrorEventWithSequence() {
-        SseStreamController controller = new SseStreamController(eventStreamService, authService);
+        com.example.agent.observability.TracingPublisher tracingPublisher = Mockito.mock(
+                com.example.agent.observability.TracingPublisher.class);
+        SseStreamController controller = new SseStreamController(eventStreamService, authService, tracingPublisher);
         ReflectionTestUtils.setField(controller, "firstEventTimeout", Duration.ZERO);
         ReflectionTestUtils.setField(controller, "timeoutScheduler", Schedulers.immediate());
 

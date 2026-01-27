@@ -13,7 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * 记忆存取服务，负责保存、搜索与压缩。
+ * 记忆存取服务，负责保存、检索与压缩。
  */
 @Service
 public class MemoryStore {
@@ -23,13 +23,25 @@ public class MemoryStore {
     private final MemoryRepository memoryRepository;
     private final ObjectProvider<VectorStore> vectorStoreProvider;
     private final ObjectProvider<EmbeddingService> embeddingServiceProvider;
+    private final RecentMemoryStore recentMemoryStore;
+    private final SemanticMemoryStore semanticMemoryStore;
+    private final CompressedMemoryStore compressedMemoryStore;
+    private final MemoryPolicy memoryPolicy;
 
     public MemoryStore(MemoryRepository memoryRepository,
                        ObjectProvider<VectorStore> vectorStoreProvider,
-                       ObjectProvider<EmbeddingService> embeddingServiceProvider) {
+                       ObjectProvider<EmbeddingService> embeddingServiceProvider,
+                       RecentMemoryStore recentMemoryStore,
+                       SemanticMemoryStore semanticMemoryStore,
+                       CompressedMemoryStore compressedMemoryStore,
+                       MemoryPolicy memoryPolicy) {
         this.memoryRepository = memoryRepository;
         this.vectorStoreProvider = vectorStoreProvider;
         this.embeddingServiceProvider = embeddingServiceProvider;
+        this.recentMemoryStore = recentMemoryStore;
+        this.semanticMemoryStore = semanticMemoryStore;
+        this.compressedMemoryStore = compressedMemoryStore;
+        this.memoryPolicy = memoryPolicy;
     }
 
     /**
@@ -47,7 +59,7 @@ public class MemoryStore {
         if (record.getCreatedAt() == null) {
             record.setCreatedAt(Instant.now());
         }
-        MemoryRecord saved = memoryRepository.save(record);
+        MemoryRecord saved = recentMemoryStore.save(record);
         VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
         String text = firstNonBlank(record.getContent(), record.getSummary());
         if (vectorStore != null && StringUtils.hasText(text)) {
@@ -67,39 +79,32 @@ public class MemoryStore {
         }
         log.info("记忆保存, tenantId={}, sessionId={}, memoryId={}",
                 tenantContext.getTenantId(), record.getSessionId(), record.getMemoryId());
+        autoCompressIfNeeded(record.getSessionId(), tenantContext);
         return saved;
     }
 
     /**
-     * 搜索记忆。
+     * 检索记忆。
      *
      * @param query 查询请求
      * @param tenantContext 租户上下文
-     * @return 搜索结果
+     * @return 检索结果
      */
     public MemorySearchResult search(MemoryQuery query, TenantContext tenantContext) {
         int limit = query.getLimit() != null && query.getLimit() > 0 ? query.getLimit() : 10;
-        VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
-        if (vectorStore != null && StringUtils.hasText(query.getQuery())) {
-            try {
-                EmbeddingService embeddingService = embeddingServiceProvider.getIfAvailable();
-                if (embeddingService != null) {
-                    List<Float> embedding = embeddingService.embed(query.getQuery());
-                    List<MemoryRecord> results = vectorStore.search(
-                            tenantContext.getTenantId(), query.getSessionId(), embedding, limit);
-                    return new MemorySearchResult(results);
-                }
-                log.warn("嵌入服务不可用，使用文本检索兜底, tenantId={}", tenantContext.getTenantId());
-            } catch (Exception ex) {
-                log.error("记忆向量检索失败, tenantId={}, sessionId={}",
-                        tenantContext.getTenantId(), query.getSessionId(), ex);
-            }
-        } else {
-            log.warn("向量存储不可用，使用文本检索兜底, tenantId={}", tenantContext.getTenantId());
+        List<MemoryRecord> aggregated = new ArrayList<>();
+        if (query != null && StringUtils.hasText(query.getQuery())) {
+            List<MemoryRecord> semantic = semanticMemoryStore.search(query, tenantContext, limit);
+            mergeRecords(aggregated, semantic, limit);
+            List<MemoryRecord> recent = recentMemoryStore.search(
+                    tenantContext.getTenantId(), query.getSessionId(), query.getQuery(), limit);
+            mergeRecords(aggregated, recent, limit);
+            List<MemoryRecord> compressed = compressedMemoryStore.search(
+                    tenantContext.getTenantId(), query.getSessionId(), query.getQuery(), limit);
+            mergeRecords(aggregated, compressed, limit);
         }
-        List<MemoryRecord> fallback = memoryRepository.search(
-                tenantContext.getTenantId(), query.getSessionId(), query.getQuery(), limit);
-        return new MemorySearchResult(fallback);
+        autoCompressIfNeeded(query != null ? query.getSessionId() : null, tenantContext);
+        return new MemorySearchResult(aggregated);
     }
 
     /**
@@ -112,21 +117,14 @@ public class MemoryStore {
     public MemoryRecord compress(CompressionRequest request, TenantContext tenantContext) {
         List<MemoryRecord> records = memoryRepository.findBySession(
                 tenantContext.getTenantId(), request.getSessionId());
-        StringBuilder summary = new StringBuilder();
-        for (MemoryRecord record : records) {
-            if (record.getContent() != null) {
-                summary.append(record.getContent()).append(" ");
-            }
+        MemoryRecord compressed = compressedMemoryStore.compress(request.getSessionId(), records, tenantContext);
+        if (compressed == null) {
+            log.warn("记忆压缩无效, tenantId={}, sessionId={}",
+                    tenantContext.getTenantId(), request.getSessionId());
+            return null;
         }
-        MemoryRecord compressed = new MemoryRecord();
-        compressed.setMemoryId(UUID.randomUUID().toString());
-        compressed.setSessionId(request.getSessionId());
-        compressed.setSummary(summary.toString().trim());
-        compressed.setLayer("compressed");
-        compressed.setTenantId(tenantContext.getTenantId());
-        compressed.setCreatedAt(Instant.now());
-        save(compressed, tenantContext);
-        log.info("记忆压缩完成, tenantId={}, sessionId={}", tenantContext.getTenantId(), request.getSessionId());
+        log.info("记忆压缩完成, tenantId={}, sessionId={}",
+                tenantContext.getTenantId(), request.getSessionId());
         return compressed;
     }
 
@@ -138,5 +136,38 @@ public class MemoryStore {
             return second;
         }
         return null;
+    }
+
+    private void mergeRecords(List<MemoryRecord> target, List<MemoryRecord> source, int limit) {
+        if (source == null || source.isEmpty() || target.size() >= limit) {
+            return;
+        }
+        for (MemoryRecord record : source) {
+            if (record == null) {
+                continue;
+            }
+            if (target.size() >= limit) {
+                break;
+            }
+            boolean exists = target.stream()
+                    .anyMatch(item -> item.getMemoryId() != null && item.getMemoryId().equals(record.getMemoryId()));
+            if (!exists) {
+                target.add(record);
+            }
+        }
+    }
+
+    private void autoCompressIfNeeded(String sessionId, TenantContext tenantContext) {
+        if (tenantContext == null || !StringUtils.hasText(sessionId)) {
+            return;
+        }
+        List<MemoryRecord> records = memoryRepository.findBySession(tenantContext.getTenantId(), sessionId);
+        if (memoryPolicy.shouldCompress(records, Instant.now())) {
+            MemoryRecord compressed = compressedMemoryStore.compress(sessionId, records, tenantContext);
+            if (compressed != null) {
+                log.info("自动压缩触发, tenantId={}, sessionId={}, memoryId={}",
+                        tenantContext.getTenantId(), sessionId, compressed.getMemoryId());
+            }
+        }
     }
 }

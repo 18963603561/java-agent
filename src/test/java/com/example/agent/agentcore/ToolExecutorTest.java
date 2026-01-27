@@ -8,6 +8,7 @@ import com.example.agent.common.TaskRequest;
 import com.example.agent.model.ModelDefinition;
 import com.example.agent.model.ModelRouter;
 import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.observability.TracingPublisher;
 import com.example.agent.sandbox.SandboxResult;
 import com.example.agent.tools.McpToolCallRequest;
 import com.example.agent.tools.McpToolCallResponse;
@@ -25,6 +26,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -40,6 +42,7 @@ class ToolExecutorTest {
         TokenBudgetManager tokenBudgetManager = Mockito.mock(TokenBudgetManager.class);
         ModelRouter modelRouter = Mockito.mock(ModelRouter.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
         ObjectProvider<StringRedisTemplate> redisProvider = Mockito.mock(ObjectProvider.class);
         when(redisProvider.getIfAvailable()).thenReturn(null);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -56,7 +59,7 @@ class ToolExecutorTest {
         when(toolRegistry.resolve("demo_tool")).thenReturn("demo_tool");
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher);
         ReflectionTestUtils.setField(executor, "cacheEnabled", true);
         ReflectionTestUtils.setField(executor, "cacheTtlSeconds", 300L);
 
@@ -83,6 +86,7 @@ class ToolExecutorTest {
         TokenBudgetManager tokenBudgetManager = Mockito.mock(TokenBudgetManager.class);
         ModelRouter modelRouter = Mockito.mock(ModelRouter.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
         ObjectProvider<StringRedisTemplate> redisProvider = Mockito.mock(ObjectProvider.class);
         when(redisProvider.getIfAvailable()).thenReturn(null);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -107,7 +111,7 @@ class ToolExecutorTest {
                 .thenReturn(okResponse);
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher);
         ReflectionTestUtils.setField(executor, "cacheEnabled", false);
         ReflectionTestUtils.setField(executor, "maxAttempts", 2);
         ReflectionTestUtils.setField(executor, "baseDelayMs", 0L);
@@ -123,5 +127,7 @@ class ToolExecutorTest {
 
         assertTrue(result.containsKey("result"));
         verify(mcpToolClient, times(2)).callTool(any(McpToolCallRequest.class), any());
+        verify(metricsPublisher, times(1)).increment(eq("tool.call.count"), eq("trace"));
+        verify(metricsPublisher, times(1)).recordTime(eq("tool.call.latency.ms"), anyLong(), eq("trace"));
     }
 }

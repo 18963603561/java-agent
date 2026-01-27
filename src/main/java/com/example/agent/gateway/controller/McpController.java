@@ -186,6 +186,10 @@ public class McpController {
         if (workflowId == null) {
             return;
         }
+        if (payload != null) {
+            payload.putIfAbsent("traceId", tenantContext.getTraceId());
+            payload.putIfAbsent("requestId", tenantContext.getRequestId());
+        }
         long seq = eventStreamService.nextSequence(tenantContext.getTenantId(), workflowId);
         StreamEvent event = new StreamEvent();
         event.setEventId(workflowId + ":" + seq);

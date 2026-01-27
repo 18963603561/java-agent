@@ -128,6 +128,19 @@ agent:
       collection: memory_records
       dimension: 256
       timeout-seconds: 5
+    recall:
+      enabled: true
+      limit: 10
+      min-query-length: 4
+      include-compressed: true
+      max-summary-chars: 800
+      max-record-chars: 500
+    write:
+      enabled: true
+      save-user-query: true
+      save-final-output: true
+      max-record-chars: 2000
+      max-summary-chars: 500
   budget:
     enabled: true
     threshold-tokens: 10000

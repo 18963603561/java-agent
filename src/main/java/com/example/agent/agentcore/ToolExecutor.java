@@ -13,6 +13,7 @@ import com.example.agent.tools.McpToolCallRequest;
 import com.example.agent.tools.McpToolCallResponse;
 import com.example.agent.tools.McpToolClient;
 import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.observability.TracingPublisher;
 import com.example.agent.runtime.RetryPolicy;
 import com.example.agent.sandbox.SandboxResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -44,6 +45,7 @@ public class ToolExecutor {
     private final ModelRouter modelRouter;
     private final ObjectMapper objectMapper;
     private final MetricsPublisher metricsPublisher;
+    private final TracingPublisher tracingPublisher;
 
     @Value("${agent.tool.cache.enabled:true}")
     private boolean cacheEnabled;
@@ -73,7 +75,8 @@ public class ToolExecutor {
                         TokenBudgetManager tokenBudgetManager,
                         ModelRouter modelRouter,
                         ObjectMapper objectMapper,
-                        MetricsPublisher metricsPublisher) {
+                        MetricsPublisher metricsPublisher,
+                        TracingPublisher tracingPublisher) {
         this.toolRegistry = toolRegistry;
         this.mcpToolClient = mcpToolClient;
         this.toolCache = toolCache;
@@ -82,6 +85,7 @@ public class ToolExecutor {
         this.modelRouter = modelRouter;
         this.objectMapper = objectMapper;
         this.metricsPublisher = metricsPublisher;
+        this.tracingPublisher = tracingPublisher;
     }
 
     /**
@@ -107,8 +111,8 @@ public class ToolExecutor {
         if (cacheEnabled) {
             Object cached = toolCache.getIfFresh(cacheKey, ttl);
             if (cached instanceof Map<?, ?> cachedMap) {
-                log.info("工具缓存命中, tenantId={}, tool={}, usageId={}",
-                        tenantContext.getTenantId(), resolvedTool, usageId);
+                log.info("工具缓存命中, tenantId={}, tool={}, usageId={}, traceId={}",
+                        tenantContext.getTenantId(), resolvedTool, usageId, resolveTraceId(tenantContext));
                 @SuppressWarnings("unchecked")
                 Map<String, Object> cachedOutput = (Map<String, Object>) cachedMap;
                 TokenUsageRecord usageRecord = recordUsage(tenantContext, request, usageId,
@@ -128,8 +132,9 @@ public class ToolExecutor {
             attempt++;
             long startNs = System.nanoTime();
             try {
-                log.info("工具执行开始, tenantId={}, tool={}, attempt={}, usageId={}",
-                        tenantContext.getTenantId(), resolvedTool, attempt, usageId);
+                log.info("工具执行开始, tenantId={}, tool={}, attempt={}, usageId={}, traceId={}",
+                        tenantContext.getTenantId(), resolvedTool, attempt, usageId,
+                        resolveTraceId(tenantContext));
                 SandboxResult sandboxResult = sandboxExecutor.execute(resolvedTool, request, tenantContext, arguments);
                 McpToolCallRequest callRequest = buildCallRequest(request, resolvedTool, arguments, usageId);
                 McpToolCallResponse callResponse = mcpToolClient.callTool(callRequest, tenantContext);
@@ -153,38 +158,44 @@ public class ToolExecutor {
                 response.put("tokenUsage", usageRecord);
                 response.put("cacheHit", false);
 
-                metricsPublisher.increment("tool.call.count");
+                metricsPublisher.increment("tool.call.count", resolveTraceId(tenantContext));
                 metricsPublisher.recordTime("tool.call.latency.ms",
-                        Duration.ofNanos(System.nanoTime() - startNs).toMillis());
+                        Duration.ofNanos(System.nanoTime() - startNs).toMillis(),
+                        resolveTraceId(tenantContext));
 
                 if (cacheEnabled) {
                     toolCache.put(cacheKey, merged, ttl);
                 }
 
-                log.info("工具执行完成, tenantId={}, tool={}, usageId={}",
-                        tenantContext.getTenantId(), resolvedTool, usageId);
+                log.info("工具执行完成, tenantId={}, tool={}, usageId={}, traceId={}",
+                        tenantContext.getTenantId(), resolvedTool, usageId,
+                        resolveTraceId(tenantContext));
                 return response;
             } catch (ErrorCodeException ex) {
-                metricsPublisher.increment("tool.call.failure.count");
+                metricsPublisher.increment("tool.call.failure.count", resolveTraceId(tenantContext));
                 if (isRetryable(ex) && attempt < maxAttempts) {
-                    log.warn("工具执行可重试, tenantId={}, tool={}, attempt={}, errorCode={}",
-                            tenantContext.getTenantId(), resolvedTool, attempt, ex.getErrorCode());
+                    log.warn("工具执行可重试, tenantId={}, tool={}, attempt={}, errorCode={}, traceId={}",
+                            tenantContext.getTenantId(), resolvedTool, attempt, ex.getErrorCode(),
+                            resolveTraceId(tenantContext));
                     retryPolicy.sleepBeforeRetry(attempt);
                     continue;
                 }
-                log.error("工具执行失败, tenantId={}, tool={}, attempt={}, errorCode={}",
-                        tenantContext.getTenantId(), resolvedTool, attempt, ex.getErrorCode(), ex);
+                log.error("工具执行失败, tenantId={}, tool={}, attempt={}, errorCode={}, traceId={}",
+                        tenantContext.getTenantId(), resolvedTool, attempt, ex.getErrorCode(),
+                        resolveTraceId(tenantContext), ex);
                 throw ex;
             } catch (Exception ex) {
-                metricsPublisher.increment("tool.call.failure.count");
+                metricsPublisher.increment("tool.call.failure.count", resolveTraceId(tenantContext));
                 if (attempt < maxAttempts) {
-                    log.warn("工具执行异常可重试, tenantId={}, tool={}, attempt={}",
-                            tenantContext.getTenantId(), resolvedTool, attempt, ex);
+                    log.warn("工具执行异常可重试, tenantId={}, tool={}, attempt={}, traceId={}",
+                            tenantContext.getTenantId(), resolvedTool, attempt,
+                            resolveTraceId(tenantContext), ex);
                     retryPolicy.sleepBeforeRetry(attempt);
                     continue;
                 }
-                log.error("工具执行异常, tenantId={}, tool={}, attempt={}",
-                        tenantContext.getTenantId(), resolvedTool, attempt, ex);
+                log.error("工具执行异常, tenantId={}, tool={}, attempt={}, traceId={}",
+                        tenantContext.getTenantId(), resolvedTool, attempt,
+                        resolveTraceId(tenantContext), ex);
                 throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE",
                         "工具执行异常");
             }
@@ -267,5 +278,13 @@ public class ToolExecutor {
         log.info("预算计量完成, tenantId={}, usageId={}, totalTokens={}, cacheHit={}",
                 tenantContext.getTenantId(), usageId, record.getTotalTokens(), cacheHit);
         return record;
+    }
+
+    private String resolveTraceId(TenantContext tenantContext) {
+        if (tenantContext != null && tenantContext.getTraceId() != null
+                && !tenantContext.getTraceId().isBlank()) {
+            return tenantContext.getTraceId();
+        }
+        return tracingPublisher.currentTraceId();
     }
 }

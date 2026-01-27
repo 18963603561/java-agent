@@ -6,6 +6,9 @@ import com.example.agent.common.ErrorCodeProvider;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
+import com.example.agent.memory.MemoryRecallResult;
+import com.example.agent.memory.MemoryRecallService;
+import com.example.agent.memory.MemoryWriteService;
 import com.example.agent.planning.PlanResult;
 import com.example.agent.planning.PlannerService;
 import com.example.agent.reasoning.DebateCoordinator;
@@ -20,6 +23,7 @@ import com.example.agent.research.ResearchCitation;
 import com.example.agent.research.ResearchPipeline;
 import com.example.agent.multiagent.MultiAgentCoordinator;
 import com.example.agent.tools.hook.HookManager;
+import com.example.agent.observability.TracingPublisher;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -49,7 +53,16 @@ public class AgentRuntime {
     private final DebateCoordinator debateCoordinator;
     private final ResearchPipeline researchPipeline;
     private final FinalOutputService finalOutputService;
+    /**
+     * 记忆召回服务。
+     */
+    private final MemoryRecallService memoryRecallService;
+    /**
+     * 记忆写入服务。
+     */
+    private final MemoryWriteService memoryWriteService;
     private final ApplicationEventPublisher eventPublisher;
+    private final TracingPublisher tracingPublisher;
     private final FailureClassifier failureClassifier = new FailureClassifier();
     private final RecoveryStrategyManager recoveryStrategyManager;
     private final RetryPolicy retryPolicy;
@@ -64,7 +77,10 @@ public class AgentRuntime {
                         DebateCoordinator debateCoordinator,
                         ResearchPipeline researchPipeline,
                         FinalOutputService finalOutputService,
+                        MemoryRecallService memoryRecallService,
+                        MemoryWriteService memoryWriteService,
                         ApplicationEventPublisher eventPublisher,
+                        TracingPublisher tracingPublisher,
                         @Value("${agent.runtime.max-retries:1}") int maxRetries,
                         @Value("${agent.runtime.max-decompose:1}") int maxDecompose,
                         @Value("${agent.retry.base-delay-ms:100}") long baseDelayMs,
@@ -80,7 +96,10 @@ public class AgentRuntime {
         this.debateCoordinator = debateCoordinator;
         this.researchPipeline = researchPipeline;
         this.finalOutputService = finalOutputService;
+        this.memoryRecallService = memoryRecallService;
+        this.memoryWriteService = memoryWriteService;
         this.eventPublisher = eventPublisher;
+        this.tracingPublisher = tracingPublisher;
         this.recoveryStrategyManager = new RecoveryStrategyManager(maxRetries, maxDecompose);
         this.retryPolicy = new RetryPolicy(baseDelayMs, maxDelayMs, jitterRatio);
     }
@@ -103,24 +122,29 @@ public class AgentRuntime {
         if (request != null && request.getContext() != null) {
             runtimeContext.putAll(request.getContext());
         }
+        MemoryRecallResult recallResult = memoryRecallService.recall(request, runtimeContext, tenantContext);
+        applyMemoryContext(runtimeContext, recallResult);
+        TaskRequest effectiveRequest = buildRequestWithContext(request, runtimeContext);
 
         List<Map<String, Object>> stepOutputs = new java.util.ArrayList<>();
         int decomposeAttempts = 0;
-        PlanResult plan = plannerService.plan(request, tenantContext, workflowId, seqCounter);
+        PlanResult plan = plannerService.plan(effectiveRequest, tenantContext, workflowId, seqCounter);
         publishPlanEvent(tenantContext, workflowId, seqCounter, plan, EventType.PLAN_GENERATED);
 
         while (true) {
             boolean replan = false;
             if (plan.getSteps() == null || plan.getSteps().isEmpty()) {
                 log.warn("规划为空, tenantId={}, workflowId={}", tenantContext.getTenantId(), workflowId);
-                return buildRuntimeResult(plan, stepOutputs, null);
+                RuntimeResult result = buildRuntimeResult(plan, stepOutputs, null);
+                persistMemorySafely(effectiveRequest, result, tenantContext, taskId);
+                return result;
             }
             for (StepRequest step : plan.getSteps()) {
-                StepOutcome outcome = executeStep(step, request, tenantContext, workflowId, taskId, seqCounter,
+                StepOutcome outcome = executeStep(step, effectiveRequest, tenantContext, workflowId, taskId, seqCounter,
                         runtimeContext, decomposeAttempts, stepOutputs);
                 if (outcome == StepOutcome.REPLAN) {
                     decomposeAttempts++;
-                    TaskRequest replanRequest = rebuildRequestForReplan(request, decomposeAttempts);
+                    TaskRequest replanRequest = rebuildRequestForReplan(effectiveRequest, decomposeAttempts);
                     plan = plannerService.plan(replanRequest, tenantContext, workflowId, seqCounter);
                     publishPlanEvent(tenantContext, workflowId, seqCounter, plan, EventType.PLAN_REVISED);
                     replan = true;
@@ -129,14 +153,16 @@ public class AgentRuntime {
             }
             if (!replan) {
                 Map<String, Object> finalOutput = finalOutputService.finalizeOutput(
-                        request != null ? request.getQuery() : null,
+                        effectiveRequest != null ? effectiveRequest.getQuery() : null,
                         plan != null ? plan.getSummary() : null,
                         stepOutputs,
                         tenantContext,
                         workflowId,
                         seqCounter
                 );
-                return buildRuntimeResult(plan, stepOutputs, finalOutput);
+                RuntimeResult result = buildRuntimeResult(plan, stepOutputs, finalOutput);
+                persistMemorySafely(effectiveRequest, result, tenantContext, taskId);
+                return result;
             }
         }
     }
@@ -349,6 +375,8 @@ public class AgentRuntime {
                               Map<String, Object> payload) {
         long seq = seqCounter.incrementAndGet();
         StreamEvent event = new StreamEvent();
+        Map<String, Object> mutable = payload == null ? new HashMap<>() : new HashMap<>(payload);
+        attachTraceContext(mutable, tenantContext);
         event.setEventId(workflowId + ":" + seq);
         event.setSchemaVersion("v1");
         event.setWorkflowId(workflowId);
@@ -357,8 +385,81 @@ public class AgentRuntime {
         event.setSeq(seq);
         event.setStreamId(workflowId);
         event.setTenantId(tenantContext.getTenantId());
-        event.setPayload(payload);
+        event.setPayload(mutable);
         eventPublisher.publishEvent(event);
+    }
+
+    private void attachTraceContext(Map<String, Object> payload, TenantContext tenantContext) {
+        if (payload == null || tenantContext == null) {
+            return;
+        }
+        payload.putIfAbsent("traceId", resolveTraceId(tenantContext));
+        payload.putIfAbsent("requestId", tenantContext.getRequestId());
+    }
+
+    private String resolveTraceId(TenantContext tenantContext) {
+        if (tenantContext != null && tenantContext.getTraceId() != null
+                && !tenantContext.getTraceId().isBlank()) {
+            return tenantContext.getTraceId();
+        }
+        return tracingPublisher.currentTraceId();
+    }
+
+    /**
+     * 将记忆召回结果注入运行上下文，供规划与工具使用。
+     *
+     * @param runtimeContext 运行上下文
+     * @param recallResult 记忆召回结果
+     */
+    private void applyMemoryContext(Map<String, Object> runtimeContext, MemoryRecallResult recallResult) {
+        if (runtimeContext == null || recallResult == null || !recallResult.isUsed()) {
+            return;
+        }
+        Map<String, Object> memoryContext = new HashMap<>();
+        memoryContext.put("summary", recallResult.getSummary());
+        memoryContext.put("records", recallResult.getRecords());
+        memoryContext.put("count", recallResult.getCount());
+        memoryContext.put("reason", recallResult.getReason());
+        runtimeContext.put("memory", memoryContext);
+    }
+
+    /**
+     * 构造携带运行上下文的任务请求副本，避免修改原请求对象。
+     *
+     * @param request 原任务请求
+     * @param runtimeContext 运行上下文
+     * @return 新的任务请求
+     */
+    private TaskRequest buildRequestWithContext(TaskRequest request, Map<String, Object> runtimeContext) {
+        if (request == null) {
+            return null;
+        }
+        TaskRequest copy = new TaskRequest();
+        copy.setQuery(request.getQuery());
+        copy.setSessionId(request.getSessionId());
+        copy.setIdempotencyKey(request.getIdempotencyKey());
+        copy.setContext(runtimeContext);
+        return copy;
+    }
+
+    /**
+     * 保护性写入记忆，失败不影响主流程。
+     *
+     * @param request 任务请求
+     * @param result 运行结果
+     * @param tenantContext 租户上下文
+     * @param taskId 任务标识
+     */
+    private void persistMemorySafely(TaskRequest request,
+                                     RuntimeResult result,
+                                     TenantContext tenantContext,
+                                     String taskId) {
+        try {
+            memoryWriteService.saveTaskMemory(request, result, tenantContext, taskId);
+        } catch (Exception ex) {
+            log.error("记忆写入异常, tenantId={}, taskId={}",
+                    tenantContext != null ? tenantContext.getTenantId() : null, taskId, ex);
+        }
     }
 
     private TaskRequest rebuildRequestForReplan(TaskRequest request, int attempt) {

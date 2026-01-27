@@ -51,6 +51,9 @@ class TaskOrchestratorTest {
     private MetricsPublisher metricsPublisher;
 
     @Mock
+    private com.example.agent.observability.TracingPublisher tracingPublisher;
+
+    @Mock
     private EventStreamService eventStreamService;
 
     private TaskOrchestrator orchestrator;
@@ -65,7 +68,7 @@ class TaskOrchestratorTest {
         taskRepository = new InMemoryTaskRepository();
         redisProvider = Mockito.mock(ObjectProvider.class);
         when(redisProvider.getIfAvailable()).thenReturn(null);
-        orchestrator = new TaskOrchestrator(eventPublisher, workflowRouter, metricsPublisher, eventStreamService,
+        orchestrator = new TaskOrchestrator(eventPublisher, workflowRouter, metricsPublisher, tracingPublisher, eventStreamService,
                 taskRepository, redisProvider);
     }
 
@@ -107,7 +110,9 @@ class TaskOrchestratorTest {
                 .route(eq(request), eq(tenantContext), anyString(), anyString(), any(AtomicLong.class));
         verify(eventPublisher, times(1))
                 .publishEvent(argThat((Object event) -> event instanceof StreamEvent
-                        && ((StreamEvent) event).getType() == EventType.WORKFLOW_STARTED));
+                        && ((StreamEvent) event).getType() == EventType.WORKFLOW_STARTED
+                        && "trace-1".equals(((StreamEvent) event).getPayload().get("traceId"))));
+        verify(metricsPublisher, times(1)).increment(eq("task.submit.count"), eq("trace-1"));
     }
 
     @Test

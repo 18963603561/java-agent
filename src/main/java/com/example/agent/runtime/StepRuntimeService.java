@@ -5,6 +5,7 @@ import com.example.agent.common.ErrorCodeException;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.observability.TracingPublisher;
 import com.example.agent.streaming.EventStreamService;
 import java.time.Duration;
 import java.time.Instant;
@@ -33,15 +34,18 @@ public class StepRuntimeService {
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
     private final MetricsPublisher metricsPublisher;
+    private final TracingPublisher tracingPublisher;
     private final StepRecordRepository stepRecordRepository;
 
     public StepRuntimeService(ApplicationEventPublisher eventPublisher,
                               EventStreamService eventStreamService,
                               MetricsPublisher metricsPublisher,
+                              TracingPublisher tracingPublisher,
                               StepRecordRepository stepRecordRepository) {
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
         this.metricsPublisher = metricsPublisher;
+        this.tracingPublisher = tracingPublisher;
         this.stepRecordRepository = stepRecordRepository;
     }
 
@@ -75,7 +79,7 @@ public class StepRuntimeService {
         record.setStartedAt(Instant.now());
 
         saveRecord(record);
-        metricsPublisher.increment("step.count");
+        metricsPublisher.increment("step.count", resolveTraceId(tenantContext));
         publishStepEvent(EventType.STEP_STARTED, record, seqCounter, seq, Map.of(
                 "stepId", record.getStepId(),
                 "stepSeq", record.getStepSeq(),
@@ -100,7 +104,7 @@ public class StepRuntimeService {
         record.setStatus(stateMachine.transition(record.getStatus(), StepState.COMPLETED));
         record.setOutput(output);
         record.setCompletedAt(Instant.now());
-        metricsPublisher.recordTime("step.duration.ms", calcDuration(record));
+        metricsPublisher.recordTime("step.duration.ms", calcDuration(record), resolveTraceId(null));
 
         long seq = nextSeq(new TenantContext(record.getTenantId(), null, Collections.emptyList(), null, null),
                 record.getWorkflowId(), seqCounter);
@@ -131,7 +135,7 @@ public class StepRuntimeService {
         record.setStatus(stateMachine.transition(record.getStatus(), StepState.FAILED));
         record.setErrorCode(errorCode);
         record.setCompletedAt(Instant.now());
-        metricsPublisher.increment("step.failure.count");
+        metricsPublisher.increment("step.failure.count", resolveTraceId(null));
 
         long seq = nextSeq(new TenantContext(record.getTenantId(), null, Collections.emptyList(), null, null),
                 record.getWorkflowId(), seqCounter);
@@ -228,6 +232,8 @@ public class StepRuntimeService {
                                   Map<String, Object> payload) {
         StreamEvent event = new StreamEvent();
         String streamId = record.getWorkflowId();
+        Map<String, Object> mutable = payload == null ? new java.util.HashMap<>() : new java.util.HashMap<>(payload);
+        mutable.putIfAbsent("traceId", resolveTraceId(null));
         event.setEventId(streamId + ":" + seq);
         event.setSchemaVersion("v1");
         event.setWorkflowId(record.getWorkflowId());
@@ -236,8 +242,16 @@ public class StepRuntimeService {
         event.setSeq(seq);
         event.setStreamId(streamId);
         event.setTenantId(record.getTenantId());
-        event.setPayload(payload);
+        event.setPayload(mutable);
         eventPublisher.publishEvent(event);
+    }
+
+    private String resolveTraceId(TenantContext tenantContext) {
+        if (tenantContext != null && tenantContext.getTraceId() != null
+                && !tenantContext.getTraceId().isBlank()) {
+            return tenantContext.getTraceId();
+        }
+        return tracingPublisher.currentTraceId();
     }
 
     private long calcDuration(StepRecord record) {

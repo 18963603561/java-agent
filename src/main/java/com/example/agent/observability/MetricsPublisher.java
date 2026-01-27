@@ -25,6 +25,16 @@ public class MetricsPublisher {
     }
 
     /**
+     * 递增计数器指标（带 traceId 标签）。
+     *
+     * @param name 指标名称
+     * @param traceId 链路标识
+     */
+    public void increment(String name, String traceId) {
+        meterRegistry.counter(name, "traceId", safeTag(traceId)).increment();
+    }
+
+    /**
      * 记录耗时指标。
      *
      * @param name 指标名称
@@ -32,5 +42,24 @@ public class MetricsPublisher {
      */
     public void recordTime(String name, long millis) {
         meterRegistry.timer(name).record(millis, java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
+    /**
+     * 记录耗时指标（带 traceId 标签）。
+     *
+     * @param name 指标名称
+     * @param millis 耗时毫秒
+     * @param traceId 链路标识
+     */
+    public void recordTime(String name, long millis, String traceId) {
+        meterRegistry.timer(name, "traceId", safeTag(traceId))
+                .record(millis, java.util.concurrent.TimeUnit.MILLISECONDS);
+    }
+
+    private String safeTag(String traceId) {
+        if (traceId == null || traceId.isBlank()) {
+            return "unknown";
+        }
+        return traceId;
     }
 }

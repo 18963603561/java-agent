@@ -5,6 +5,7 @@ import com.example.agent.auth.TenantContext;
 import com.example.agent.auth.UserContext;
 import com.example.agent.common.ErrorCodeException;
 import com.example.agent.domain.event.StreamEvent;
+import com.example.agent.observability.TracingPublisher;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
@@ -41,14 +42,18 @@ public class SseStreamController {
 
     private final EventStreamService eventStreamService;
     private final AuthService authService;
+    private final TracingPublisher tracingPublisher;
 
     private Duration firstEventTimeout = Duration.ofSeconds(30);
 
     private Scheduler timeoutScheduler = Schedulers.parallel();
 
-    public SseStreamController(EventStreamService eventStreamService, AuthService authService) {
+    public SseStreamController(EventStreamService eventStreamService,
+                               AuthService authService,
+                               TracingPublisher tracingPublisher) {
         this.eventStreamService = eventStreamService;
         this.authService = authService;
+        this.tracingPublisher = tracingPublisher;
     }
 
     /**
@@ -95,7 +100,8 @@ public class SseStreamController {
         request.setLastEventId(finalCursor);
         request.setCursor(finalCursor);
 
-        log.info("SSE subscribe start, tenantId={}, workflowId={}", tenantContext.getTenantId(), workflowId);
+        log.info("SSE subscribe start, tenantId={}, workflowId={}, traceId={}",
+                tenantContext.getTenantId(), workflowId, resolveTraceId(tenantContext));
         Flux<StreamEvent> stream = eventStreamService.stream(request, tenantContext);
         Flux<StreamEvent> gated = firstEventTimeout == null ? stream : stream.publish(shared -> {
             AtomicBoolean timedOut = new AtomicBoolean(false);
@@ -105,8 +111,9 @@ public class SseStreamController {
                         timedOut.set(true);
                         StreamEvent timeoutEvent = buildTimeoutEvent(tenantContext, workflowId);
                         eventStreamService.recordSyntheticEvent(timeoutEvent);
-                        log.warn("SSE first event timeout, tenantId={}, workflowId={}, eventId={}",
-                                tenantContext.getTenantId(), workflowId, timeoutEvent.getEventId());
+                        log.warn("SSE first event timeout, tenantId={}, workflowId={}, eventId={}, traceId={}",
+                                tenantContext.getTenantId(), workflowId, timeoutEvent.getEventId(),
+                                resolveTraceId(tenantContext));
                         return Mono.just(timeoutEvent);
                     });
             return first.flatMapMany(event -> timedOut.get()
@@ -123,8 +130,8 @@ public class SseStreamController {
         Flux<ServerSentEvent<StreamEvent>> output = firstEventTimeout == null
                 ? Flux.just(ServerSentEvent.<StreamEvent>builder().comment("ready").build()).concatWith(eventFlux)
                 : eventFlux;
-        return output.doFinally(signal -> log.info("SSE subscribe end, tenantId={}, workflowId={}, signal={}",
-                tenantContext.getTenantId(), workflowId, signal));
+        return output.doFinally(signal -> log.info("SSE subscribe end, tenantId={}, workflowId={}, signal={}, traceId={}",
+                tenantContext.getTenantId(), workflowId, signal, resolveTraceId(tenantContext)));
     }
 
     private TenantContext getTenantContext(ServerWebExchange exchange) {
@@ -158,7 +165,18 @@ public class SseStreamController {
         event.setSeq(seq);
         event.setStreamId(workflowId);
         event.setTenantId(tenantContext.getTenantId());
-        event.setPayload(Map.of("error", "STREAM_TIMEOUT"));
+        event.setPayload(Map.of(
+                "error", "STREAM_TIMEOUT",
+                "traceId", resolveTraceId(tenantContext),
+                "requestId", tenantContext.getRequestId()
+        ));
         return event;
+    }
+
+    private String resolveTraceId(TenantContext tenantContext) {
+        if (tenantContext != null && StringUtils.hasText(tenantContext.getTraceId())) {
+            return tenantContext.getTraceId();
+        }
+        return tracingPublisher.currentTraceId();
     }
 }

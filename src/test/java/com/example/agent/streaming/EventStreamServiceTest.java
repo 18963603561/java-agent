@@ -99,6 +99,52 @@ class EventStreamServiceTest {
     }
 
     @Test
+    void resumeReplaysEventsAfterCursor() throws Exception {
+        String workflowId = "workflow-9";
+        String tenantId = "tenant-a";
+        ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+
+        StreamEvent event5 = buildEvent(workflowId, tenantId, workflowId + ":5", 5);
+        StreamEvent event6 = buildEvent(workflowId, tenantId, workflowId + ":6", 6);
+        StreamEvent event7 = buildEvent(workflowId, tenantId, workflowId + ":7", 7);
+        String payload5 = objectMapper.writeValueAsString(event5);
+        String payload6 = objectMapper.writeValueAsString(event6);
+        String payload7 = objectMapper.writeValueAsString(event7);
+
+        StringRedisTemplate redisTemplate = mock(StringRedisTemplate.class);
+        StreamOperations ops = mock(StreamOperations.class);
+        when(redisTemplate.opsForStream()).thenReturn(ops);
+        MapRecord record5 = StreamRecords.newRecord()
+                .ofMap(Map.of("event", payload5))
+                .withStreamKey("stream:" + workflowId);
+        MapRecord record6 = StreamRecords.newRecord()
+                .ofMap(Map.of("event", payload6))
+                .withStreamKey("stream:" + workflowId);
+        MapRecord record7 = StreamRecords.newRecord()
+                .ofMap(Map.of("event", payload7))
+                .withStreamKey("stream:" + workflowId);
+        when(ops.range(eq("stream:" + workflowId), any()))
+                .thenReturn(List.of(record5, record6, record7));
+
+        MetricsPublisher metricsPublisher = mock(MetricsPublisher.class);
+        EventStreamService service = new EventStreamService(new FixedObjectProvider<>(redisTemplate),
+                objectMapper, metricsPublisher);
+        ReflectionTestUtils.setField(service, "validationScheduler", Schedulers.immediate());
+
+        TaskStreamRequest request = new TaskStreamRequest();
+        request.setWorkflowId(workflowId);
+        request.setLastEventId(workflowId + ":5");
+        TenantContext tenantContext = new TenantContext(tenantId, "user-1", List.of(), "req-1", "trace-1");
+
+        Flux<StreamEvent> flux = service.stream(request, tenantContext);
+        StepVerifier.create(flux)
+                .expectNextMatches(event -> event.getEventId().equals(workflowId + ":6"))
+                .expectNextMatches(event -> event.getEventId().equals(workflowId + ":7"))
+                .thenCancel()
+                .verify();
+    }
+
+    @Test
     void tenantIsolationFiltersEvents() {
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
         MetricsPublisher metricsPublisher = mock(MetricsPublisher.class);

@@ -114,6 +114,8 @@ public class EnforcementGateway {
     private StreamEvent buildEvent(TenantContext tenantContext, String workflowId, EventType type, long seq,
                                    Map<String, Object> payload) {
         String streamId = workflowId;
+        Map<String, Object> mutable = payload == null ? new HashMap<>() : new HashMap<>(payload);
+        attachTraceContext(mutable, tenantContext);
         StreamEvent event = new StreamEvent();
         event.setEventId(streamId + ":" + seq);
         event.setSchemaVersion("v1");
@@ -123,8 +125,16 @@ public class EnforcementGateway {
         event.setSeq(seq);
         event.setStreamId(streamId);
         event.setTenantId(tenantContext.getTenantId());
-        event.setPayload(payload);
+        event.setPayload(mutable);
         return event;
+    }
+
+    private void attachTraceContext(Map<String, Object> payload, TenantContext tenantContext) {
+        if (payload == null || tenantContext == null) {
+            return;
+        }
+        payload.putIfAbsent("traceId", tenantContext.getTraceId());
+        payload.putIfAbsent("requestId", tenantContext.getRequestId());
     }
 
     private String resolveErrorCode(Throwable ex) {

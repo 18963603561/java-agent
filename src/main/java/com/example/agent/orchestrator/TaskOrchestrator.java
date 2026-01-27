@@ -9,6 +9,7 @@ import com.example.agent.common.TaskStatusResponse;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.observability.TracingPublisher;
 import com.example.agent.runtime.RuntimeResult;
 import com.example.agent.streaming.EventStreamService;
 import java.time.Duration;
@@ -42,6 +43,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
     private final ApplicationEventPublisher eventPublisher;
     private final WorkflowRouter workflowRouter;
     private final MetricsPublisher metricsPublisher;
+    private final TracingPublisher tracingPublisher;
     private final EventStreamService eventStreamService;
     private final TaskRepository taskRepository;
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
@@ -56,12 +58,14 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
     public TaskOrchestrator(ApplicationEventPublisher eventPublisher,
                             WorkflowRouter workflowRouter,
                             MetricsPublisher metricsPublisher,
+                            TracingPublisher tracingPublisher,
                             EventStreamService eventStreamService,
                             TaskRepository taskRepository,
                             ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
         this.eventPublisher = eventPublisher;
         this.workflowRouter = workflowRouter;
         this.metricsPublisher = metricsPublisher;
+        this.tracingPublisher = tracingPublisher;
         this.eventStreamService = eventStreamService;
         this.taskRepository = taskRepository;
         this.redisTemplateProvider = redisTemplateProvider;
@@ -193,9 +197,10 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         long startedSeq = seqCounter.incrementAndGet();
         publishEvent(buildEvent(tenantContext, workflowId, EventType.WORKFLOW_STARTED, startedSeq,
                 Map.of("message", "workflow started")));
-        metricsPublisher.increment("task.submit.count");
+        metricsPublisher.increment("task.submit.count", resolveTraceId(tenantContext));
 
-        log.info("任务提交, tenantId={}, taskId={}, workflowId={}", tenantId, taskId, workflowId);
+        log.info("任务提交, tenantId={}, taskId={}, workflowId={}, traceId={}",
+                tenantId, taskId, workflowId, resolveTraceId(tenantContext));
         return record;
     }
 
@@ -210,8 +215,9 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
                     response.getTaskId(), seqCounter);
             updateTaskStatus(record, "COMPLETED", buildResultPayload(runtimeResult));
         } catch (RuntimeException ex) {
-            log.error("任务路由失败, tenantId={}, taskId={}, workflowId={}",
-                    tenantContext.getTenantId(), response.getTaskId(), workflowId, ex);
+            log.error("任务路由失败, tenantId={}, taskId={}, workflowId={}, traceId={}",
+                    tenantContext.getTenantId(), response.getTaskId(), workflowId,
+                    resolveTraceId(tenantContext), ex);
             long errorSeq = seqCounter.incrementAndGet();
             publishEvent(buildEvent(tenantContext, workflowId, EventType.ERROR_OCCURRED, errorSeq,
                     Map.of("error", ex.getMessage() == null ? "route_failed" : ex.getMessage())));
@@ -227,7 +233,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
             publishEvent(buildEvent(tenantContext, workflowId, EventType.WORKFLOW_COMPLETED, endSeq,
                     Map.of("status", finalStatus)));
             long costMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
-            metricsPublisher.recordTime("task.duration.ms", costMs);
+            metricsPublisher.recordTime("task.duration.ms", costMs, resolveTraceId(tenantContext));
         }
     }
 
@@ -309,6 +315,8 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
     private StreamEvent buildEvent(TenantContext tenantContext, String workflowId, EventType type, long seq,
                                    Map<String, Object> payload) {
         String streamId = workflowId;
+        Map<String, Object> mutable = payload == null ? new HashMap<>() : new HashMap<>(payload);
+        attachTraceContext(mutable, tenantContext);
         StreamEvent event = new StreamEvent();
         event.setEventId(streamId + ":" + seq);
         event.setSchemaVersion("v1");
@@ -318,7 +326,22 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         event.setSeq(seq);
         event.setStreamId(streamId);
         event.setTenantId(tenantContext.getTenantId());
-        event.setPayload(payload);
+        event.setPayload(mutable);
         return event;
+    }
+
+    private void attachTraceContext(Map<String, Object> payload, TenantContext tenantContext) {
+        if (payload == null || tenantContext == null) {
+            return;
+        }
+        payload.putIfAbsent("traceId", resolveTraceId(tenantContext));
+        payload.putIfAbsent("requestId", tenantContext.getRequestId());
+    }
+
+    private String resolveTraceId(TenantContext tenantContext) {
+        if (tenantContext != null && StringUtils.hasText(tenantContext.getTraceId())) {
+            return tenantContext.getTraceId();
+        }
+        return tracingPublisher.currentTraceId();
     }
 }
