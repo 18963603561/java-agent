@@ -6,6 +6,7 @@ import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
+import com.example.agent.model.ModelToolResolver;
 import com.example.agent.runtime.StepRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -26,10 +27,12 @@ class PlannerServiceTest {
     @Test
     void planReturnsToolStepForSimpleQueryWithFallback() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(false);
         properties.setFallbackEnabled(true);
-        PlannerService plannerService = new PlannerService(modelInvocationService, properties, new ObjectMapper());
+        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver,
+                properties, new ObjectMapper());
 
         TaskRequest request = new TaskRequest();
         request.setQuery("ping");
@@ -47,10 +50,12 @@ class PlannerServiceTest {
     @Test
     void planUsesLlmWhenEnabled() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(true);
         properties.setFallbackEnabled(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, properties, new ObjectMapper());
+        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver,
+                properties, new ObjectMapper());
 
         String content = """
                 {

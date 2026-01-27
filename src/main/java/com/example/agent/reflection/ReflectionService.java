@@ -5,6 +5,7 @@ import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
+import com.example.agent.model.ModelToolResolver;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.runtime.StepRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -29,15 +30,18 @@ public class ReflectionService {
     private final ReflectionProperties properties;
     private final MetricsPublisher metricsPublisher;
     private final ModelInvocationService modelInvocationService;
+    private final ModelToolResolver modelToolResolver;
     private final ObjectMapper objectMapper;
 
     public ReflectionService(ReflectionProperties properties,
                              MetricsPublisher metricsPublisher,
                              ModelInvocationService modelInvocationService,
+                             ModelToolResolver modelToolResolver,
                              ObjectMapper objectMapper) {
         this.properties = properties;
         this.metricsPublisher = metricsPublisher;
         this.modelInvocationService = modelInvocationService;
+        this.modelToolResolver = modelToolResolver;
         this.objectMapper = objectMapper;
     }
 
@@ -113,6 +117,7 @@ public class ReflectionService {
         try {
             String prompt = buildReflectionPrompt(step, output, attempt);
             ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.REFLECT);
+            modelToolResolver.applyTooling(modelRequest, null, step != null ? step.getInput() : null);
             Map<String, Object> metadata = new HashMap<>();
             if (step != null && step.getStepType() != null) {
                 metadata.put("stepType", step.getStepType());

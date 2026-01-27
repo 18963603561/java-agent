@@ -6,16 +6,20 @@ import com.example.agent.common.ErrorCodeException;
 import com.example.agent.governance.CircuitBreakerManager;
 import com.example.agent.governance.RateLimitService;
 import com.example.agent.runtime.RetryPolicy;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.net.URI;
 import java.time.Duration;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.core.ParameterizedTypeReference;
+import org.springframework.core.io.buffer.DataBuffer;
+import org.springframework.core.io.buffer.DataBufferUtils;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
@@ -183,7 +187,7 @@ public class McpToolClient {
     }
 
     private McpToolListResponse listToolsRemote(McpServerProperties.McpServer server, McpToolListRequest request) {
-        Map<String, Object> response = post(server.getBaseUrl(), "/tools/list", request, timeoutSeconds);
+        Map<String, Object> response = post(server, "/tools/list", request, timeoutSeconds);
         return convertResponse(response, McpToolListResponse.class);
     }
 
@@ -191,26 +195,59 @@ public class McpToolClient {
         long timeout = request.getTimeoutMs() != null && request.getTimeoutMs() > 0
                 ? request.getTimeoutMs() / 1000
                 : timeoutSeconds;
-        Map<String, Object> response = post(server.getBaseUrl(), "/tools/call", request, timeout);
+        Map<String, Object> response = post(server, "/tools/call", request, timeout);
         return convertResponse(response, McpToolCallResponse.class);
     }
 
-    private Map<String, Object> post(String baseUrl, String path, Object body, long timeoutSec) {
+    private Map<String, Object> post(McpServerProperties.McpServer server, String path, Object body, long timeoutSec) {
+        String baseUrl = server.getBaseUrl();
+        validateAllowedHost(server, baseUrl);
+        long maxResponseBytes = resolveMaxResponseBytes(server);
         WebClient client = webClientBuilder.baseUrl(baseUrl).build();
         return client.post()
                 .uri(path)
                 .contentType(MediaType.APPLICATION_JSON)
                 .bodyValue(body)
-                .retrieve()
-                .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
-                        result -> result.bodyToMono(String.class)
+                .exchangeToMono(response -> {
+                    if (response.statusCode().is4xxClientError() || response.statusCode().is5xxServerError()) {
+                        return response.bodyToMono(String.class)
                                 .defaultIfEmpty("mcp_call_failed")
                                 .flatMap(message -> Mono.error(new ErrorCodeException(
-                                        HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE", message))))
-                .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
+                                        HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE", message)));
+                    }
+                    return response.bodyToFlux(DataBuffer.class)
+                            .reduceWith(ByteArrayOutputStream::new, (stream, buffer) -> {
+                                int readable = buffer.readableByteCount();
+                                if (readable > 0) {
+                                    if (stream.size() + readable > maxResponseBytes) {
+                                        DataBufferUtils.release(buffer);
+                                        throw new ErrorCodeException(HttpStatus.PAYLOAD_TOO_LARGE,
+                                                "MCP_RESPONSE_TOO_LARGE", "MCP 响应过大");
+                                    }
+                                    byte[] chunk = new byte[readable];
+                                    buffer.read(chunk);
+                                    stream.write(chunk, 0, readable);
+                                }
+                                DataBufferUtils.release(buffer);
+                                return stream;
+                            })
+                            .map(this::readResponseAsMap);
                 })
                 .timeout(Duration.ofSeconds(timeoutSec))
                 .block();
+    }
+
+    private Map<String, Object> readResponseAsMap(ByteArrayOutputStream stream) {
+        if (stream == null || stream.size() == 0) {
+            return null;
+        }
+        byte[] payload = stream.toByteArray();
+        try {
+            return objectMapper.readValue(payload, new TypeReference<Map<String, Object>>() {
+            });
+        } catch (IOException ex) {
+            throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE", "MCP 响应解析失败");
+        }
     }
 
     private <T> T convertResponse(Map<String, Object> response, Class<T> targetClass) {
@@ -253,6 +290,39 @@ public class McpToolClient {
             throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE",
                     "MCP 服务不可用");
         }
+    }
+
+    private void validateAllowedHost(McpServerProperties.McpServer server, String baseUrl) {
+        List<String> allowedHosts = server != null ? server.getAllowedHosts() : null;
+        if (allowedHosts == null || allowedHosts.isEmpty()) {
+            throw new ErrorCodeException(HttpStatus.FORBIDDEN, "MCP_FORBIDDEN_HOST",
+                    "MCP 目标主机不在允许列表");
+        }
+        URI uri;
+        try {
+            uri = URI.create(baseUrl);
+        } catch (IllegalArgumentException ex) {
+            throw new ErrorCodeException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "MCP 地址非法");
+        }
+        String host = uri.getHost();
+        if (!StringUtils.hasText(host)) {
+            throw new ErrorCodeException(HttpStatus.BAD_REQUEST, "INVALID_REQUEST", "MCP 地址缺少主机");
+        }
+        boolean allowed = allowedHosts.stream()
+                .filter(StringUtils::hasText)
+                .anyMatch(allowedHost -> host.equalsIgnoreCase(allowedHost.trim()));
+        if (!allowed) {
+            throw new ErrorCodeException(HttpStatus.FORBIDDEN, "MCP_FORBIDDEN_HOST",
+                    "MCP 目标主机不在允许列表");
+        }
+    }
+
+    private long resolveMaxResponseBytes(McpServerProperties.McpServer server) {
+        long configured = server != null ? server.getMaxResponseBytes() : 0;
+        if (configured > 0) {
+            return configured;
+        }
+        return 2 * 1024 * 1024L;
     }
 
     private int resolveStartIndex(String cursor, int totalSize) {

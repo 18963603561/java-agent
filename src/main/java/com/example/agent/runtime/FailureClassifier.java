@@ -46,6 +46,8 @@ public class FailureClassifier {
                 || "POLICY_DENIED".equals(code)
                 || "SANDBOX_DENIED".equals(code)
                 || "INVALID_REQUEST".equals(code)
-                || "NOT_FOUND".equals(code);
+                || "NOT_FOUND".equals(code)
+                || "CANCELLED".equals(code)
+                || "EXECUTION_INTERRUPTED".equals(code);
     }
 }

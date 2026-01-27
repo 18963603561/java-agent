@@ -1,4 +1,6 @@
 spring:
+  autoconfigure:
+    exclude: ""
   datasource:
     url: jdbc:postgresql://localhost:5432/agent
     username: agent

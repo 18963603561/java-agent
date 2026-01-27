@@ -7,18 +7,29 @@ import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.runtime.StepRecord;
 import com.example.agent.streaming.EventStreamService;
+import jakarta.annotation.PreDestroy;
 import java.time.Instant;
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
 import java.util.Map;
-import java.util.UUID;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 /**
  * Hook 管理器，负责 pre/post tool 与 pre/post step 的决策与记录。
@@ -32,6 +43,8 @@ public class HookManager {
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
     private final MetricsPublisher metricsPublisher;
+    private final List<HookHandler> hookHandlers;
+    private final ExecutorService hookExecutor = Executors.newCachedThreadPool();
 
     private static final int MAX_RECORDS = 1000;
 
@@ -41,16 +54,18 @@ public class HookManager {
     public HookManager(HookProperties hookProperties,
                        ApplicationEventPublisher eventPublisher,
                        EventStreamService eventStreamService,
-                       MetricsPublisher metricsPublisher) {
+                       MetricsPublisher metricsPublisher,
+                       List<HookHandler> hookHandlers) {
         this.hookProperties = hookProperties;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
         this.metricsPublisher = metricsPublisher;
+        this.hookHandlers = hookHandlers == null ? List.of() : new ArrayList<>(hookHandlers);
     }
 
     public void preTool(TenantContext tenantContext, StepRecord stepRecord, String toolName) {
-        HookDecision decision = evaluate(toolName);
-        recordDecision(HookType.PRE_TOOL, tenantContext, stepRecord, toolName, decision);
+        HookDecision decision = executeHooks(HookType.PRE_TOOL, tenantContext, stepRecord, toolName,
+                buildPayload(stepRecord, null), true);
         if (!decision.isAllowed()) {
             metricsPublisher.increment("hook.block.count");
             log.warn("HOOK_BLOCKED, tenantId={}, userId={}, traceId={}, requestId={}, toolName={}, reason={}",
@@ -67,57 +82,260 @@ public class HookManager {
 
     public void postTool(TenantContext tenantContext, StepRecord stepRecord, String toolName,
                          Map<String, Object> result) {
-        HookDecision decision = new HookDecision(true, "ok",
-                result == null ? Collections.emptyMap() : result);
-        recordDecision(HookType.POST_TOOL, tenantContext, stepRecord, toolName, decision);
+        HookDecision decision = executeHooks(HookType.POST_TOOL, tenantContext, stepRecord, toolName,
+                buildPayload(stepRecord, result), false);
         publishHookEvent(EventType.HOOK_POST_TOOL, tenantContext, stepRecord, toolName, decision);
     }
 
     public void preStep(TenantContext tenantContext, StepRecord stepRecord) {
-        HookDecision decision = new HookDecision(true, "ok", Collections.emptyMap());
-        recordDecision(HookType.PRE_STEP, tenantContext, stepRecord, null, decision);
+        HookDecision decision = executeHooks(HookType.PRE_STEP, tenantContext, stepRecord, null,
+                buildPayload(stepRecord, null), true);
         publishHookEvent(EventType.HOOK_PRE_STEP, tenantContext, stepRecord, null, decision);
     }
 
     public void postStep(TenantContext tenantContext, StepRecord stepRecord) {
-        HookDecision decision = new HookDecision(true, "ok", Collections.emptyMap());
-        recordDecision(HookType.POST_STEP, tenantContext, stepRecord, null, decision);
+        HookDecision decision = executeHooks(HookType.POST_STEP, tenantContext, stepRecord, null,
+                buildPayload(stepRecord, null), false);
         publishHookEvent(EventType.HOOK_POST_STEP, tenantContext, stepRecord, null, decision);
     }
 
-    private HookDecision evaluate(String toolName) {
-        if (!hookProperties.isEnabled()) {
-            return new HookDecision(true, "disabled", Collections.emptyMap());
+    List<HookRecord> listRecords() {
+        synchronized (recordLock) {
+            return new ArrayList<>(records);
         }
-        if (toolName != null && hookProperties.getBlockedTools().stream()
-                .anyMatch(blocked -> blocked.equalsIgnoreCase(toolName))) {
-            return new HookDecision(false, "工具被 Hook 阻断", Map.of("toolName", toolName));
-        }
-        return new HookDecision(true, "ok", Collections.emptyMap());
     }
 
-    private void recordDecision(HookType type,
-                                TenantContext tenantContext,
-                                StepRecord stepRecord,
-                                String toolName,
-                                HookDecision decision) {
+    @PreDestroy
+    void shutdownExecutor() {
+        hookExecutor.shutdownNow();
+    }
+
+    private HookDecision executeHooks(HookType hookType,
+                                      TenantContext tenantContext,
+                                      StepRecord stepRecord,
+                                      String toolName,
+                                      Map<String, Object> payload,
+                                      boolean enforceBlock) {
+        if (!hookProperties.isEnabled()) {
+            HookDecision decision = new HookDecision(true, "disabled", Collections.emptyMap());
+            recordExecution("hook_disabled", hookType, tenantContext, stepRecord, toolName, decision,
+                    false, Instant.now(), Instant.now(), 0);
+            return decision;
+        }
+        List<HookHandler> handlers = resolveOrderedHandlers();
+        HookDecision finalDecision = new HookDecision(true, "ok", Collections.emptyMap());
+        HookContext context = new HookContext(hookType, toolName,
+                stepRecord != null ? stepRecord.getStepId() : null,
+                tenantContext != null ? tenantContext.getTenantId() : null,
+                payload == null ? Collections.emptyMap() : payload);
+        if (handlers.isEmpty()) {
+            recordExecution("hook_default", hookType, tenantContext, stepRecord, toolName, finalDecision,
+                    false, Instant.now(), Instant.now(), 0);
+            return finalDecision;
+        }
+        for (HookHandler handler : handlers) {
+            if (handler == null) {
+                continue;
+            }
+            HookProperties.HookConfig config = resolveHookConfig(handler.getHookId());
+            HookExecutionResult execution = executeWithTimeout(handler, context, config);
+            recordExecution(handler.getHookId(), hookType, tenantContext, stepRecord, toolName,
+                    execution.decision, execution.timeout, execution.startedAt, execution.endedAt, execution.durationMs);
+            if (!execution.decision.isAllowed()) {
+                finalDecision = execution.decision;
+                if (enforceBlock) {
+                    break;
+                }
+            }
+        }
+        return finalDecision;
+    }
+
+    private HookExecutionResult executeWithTimeout(HookHandler handler,
+                                                   HookContext context,
+                                                   HookProperties.HookConfig config) {
+        Instant startedAt = Instant.now();
+        boolean timeout = false;
+        HookDecision decision = null;
+        long timeoutMs = config != null ? config.getTimeoutMs() : 0;
+        Future<HookDecision> future = null;
+        try {
+            if (timeoutMs > 0) {
+                future = hookExecutor.submit(() -> handler.handle(context));
+                decision = future.get(timeoutMs, TimeUnit.MILLISECONDS);
+            } else {
+                decision = handler.handle(context);
+            }
+        } catch (TimeoutException ex) {
+            timeout = true;
+            if (future != null) {
+                future.cancel(true);
+            }
+            decision = buildTimeoutDecision(handler.getHookId(), timeoutMs);
+        } catch (ExecutionException ex) {
+            decision = buildErrorDecision(handler.getHookId(), ex.getCause());
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            decision = buildErrorDecision(handler.getHookId(), ex);
+        } catch (Exception ex) {
+            decision = buildErrorDecision(handler.getHookId(), ex);
+        }
+        if (decision == null) {
+            decision = new HookDecision(true, "empty", Collections.emptyMap());
+        }
+        Instant endedAt = Instant.now();
+        long durationMs = Math.max(0L, endedAt.toEpochMilli() - startedAt.toEpochMilli());
+        return new HookExecutionResult(decision, timeout, startedAt, endedAt, durationMs);
+    }
+
+    private HookDecision buildTimeoutDecision(String hookId, long timeoutMs) {
+        boolean allow = resolveTimeoutPolicy() == HookTimeoutPolicy.FAIL_OPEN;
+        String reason = allow ? "hook_timeout_allow" : "hook_timeout_block";
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("hookId", hookId);
+        metadata.put("timeoutMs", timeoutMs);
+        return new HookDecision(allow, reason, metadata);
+    }
+
+    private HookDecision buildErrorDecision(String hookId, Throwable throwable) {
+        boolean allow = resolveTimeoutPolicy() == HookTimeoutPolicy.FAIL_OPEN;
+        String reason = allow ? "hook_error_allow" : "hook_error_block";
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("hookId", hookId);
+        if (throwable != null && throwable.getMessage() != null) {
+            metadata.put("error", throwable.getMessage());
+        }
+        return new HookDecision(allow, reason, metadata);
+    }
+
+    private HookTimeoutPolicy resolveTimeoutPolicy() {
+        HookTimeoutPolicy policy = hookProperties.getTimeoutPolicy();
+        return policy != null ? policy : HookTimeoutPolicy.FAIL_OPEN;
+    }
+
+    private List<HookHandler> resolveOrderedHandlers() {
+        if (hookHandlers.isEmpty()) {
+            return List.of();
+        }
+        Map<String, HookProperties.HookConfig> configMap = buildHookConfigMap();
+        List<HookHandler> ordered = new ArrayList<>(hookHandlers);
+        ordered.sort(Comparator.comparingInt((HookHandler handler) -> resolveOrder(handler, configMap))
+                .thenComparing(handler -> normalizeHookId(handler != null ? handler.getHookId() : null)));
+        return ordered;
+    }
+
+    private int resolveOrder(HookHandler handler, Map<String, HookProperties.HookConfig> configMap) {
+        if (handler == null) {
+            return 0;
+        }
+        HookProperties.HookConfig config = resolveHookConfig(handler.getHookId(), configMap);
+        return config != null ? config.getOrder() : 0;
+    }
+
+    private HookProperties.HookConfig resolveHookConfig(String hookId) {
+        return resolveHookConfig(hookId, buildHookConfigMap());
+    }
+
+    private HookProperties.HookConfig resolveHookConfig(String hookId,
+                                                        Map<String, HookProperties.HookConfig> configMap) {
+        if (configMap == null || configMap.isEmpty()) {
+            return null;
+        }
+        String normalized = normalizeHookId(hookId);
+        return configMap.get(normalized);
+    }
+
+    private Map<String, HookProperties.HookConfig> buildHookConfigMap() {
+        Map<String, HookProperties.HookConfig> map = new HashMap<>();
+        if (hookProperties.getHooks() == null) {
+            return map;
+        }
+        for (HookProperties.HookConfig config : hookProperties.getHooks()) {
+            if (config == null || !StringUtils.hasText(config.getHookId())) {
+                continue;
+            }
+            map.put(normalizeHookId(config.getHookId()), config);
+        }
+        return map;
+    }
+
+    private String normalizeHookId(String hookId) {
+        if (!StringUtils.hasText(hookId)) {
+            return "";
+        }
+        return hookId.trim().toLowerCase(Locale.ROOT);
+    }
+
+    private Map<String, Object> buildPayload(StepRecord stepRecord, Map<String, Object> result) {
+        Map<String, Object> payload = new HashMap<>();
+        if (stepRecord != null) {
+            if (stepRecord.getType() != null) {
+                payload.put("stepType", stepRecord.getType());
+            }
+            payload.put("stepSeq", stepRecord.getStepSeq());
+        }
+        if (result != null) {
+            payload.put("result", result);
+        }
+        return payload;
+    }
+
+    private void recordExecution(String hookId,
+                                 HookType type,
+                                 TenantContext tenantContext,
+                                 StepRecord stepRecord,
+                                 String toolName,
+                                 HookDecision decision,
+                                 boolean timeout,
+                                 Instant startedAt,
+                                 Instant endedAt,
+                                 long durationMs) {
         HookRecord record = new HookRecord();
-        record.setHookId(UUID.randomUUID().toString());
+        record.setHookId(StringUtils.hasText(hookId) ? hookId : "unknown");
         record.setHookType(type);
         record.setToolName(toolName);
         record.setStepId(stepRecord != null ? stepRecord.getStepId() : null);
-        record.setTenantId(tenantContext.getTenantId());
-        record.setAllowed(decision.isAllowed());
-        record.setReason(decision.getReason());
-        record.setExecutedAt(Instant.now());
+        record.setTenantId(tenantContext != null ? tenantContext.getTenantId() : null);
+        record.setAllowed(decision != null && decision.isAllowed());
+        record.setReason(decision != null ? decision.getReason() : "unknown");
+        record.setStartedAt(startedAt);
+        record.setEndedAt(endedAt);
+        record.setDurationMs(durationMs);
+        record.setTimeout(timeout);
+        String result = decision != null && decision.isAllowed() ? "ALLOW" : "BLOCK";
+        if (timeout) {
+            result = "TIMEOUT_" + result;
+        }
+        record.setResult(result);
+        record.setExecutedAt(endedAt != null ? endedAt : Instant.now());
         synchronized (recordLock) {
             if (records.size() >= MAX_RECORDS) {
                 records.removeFirst();
             }
             records.addLast(record);
         }
-        log.info("Hook 执行, tenantId={}, type={}, tool={}, allowed={}",
-                tenantContext.getTenantId(), type, toolName, decision.isAllowed());
+        log.info("Hook 执行, tenantId={}, hookId={}, type={}, tool={}, allowed={}, timeout={}, durationMs={}",
+                record.getTenantId(), record.getHookId(), type, toolName, record.isAllowed(), timeout, durationMs);
+    }
+
+    private static class HookExecutionResult {
+        private final HookDecision decision;
+        private final boolean timeout;
+        private final Instant startedAt;
+        private final Instant endedAt;
+        private final long durationMs;
+
+        private HookExecutionResult(HookDecision decision,
+                                    boolean timeout,
+                                    Instant startedAt,
+                                    Instant endedAt,
+                                    long durationMs) {
+            this.decision = decision;
+            this.timeout = timeout;
+            this.startedAt = startedAt;
+            this.endedAt = endedAt;
+            this.durationMs = durationMs;
+        }
     }
 
     private void publishHookEvent(EventType type,

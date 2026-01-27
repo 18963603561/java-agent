@@ -6,6 +6,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
@@ -14,6 +16,8 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ToolRegistry {
+
+    private static final Logger log = LoggerFactory.getLogger(ToolRegistry.class);
 
     private final Map<String, ToolHandler> handlers = new HashMap<>();
     private final Map<String, McpToolDefinition> definitions = new HashMap<>();
@@ -39,6 +43,28 @@ public class ToolRegistry {
      */
     public List<McpToolDefinition> listDefinitions() {
         return new ArrayList<>(definitions.values());
+    }
+
+    /**
+     * 注册外部工具定义，供模型侧展示与选择。
+     *
+     * @param toolDefinitions 工具定义列表
+     */
+    public void registerDefinitions(List<McpToolDefinition> toolDefinitions) {
+        if (toolDefinitions == null || toolDefinitions.isEmpty()) {
+            return;
+        }
+        for (McpToolDefinition definition : toolDefinitions) {
+            if (definition == null || definition.getName() == null || definition.getName().isBlank()) {
+                continue;
+            }
+            if (definitions.containsKey(definition.getName())) {
+                log.warn("工具定义已存在, toolName={}", definition.getName());
+                continue;
+            }
+            definitions.put(definition.getName(), definition);
+            log.info("工具定义已注册, toolName={}", definition.getName());
+        }
     }
 
     /**

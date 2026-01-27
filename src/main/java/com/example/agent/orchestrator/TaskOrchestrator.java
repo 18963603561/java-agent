@@ -303,8 +303,10 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         Map<String, Object> payload = new HashMap<>();
         payload.put("query", request.getQuery());
         payload.put("sessionId", request.getSessionId());
+        payload.put("skillName", request.getSkillName());
         payload.put("context", request.getContext());
         payload.put("idempotencyKey", request.getIdempotencyKey());
+        payload.put("toolChoice", request.getToolChoice());
         return payload;
     }
 

@@ -38,13 +38,13 @@ import reactor.core.publisher.Sinks;
 public class EventStreamService {
 
     private static final Logger log = LoggerFactory.getLogger(EventStreamService.class);
-    private static final int MAX_STREAM_SIZE = 256;
     private static final Duration STREAM_TTL = Duration.ofHours(24);
 
     private final Sinks.Many<StreamEvent> sink;
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
     private final ObjectMapper objectMapper;
     private final MetricsPublisher metricsPublisher;
+    private final int maxStreamSize;
 
     private final Map<String, Deque<String>> streamIndex = new ConcurrentHashMap<>();
     private final Map<String, AtomicLong> sequenceCounters = new ConcurrentHashMap<>();
@@ -52,11 +52,14 @@ public class EventStreamService {
 
     public EventStreamService(ObjectProvider<StringRedisTemplate> redisTemplateProvider,
                               ObjectMapper objectMapper,
-                              MetricsPublisher metricsPublisher) {
+                              MetricsPublisher metricsPublisher,
+                              @org.springframework.beans.factory.annotation.Value("${agent.sse.max-stream-size:1024}")
+                              int maxStreamSize) {
         this.redisTemplateProvider = redisTemplateProvider;
         this.objectMapper = objectMapper;
         this.metricsPublisher = metricsPublisher;
         this.sink = Sinks.many().multicast().onBackpressureBuffer();
+        this.maxStreamSize = Math.max(64, maxStreamSize);
     }
 
     /**
@@ -267,7 +270,7 @@ public class EventStreamService {
         Deque<String> deque = streamIndex.get(indexKey);
         synchronized (deque) {
             deque.addLast(event.getEventId());
-            while (deque.size() > MAX_STREAM_SIZE) {
+            while (deque.size() > maxStreamSize) {
                 deque.removeFirst();
             }
         }
@@ -308,8 +311,8 @@ public class EventStreamService {
         if (records == null || records.isEmpty()) {
             return new ArrayDeque<>();
         }
-        if (records.size() > MAX_STREAM_SIZE) {
-            records = records.subList(records.size() - MAX_STREAM_SIZE, records.size());
+        if (records.size() > maxStreamSize) {
+            records = records.subList(records.size() - maxStreamSize, records.size());
         }
         Deque<String> deque = new ArrayDeque<>();
         long maxSeq = 0;
@@ -351,7 +354,7 @@ public class EventStreamService {
                 String payload = objectMapper.writeValueAsString(event);
                 RecordId recordId = redisTemplate.opsForStream()
                         .add(StreamRecords.newRecord().ofMap(Map.of("event", payload)).withStreamKey(streamKey));
-                redisTemplate.opsForStream().trim(streamKey, MAX_STREAM_SIZE);
+                redisTemplate.opsForStream().trim(streamKey, maxStreamSize);
                 redisTemplate.expire(streamKey, STREAM_TTL);
                 log.debug("Redis stream append, streamKey={}, recordId={}", streamKey, recordId);
             } catch (JsonProcessingException e) {

@@ -180,6 +180,39 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/workflows/{workflowId}/approval/decision:
+    post:
+      summary: 审批决策
+      parameters:
+        - name: workflowId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApprovalDecisionRequest'
+      responses:
+        '200':
+          description: 决策成功
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/ExecutionControlStateResponse'
+        '400':
+          description: 参数错误，错误码：INVALID_REQUEST、TENANT_MISSING
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
   /api/v1/mcp/tools/list:
     post:
       summary: MCP 工具列表
@@ -495,6 +528,22 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiResponse'
+  /api/v1/schedules/{scheduleId}/cancel:
+    post:
+      summary: 取消定时任务
+      parameters:
+        - name: scheduleId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: 取消成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
   /api/v1/schedules/{scheduleId}:
     delete:
       summary: 删除定时任务
@@ -585,10 +634,14 @@ components:
           type: string
         sessionId:
           type: string
+        skillName:
+          type: string
         context:
           type: object
         idempotencyKey:
           type: string
+        toolChoice:
+          $ref: '#/components/schemas/ModelToolChoice'
     TaskResponse:
       type: object
       properties:
@@ -609,6 +662,30 @@ components:
           type: string
         result:
           type: object
+    ModelToolChoice:
+      type: object
+      properties:
+        mode:
+          type: string
+          enum: [AUTO, NONE, REQUIRED, SPECIFIED]
+        toolName:
+          type: string
+    ApprovalDecisionRequest:
+      type: object
+      properties:
+        decision:
+          type: string
+        reason:
+          type: string
+    ExecutionControlStateResponse:
+      type: object
+      properties:
+        workflowId:
+          type: string
+        state:
+          type: string
+        decision:
+          type: string
     StreamEvent:
       type: object
       properties:

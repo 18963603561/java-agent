@@ -22,6 +22,11 @@
 - `agent.sandbox.wasi.enabled`
 - `agent.model.fallback.enabled`
 
+说明：
+- `agent.runtime.maxIterations` 为 ReAct 最大轮次上限。
+- `agent.runtime.minIterations` 为 ReAct 最小轮次下限。
+- `agent.runtime.observationWindow` 为观察窗口条数。
+
 ## 启动应用
 - 使用 `Maven` 启动：`./mvnw spring-boot:run`
 

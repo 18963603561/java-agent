@@ -7,6 +7,7 @@ import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
+import com.example.agent.model.ModelToolResolver;
 import com.example.agent.runtime.StepRequest;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -33,17 +34,20 @@ public class MultiAgentCoordinator {
 
     private final AgentProfileProperties profileProperties;
     private final ModelInvocationService modelInvocationService;
+    private final ModelToolResolver modelToolResolver;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
 
     public MultiAgentCoordinator(AgentProfileProperties profileProperties,
                                  ModelInvocationService modelInvocationService,
+                                 ModelToolResolver modelToolResolver,
                                  ObjectMapper objectMapper,
                                  ApplicationEventPublisher eventPublisher,
                                  EventStreamService eventStreamService) {
         this.profileProperties = profileProperties;
         this.modelInvocationService = modelInvocationService;
+        this.modelToolResolver = modelToolResolver;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
@@ -64,6 +68,7 @@ public class MultiAgentCoordinator {
                                           AtomicLong seqCounter) {
         String prompt = buildPrompt(step);
         ModelRequest request = new ModelRequest(prompt, ModelScene.PLANNER);
+        modelToolResolver.applyTooling(request, null, step != null ? step.getInput() : null);
         Map<String, Object> metadata = new HashMap<>();
         if (step != null && step.getStepType() != null) {
             metadata.put("stepType", step.getStepType());

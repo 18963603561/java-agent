@@ -24,6 +24,7 @@ import com.example.agent.research.ResearchPipeline;
 import com.example.agent.multiagent.MultiAgentCoordinator;
 import com.example.agent.tools.hook.HookManager;
 import com.example.agent.observability.TracingPublisher;
+import com.example.agent.common.ErrorCodeException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -48,11 +49,16 @@ public class AgentRuntime {
     private final StepRuntimeService stepRuntimeService;
     private final EnforcementGateway enforcementGateway;
     private final HookManager hookManager;
+    /**
+     * 执行控制服务，用于暂停、恢复、取消与审批阻塞。
+     */
+    private final ExecutionControlService executionControlService;
     private final ThoughtTreeService thoughtTreeService;
     private final MultiAgentCoordinator multiAgentCoordinator;
     private final DebateCoordinator debateCoordinator;
     private final ResearchPipeline researchPipeline;
     private final FinalOutputService finalOutputService;
+    private final ReactLoopService reactLoopService;
     /**
      * 记忆召回服务。
      */
@@ -72,11 +78,13 @@ public class AgentRuntime {
                         StepRuntimeService stepRuntimeService,
                         EnforcementGateway enforcementGateway,
                         HookManager hookManager,
+                        ExecutionControlService executionControlService,
                         ThoughtTreeService thoughtTreeService,
                         MultiAgentCoordinator multiAgentCoordinator,
                         DebateCoordinator debateCoordinator,
                         ResearchPipeline researchPipeline,
                         FinalOutputService finalOutputService,
+                        ReactLoopService reactLoopService,
                         MemoryRecallService memoryRecallService,
                         MemoryWriteService memoryWriteService,
                         ApplicationEventPublisher eventPublisher,
@@ -91,11 +99,13 @@ public class AgentRuntime {
         this.stepRuntimeService = stepRuntimeService;
         this.enforcementGateway = enforcementGateway;
         this.hookManager = hookManager;
+        this.executionControlService = executionControlService;
         this.thoughtTreeService = thoughtTreeService;
         this.multiAgentCoordinator = multiAgentCoordinator;
         this.debateCoordinator = debateCoordinator;
         this.researchPipeline = researchPipeline;
         this.finalOutputService = finalOutputService;
+        this.reactLoopService = reactLoopService;
         this.memoryRecallService = memoryRecallService;
         this.memoryWriteService = memoryWriteService;
         this.eventPublisher = eventPublisher;
@@ -121,6 +131,9 @@ public class AgentRuntime {
         Map<String, Object> runtimeContext = new HashMap<>();
         if (request != null && request.getContext() != null) {
             runtimeContext.putAll(request.getContext());
+        }
+        if (request != null && request.getToolChoice() != null) {
+            runtimeContext.put("toolChoice", request.getToolChoice());
         }
         MemoryRecallResult recallResult = memoryRecallService.recall(request, runtimeContext, tenantContext);
         applyMemoryContext(runtimeContext, recallResult);
@@ -180,6 +193,8 @@ public class AgentRuntime {
         while (true) {
             attempt++;
             Map<String, Object> stepInput = mergeStepInput(step, runtimeContext);
+            applyExecutionControl(workflowId, tenantContext, seqCounter);
+            requestApprovalIfNeeded(step, request, stepInput, workflowId, tenantContext, seqCounter);
             StepRecord record = stepRuntimeService.startStep(
                     workflowId,
                     step.getStepType(),
@@ -194,6 +209,8 @@ public class AgentRuntime {
                 String stepType = step.getStepType();
                 if ("THOUGHT_TREE".equalsIgnoreCase(stepType)) {
                     output = executeThoughtTree(step, tenantContext, workflowId, seqCounter);
+                } else if ("REACT".equalsIgnoreCase(stepType)) {
+                    output = executeReactLoop(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
                 } else if ("MULTI_AGENT".equalsIgnoreCase(stepType)) {
                     output = multiAgentCoordinator.coordinate(step, tenantContext, workflowId, seqCounter);
                 } else if ("DEBATE".equalsIgnoreCase(stepType)) {
@@ -278,10 +295,29 @@ public class AgentRuntime {
                                                 AtomicLong seqCounter,
                                                 StepRecord record,
                                                 String toolName) {
+        applyExecutionControl(workflowId, tenantContext, seqCounter);
         hookManager.preTool(tenantContext, record, toolName);
         Map<String, Object> output = enforcementGateway.execute(
                 request, tenantContext, workflowId, taskId, seqCounter, toolName);
         hookManager.postTool(tenantContext, record, toolName, output);
+        return output;
+    }
+
+    private Map<String, Object> executeReactLoop(TaskRequest request,
+                                                 Map<String, Object> stepInput,
+                                                 TenantContext tenantContext,
+                                                 String workflowId,
+                                                 String taskId,
+                                                 AtomicLong seqCounter) {
+        TaskRequest reactRequest = buildRequestWithContext(request, stepInput);
+        ReactLoopResult result = reactLoopService.run(reactRequest, tenantContext, workflowId, taskId, seqCounter);
+        Map<String, Object> output = new HashMap<>();
+        output.put("iterations", result.getIterations());
+        output.put("completed", result.isCompleted());
+        output.put("stopReason", result.getStopReason());
+        output.put("finalAnswer", result.getFinalAnswer());
+        output.put("observations", result.getObservations());
+        output.put("status", result.isCompleted() ? "COMPLETED" : "UNRESOLVED");
         return output;
     }
 
@@ -437,7 +473,9 @@ public class AgentRuntime {
         TaskRequest copy = new TaskRequest();
         copy.setQuery(request.getQuery());
         copy.setSessionId(request.getSessionId());
+        copy.setSkillName(request.getSkillName());
         copy.setIdempotencyKey(request.getIdempotencyKey());
+        copy.setToolChoice(request.getToolChoice());
         copy.setContext(runtimeContext);
         return copy;
     }
@@ -467,7 +505,9 @@ public class AgentRuntime {
         if (request != null) {
             replan.setQuery(request.getQuery());
             replan.setSessionId(request.getSessionId());
+            replan.setSkillName(request.getSkillName());
             replan.setIdempotencyKey(request.getIdempotencyKey());
+            replan.setToolChoice(request.getToolChoice());
             Map<String, Object> context = request.getContext() != null
                     ? new HashMap<>(request.getContext())
                     : new HashMap<>();
@@ -602,6 +642,185 @@ public class AgentRuntime {
 
     private String resolveErrorMessage(Throwable throwable) {
         return throwable.getMessage() == null ? "step_failed" : throwable.getMessage();
+    }
+
+    /**
+     * 执行控制门禁：处理暂停、审批等待与取消。
+     *
+     * @param workflowId 工作流标识
+     * @param tenantContext 租户上下文
+     * @param seqCounter 序列计数器
+     */
+    private void applyExecutionControl(String workflowId,
+                                       TenantContext tenantContext,
+                                       AtomicLong seqCounter) {
+        ExecutionControlState state = executionControlService.getState(workflowId);
+        if (state == ExecutionControlState.RUNNING) {
+            return;
+        }
+        if (state == ExecutionControlState.PAUSED) {
+            log.info("执行控制命中暂停, tenantId={}, workflowId={}",
+                    tenantContext.getTenantId(), workflowId);
+            publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_PAUSED,
+                    Map.of("state", ExecutionControlState.PAUSED.name()));
+        } else if (state == ExecutionControlState.WAIT_APPROVAL) {
+            log.info("执行控制等待审批, tenantId={}, workflowId={}",
+                    tenantContext.getTenantId(), workflowId);
+        }
+
+        try {
+            executionControlService.awaitIfBlocked(workflowId);
+        } catch (ErrorCodeException ex) {
+            if (isCancelled(ex)) {
+                publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_CANCELLED,
+                        Map.of("state", ExecutionControlState.CANCELLED.name()));
+            }
+            throw ex;
+        }
+
+        if (state == ExecutionControlState.PAUSED) {
+            publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_RESUMED,
+                    Map.of("state", ExecutionControlState.RUNNING.name()));
+        }
+    }
+
+    /**
+     * 触发审批并等待决策。
+     *
+     * @param step 步骤定义
+     * @param request 任务请求
+     * @param stepInput 步骤输入
+     * @param workflowId 工作流标识
+     * @param tenantContext 租户上下文
+     * @param seqCounter 序列计数器
+     */
+    private void requestApprovalIfNeeded(StepRequest step,
+                                         TaskRequest request,
+                                         Map<String, Object> stepInput,
+                                         String workflowId,
+                                         TenantContext tenantContext,
+                                         AtomicLong seqCounter) {
+        if (!isApprovalRequired(step, request, stepInput)) {
+            return;
+        }
+        ExecutionControlState state = executionControlService.getState(workflowId);
+        if (state != ExecutionControlState.WAIT_APPROVAL) {
+            Map<String, Object> payload = buildApprovalPayload(step, request, stepInput);
+            executionControlService.requestApproval(workflowId, payload);
+            publishEvent(tenantContext, workflowId, seqCounter, EventType.APPROVAL_REQUESTED, payload);
+        }
+        try {
+            executionControlService.awaitIfBlocked(workflowId);
+        } catch (ErrorCodeException ex) {
+            if (isCancelled(ex)) {
+                publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_CANCELLED,
+                        Map.of("state", ExecutionControlState.CANCELLED.name()));
+            }
+            throw ex;
+        }
+    }
+
+    /**
+     * 判断步骤或请求是否需要审批。
+     *
+     * @param step 步骤定义
+     * @param request 任务请求
+     * @param stepInput 步骤输入
+     * @return 是否需要审批
+     */
+    private boolean isApprovalRequired(StepRequest step,
+                                       TaskRequest request,
+                                       Map<String, Object> stepInput) {
+        if (stepInput != null) {
+            Object requiresApproval = stepInput.get("requiresApproval");
+            if (isTruthy(requiresApproval)) {
+                return true;
+            }
+        }
+        if (request != null && request.getContext() != null) {
+            Object requiresApproval = request.getContext().get("requiresApproval");
+            return isTruthy(requiresApproval);
+        }
+        return false;
+    }
+
+    /**
+     * 将布尔值或字符串转换为审批标记。
+     *
+     * @param value 原始值
+     * @return 是否为真
+     */
+    private boolean isTruthy(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String text) {
+            return "true".equalsIgnoreCase(text.trim());
+        }
+        return false;
+    }
+
+    /**
+     * 构造审批事件载荷摘要。
+     *
+     * @param step 步骤定义
+     * @param request 任务请求
+     * @param stepInput 步骤输入
+     * @return 审批事件载荷
+     */
+    private Map<String, Object> buildApprovalPayload(StepRequest step,
+                                                     TaskRequest request,
+                                                     Map<String, Object> stepInput) {
+        Map<String, Object> payload = new HashMap<>();
+        if (step != null && step.getStepType() != null) {
+            payload.put("stepType", step.getStepType());
+        }
+        if (stepInput != null) {
+            Object toolName = stepInput.get("tool");
+            if (toolName == null) {
+                toolName = stepInput.get("toolName");
+            }
+            if (toolName instanceof String value && !value.isBlank()) {
+                payload.put("toolName", value);
+            }
+            payload.put("inputKeys", stepInput.keySet());
+            payload.put("inputSize", stepInput.size());
+            Object query = stepInput.get("query");
+            if (query instanceof String value && !value.isBlank()) {
+                payload.put("query", truncate(value, 200));
+            }
+        } else if (request != null && request.getQuery() != null) {
+            payload.put("query", truncate(request.getQuery(), 200));
+        }
+        payload.put("approval", "required");
+        return payload;
+    }
+
+    /**
+     * 截断长文本，避免事件载荷过大。
+     *
+     * @param value 原始文本
+     * @param maxLength 最大长度
+     * @return 截断后的文本
+     */
+    private String truncate(String value, int maxLength) {
+        if (value == null) {
+            return null;
+        }
+        if (value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
+    }
+
+    /**
+     * 判断异常是否为取消错误。
+     *
+     * @param ex 异常
+     * @return 是否取消
+     */
+    private boolean isCancelled(ErrorCodeException ex) {
+        return ex != null && "CANCELLED".equals(ex.getErrorCode());
     }
 
     private RuntimeResult buildRuntimeResult(PlanResult plan,

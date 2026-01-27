@@ -4,6 +4,8 @@ server:
 spring:
   application:
     name: java-agent
+  autoconfigure:
+    exclude: "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration"
 
 management:
   endpoints:
@@ -44,10 +46,14 @@ agent:
     contract-path: specs/001-agent-core-spec/contracts/openapi.yaml
   runtime:
     max-retries: 1
+    maxIterations: 10
+    minIterations: 1
+    observationWindow: 3
   storage:
     mode: memory
   sse:
     timeoutSeconds: 30
+    max-stream-size: 1024
   idempotency:
     redis-enabled: false
     ttl-seconds: 86400

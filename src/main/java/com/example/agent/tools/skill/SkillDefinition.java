@@ -11,6 +11,10 @@ public class SkillDefinition {
     private String name;
     private SkillVersion version;
     private Map<String, Object> schema;
+    /**
+     * 技能约束配置，包含可用工具白名单与工具选择策略等。
+     */
+    private Map<String, Object> constraints;
     private List<SkillRoute> routes;
 
     public SkillDefinition() {
@@ -38,6 +42,14 @@ public class SkillDefinition {
 
     public void setSchema(Map<String, Object> schema) {
         this.schema = schema;
+    }
+
+    public Map<String, Object> getConstraints() {
+        return constraints;
+    }
+
+    public void setConstraints(Map<String, Object> constraints) {
+        this.constraints = constraints;
     }
 
     public List<SkillRoute> getRoutes() {

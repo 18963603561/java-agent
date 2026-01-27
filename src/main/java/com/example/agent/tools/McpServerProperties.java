@@ -27,6 +27,16 @@ public class McpServerProperties {
      */
     public static class McpServer {
 
+        /**
+         * 允许访问的目标主机列表，默认空表示拒绝远程调用。
+         */
+        private List<String> allowedHosts = new ArrayList<>();
+
+        /**
+         * 响应体最大字节数，默认 2 兆字节。
+         */
+        private long maxResponseBytes = 2 * 1024 * 1024L;
+
         private String id;
         private boolean available = true;
         private String baseUrl;
@@ -53,6 +63,22 @@ public class McpServerProperties {
 
         public void setBaseUrl(String baseUrl) {
             this.baseUrl = baseUrl;
+        }
+
+        public List<String> getAllowedHosts() {
+            return allowedHosts;
+        }
+
+        public void setAllowedHosts(List<String> allowedHosts) {
+            this.allowedHosts = allowedHosts;
+        }
+
+        public long getMaxResponseBytes() {
+            return maxResponseBytes;
+        }
+
+        public void setMaxResponseBytes(long maxResponseBytes) {
+            this.maxResponseBytes = maxResponseBytes;
         }
     }
 }

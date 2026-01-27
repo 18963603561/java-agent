@@ -105,6 +105,39 @@ public class MemoryWriteService {
                 tenantContext.getTenantId(), sessionId, taskId, saved);
     }
 
+    /**
+     * 保存观察记录，用于 ReAct 循环的观察阶段。
+     *
+     * @param request 任务请求
+     * @param observation 观察内容
+     * @param tenantContext 租户上下文
+     * @param taskId 任务标识
+     */
+    public void saveObservationMemory(TaskRequest request,
+                                      String observation,
+                                      TenantContext tenantContext,
+                                      String taskId) {
+        if (tenantContext == null || !properties.isSaveObservation()) {
+            return;
+        }
+        if (!resolveEnabled(request)) {
+            return;
+        }
+        if (request == null || !StringUtils.hasText(request.getSessionId())) {
+            return;
+        }
+        if (!StringUtils.hasText(observation)) {
+            return;
+        }
+        MemoryRecord record = new MemoryRecord();
+        record.setSessionId(request.getSessionId());
+        record.setTaskId(taskId);
+        record.setContent(trimText(observation, properties.getMaxRecordChars()));
+        record.setSummary(trimText(observation, properties.getMaxSummaryChars()));
+        record.setLayer("recent");
+        saveSafely(record, tenantContext);
+    }
+
     private boolean resolveEnabled(TaskRequest request) {
         if (request == null || request.getContext() == null) {
             return properties.isEnabled();

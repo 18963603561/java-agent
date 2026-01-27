@@ -47,7 +47,7 @@ class EventStreamServiceTest {
 
         MetricsPublisher metricsPublisher = mock(MetricsPublisher.class);
         EventStreamService service = new EventStreamService(new FixedObjectProvider<>(redisTemplate),
-                objectMapper, metricsPublisher);
+                objectMapper, metricsPublisher, 1024);
         ReflectionTestUtils.setField(service, "validationScheduler", Schedulers.immediate());
 
         TaskStreamRequest request = new TaskStreamRequest();
@@ -82,7 +82,7 @@ class EventStreamServiceTest {
 
         MetricsPublisher metricsPublisher = mock(MetricsPublisher.class);
         EventStreamService service = new EventStreamService(new FixedObjectProvider<>(redisTemplate),
-                objectMapper, metricsPublisher);
+                objectMapper, metricsPublisher, 1024);
         ReflectionTestUtils.setField(service, "validationScheduler", Schedulers.immediate());
 
         TaskStreamRequest request = new TaskStreamRequest();
@@ -128,7 +128,7 @@ class EventStreamServiceTest {
 
         MetricsPublisher metricsPublisher = mock(MetricsPublisher.class);
         EventStreamService service = new EventStreamService(new FixedObjectProvider<>(redisTemplate),
-                objectMapper, metricsPublisher);
+                objectMapper, metricsPublisher, 1024);
         ReflectionTestUtils.setField(service, "validationScheduler", Schedulers.immediate());
 
         TaskStreamRequest request = new TaskStreamRequest();
@@ -149,7 +149,7 @@ class EventStreamServiceTest {
         ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
         MetricsPublisher metricsPublisher = mock(MetricsPublisher.class);
         EventStreamService service = new EventStreamService(new FixedObjectProvider<>(null),
-                objectMapper, metricsPublisher);
+                objectMapper, metricsPublisher, 1024);
 
         TaskStreamRequest request = new TaskStreamRequest();
         request.setWorkflowId("workflow-3");

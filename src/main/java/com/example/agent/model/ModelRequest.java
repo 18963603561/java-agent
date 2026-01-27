@@ -1,12 +1,28 @@
 package com.example.agent.model;
 
+import java.util.List;
+
 /**
  * 模型请求。
  */
 public class ModelRequest {
 
+    /**
+     * 模型提示词内容。
+     */
     private String prompt;
+    /**
+     * 模型场景。
+     */
     private ModelScene scene;
+    /**
+     * 模型可用工具定义列表。
+     */
+    private List<ModelToolDefinition> tools;
+    /**
+     * 工具选择策略。
+     */
+    private ModelToolChoice toolChoice;
 
     public ModelRequest() {
     }
@@ -30,5 +46,21 @@ public class ModelRequest {
 
     public void setScene(ModelScene scene) {
         this.scene = scene;
+    }
+
+    public List<ModelToolDefinition> getTools() {
+        return tools;
+    }
+
+    public void setTools(List<ModelToolDefinition> tools) {
+        this.tools = tools;
+    }
+
+    public ModelToolChoice getToolChoice() {
+        return toolChoice;
+    }
+
+    public void setToolChoice(ModelToolChoice toolChoice) {
+        this.toolChoice = toolChoice;
     }
 }

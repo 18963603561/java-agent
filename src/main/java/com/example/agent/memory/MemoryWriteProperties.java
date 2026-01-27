@@ -26,6 +26,11 @@ public class MemoryWriteProperties {
     private boolean saveFinalOutput = true;
 
     /**
+     * 是否保存观察记录。
+     */
+    private boolean saveObservation = false;
+
+    /**
      * 记忆内容最大字符数。
      */
     private int maxRecordChars = 2000;
@@ -57,6 +62,14 @@ public class MemoryWriteProperties {
 
     public void setSaveFinalOutput(boolean saveFinalOutput) {
         this.saveFinalOutput = saveFinalOutput;
+    }
+
+    public boolean isSaveObservation() {
+        return saveObservation;
+    }
+
+    public void setSaveObservation(boolean saveObservation) {
+        this.saveObservation = saveObservation;
     }
 
     public int getMaxRecordChars() {

@@ -85,11 +85,7 @@ public class DefaultModelProvider implements ModelProvider {
             return invokeLocal(definition, request);
         }
 
-        String prompt = request != null ? request.getPrompt() : "";
-        Map<String, Object> body = new HashMap<>();
-        body.put("model", modelId);
-        body.put("temperature", temperature);
-        body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+        Map<String, Object> body = buildOpenAiRequestBody(modelId, request);
 
         WebClient client = webClientBuilder.baseUrl(baseUrl).build();
         Map<String, Object> response = client.post()
@@ -116,6 +112,55 @@ public class DefaultModelProvider implements ModelProvider {
         int outputTokens = extractTokens(response, "completion_tokens");
         String responseModel = response.get("model") instanceof String value ? value : modelId;
         return new ModelResponse(responseModel, content, inputTokens, outputTokens);
+    }
+
+    /**
+     * 构建 OpenAI 兼容请求体，工具为空时保持纯 prompt 行为。
+     *
+     * @param modelId 模型标识
+     * @param request 模型请求
+     * @return 请求体
+     */
+    Map<String, Object> buildOpenAiRequestBody(String modelId, ModelRequest request) {
+        String prompt = request != null ? request.getPrompt() : "";
+        Map<String, Object> body = new HashMap<>();
+        body.put("model", modelId);
+        body.put("temperature", temperature);
+        body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+        if (request != null && request.getTools() != null && !request.getTools().isEmpty()) {
+            body.put("tools", request.getTools());
+            Object toolChoice = buildToolChoiceValue(request.getToolChoice());
+            if (toolChoice != null) {
+                body.put("toolChoice", toolChoice);
+            }
+        }
+        return body;
+    }
+
+    /**
+     * 将工具选择策略转换为可序列化对象。
+     *
+     * @param toolChoice 工具选择策略
+     * @return 可序列化对象
+     */
+    private Object buildToolChoiceValue(ModelToolChoice toolChoice) {
+        if (toolChoice == null || toolChoice.getMode() == null) {
+            return null;
+        }
+        return switch (toolChoice.getMode()) {
+            case AUTO -> "auto";
+            case NONE -> "none";
+            case REQUIRED -> "required";
+            case SPECIFIED -> {
+                if (!StringUtils.hasText(toolChoice.getToolName())) {
+                    yield null;
+                }
+                Map<String, Object> value = new HashMap<>();
+                value.put("type", "specified");
+                value.put("name", toolChoice.getToolName());
+                yield value;
+            }
+        };
     }
 
     private String buildLocalResponse(String prompt) {

@@ -77,6 +77,22 @@ public class ScheduleManager {
         return new ScheduleResponse(scheduleId, spec.getStatus());
     }
 
+    /**
+     * 取消调度并停止触发。
+     *
+     * @param scheduleId 调度标识
+     * @param tenantContext 租户上下文
+     * @return 取消结果
+     */
+    public ScheduleResponse cancel(String scheduleId, TenantContext tenantContext) {
+        ScheduleSpec spec = getRequired(scheduleId, tenantContext);
+        spec.setStatus("CANCELLED");
+        scheduleRepository.save(spec);
+        scheduleEngine.unregister(scheduleId);
+        log.info("调度取消, tenantId={}, scheduleId={}", tenantContext.getTenantId(), scheduleId);
+        return new ScheduleResponse(scheduleId, spec.getStatus());
+    }
+
     public ScheduleResponse resume(String scheduleId, TenantContext tenantContext) {
         ScheduleSpec spec = getRequired(scheduleId, tenantContext);
         spec.setStatus("ACTIVE");

@@ -10,6 +10,7 @@ import com.example.agent.scheduler.SchedulePage;
 import com.example.agent.scheduler.ScheduleQuery;
 import com.example.agent.scheduler.ScheduleResponse;
 import com.example.agent.scheduler.ScheduleSpec;
+import com.example.agent.runtime.ExecutionControlService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -36,10 +37,17 @@ public class ScheduleController {
 
     private final ScheduleManager scheduleManager;
     private final AuthService authService;
+    /**
+     * 执行控制服务，用于暂停、恢复与取消运行中的工作流。
+     */
+    private final ExecutionControlService executionControlService;
 
-    public ScheduleController(ScheduleManager scheduleManager, AuthService authService) {
+    public ScheduleController(ScheduleManager scheduleManager,
+                              AuthService authService,
+                              ExecutionControlService executionControlService) {
         this.scheduleManager = scheduleManager;
         this.authService = authService;
+        this.executionControlService = executionControlService;
     }
 
     /**
@@ -121,6 +129,7 @@ public class ScheduleController {
                                                ServerWebExchange exchange) {
         TenantContext tenantContext = authenticate(exchange, apiKey);
         ScheduleResponse response = scheduleManager.pause(scheduleId, tenantContext);
+        executionControlService.pause(resolveWorkflowId(scheduleId));
         log.info("调度暂停完成, tenantId={}, scheduleId={}",
                 tenantContext.getTenantId(), scheduleId);
         return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
@@ -140,7 +149,28 @@ public class ScheduleController {
                                                 ServerWebExchange exchange) {
         TenantContext tenantContext = authenticate(exchange, apiKey);
         ScheduleResponse response = scheduleManager.resume(scheduleId, tenantContext);
+        executionControlService.resume(resolveWorkflowId(scheduleId));
         log.info("调度恢复完成, tenantId={}, scheduleId={}",
+                tenantContext.getTenantId(), scheduleId);
+        return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
+    }
+
+    /**
+     * 取消调度任务并终止运行中的工作流。
+     *
+     * @param scheduleId 调度标识
+     * @param apiKey API Key
+     * @param exchange 请求上下文
+     * @return 取消结果
+     */
+    @PostMapping("/api/v1/schedules/{scheduleId}/cancel")
+    public ApiResponse<ScheduleResponse> cancel(@PathVariable("scheduleId") String scheduleId,
+                                                @RequestHeader(value = "X-API-Key", required = false) String apiKey,
+                                                ServerWebExchange exchange) {
+        TenantContext tenantContext = authenticate(exchange, apiKey);
+        ScheduleResponse response = scheduleManager.cancel(scheduleId, tenantContext);
+        executionControlService.cancel(resolveWorkflowId(scheduleId));
+        log.info("调度取消完成, tenantId={}, scheduleId={}",
                 tenantContext.getTenantId(), scheduleId);
         return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
     }
@@ -159,6 +189,7 @@ public class ScheduleController {
                                     ServerWebExchange exchange) {
         TenantContext tenantContext = authenticate(exchange, apiKey);
         scheduleManager.delete(scheduleId, tenantContext);
+        executionControlService.cancel(resolveWorkflowId(scheduleId));
         log.info("调度删除完成, tenantId={}, scheduleId={}",
                 tenantContext.getTenantId(), scheduleId);
         return ApiResponse.success(null, tenantContext.getTraceId(), tenantContext.getRequestId());
@@ -177,5 +208,9 @@ public class ScheduleController {
             throw new ErrorCodeException(HttpStatus.BAD_REQUEST, "TENANT_MISSING", "租户标识缺失");
         }
         return context;
+    }
+
+    private String resolveWorkflowId(String scheduleId) {
+        return "schedule-" + scheduleId;
     }
 }

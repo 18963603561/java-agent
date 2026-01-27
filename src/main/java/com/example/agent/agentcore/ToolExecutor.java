@@ -12,6 +12,7 @@ import com.example.agent.model.ModelScene;
 import com.example.agent.tools.McpToolCallRequest;
 import com.example.agent.tools.McpToolCallResponse;
 import com.example.agent.tools.McpToolClient;
+import com.example.agent.tools.McpToolDefinition;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.observability.TracingPublisher;
 import com.example.agent.runtime.RetryPolicy;
@@ -22,6 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import java.time.Duration;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,6 +48,7 @@ public class ToolExecutor {
     private final ObjectMapper objectMapper;
     private final MetricsPublisher metricsPublisher;
     private final TracingPublisher tracingPublisher;
+    private final ToolArgumentValidator argumentValidator = new ToolArgumentValidator();
 
     @Value("${agent.tool.cache.enabled:true}")
     private boolean cacheEnabled;
@@ -105,6 +108,7 @@ public class ToolExecutor {
                                        String taskId) {
         String resolvedTool = toolRegistry.resolve(toolName);
         Map<String, Object> arguments = buildArguments(request);
+        arguments = validateArguments(resolvedTool, arguments);
         String cacheKey = buildCacheKey(resolvedTool, arguments);
         Duration ttl = Duration.ofSeconds(Math.max(0, cacheTtlSeconds));
 
@@ -200,6 +204,30 @@ public class ToolExecutor {
                         "工具执行异常");
             }
         }
+    }
+
+    private Map<String, Object> validateArguments(String toolName, Map<String, Object> arguments) {
+        McpToolDefinition definition = resolveDefinition(toolName);
+        if (definition == null || definition.getInputSchema() == null || definition.getInputSchema().isEmpty()) {
+            return arguments;
+        }
+        return argumentValidator.validateAndNormalize(definition.getInputSchema(), arguments, toolName);
+    }
+
+    private McpToolDefinition resolveDefinition(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return null;
+        }
+        List<McpToolDefinition> definitions = toolRegistry.listDefinitions();
+        if (definitions == null || definitions.isEmpty()) {
+            return null;
+        }
+        for (McpToolDefinition definition : definitions) {
+            if (definition != null && toolName.equals(definition.getName())) {
+                return definition;
+            }
+        }
+        return null;
     }
 
     private McpToolCallRequest buildCallRequest(TaskRequest request,

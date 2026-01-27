@@ -1,5 +1,6 @@
 package com.example.agent.common;
 
+import com.example.agent.model.ModelToolChoice;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Map;
 
@@ -20,6 +21,11 @@ public class TaskRequest {
     private String sessionId;
 
     /**
+     * 技能名称，用于限定可用工具与工具选择策略。
+     */
+    private String skillName;
+
+    /**
      * 任务上下文，可选。
      */
     private Map<String, Object> context;
@@ -29,6 +35,11 @@ public class TaskRequest {
      */
     @NotBlank(message = "幂等键不能为空")
     private String idempotencyKey;
+
+    /**
+     * 工具选择策略，可选。
+     */
+    private ModelToolChoice toolChoice;
 
     public TaskRequest() {
     }
@@ -49,6 +60,14 @@ public class TaskRequest {
         this.sessionId = sessionId;
     }
 
+    public String getSkillName() {
+        return skillName;
+    }
+
+    public void setSkillName(String skillName) {
+        this.skillName = skillName;
+    }
+
     public Map<String, Object> getContext() {
         return context;
     }
@@ -63,5 +82,13 @@ public class TaskRequest {
 
     public void setIdempotencyKey(String idempotencyKey) {
         this.idempotencyKey = idempotencyKey;
+    }
+
+    public ModelToolChoice getToolChoice() {
+        return toolChoice;
+    }
+
+    public void setToolChoice(ModelToolChoice toolChoice) {
+        this.toolChoice = toolChoice;
     }
 }

@@ -6,6 +6,7 @@ import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
+import com.example.agent.model.ModelToolResolver;
 import com.example.agent.runtime.StepRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,13 +30,16 @@ public class PlannerService {
     private static final Logger log = LoggerFactory.getLogger(PlannerService.class);
 
     private final ModelInvocationService modelInvocationService;
+    private final ModelToolResolver modelToolResolver;
     private final PlannerProperties plannerProperties;
     private final ObjectMapper objectMapper;
 
     public PlannerService(ModelInvocationService modelInvocationService,
+                          ModelToolResolver modelToolResolver,
                           PlannerProperties plannerProperties,
                           ObjectMapper objectMapper) {
         this.modelInvocationService = modelInvocationService;
+        this.modelToolResolver = modelToolResolver;
         this.plannerProperties = plannerProperties;
         this.objectMapper = objectMapper;
     }
@@ -92,6 +96,7 @@ public class PlannerService {
         try {
             String prompt = buildPlanPrompt(request, context);
             ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.PLANNER);
+            modelToolResolver.applyTooling(modelRequest, request, null);
             ModelResponse response = modelInvocationService.invoke(
                     modelRequest,
                     ModelScene.PLANNER,
@@ -186,6 +191,30 @@ public class PlannerService {
                 dependencies.add(Map.of("from", previousStepKey, "to", stepKey));
             }
             previousStepKey = stepKey;
+        }
+
+        if (shouldUseReact(context, mode, strategy)) {
+            String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
+            Map<String, Object> input = new HashMap<>();
+            input.put("query", query);
+            input.put("context", context);
+            input.put("stepKey", stepKey);
+            steps.add(new StepRequest("REACT", input));
+            planSteps.add(Map.of("id", stepKey, "type", "REACT", "name", "react"));
+            if (previousStepKey != null) {
+                dependencies.add(Map.of("from", previousStepKey, "to", stepKey));
+            }
+            String summary = String.format(Locale.ROOT,
+                    "strategy=%s, cognitive=%s, complexity=%.2f, steps=%d",
+                    executionStrategy, cognitiveStrategy, complexityScore, steps.size());
+            PlanResult result = new PlanResult(planId, summary, steps);
+            log.info("瑙勫垝鐢熸垚(ReAct), tenantId={}, planId={}, summary={}",
+                    tenantContext.getTenantId(), planId, summary);
+            context.put("planSteps", planSteps);
+            context.put("planDependencies", dependencies);
+            context.put("executionStrategy", executionStrategy);
+            context.put("cognitiveStrategy", cognitiveStrategy);
+            return result;
         }
 
         String toolStepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
@@ -328,6 +357,26 @@ public class PlannerService {
             return true;
         }
         return complexityScore >= 0.8;
+    }
+
+    private boolean shouldUseReact(Map<String, Object> context, String mode, String strategy) {
+        if ("react".equalsIgnoreCase(mode) || "react".equalsIgnoreCase(strategy)) {
+            return true;
+        }
+        if (context == null) {
+            return false;
+        }
+        Object react = context.get("react");
+        if (react == null) {
+            react = context.get("reactEnabled");
+        }
+        if (react instanceof Boolean value) {
+            return value;
+        }
+        if (react instanceof String text && !text.isBlank()) {
+            return "true".equalsIgnoreCase(text.trim());
+        }
+        return false;
     }
 
     private static class PlanParsingResult {
