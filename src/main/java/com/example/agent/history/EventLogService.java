@@ -5,7 +5,6 @@ import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.observability.MetricsPublisher;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -67,7 +66,23 @@ public class EventLogService {
         if (records.isEmpty()) {
             return new EventLogPage(List.of(), null, false);
         }
-        records.sort(Comparator.comparing(EventLogRecord::getTimestamp));
+        records.sort((left, right) -> {
+            long leftSeq = parseSeq(left.getEventId());
+            long rightSeq = parseSeq(right.getEventId());
+            if (leftSeq > 0 && rightSeq > 0 && leftSeq != rightSeq) {
+                return Long.compare(leftSeq, rightSeq);
+            }
+            if (left.getTimestamp() == null && right.getTimestamp() == null) {
+                return 0;
+            }
+            if (left.getTimestamp() == null) {
+                return -1;
+            }
+            if (right.getTimestamp() == null) {
+                return 1;
+            }
+            return left.getTimestamp().compareTo(right.getTimestamp());
+        });
 
         int startIndex = 0;
         if (query.getCursor() != null && !query.getCursor().isBlank()) {
@@ -88,5 +103,20 @@ public class EventLogService {
         String nextCursor = endIndex < records.size() ? records.get(endIndex - 1).getEventId() : null;
         boolean hasMore = endIndex < records.size();
         return new EventLogPage(page, nextCursor, hasMore);
+    }
+
+    private long parseSeq(String eventId) {
+        if (eventId == null) {
+            return 0;
+        }
+        int index = eventId.lastIndexOf(':');
+        if (index < 0 || index == eventId.length() - 1) {
+            return 0;
+        }
+        try {
+            return Long.parseLong(eventId.substring(index + 1));
+        } catch (NumberFormatException ex) {
+            return 0;
+        }
     }
 }

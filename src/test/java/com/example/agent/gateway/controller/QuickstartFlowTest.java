@@ -1,11 +1,13 @@
 package com.example.agent.gateway.controller;
 
 import com.example.agent.common.TaskRequest;
+import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.governance.ReplayRequest;
 import com.example.agent.policy.PolicyRequest;
 import com.example.agent.tools.McpToolCallRequest;
 import java.time.Duration;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
@@ -97,12 +99,22 @@ class QuickstartFlowTest {
                 .returnResult(new ParameterizedTypeReference<ServerSentEvent<StreamEvent>>() {
                 });
 
-        ServerSentEvent<StreamEvent> event = sseResult.getResponseBody()
-                .take(1)
-                .blockFirst(Duration.ofSeconds(2));
-        assertNotNull(event);
+        List<ServerSentEvent<StreamEvent>> events = sseResult.getResponseBody()
+                .take(10)
+                .collectList()
+                .block(Duration.ofSeconds(2));
+        assertNotNull(events);
+        List<ServerSentEvent<StreamEvent>> dataEvents = events.stream()
+                .filter(item -> item != null && item.data() != null)
+                .toList();
+        assertTrue(!dataEvents.isEmpty());
+        ServerSentEvent<StreamEvent> event = dataEvents.get(0);
         assertNotNull(event.id());
         assertTrue(event.id().startsWith(workflowId + ":"));
+        assertTrue(dataEvents.stream()
+                .map(ServerSentEvent::data)
+                .filter(java.util.Objects::nonNull)
+                .anyMatch(data -> data.getType() == EventType.LLM_OUTPUT));
 
         webTestClient.get()
                 .uri("/api/v1/timeline/steps?workflowId={workflowId}&size=20", workflowId)

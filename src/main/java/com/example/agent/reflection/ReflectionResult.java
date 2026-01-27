@@ -5,7 +5,14 @@ package com.example.agent.reflection;
  */
 public class ReflectionResult {
 
+    /**
+     * 是否建议重试。
+     */
     private boolean retryRequested;
+
+    /**
+     * 反思报告。
+     */
     private ReflectionReport report;
 
     public ReflectionResult() {

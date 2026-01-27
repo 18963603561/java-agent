@@ -20,8 +20,8 @@ management:
 
 logging:
   level:
-    root: INFO
-    com.example.agent: INFO
+    root: debug
+    com.example.agent: debug
 
 auth:
   api-keys:
@@ -44,8 +44,13 @@ agent:
     contract-path: specs/001-agent-core-spec/contracts/openapi.yaml
   runtime:
     max-retries: 1
+  storage:
+    mode: memory
   sse:
     timeoutSeconds: 30
+  idempotency:
+    redis-enabled: false
+    ttl-seconds: 86400
   mcp:
     servers:
       - id: mcp-default
@@ -115,6 +120,14 @@ agent:
         model-id: research
       - name: synthesize
         model-id: reflect
+  memory:
+    vector:
+      enabled: false
+      provider: qdrant
+      base-url: http://localhost:6333
+      collection: memory_records
+      dimension: 256
+      timeout-seconds: 5
   budget:
     enabled: true
     threshold-tokens: 10000
@@ -123,3 +136,6 @@ agent:
   circuit:
     failure-threshold: 3
     open-seconds: 30
+  tool:
+    cache:
+      redis-enabled: false

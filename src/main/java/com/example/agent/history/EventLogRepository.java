@@ -1,20 +1,11 @@
 package com.example.agent.history;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import org.springframework.stereotype.Repository;
 
 /**
- * 事件日志仓储，使用内存实现事件持久化与去重。
+ * 事件日志仓储接口，用于持久化与查询事件记录。
  */
-@Repository
-public class EventLogRepository {
-
-    private final ConcurrentHashMap<String, EventLogRecord> eventIndex = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, List<EventLogRecord>> workflowIndex = new ConcurrentHashMap<>();
+public interface EventLogRepository {
 
     /**
      * 幂等保存事件日志。
@@ -22,32 +13,14 @@ public class EventLogRepository {
      * @param record 事件记录
      * @return 是否写入成功
      */
-    public boolean saveIfAbsent(EventLogRecord record) {
-        if (record == null || record.getEventId() == null) {
-            return false;
-        }
-        EventLogRecord existing = eventIndex.putIfAbsent(record.getEventId(), record);
-        if (existing != null) {
-            return false;
-        }
-        String key = record.getTenantId() + ":" + record.getWorkflowId();
-        workflowIndex.computeIfAbsent(key, k -> new CopyOnWriteArrayList<>()).add(record);
-        return true;
-    }
+    boolean saveIfAbsent(EventLogRecord record);
 
     /**
-     * 查询工作流事件列表。
+     * 查询指定工作流的事件日志。
      *
      * @param tenantId 租户标识
      * @param workflowId 工作流标识
-     * @return 事件列表
+     * @return 事件记录列表
      */
-    public List<EventLogRecord> findByWorkflow(String tenantId, String workflowId) {
-        String key = tenantId + ":" + workflowId;
-        List<EventLogRecord> records = workflowIndex.get(key);
-        if (records == null) {
-            return Collections.emptyList();
-        }
-        return new ArrayList<>(records);
-    }
+    List<EventLogRecord> findByWorkflow(String tenantId, String workflowId);
 }

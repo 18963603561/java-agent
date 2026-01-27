@@ -1,7 +1,7 @@
 package com.example.agent.model;
 
 /**
- * 模型供应商接口。
+ * 模型提供商接口。
  */
 public interface ModelProvider {
 
@@ -9,8 +9,8 @@ public interface ModelProvider {
      * 调用模型。
      *
      * @param definition 模型定义
-     * @param prompt 提示词
+     * @param request 模型请求
      * @return 模型响应
      */
-    ModelResponse invoke(ModelDefinition definition, String prompt);
+    ModelResponse invoke(ModelDefinition definition, ModelRequest request);
 }

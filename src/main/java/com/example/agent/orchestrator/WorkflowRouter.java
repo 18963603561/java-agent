@@ -3,6 +3,7 @@ package com.example.agent.orchestrator;
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.runtime.AgentRuntime;
+import com.example.agent.runtime.RuntimeResult;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.stereotype.Service;
 
@@ -27,8 +28,11 @@ public class WorkflowRouter {
      * @param taskId 任务标识
      * @param seqCounter 事件序列计数器
      */
-    public void route(TaskRequest request, TenantContext tenantContext, String workflowId, String taskId,
-                      AtomicLong seqCounter) {
-        agentRuntime.run(request, tenantContext, workflowId, taskId, seqCounter);
+    public RuntimeResult route(TaskRequest request,
+                               TenantContext tenantContext,
+                               String workflowId,
+                               String taskId,
+                               AtomicLong seqCounter) {
+        return agentRuntime.run(request, tenantContext, workflowId, taskId, seqCounter);
     }
 }

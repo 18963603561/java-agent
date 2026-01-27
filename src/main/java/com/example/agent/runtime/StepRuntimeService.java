@@ -14,8 +14,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,15 +33,16 @@ public class StepRuntimeService {
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
     private final MetricsPublisher metricsPublisher;
-
-    private final ConcurrentHashMap<String, List<StepRecord>> stepStore = new ConcurrentHashMap<>();
+    private final StepRecordRepository stepRecordRepository;
 
     public StepRuntimeService(ApplicationEventPublisher eventPublisher,
                               EventStreamService eventStreamService,
-                              MetricsPublisher metricsPublisher) {
+                              MetricsPublisher metricsPublisher,
+                              StepRecordRepository stepRecordRepository) {
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
         this.metricsPublisher = metricsPublisher;
+        this.stepRecordRepository = stepRecordRepository;
     }
 
     /**
@@ -110,6 +109,7 @@ public class StepRuntimeService {
                 "stepSeq", record.getStepSeq(),
                 "status", record.getStatus().name()
         ));
+        saveRecord(record);
         log.info("步骤完成, tenantId={}, workflowId={}, stepId={}, seq={}",
                 record.getTenantId(), record.getWorkflowId(), record.getStepId(), record.getStepSeq());
         return record;
@@ -142,6 +142,7 @@ public class StepRuntimeService {
                 "errorCode", errorCode,
                 "details", details == null ? Collections.emptyMap() : details
         ));
+        saveRecord(record);
         log.warn("步骤失败, tenantId={}, workflowId={}, stepId={}, errorCode={}",
                 record.getTenantId(), record.getWorkflowId(), record.getStepId(), errorCode);
         return record;
@@ -160,8 +161,7 @@ public class StepRuntimeService {
                                           String cursor,
                                           Integer size,
                                           TenantContext tenantContext) {
-        String indexKey = buildIndexKey(tenantContext.getTenantId(), workflowId);
-        List<StepRecord> records = stepStore.get(indexKey);
+        List<StepRecord> records = stepRecordRepository.findByWorkflow(tenantContext.getTenantId(), workflowId);
         if (records == null || records.isEmpty()) {
             throw new ErrorCodeException(HttpStatus.NOT_FOUND, "NOT_FOUND", "步骤时间线不存在");
         }
@@ -203,8 +203,7 @@ public class StepRuntimeService {
      * @return 步骤记录列表
      */
     public List<StepRecord> getSteps(String workflowId, TenantContext tenantContext) {
-        String indexKey = buildIndexKey(tenantContext.getTenantId(), workflowId);
-        List<StepRecord> records = stepStore.get(indexKey);
+        List<StepRecord> records = stepRecordRepository.findByWorkflow(tenantContext.getTenantId(), workflowId);
         if (records == null) {
             return Collections.emptyList();
         }
@@ -212,9 +211,7 @@ public class StepRuntimeService {
     }
 
     private void saveRecord(StepRecord record) {
-        String indexKey = buildIndexKey(record.getTenantId(), record.getWorkflowId());
-        stepStore.computeIfAbsent(indexKey, key -> new CopyOnWriteArrayList<>());
-        stepStore.get(indexKey).add(record);
+        stepRecordRepository.save(record);
     }
 
     private long nextSeq(TenantContext tenantContext, String workflowId, AtomicLong seqCounter) {
@@ -248,9 +245,5 @@ public class StepRuntimeService {
             return 0;
         }
         return Duration.between(record.getStartedAt(), record.getCompletedAt()).toMillis();
-    }
-
-    private String buildIndexKey(String tenantId, String workflowId) {
-        return tenantId + ":" + workflowId;
     }
 }

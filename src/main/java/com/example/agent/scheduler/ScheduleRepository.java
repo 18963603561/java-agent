@@ -1,56 +1,19 @@
 package com.example.agent.scheduler;
 
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.stereotype.Repository;
 
 /**
- * 调度任务仓储，采用内存存储实现。
+ * 调度任务仓储接口，用于持久化调度信息。
  */
-@Repository
-public class ScheduleRepository {
+public interface ScheduleRepository {
 
-    private final ConcurrentHashMap<String, ScheduleSpec> schedules = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, String> idempotencyIndex = new ConcurrentHashMap<>();
+    ScheduleSpec save(ScheduleSpec spec);
 
-    public ScheduleSpec save(ScheduleSpec spec) {
-        schedules.put(buildKey(spec.getTenantId(), spec.getScheduleId()), spec);
-        if (spec.getIdempotencyKey() != null) {
-            idempotencyIndex.put(buildIdempotencyKey(spec.getTenantId(), spec.getIdempotencyKey()),
-                    spec.getScheduleId());
-        }
-        return spec;
-    }
+    ScheduleSpec findById(String tenantId, String scheduleId);
 
-    public ScheduleSpec findById(String tenantId, String scheduleId) {
-        return schedules.get(buildKey(tenantId, scheduleId));
-    }
+    String findByIdempotencyKey(String tenantId, String idempotencyKey);
 
-    public String findByIdempotencyKey(String tenantId, String idempotencyKey) {
-        return idempotencyIndex.get(buildIdempotencyKey(tenantId, idempotencyKey));
-    }
+    void delete(String tenantId, String scheduleId);
 
-    public void delete(String tenantId, String scheduleId) {
-        schedules.remove(buildKey(tenantId, scheduleId));
-    }
-
-    public List<ScheduleSpec> list(String tenantId) {
-        List<ScheduleSpec> result = new ArrayList<>();
-        for (ScheduleSpec spec : schedules.values()) {
-            if (tenantId.equals(spec.getTenantId())) {
-                result.add(spec);
-            }
-        }
-        return Collections.unmodifiableList(result);
-    }
-
-    private String buildKey(String tenantId, String scheduleId) {
-        return tenantId + ":" + scheduleId;
-    }
-
-    private String buildIdempotencyKey(String tenantId, String idempotencyKey) {
-        return tenantId + ":" + idempotencyKey;
-    }
+    List<ScheduleSpec> list(String tenantId);
 }

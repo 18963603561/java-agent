@@ -24,13 +24,16 @@ public class ScheduleManager {
 
     private final ScheduleRepository scheduleRepository;
     private final ScheduleExecutionRepository executionRepository;
+    private final ScheduleEngine scheduleEngine;
     private final MetricsPublisher metricsPublisher;
 
     public ScheduleManager(ScheduleRepository scheduleRepository,
                            ScheduleExecutionRepository executionRepository,
+                           ScheduleEngine scheduleEngine,
                            MetricsPublisher metricsPublisher) {
         this.scheduleRepository = scheduleRepository;
         this.executionRepository = executionRepository;
+        this.scheduleEngine = scheduleEngine;
         this.metricsPublisher = metricsPublisher;
     }
 
@@ -48,6 +51,7 @@ public class ScheduleManager {
             spec.setStatus("ACTIVE");
         }
         scheduleRepository.save(spec);
+        scheduleEngine.register(spec);
         log.info("调度创建, tenantId={}, scheduleId={}", tenantContext.getTenantId(), spec.getScheduleId());
         return new ScheduleResponse(spec.getScheduleId(), spec.getStatus());
     }
@@ -59,6 +63,7 @@ public class ScheduleManager {
             throw new ErrorCodeException(HttpStatus.NOT_FOUND, "NOT_FOUND", "调度不存在");
         }
         scheduleRepository.save(spec);
+        scheduleEngine.register(spec);
         log.info("调度更新, tenantId={}, scheduleId={}", tenantContext.getTenantId(), spec.getScheduleId());
         return new ScheduleResponse(spec.getScheduleId(), spec.getStatus());
     }
@@ -67,6 +72,7 @@ public class ScheduleManager {
         ScheduleSpec spec = getRequired(scheduleId, tenantContext);
         spec.setStatus("PAUSED");
         scheduleRepository.save(spec);
+        scheduleEngine.unregister(scheduleId);
         log.info("调度暂停, tenantId={}, scheduleId={}", tenantContext.getTenantId(), scheduleId);
         return new ScheduleResponse(scheduleId, spec.getStatus());
     }
@@ -75,6 +81,7 @@ public class ScheduleManager {
         ScheduleSpec spec = getRequired(scheduleId, tenantContext);
         spec.setStatus("ACTIVE");
         scheduleRepository.save(spec);
+        scheduleEngine.register(spec);
         log.info("调度恢复, tenantId={}, scheduleId={}", tenantContext.getTenantId(), scheduleId);
         return new ScheduleResponse(scheduleId, spec.getStatus());
     }
@@ -82,6 +89,7 @@ public class ScheduleManager {
     public void delete(String scheduleId, TenantContext tenantContext) {
         ScheduleSpec spec = getRequired(scheduleId, tenantContext);
         scheduleRepository.delete(tenantContext.getTenantId(), scheduleId);
+        scheduleEngine.unregister(scheduleId);
         log.info("调度删除, tenantId={}, scheduleId={}", tenantContext.getTenantId(), scheduleId);
     }
 

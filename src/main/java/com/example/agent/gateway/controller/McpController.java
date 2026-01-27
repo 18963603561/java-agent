@@ -5,14 +5,22 @@ import com.example.agent.auth.TenantContext;
 import com.example.agent.auth.UserContext;
 import com.example.agent.common.ApiResponse;
 import com.example.agent.common.ErrorCodeException;
+import com.example.agent.domain.event.EventType;
+import com.example.agent.domain.event.StreamEvent;
+import com.example.agent.runtime.StepRecord;
+import com.example.agent.runtime.StepState;
+import com.example.agent.streaming.EventStreamService;
 import com.example.agent.tools.McpToolCallRequest;
 import com.example.agent.tools.McpToolCallResponse;
 import com.example.agent.tools.McpToolClient;
 import com.example.agent.tools.McpToolListRequest;
 import com.example.agent.tools.McpToolListResponse;
 import com.example.agent.tools.hook.HookManager;
+import java.time.Instant;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -33,13 +41,19 @@ public class McpController {
     private final McpToolClient mcpToolClient;
     private final AuthService authService;
     private final HookManager hookManager;
+    private final ApplicationEventPublisher eventPublisher;
+    private final EventStreamService eventStreamService;
 
     public McpController(McpToolClient mcpToolClient,
                          AuthService authService,
-                         HookManager hookManager) {
+                         HookManager hookManager,
+                         ApplicationEventPublisher eventPublisher,
+                         EventStreamService eventStreamService) {
         this.mcpToolClient = mcpToolClient;
         this.authService = authService;
         this.hookManager = hookManager;
+        this.eventPublisher = eventPublisher;
+        this.eventStreamService = eventStreamService;
     }
 
     /**
@@ -83,15 +97,57 @@ public class McpController {
         UserContext userContext = authService.authenticate(apiKey, exchange);
         TenantContext tenantContext = getTenantContext(exchange);
         tenantContext.applyUserContext(userContext);
-        hookManager.preTool(tenantContext, null, request.getToolName());
+
+        String workflowId = resolveWorkflowId(request);
+        StepRecord stepRecord = buildStepRecord(tenantContext, workflowId, request.getCallId());
+        hookManager.preTool(tenantContext, stepRecord, request.getToolName());
+        Map<String, Object> invokedPayload = new java.util.HashMap<>();
+        invokedPayload.put("tool", request.getToolName());
+        if (request.getCallId() != null) {
+            invokedPayload.put("callId", request.getCallId());
+        }
+        if (request.getServerId() != null) {
+            invokedPayload.put("serverId", request.getServerId());
+        }
+        if (request.getArguments() != null) {
+            invokedPayload.put("arguments", request.getArguments());
+        }
+        publishToolEvent(tenantContext, workflowId, EventType.TOOL_INVOKED, invokedPayload);
         try {
             McpToolCallResponse response = mcpToolClient.callTool(request, tenantContext);
-            hookManager.postTool(tenantContext, null, request.getToolName(),
+            Map<String, Object> observationPayload = new java.util.HashMap<>();
+            observationPayload.put("tool", request.getToolName());
+            if (request.getCallId() != null) {
+                observationPayload.put("callId", request.getCallId());
+            }
+            if (request.getServerId() != null) {
+                observationPayload.put("serverId", request.getServerId());
+            }
+            if (response.getResult() != null) {
+                observationPayload.put("result", response.getResult());
+            }
+            publishToolEvent(tenantContext, workflowId, EventType.TOOL_OBSERVATION, observationPayload);
+            hookManager.postTool(tenantContext, stepRecord, request.getToolName(),
                     response.getResult() == null ? null : response.getResult());
             log.info("工具调用完成, tenantId={}, tool={}, callId={}",
                     tenantContext.getTenantId(), request.getToolName(), request.getCallId());
             return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
         } catch (ErrorCodeException ex) {
+            Map<String, Object> errorPayload = new java.util.HashMap<>();
+            errorPayload.put("tool", request.getToolName());
+            if (request.getCallId() != null) {
+                errorPayload.put("callId", request.getCallId());
+            }
+            if (request.getServerId() != null) {
+                errorPayload.put("serverId", request.getServerId());
+            }
+            if (ex.getErrorCode() != null) {
+                errorPayload.put("errorCode", ex.getErrorCode());
+            }
+            if (ex.getReason() != null) {
+                errorPayload.put("error", ex.getReason());
+            }
+            publishToolEvent(tenantContext, workflowId, EventType.TOOL_ERROR, errorPayload);
             logMcpErrorIfNeeded(ex, tenantContext, request.getServerId(), request.getToolName());
             throw ex;
         }
@@ -121,5 +177,50 @@ public class McpController {
                 serverId,
                 toolName,
                 code);
+    }
+
+    private void publishToolEvent(TenantContext tenantContext,
+                                  String workflowId,
+                                  EventType type,
+                                  Map<String, Object> payload) {
+        if (workflowId == null) {
+            return;
+        }
+        long seq = eventStreamService.nextSequence(tenantContext.getTenantId(), workflowId);
+        StreamEvent event = new StreamEvent();
+        event.setEventId(workflowId + ":" + seq);
+        event.setSchemaVersion("v1");
+        event.setWorkflowId(workflowId);
+        event.setType(type);
+        event.setTimestamp(Instant.now());
+        event.setSeq(seq);
+        event.setStreamId(workflowId);
+        event.setTenantId(tenantContext.getTenantId());
+        event.setPayload(payload);
+        eventPublisher.publishEvent(event);
+    }
+
+    private String resolveWorkflowId(McpToolCallRequest request) {
+        if (request != null && request.getArguments() != null) {
+            Object value = request.getArguments().get("workflowId");
+            if (value instanceof String workflowId && !workflowId.isBlank()) {
+                return workflowId;
+            }
+        }
+        if (request != null && request.getCallId() != null && !request.getCallId().isBlank()) {
+            return "mcp-" + request.getCallId();
+        }
+        return "mcp-unknown";
+    }
+
+    private StepRecord buildStepRecord(TenantContext tenantContext, String workflowId, String callId) {
+        StepRecord record = new StepRecord();
+        record.setStepId(callId != null ? callId : "mcp-step");
+        record.setWorkflowId(workflowId);
+        record.setStatus(StepState.STARTED);
+        record.setAttempt(1);
+        record.setTenantId(tenantContext.getTenantId());
+        record.setStartedAt(Instant.now());
+        return record;
     }
 }

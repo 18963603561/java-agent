@@ -58,7 +58,11 @@ public class SseStreamController {
      */
     @Value("${agent.sse.timeoutSeconds:30}")
     public void setFirstEventTimeoutSeconds(long timeoutSeconds) {
-        this.firstEventTimeout = Duration.ofSeconds(timeoutSeconds);
+        if (timeoutSeconds <= 0) {
+            this.firstEventTimeout = null;
+        } else {
+            this.firstEventTimeout = Duration.ofSeconds(timeoutSeconds);
+        }
     }
 
     /**
@@ -93,7 +97,7 @@ public class SseStreamController {
 
         log.info("SSE subscribe start, tenantId={}, workflowId={}", tenantContext.getTenantId(), workflowId);
         Flux<StreamEvent> stream = eventStreamService.stream(request, tenantContext);
-        Flux<StreamEvent> gated = stream.publish(shared -> {
+        Flux<StreamEvent> gated = firstEventTimeout == null ? stream : stream.publish(shared -> {
             AtomicBoolean timedOut = new AtomicBoolean(false);
             Mono<StreamEvent> first = shared.next()
                     .timeout(firstEventTimeout, timeoutScheduler)
@@ -110,14 +114,17 @@ public class SseStreamController {
                     : Flux.just(event).concatWith(shared.skip(1)));
         });
 
-        return gated
+        Flux<ServerSentEvent<StreamEvent>> eventFlux = gated
                 .map(event -> ServerSentEvent.<StreamEvent>builder()
                         .id(event.getEventId())
                         .event(event.getType().name())
                         .data(event)
-                        .build())
-                .doFinally(signal -> log.info("SSE subscribe end, tenantId={}, workflowId={}, signal={}",
-                        tenantContext.getTenantId(), workflowId, signal));
+                        .build());
+        Flux<ServerSentEvent<StreamEvent>> output = firstEventTimeout == null
+                ? Flux.just(ServerSentEvent.<StreamEvent>builder().comment("ready").build()).concatWith(eventFlux)
+                : eventFlux;
+        return output.doFinally(signal -> log.info("SSE subscribe end, tenantId={}, workflowId={}, signal={}",
+                tenantContext.getTenantId(), workflowId, signal));
     }
 
     private TenantContext getTenantContext(ServerWebExchange exchange) {

@@ -5,7 +5,14 @@ package com.example.agent.reflection;
  */
 public class ReflectionReport {
 
+    /**
+     * 质量评分，范围 0~1。
+     */
     private double score;
+
+    /**
+     * 反思说明与改进建议。
+     */
     private String notes;
 
     public ReflectionReport() {

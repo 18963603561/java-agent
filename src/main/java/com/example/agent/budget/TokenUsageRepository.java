@@ -1,35 +1,26 @@
 package com.example.agent.budget;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.stereotype.Repository;
 
 /**
- * 预算记录仓储，使用内存存储并提供去重能力。
+ * 预算记录仓储接口，用于持久化与查询预算使用情况。
  */
-@Repository
-public class TokenUsageRepository {
+public interface TokenUsageRepository {
 
-    private final ConcurrentHashMap<String, TokenUsageRecord> usageIndex = new ConcurrentHashMap<>();
-    private final ConcurrentHashMap<String, List<TokenUsageRecord>> taskIndex = new ConcurrentHashMap<>();
+    /**
+     * 幂等保存预算记录。
+     *
+     * @param record 预算记录
+     * @return 是否写入成功
+     */
+    boolean saveIfAbsent(TokenUsageRecord record);
 
-    public boolean saveIfAbsent(TokenUsageRecord record) {
-        if (record.getUsageId() == null) {
-            return false;
-        }
-        String key = record.getTenantId() + ":" + record.getUsageId();
-        TokenUsageRecord existing = usageIndex.putIfAbsent(key, record);
-        if (existing != null) {
-            return false;
-        }
-        String taskKey = record.getTenantId() + ":" + record.getTaskId();
-        taskIndex.computeIfAbsent(taskKey, k -> new ArrayList<>()).add(record);
-        return true;
-    }
-
-    public List<TokenUsageRecord> findByTask(String tenantId, String taskId) {
-        String key = tenantId + ":" + taskId;
-        return taskIndex.getOrDefault(key, List.of());
-    }
+    /**
+     * 查询任务维度预算记录。
+     *
+     * @param tenantId 租户标识
+     * @param taskId 任务标识
+     * @return 预算记录列表
+     */
+    List<TokenUsageRecord> findByTask(String tenantId, String taskId);
 }

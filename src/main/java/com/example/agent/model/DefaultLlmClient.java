@@ -25,6 +25,6 @@ public class DefaultLlmClient implements LlmClient {
         ModelScene scene = request.getScene() != null ? request.getScene() : ModelScene.CHEAP;
         ModelDefinition definition = modelRouter.route(scene);
         log.info("模型调用, scene={}, modelId={}", scene, definition != null ? definition.getModelId() : null);
-        return modelProvider.invoke(definition, request.getPrompt());
+        return modelProvider.invoke(definition, request);
     }
 }

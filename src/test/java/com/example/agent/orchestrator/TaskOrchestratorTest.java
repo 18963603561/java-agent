@@ -22,7 +22,10 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
+import org.mockito.Mockito;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.context.ApplicationEventPublisher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -52,12 +55,18 @@ class TaskOrchestratorTest {
 
     private TaskOrchestrator orchestrator;
     private AtomicLong seqCounter;
+    private TaskRepository taskRepository;
+    private ObjectProvider<StringRedisTemplate> redisProvider;
 
     @BeforeEach
     void setUp() {
         seqCounter = new AtomicLong(0);
         when(eventStreamService.sequenceCounter(anyString(), anyString())).thenReturn(seqCounter);
-        orchestrator = new TaskOrchestrator(eventPublisher, workflowRouter, metricsPublisher, eventStreamService);
+        taskRepository = new InMemoryTaskRepository();
+        redisProvider = Mockito.mock(ObjectProvider.class);
+        when(redisProvider.getIfAvailable()).thenReturn(null);
+        orchestrator = new TaskOrchestrator(eventPublisher, workflowRouter, metricsPublisher, eventStreamService,
+                taskRepository, redisProvider);
     }
 
     @Test

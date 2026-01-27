@@ -1,25 +1,13 @@
 package com.example.agent.scheduler;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import org.springframework.stereotype.Repository;
 
 /**
- * 调度执行记录仓储，使用内存存储。
+ * 调度执行记录仓储接口，用于持久化调度执行历史。
  */
-@Repository
-public class ScheduleExecutionRepository {
+public interface ScheduleExecutionRepository {
 
-    private final ConcurrentHashMap<String, List<ScheduleExecutionRecord>> executions = new ConcurrentHashMap<>();
+    void save(ScheduleExecutionRecord record);
 
-    public void save(ScheduleExecutionRecord record) {
-        String key = record.getTenantId() + ":" + record.getScheduleId();
-        executions.computeIfAbsent(key, k -> new ArrayList<>()).add(record);
-    }
-
-    public List<ScheduleExecutionRecord> findBySchedule(String tenantId, String scheduleId) {
-        String key = tenantId + ":" + scheduleId;
-        return executions.getOrDefault(key, List.of());
-    }
+    List<ScheduleExecutionRecord> findBySchedule(String tenantId, String scheduleId);
 }

@@ -9,7 +9,7 @@ import java.util.Map;
 import org.springframework.stereotype.Component;
 
 /**
- * 沙箱执行器适配器，衔接工具执行与 WASI 沙箱。
+ * 沙箱执行器适配器，用于统一沙箱校验与执行结果返回。
  */
 @Component
 public class SandboxExecutor {
@@ -27,16 +27,15 @@ public class SandboxExecutor {
      * @param request 任务请求
      * @param tenantContext 租户上下文
      * @param arguments 工具参数
-     * @return 执行结果
+     * @return 沙箱执行结果
      */
-    public Map<String, Object> execute(String toolName,
-                                       TaskRequest request,
-                                       TenantContext tenantContext,
-                                       Map<String, Object> arguments) {
+    public SandboxResult execute(String toolName,
+                                 TaskRequest request,
+                                 TenantContext tenantContext,
+                                 Map<String, Object> arguments) {
         SandboxRequest sandboxRequest = new SandboxRequest();
         sandboxRequest.setToolName(toolName);
         sandboxRequest.setInput(arguments);
-        SandboxResult result = wasiSandboxExecutor.execute(sandboxRequest, tenantContext);
-        return result.getOutput();
+        return wasiSandboxExecutor.execute(sandboxRequest, tenantContext);
     }
 }

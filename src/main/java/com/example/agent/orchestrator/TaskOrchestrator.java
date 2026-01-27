@@ -9,20 +9,23 @@ import com.example.agent.common.TaskStatusResponse;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.runtime.RuntimeResult;
 import com.example.agent.streaming.EventStreamService;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -40,26 +43,28 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
     private final WorkflowRouter workflowRouter;
     private final MetricsPublisher metricsPublisher;
     private final EventStreamService eventStreamService;
+    private final TaskRepository taskRepository;
+    private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
+    private final Map<String, Object> idempotencyLocks = new ConcurrentHashMap<>();
 
-    private final Map<String, TaskResponse> idempotencyCache = new ConcurrentHashMap<>();
-    private final Map<String, TaskStatusResponse> taskStatusCache = new ConcurrentHashMap<>();
-    private final Map<String, String> taskTenantIndex = new ConcurrentHashMap<>();
-    private final AtomicLong lastCleanupAt = new AtomicLong(0);
+    @Value("${agent.idempotency.redis-enabled:false}")
+    private boolean redisIdempotencyEnabled;
 
-    @Value("${orchestrator.task-ttl:24h}")
-    private Duration taskTtl = Duration.ofHours(24);
-
-    @Value("${orchestrator.cleanup-interval:5m}")
-    private Duration cleanupInterval = Duration.ofMinutes(5);
+    @Value("${agent.idempotency.ttl-seconds:86400}")
+    private long idempotencyTtlSeconds;
 
     public TaskOrchestrator(ApplicationEventPublisher eventPublisher,
                             WorkflowRouter workflowRouter,
                             MetricsPublisher metricsPublisher,
-                            EventStreamService eventStreamService) {
+                            EventStreamService eventStreamService,
+                            TaskRepository taskRepository,
+                            ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
         this.eventPublisher = eventPublisher;
         this.workflowRouter = workflowRouter;
         this.metricsPublisher = metricsPublisher;
         this.eventStreamService = eventStreamService;
+        this.taskRepository = taskRepository;
+        this.redisTemplateProvider = redisTemplateProvider;
     }
 
     /**
@@ -71,25 +76,34 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
      */
     @Override
     public TaskResponse submitTask(TaskRequest request, TenantContext tenantContext) {
-        cleanupIfNeeded();
         String tenantId = tenantContext.getTenantId();
         String idempotencyKey = request.getIdempotencyKey();
         if (StringUtils.hasText(idempotencyKey)) {
-            String cacheKey = tenantId + ":" + idempotencyKey;
-            AtomicBoolean created = new AtomicBoolean(false);
-            TaskResponse response = idempotencyCache.computeIfAbsent(cacheKey, key -> {
-                created.set(true);
-                return createTask(tenantContext);
-            });
-            if (!created.get()) {
-                log.info("幂等命中, tenantId={}, taskId={}", tenantId, response.getTaskId());
-                return response;
+            String lockKey = buildIdempotencyKey(tenantId, idempotencyKey);
+            Object lock = idempotencyLocks.computeIfAbsent(lockKey, key -> new Object());
+            synchronized (lock) {
+                try {
+                    TaskRecord idempotent = findIdempotent(tenantId, idempotencyKey);
+                    if (idempotent != null) {
+                        log.info("幂等命中, tenantId={}, taskId={}", tenantId, idempotent.getTaskId());
+                        return new TaskResponse(idempotent.getTaskId(), idempotent.getWorkflowId(),
+                                idempotent.getStatus());
+                    }
+
+                    TaskRecord record = createTask(request, tenantContext);
+                    TaskResponse response = new TaskResponse(record.getTaskId(), record.getWorkflowId(),
+                            record.getStatus());
+                    storeIdempotency(tenantId, idempotencyKey, record.getTaskId());
+                    handleWorkflowRoute(request, tenantContext, response);
+                    return response;
+                } finally {
+                    idempotencyLocks.remove(lockKey, lock);
+                }
             }
-            handleWorkflowRoute(request, tenantContext, response);
-            return response;
         }
 
-        TaskResponse response = createTask(tenantContext);
+        TaskRecord record = createTask(request, tenantContext);
+        TaskResponse response = new TaskResponse(record.getTaskId(), record.getWorkflowId(), record.getStatus());
         handleWorkflowRoute(request, tenantContext, response);
         return response;
     }
@@ -103,12 +117,11 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
      */
     @Override
     public TaskStatusResponse getTask(String taskId, TenantContext tenantContext) {
-        TaskStatusResponse status = taskStatusCache.get(taskId);
-        String ownerTenant = taskTenantIndex.get(taskId);
-        if (status == null || ownerTenant == null || !ownerTenant.equals(tenantContext.getTenantId())) {
+        TaskRecord record = taskRepository.findById(tenantContext.getTenantId(), taskId);
+        if (record == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found");
         }
-        return status;
+        return toStatusResponse(record);
     }
 
     /**
@@ -120,25 +133,14 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
      */
     @Override
     public TaskListResponse listTasks(TaskQuery query, TenantContext tenantContext) {
-        cleanupIfNeeded();
         String tenantId = tenantContext.getTenantId();
         String statusFilter = query != null ? query.getStatus() : null;
         String cursor = query != null ? query.getCursor() : null;
         Integer size = query != null ? query.getSize() : null;
 
         ArrayList<TaskStatusResponse> filtered = new ArrayList<>();
-        for (Map.Entry<String, TaskStatusResponse> entry : taskStatusCache.entrySet()) {
-            String taskId = entry.getKey();
-            String ownerTenant = taskTenantIndex.get(taskId);
-            if (!tenantId.equals(ownerTenant)) {
-                continue;
-            }
-            TaskStatusResponse status = entry.getValue();
-            if (StringUtils.hasText(statusFilter) && status != null
-                    && !statusFilter.equalsIgnoreCase(status.getStatus())) {
-                continue;
-            }
-            filtered.add(status);
+        for (TaskRecord record : taskRepository.listByTenant(tenantId, statusFilter)) {
+            filtered.add(toStatusResponse(record));
         }
 
         filtered.sort(Comparator.comparing(TaskStatusResponse::getUpdatedAt,
@@ -172,15 +174,20 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         return new TaskListResponse(page, nextCursor, hasMore, filtered.size());
     }
 
-    private TaskResponse createTask(TenantContext tenantContext) {
+    private TaskRecord createTask(TaskRequest request, TenantContext tenantContext) {
         String tenantId = tenantContext.getTenantId();
         String taskId = UUID.randomUUID().toString();
         String workflowId = UUID.randomUUID().toString();
-        TaskResponse response = new TaskResponse(taskId, workflowId, "SUBMITTED");
-
-        TaskStatusResponse status = new TaskStatusResponse(taskId, workflowId, "SUBMITTED", Instant.now(), null);
-        taskStatusCache.put(taskId, status);
-        taskTenantIndex.put(taskId, tenantId);
+        TaskRecord record = new TaskRecord();
+        record.setTaskId(taskId);
+        record.setWorkflowId(workflowId);
+        record.setStatus("SUBMITTED");
+        record.setTenantId(tenantId);
+        record.setCreatedAt(Instant.now());
+        record.setUpdatedAt(record.getCreatedAt());
+        record.setIdempotencyKey(request.getIdempotencyKey());
+        record.setRequest(buildRequestPayload(request));
+        taskRepository.save(record);
 
         AtomicLong seqCounter = eventStreamService.sequenceCounter(tenantId, workflowId);
         long startedSeq = seqCounter.incrementAndGet();
@@ -189,42 +196,34 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         metricsPublisher.increment("task.submit.count");
 
         log.info("任务提交, tenantId={}, taskId={}, workflowId={}", tenantId, taskId, workflowId);
-        return response;
+        return record;
     }
 
     private void handleWorkflowRoute(TaskRequest request, TenantContext tenantContext, TaskResponse response) {
         String workflowId = response.getWorkflowId();
         AtomicLong seqCounter = eventStreamService.sequenceCounter(tenantContext.getTenantId(), workflowId);
         long startNs = System.nanoTime();
-        TaskStatusResponse status = taskStatusCache.get(response.getTaskId());
-        if (status != null) {
-            status.setStatus("RUNNING");
-            status.setUpdatedAt(Instant.now());
-        }
+        TaskRecord record = taskRepository.findById(tenantContext.getTenantId(), response.getTaskId());
+        updateTaskStatus(record, "RUNNING", null);
         try {
-            workflowRouter.route(request, tenantContext, workflowId, response.getTaskId(), seqCounter);
-            if (status != null) {
-                status.setStatus("COMPLETED");
-                status.setUpdatedAt(Instant.now());
-            }
+            RuntimeResult runtimeResult = workflowRouter.route(request, tenantContext, workflowId,
+                    response.getTaskId(), seqCounter);
+            updateTaskStatus(record, "COMPLETED", buildResultPayload(runtimeResult));
         } catch (RuntimeException ex) {
             log.error("任务路由失败, tenantId={}, taskId={}, workflowId={}",
                     tenantContext.getTenantId(), response.getTaskId(), workflowId, ex);
             long errorSeq = seqCounter.incrementAndGet();
             publishEvent(buildEvent(tenantContext, workflowId, EventType.ERROR_OCCURRED, errorSeq,
                     Map.of("error", ex.getMessage() == null ? "route_failed" : ex.getMessage())));
-            if (status != null) {
-                status.setStatus("FAILED");
-                status.setUpdatedAt(Instant.now());
-                String errorMessage = ex.getMessage() == null ? "route_failed" : ex.getMessage();
-                status.setResult(Map.of("error", errorMessage));
-            }
+            String errorMessage = ex.getMessage() == null ? "route_failed" : ex.getMessage();
+            updateTaskStatus(record, "FAILED", Map.of("error", errorMessage));
             throw ex;
         } finally {
             long endSeq = seqCounter.incrementAndGet();
-            String finalStatus = status != null && status.getStatus() != null
-                    ? status.getStatus()
-                    : "UNKNOWN";
+            TaskRecord latest = taskRepository.findById(tenantContext.getTenantId(), response.getTaskId());
+            String finalStatus = latest != null && latest.getStatus() != null
+                    ? latest.getStatus()
+                    : response.getStatus();
             publishEvent(buildEvent(tenantContext, workflowId, EventType.WORKFLOW_COMPLETED, endSeq,
                     Map.of("status", finalStatus)));
             long costMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
@@ -232,46 +231,75 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         }
     }
 
-    private void cleanupIfNeeded() {
-        long now = Instant.now().toEpochMilli();
-        long last = lastCleanupAt.get();
-        if (now - last < cleanupInterval.toMillis()) {
-            return;
-        }
-        if (!lastCleanupAt.compareAndSet(last, now)) {
-            return;
-        }
-        int evicted = 0;
-        for (Map.Entry<String, TaskStatusResponse> entry : taskStatusCache.entrySet()) {
-            String taskId = entry.getKey();
-            TaskStatusResponse status = entry.getValue();
-            if (isExpired(status, now)) {
-                evictTask(taskId, status);
-                evicted++;
+    private TaskRecord findIdempotent(String tenantId, String idempotencyKey) {
+        StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
+        if (redisIdempotencyEnabled && redisTemplate != null) {
+            String redisKey = buildIdempotencyKey(tenantId, idempotencyKey);
+            String taskId = redisTemplate.opsForValue().get(redisKey);
+            if (StringUtils.hasText(taskId)) {
+                TaskRecord record = taskRepository.findById(tenantId, taskId);
+                if (record != null) {
+                    return record;
+                }
             }
         }
-        if (evicted > 0) {
-            log.info("任务缓存清理, evicted={}, tasks={}, idempotency={}",
-                    evicted, taskStatusCache.size(), idempotencyCache.size());
+        return taskRepository.findByIdempotencyKey(tenantId, idempotencyKey);
+    }
+
+    private void storeIdempotency(String tenantId, String idempotencyKey, String taskId) {
+        if (!StringUtils.hasText(idempotencyKey)) {
+            return;
+        }
+        StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
+        if (redisIdempotencyEnabled && redisTemplate != null) {
+            String redisKey = buildIdempotencyKey(tenantId, idempotencyKey);
+            redisTemplate.opsForValue().set(redisKey, taskId, Duration.ofSeconds(idempotencyTtlSeconds));
         }
     }
 
-    private boolean isExpired(TaskStatusResponse status, long nowEpochMs) {
-        if (status == null || status.getUpdatedAt() == null) {
-            return true;
-        }
-        long updatedAt = status.getUpdatedAt().toEpochMilli();
-        return nowEpochMs - updatedAt > taskTtl.toMillis();
+    private String buildIdempotencyKey(String tenantId, String idempotencyKey) {
+        return "idempotency:task:" + tenantId + ":" + idempotencyKey;
     }
 
-    private void evictTask(String taskId, TaskStatusResponse status) {
-        String tenantId = taskTenantIndex.remove(taskId);
-        taskStatusCache.remove(taskId);
-        if (tenantId != null && status != null && status.getWorkflowId() != null) {
-            eventStreamService.evictSequence(tenantId, status.getWorkflowId());
+    private TaskStatusResponse toStatusResponse(TaskRecord record) {
+        return new TaskStatusResponse(record.getTaskId(), record.getWorkflowId(), record.getStatus(),
+                record.getUpdatedAt(), record.getResult());
+    }
+
+    private void updateTaskStatus(TaskRecord record, String status, Map<String, Object> result) {
+        if (record == null) {
+            return;
         }
-        idempotencyCache.entrySet().removeIf(entry -> entry.getValue() != null
-                && taskId.equals(entry.getValue().getTaskId()));
+        record.setStatus(status);
+        record.setUpdatedAt(Instant.now());
+        if (result != null) {
+            record.setResult(result);
+        }
+        taskRepository.save(record);
+    }
+
+    private Map<String, Object> buildResultPayload(RuntimeResult runtimeResult) {
+        if (runtimeResult == null) {
+            return null;
+        }
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("planId", runtimeResult.getPlanId());
+        payload.put("planSummary", runtimeResult.getPlanSummary());
+        payload.put("steps", runtimeResult.getSteps());
+        payload.put("finalOutput", runtimeResult.getFinalOutput());
+        return payload;
+    }
+
+    private Map<String, Object> buildRequestPayload(TaskRequest request) {
+        if (request == null) {
+            return Map.of();
+        }
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("query", request.getQuery());
+        payload.put("sessionId", request.getSessionId());
+        payload.put("context", request.getContext());
+        payload.put("idempotencyKey", request.getIdempotencyKey());
+        return payload;
     }
 
     private void publishEvent(StreamEvent event) {

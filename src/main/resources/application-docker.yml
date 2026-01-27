@@ -1,0 +1,23 @@
+spring:
+  datasource:
+    url: jdbc:postgresql://localhost:5432/agent
+    username: agent
+    password: agent
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+agent:
+  storage:
+    mode: postgres
+  idempotency:
+    redis-enabled: true
+  tool:
+    cache:
+      redis-enabled: true
+  memory:
+    vector:
+      enabled: true
+      provider: qdrant
+      base-url: http://localhost:6333
