@@ -76,15 +76,112 @@ class MemoryStoreTest {
                 .anyMatch(item -> "compressed".equalsIgnoreCase(item.getLayer())));
     }
 
+    @Test
+    void compressOutputsStructuredSummary() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryStore store = buildStore(repository, policyProps(100, 1000, 3600, 0));
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        saveRecord(store, tenantContext, "session-struct", "first message");
+        saveRecord(store, tenantContext, "session-struct", "second message");
+
+        CompressionRequest request = new CompressionRequest();
+        request.setSessionId("session-struct");
+        MemoryRecord compressed = store.compress(request, tenantContext);
+
+        assertNotNull(compressed);
+        assertNotNull(compressed.getConversationSummary());
+        assertEquals("v1", compressed.getConversationSummary().getVersion());
+        assertNotNull(compressed.getConversationSummary().getSummary());
+        assertTrue(compressed.getConversationSummary().getSummaryChars() > 0);
+        assertTrue(compressed.getConversationSummary().getBulletCount() > 0);
+
+        assertNotNull(compressed.getWorkingMemorySummary());
+        assertEquals("v1", compressed.getWorkingMemorySummary().getVersion());
+        assertNotNull(compressed.getWorkingMemorySummary().getSummary());
+        assertTrue(compressed.getWorkingMemorySummary().getSummaryChars() > 0);
+        assertTrue(compressed.getWorkingMemorySummary().getItemCount() > 0);
+    }
+
+    @Test
+    void saveAppliesExpiration() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryExpireProperties expireProperties = new MemoryExpireProperties();
+        expireProperties.setEnabled(true);
+        expireProperties.setTtlSeconds(60);
+        MemoryStore store = buildStore(repository, policyProps(100, 1000, 3600, 0), expireProperties);
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        MemoryRecord record = new MemoryRecord();
+        record.setSessionId("session-expire");
+        record.setContent("payload");
+        store.save(record, tenantContext);
+
+        List<MemoryRecord> records = repository.findBySession("tenant-a", "session-expire");
+        assertEquals(1, records.size());
+        assertNotNull(records.get(0).getExpiresAt());
+        assertTrue(records.get(0).getExpiresAt().isAfter(records.get(0).getCreatedAt()));
+    }
+
+    @Test
+    void searchFiltersExpiredRecords() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryExpireProperties expireProperties = new MemoryExpireProperties();
+        expireProperties.setEnabled(true);
+        expireProperties.setCleanupOnRead(false);
+        MemoryStore store = buildStore(repository, policyProps(100, 1000, 3600, 0), expireProperties);
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        MemoryRecord record = new MemoryRecord();
+        record.setSessionId("session-expired");
+        record.setContent("expired-content");
+        record.setExpiresAt(Instant.now().minusSeconds(60));
+        store.save(record, tenantContext);
+
+        MemoryQuery query = new MemoryQuery();
+        query.setSessionId("session-expired");
+        query.setQuery("expired");
+        query.setLimit(5);
+
+        MemorySearchResult result = store.search(query, tenantContext);
+        assertTrue(result.getRecords().isEmpty());
+    }
+
+    @Test
+    void searchTriggersCleanupWhenEnabled() {
+        TrackingMemoryRepository repository = new TrackingMemoryRepository();
+        MemoryExpireProperties expireProperties = new MemoryExpireProperties();
+        expireProperties.setEnabled(true);
+        expireProperties.setCleanupOnRead(true);
+        expireProperties.setCleanupIntervalSeconds(0);
+        MemoryStore store = buildStore(repository, policyProps(100, 1000, 3600, 0), expireProperties);
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        MemoryQuery query = new MemoryQuery();
+        query.setSessionId("session-clean");
+        query.setQuery("clean");
+        query.setLimit(5);
+
+        store.search(query, tenantContext);
+        assertEquals(1, repository.getDeleteCalls());
+    }
+
     private MemoryStore buildStore(InMemoryMemoryRepository repository, MemoryPolicyProperties policyProperties) {
+        return buildStore(repository, policyProperties, new MemoryExpireProperties());
+    }
+
+    private MemoryStore buildStore(InMemoryMemoryRepository repository,
+                                   MemoryPolicyProperties policyProperties,
+                                   MemoryExpireProperties expireProperties) {
         ObjectProvider<VectorStore> vectorProvider = new FixedObjectProvider<>(null);
         ObjectProvider<EmbeddingService> embeddingProvider = new FixedObjectProvider<>(null);
         RecentMemoryStore recentMemoryStore = new RecentMemoryStore(repository);
         SemanticMemoryStore semanticMemoryStore = new SemanticMemoryStore(vectorProvider, embeddingProvider);
-        CompressedMemoryStore compressedMemoryStore = new CompressedMemoryStore(repository);
+        MemoryExpirationService expirationService = new MemoryExpirationService(expireProperties);
+        CompressedMemoryStore compressedMemoryStore = new CompressedMemoryStore(repository, expirationService);
         MemoryPolicy memoryPolicy = new MemoryPolicy(policyProperties, new TokenEstimator());
         return new MemoryStore(repository, vectorProvider, embeddingProvider, recentMemoryStore,
-                semanticMemoryStore, compressedMemoryStore, memoryPolicy);
+                semanticMemoryStore, compressedMemoryStore, memoryPolicy, expireProperties, expirationService);
     }
 
     private MemoryPolicyProperties policyProps(int sizeThreshold, int tokenThreshold,
@@ -151,6 +248,21 @@ class MemoryStoreTest {
         @Override
         public Stream<T> orderedStream() {
             return stream();
+        }
+    }
+
+    private static class TrackingMemoryRepository extends InMemoryMemoryRepository {
+
+        private int deleteCalls;
+
+        @Override
+        public int deleteExpired(String tenantId, Instant now) {
+            deleteCalls++;
+            return super.deleteExpired(tenantId, now);
+        }
+
+        private int getDeleteCalls() {
+            return deleteCalls;
         }
     }
 }

@@ -116,6 +116,15 @@ public class TokenBudgetManager {
         return new TokenUsageSummary(taskId, totalTokens, totalCost, byModel, byProvider);
     }
 
+    /**
+     * 获取预算阈值令牌数，用于预算分配参考。
+     *
+     * @return 预算阈值令牌数
+     */
+    public int getThresholdTokens() {
+        return thresholdTokens;
+    }
+
     private TokenUsageRecord buildRecord(TokenUsageInput input, TenantContext tenantContext) {
         TokenUsageRecord record = new TokenUsageRecord();
         record.setRecordId(UUID.randomUUID().toString());

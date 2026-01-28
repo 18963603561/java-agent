@@ -20,6 +20,10 @@ public class ModelRequest {
      */
     private List<ModelToolDefinition> tools;
     /**
+     * 多角色消息列表。
+     */
+    private List<PromptMessage> messages;
+    /**
      * 工具选择策略。
      */
     private ModelToolChoice toolChoice;
@@ -58,6 +62,14 @@ public class ModelRequest {
 
     public void setTools(List<ModelToolDefinition> tools) {
         this.tools = tools;
+    }
+
+    public List<PromptMessage> getMessages() {
+        return messages;
+    }
+
+    public void setMessages(List<PromptMessage> messages) {
+        this.messages = messages;
     }
 
     public ModelToolChoice getToolChoice() {

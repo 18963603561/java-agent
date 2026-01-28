@@ -35,11 +35,12 @@ public class JdbcMemoryRepository implements MemoryRepository {
             return null;
         }
         Instant createdAt = record.getCreatedAt() != null ? record.getCreatedAt() : Instant.now();
+        Instant expiresAt = record.getExpiresAt();
         try {
             jdbcTemplate.update("""
                             INSERT INTO memory_records
-                            (memory_id, session_id, task_id, content, summary, embedding_ref, tenant_id, layer, created_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            (memory_id, session_id, task_id, content, summary, embedding_ref, tenant_id, layer, created_at, expires_at)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ON CONFLICT (memory_id) DO UPDATE SET
                               session_id = EXCLUDED.session_id,
                               task_id = EXCLUDED.task_id,
@@ -48,7 +49,8 @@ public class JdbcMemoryRepository implements MemoryRepository {
                               embedding_ref = EXCLUDED.embedding_ref,
                               tenant_id = EXCLUDED.tenant_id,
                               layer = EXCLUDED.layer,
-                              created_at = EXCLUDED.created_at
+                              created_at = EXCLUDED.created_at,
+                              expires_at = EXCLUDED.expires_at
                             """,
                     record.getMemoryId(),
                     record.getSessionId(),
@@ -58,7 +60,8 @@ public class JdbcMemoryRepository implements MemoryRepository {
                     record.getEmbeddingRef(),
                     record.getTenantId(),
                     record.getLayer(),
-                    createdAt
+                    createdAt,
+                    expiresAt
             );
             log.debug("记忆入库, tenantId={}, memoryId={}", record.getTenantId(), record.getMemoryId());
         } catch (DataAccessException ex) {
@@ -71,14 +74,16 @@ public class JdbcMemoryRepository implements MemoryRepository {
     public List<MemoryRecord> findBySession(String tenantId, String sessionId) {
         try {
             return jdbcTemplate.query("""
-                            SELECT memory_id, session_id, task_id, content, summary, embedding_ref, tenant_id, layer, created_at
+                            SELECT memory_id, session_id, task_id, content, summary, embedding_ref, tenant_id, layer, created_at, expires_at
                             FROM memory_records
                             WHERE tenant_id = ? AND session_id = ?
+                              AND (expires_at IS NULL OR expires_at > ?)
                             ORDER BY created_at ASC
                             """,
                     new MemoryRowMapper(),
                     tenantId,
-                    sessionId
+                    sessionId,
+                    Instant.now()
             );
         } catch (DataAccessException ex) {
             log.error("记忆查询失败, tenantId={}, sessionId={}", tenantId, sessionId, ex);
@@ -94,10 +99,11 @@ public class JdbcMemoryRepository implements MemoryRepository {
         try {
             String like = "%" + query + "%";
             return jdbcTemplate.query("""
-                            SELECT memory_id, session_id, task_id, content, summary, embedding_ref, tenant_id, layer, created_at
+                            SELECT memory_id, session_id, task_id, content, summary, embedding_ref, tenant_id, layer, created_at, expires_at
                             FROM memory_records
                             WHERE tenant_id = ? AND session_id = ?
                               AND (content ILIKE ? OR summary ILIKE ?)
+                              AND (expires_at IS NULL OR expires_at > ?)
                             ORDER BY created_at DESC
                             LIMIT ?
                             """,
@@ -106,11 +112,35 @@ public class JdbcMemoryRepository implements MemoryRepository {
                     sessionId,
                     like,
                     like,
+                    Instant.now(),
                     limit
             );
         } catch (DataAccessException ex) {
             log.error("记忆搜索失败, tenantId={}, sessionId={}", tenantId, sessionId, ex);
             return Collections.emptyList();
+        }
+    }
+
+    @Override
+    public int deleteExpired(String tenantId, Instant now) {
+        if (now == null) {
+            return 0;
+        }
+        try {
+            if (!StringUtils.hasText(tenantId)) {
+                return jdbcTemplate.update("""
+                                DELETE FROM memory_records
+                                WHERE expires_at IS NOT NULL AND expires_at <= ?
+                                """, now);
+            }
+            return jdbcTemplate.update("""
+                            DELETE FROM memory_records
+                            WHERE tenant_id = ?
+                              AND expires_at IS NOT NULL AND expires_at <= ?
+                            """, tenantId, now);
+        } catch (DataAccessException ex) {
+            log.error("璁板繂娓呯悊澶辫触, tenantId={}", tenantId, ex);
+            return 0;
         }
     }
 
@@ -129,6 +159,9 @@ public class JdbcMemoryRepository implements MemoryRepository {
             record.setLayer(rs.getString("layer"));
             if (rs.getTimestamp("created_at") != null) {
                 record.setCreatedAt(rs.getTimestamp("created_at").toInstant());
+            }
+            if (rs.getTimestamp("expires_at") != null) {
+                record.setExpiresAt(rs.getTimestamp("expires_at").toInstant());
             }
             return record;
         }

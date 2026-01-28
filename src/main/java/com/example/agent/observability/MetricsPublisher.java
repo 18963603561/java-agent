@@ -56,6 +56,27 @@ public class MetricsPublisher {
                 .record(millis, java.util.concurrent.TimeUnit.MILLISECONDS);
     }
 
+    /**
+     * 记录分布类指标。
+     *
+     * @param name 指标名称
+     * @param value 指标值
+     */
+    public void recordSummary(String name, double value) {
+        meterRegistry.summary(name).record(value);
+    }
+
+    /**
+     * 记录分布类指标（自定义标签）。
+     *
+     * @param name 指标名称
+     * @param value 指标值
+     * @param tags 标签键值对
+     */
+    public void recordSummary(String name, double value, String... tags) {
+        meterRegistry.summary(name, tags).record(value);
+    }
+
     private String safeTag(String traceId) {
         if (traceId == null || traceId.isBlank()) {
             return "unknown";

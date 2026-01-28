@@ -6,6 +6,7 @@ import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
 import com.example.agent.model.ModelToolResolver;
+import com.example.agent.model.PromptAssembler;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.runtime.StepRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -33,8 +34,9 @@ class ReflectionServiceTest {
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ReflectionService service = new ReflectionService(properties, metricsPublisher,
-                modelInvocationService, modelToolResolver, new ObjectMapper());
+                modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper());
 
         StepRequest step = new StepRequest("TOOL", Map.of("critical", true));
         Map<String, Object> output = Map.of("error", "failed");
@@ -55,8 +57,9 @@ class ReflectionServiceTest {
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ReflectionService service = new ReflectionService(properties, metricsPublisher,
-                modelInvocationService, modelToolResolver, new ObjectMapper());
+                modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper());
 
         StepRequest step = new StepRequest("TOOL", Map.of("critical", true));
         Map<String, Object> output = Map.of("error", "failed");
@@ -77,8 +80,9 @@ class ReflectionServiceTest {
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ReflectionService service = new ReflectionService(properties, metricsPublisher,
-                modelInvocationService, modelToolResolver, new ObjectMapper());
+                modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper());
 
         String content = "{\"score\":0.5,\"retry\":true,\"notes\":\"needs retry\"}";
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),

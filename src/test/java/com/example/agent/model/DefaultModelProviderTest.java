@@ -73,4 +73,22 @@ class DefaultModelProviderTest {
         assertNotNull(toolChoiceMap.get("name"));
         assertEquals("demo_tool", toolChoiceMap.get("name"));
     }
+
+    @Test
+    void buildOpenAiRequestBodyUsesMessagesWhenProvided() {
+        DefaultModelProvider provider = new DefaultModelProvider(new ObjectMapper(), WebClient.builder());
+        ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
+        request.setMessages(List.of(
+                new PromptMessage(PromptRole.SYSTEM, "system"),
+                new PromptMessage(PromptRole.USER, "user")
+        ));
+
+        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request);
+
+        assertTrue(body.containsKey("messages"));
+        Object messagesObj = body.get("messages");
+        assertTrue(messagesObj instanceof List<?>);
+        List<?> messages = (List<?>) messagesObj;
+        assertEquals(2, messages.size());
+    }
 }

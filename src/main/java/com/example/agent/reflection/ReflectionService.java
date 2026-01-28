@@ -6,6 +6,8 @@ import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
 import com.example.agent.model.ModelToolResolver;
+import com.example.agent.model.PromptAssembler;
+import com.example.agent.model.PromptBundle;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.runtime.StepRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -31,17 +33,20 @@ public class ReflectionService {
     private final MetricsPublisher metricsPublisher;
     private final ModelInvocationService modelInvocationService;
     private final ModelToolResolver modelToolResolver;
+    private final PromptAssembler promptAssembler;
     private final ObjectMapper objectMapper;
 
     public ReflectionService(ReflectionProperties properties,
                              MetricsPublisher metricsPublisher,
                              ModelInvocationService modelInvocationService,
                              ModelToolResolver modelToolResolver,
+                             PromptAssembler promptAssembler,
                              ObjectMapper objectMapper) {
         this.properties = properties;
         this.metricsPublisher = metricsPublisher;
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
+        this.promptAssembler = promptAssembler;
         this.objectMapper = objectMapper;
     }
 
@@ -117,6 +122,7 @@ public class ReflectionService {
         try {
             String prompt = buildReflectionPrompt(step, output, attempt);
             ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.REFLECT);
+            applyPromptBundle(modelRequest, prompt, step);
             modelToolResolver.applyTooling(modelRequest, null, step != null ? step.getInput() : null);
             Map<String, Object> metadata = new HashMap<>();
             if (step != null && step.getStepType() != null) {
@@ -209,6 +215,17 @@ public class ReflectionService {
         boolean retry = root.get("retry") instanceof Boolean value && value;
         String notes = root.get("notes") instanceof String value ? value : "llm_reflection";
         return new ReflectionParsingResult(score, retry, notes);
+    }
+
+    private void applyPromptBundle(ModelRequest modelRequest, String prompt, StepRequest step) {
+        if (promptAssembler == null || modelRequest == null) {
+            return;
+        }
+        Map<String, Object> input = step != null ? step.getInput() : null;
+        PromptBundle bundle = promptAssembler.build(prompt, null, input);
+        if (bundle != null && bundle.getMessages() != null) {
+            modelRequest.setMessages(bundle.getMessages());
+        }
     }
 
     private EvaluationResult evaluate(StepRequest step, Map<String, Object> output) {

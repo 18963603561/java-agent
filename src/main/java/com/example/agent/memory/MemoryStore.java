@@ -1,11 +1,13 @@
 package com.example.agent.memory;
 
 import com.example.agent.auth.TenantContext;
+import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -27,6 +29,9 @@ public class MemoryStore {
     private final SemanticMemoryStore semanticMemoryStore;
     private final CompressedMemoryStore compressedMemoryStore;
     private final MemoryPolicy memoryPolicy;
+    private final MemoryExpireProperties expireProperties;
+    private final MemoryExpirationService expirationService;
+    private final Map<String, Instant> cleanupTimestamps = new ConcurrentHashMap<>();
 
     public MemoryStore(MemoryRepository memoryRepository,
                        ObjectProvider<VectorStore> vectorStoreProvider,
@@ -34,7 +39,9 @@ public class MemoryStore {
                        RecentMemoryStore recentMemoryStore,
                        SemanticMemoryStore semanticMemoryStore,
                        CompressedMemoryStore compressedMemoryStore,
-                       MemoryPolicy memoryPolicy) {
+                       MemoryPolicy memoryPolicy,
+                       MemoryExpireProperties expireProperties,
+                       MemoryExpirationService expirationService) {
         this.memoryRepository = memoryRepository;
         this.vectorStoreProvider = vectorStoreProvider;
         this.embeddingServiceProvider = embeddingServiceProvider;
@@ -42,6 +49,8 @@ public class MemoryStore {
         this.semanticMemoryStore = semanticMemoryStore;
         this.compressedMemoryStore = compressedMemoryStore;
         this.memoryPolicy = memoryPolicy;
+        this.expireProperties = expireProperties;
+        this.expirationService = expirationService;
     }
 
     /**
@@ -56,8 +65,12 @@ public class MemoryStore {
             record.setMemoryId(UUID.randomUUID().toString());
         }
         record.setTenantId(tenantContext.getTenantId());
+        Instant now = Instant.now();
         if (record.getCreatedAt() == null) {
-            record.setCreatedAt(Instant.now());
+            record.setCreatedAt(now);
+        }
+        if (expirationService != null) {
+            expirationService.applyExpiration(record, now);
         }
         MemoryRecord saved = recentMemoryStore.save(record);
         VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
@@ -92,6 +105,7 @@ public class MemoryStore {
      */
     public MemorySearchResult search(MemoryQuery query, TenantContext tenantContext) {
         int limit = query.getLimit() != null && query.getLimit() > 0 ? query.getLimit() : 10;
+        cleanupExpiredIfNeeded(tenantContext, "search");
         List<MemoryRecord> aggregated = new ArrayList<>();
         if (query != null && StringUtils.hasText(query.getQuery())) {
             List<MemoryRecord> semantic = semanticMemoryStore.search(query, tenantContext, limit);
@@ -104,7 +118,10 @@ public class MemoryStore {
             mergeRecords(aggregated, compressed, limit);
         }
         autoCompressIfNeeded(query != null ? query.getSessionId() : null, tenantContext);
-        return new MemorySearchResult(aggregated);
+        List<MemoryRecord> filtered = expirationService != null
+                ? expirationService.filterExpired(aggregated, Instant.now())
+                : aggregated;
+        return new MemorySearchResult(filtered);
     }
 
     /**
@@ -115,9 +132,11 @@ public class MemoryStore {
      * @return 压缩后的记忆记录
      */
     public MemoryRecord compress(CompressionRequest request, TenantContext tenantContext) {
+        cleanupExpiredIfNeeded(tenantContext, "compress");
         List<MemoryRecord> records = memoryRepository.findBySession(
                 tenantContext.getTenantId(), request.getSessionId());
-        MemoryRecord compressed = compressedMemoryStore.compress(request.getSessionId(), records, tenantContext);
+        MemoryRecord compressed = compressedMemoryStore.compress(
+                request.getSessionId(), records, tenantContext, request.getWorkflowId());
         if (compressed == null) {
             log.warn("记忆压缩无效, tenantId={}, sessionId={}",
                     tenantContext.getTenantId(), request.getSessionId());
@@ -168,6 +187,36 @@ public class MemoryStore {
                 log.info("自动压缩触发, tenantId={}, sessionId={}, memoryId={}",
                         tenantContext.getTenantId(), sessionId, compressed.getMemoryId());
             }
+        }
+    }
+
+    private void cleanupExpiredIfNeeded(TenantContext tenantContext, String reason) {
+        if (tenantContext == null || expireProperties == null || memoryRepository == null) {
+            return;
+        }
+        if (!expireProperties.isEnabled() || !expireProperties.isCleanupOnRead()) {
+            return;
+        }
+        Instant now = Instant.now();
+        String tenantId = tenantContext.getTenantId();
+        if (!StringUtils.hasText(tenantId)) {
+            return;
+        }
+        long interval = Math.max(0, expireProperties.getCleanupIntervalSeconds());
+        if (interval > 0) {
+            // 避免频繁清理导致存储压力过大
+            Instant lastCleanup = cleanupTimestamps.get(tenantId);
+            if (lastCleanup != null && Duration.between(lastCleanup, now).getSeconds() < interval) {
+                return;
+            }
+        }
+        int removed = memoryRepository.deleteExpired(tenantId, now);
+        cleanupTimestamps.put(tenantId, now);
+        if (removed > 0) {
+            log.info("过期记忆清理完成, tenantId={}, removed={}, reason={}",
+                    tenantId, removed, reason);
+        } else {
+            log.debug("过期记忆清理无数据, tenantId={}, reason={}", tenantId, reason);
         }
     }
 }

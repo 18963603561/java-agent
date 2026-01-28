@@ -2,10 +2,12 @@ package com.example.agent.memory;
 
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.context.EvidencePackService;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -25,7 +27,8 @@ class MemoryRecallServiceTest {
         properties.setLimit(5);
         properties.setMaxRecordChars(100);
         properties.setMaxSummaryChars(200);
-        MemoryRecallService service = new MemoryRecallService(store, properties);
+        EvidencePackService evidencePackService = Mockito.mock(EvidencePackService.class);
+        MemoryRecallService service = new MemoryRecallService(store, properties, evidencePackService);
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
         MemoryRecord record = new MemoryRecord();
@@ -51,7 +54,8 @@ class MemoryRecallServiceTest {
         MemoryStore store = buildStore(repository);
         MemoryRecallProperties properties = new MemoryRecallProperties();
         properties.setEnabled(true);
-        MemoryRecallService service = new MemoryRecallService(store, properties);
+        EvidencePackService evidencePackService = Mockito.mock(EvidencePackService.class);
+        MemoryRecallService service = new MemoryRecallService(store, properties, evidencePackService);
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
         TaskRequest request = new TaskRequest();
@@ -68,12 +72,14 @@ class MemoryRecallServiceTest {
         ObjectProvider<EmbeddingService> embeddingProvider = new FixedObjectProvider<>(null);
         RecentMemoryStore recentMemoryStore = new RecentMemoryStore(repository);
         SemanticMemoryStore semanticMemoryStore = new SemanticMemoryStore(vectorProvider, embeddingProvider);
-        CompressedMemoryStore compressedMemoryStore = new CompressedMemoryStore(repository);
+        MemoryExpireProperties expireProperties = new MemoryExpireProperties();
+        MemoryExpirationService expirationService = new MemoryExpirationService(expireProperties);
+        CompressedMemoryStore compressedMemoryStore = new CompressedMemoryStore(repository, expirationService);
         MemoryPolicyProperties policyProperties = new MemoryPolicyProperties();
         policyProperties.setEnabled(false);
         MemoryPolicy memoryPolicy = new MemoryPolicy(policyProperties, new TokenEstimator());
         return new MemoryStore(repository, vectorProvider, embeddingProvider, recentMemoryStore,
-                semanticMemoryStore, compressedMemoryStore, memoryPolicy);
+                semanticMemoryStore, compressedMemoryStore, memoryPolicy, expireProperties, expirationService);
     }
 
     private static class FixedObjectProvider<T> implements ObjectProvider<T> {

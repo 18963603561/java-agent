@@ -1,5 +1,6 @@
 package com.example.agent.memory;
 
+import java.time.Instant;
 import java.util.List;
 
 /**
@@ -12,4 +13,13 @@ public interface MemoryRepository {
     List<MemoryRecord> findBySession(String tenantId, String sessionId);
 
     List<MemoryRecord> search(String tenantId, String sessionId, String query, int limit);
+
+    /**
+     * 删除过期记忆。
+     *
+     * @param tenantId 租户标识
+     * @param now 当前时间
+     * @return 删除数量
+     */
+    int deleteExpired(String tenantId, Instant now);
 }

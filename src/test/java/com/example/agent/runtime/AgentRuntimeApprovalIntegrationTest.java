@@ -12,6 +12,7 @@ import com.example.agent.memory.MemoryRecallService;
 import com.example.agent.memory.MemoryWriteService;
 import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelToolResolver;
+import com.example.agent.model.PromptAssembler;
 import com.example.agent.observability.TracingPublisher;
 import com.example.agent.planning.PlannerProperties;
 import com.example.agent.planning.PlannerService;
@@ -25,6 +26,8 @@ import com.example.agent.reflection.ReflectionResult;
 import com.example.agent.reflection.ReflectionService;
 import com.example.agent.research.ResearchPipeline;
 import com.example.agent.streaming.EventStreamService;
+import com.example.agent.streaming.ContextEventPublisher;
+import com.example.agent.context.ContextBuilder;
 import com.example.agent.tools.hook.HookManager;
 import com.example.agent.multiagent.MultiAgentCoordinator;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -71,9 +74,11 @@ class AgentRuntimeApprovalIntegrationTest {
         PlannerProperties plannerProperties = new PlannerProperties();
         plannerProperties.setLlmEnabled(false);
         plannerProperties.setFallbackEnabled(true);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         PlannerService plannerService = new PlannerService(
                 Mockito.mock(ModelInvocationService.class),
                 Mockito.mock(ModelToolResolver.class),
+                promptAssembler,
                 plannerProperties,
                 evaluator,
                 new ObjectMapper()
@@ -118,7 +123,7 @@ class AgentRuntimeApprovalIntegrationTest {
         DebateCoordinator debateCoordinator = mock(DebateCoordinator.class);
         ResearchPipeline researchPipeline = mock(ResearchPipeline.class);
         FinalOutputService finalOutputService = mock(FinalOutputService.class);
-        when(finalOutputService.finalizeOutput(any(), any(), any(), any(), any(), any()))
+        when(finalOutputService.finalizeOutput(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(Map.of("answer", "ok"));
         ReactLoopService reactLoopService = mock(ReactLoopService.class);
         MemoryRecallService memoryRecallService = mock(MemoryRecallService.class);
@@ -127,6 +132,8 @@ class AgentRuntimeApprovalIntegrationTest {
         MemoryWriteService memoryWriteService = mock(MemoryWriteService.class);
         TracingPublisher tracingPublisher = mock(TracingPublisher.class);
         when(tracingPublisher.currentTraceId()).thenReturn("trace");
+        ContextBuilder contextBuilder = mock(ContextBuilder.class);
+        ContextEventPublisher contextEventPublisher = mock(ContextEventPublisher.class);
 
         AgentRuntime runtime = new AgentRuntime(
                 plannerService,
@@ -144,6 +151,8 @@ class AgentRuntimeApprovalIntegrationTest {
                 reactLoopService,
                 memoryRecallService,
                 memoryWriteService,
+                contextBuilder,
+                contextEventPublisher,
                 eventPublisher,
                 tracingPublisher,
                 1,

@@ -4,6 +4,11 @@ import com.example.agent.agentcore.EnforcementGateway;
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.ErrorCodeProvider;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.context.ContextBuildRequest;
+import com.example.agent.context.ContextBuildResult;
+import com.example.agent.context.ContextBuilder;
+import com.example.agent.context.EvidencePack;
+import com.example.agent.context.EvidencePackService;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.memory.MemoryRecallResult;
@@ -38,6 +43,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import com.example.agent.streaming.ContextEventPublisher;
 
 /**
  * Agent Runtime 决策循环驱动，负责执行规划与步骤运行。
@@ -74,6 +80,14 @@ public class AgentRuntime {
      * 记忆写入服务。
      */
     private final MemoryWriteService memoryWriteService;
+    /**
+     * 上下文构建器。
+     */
+    private final ContextBuilder contextBuilder;
+    /**
+     * 上下文事件发布器。
+     */
+    private final ContextEventPublisher contextEventPublisher;
     private final ApplicationEventPublisher eventPublisher;
     private final TracingPublisher tracingPublisher;
     private final FailureClassifier failureClassifier = new FailureClassifier();
@@ -95,6 +109,8 @@ public class AgentRuntime {
                         ReactLoopService reactLoopService,
                         MemoryRecallService memoryRecallService,
                         MemoryWriteService memoryWriteService,
+                        ContextBuilder contextBuilder,
+                        ContextEventPublisher contextEventPublisher,
                         ApplicationEventPublisher eventPublisher,
                         TracingPublisher tracingPublisher,
                         @Value("${agent.runtime.max-retries:1}") int maxRetries,
@@ -117,6 +133,8 @@ public class AgentRuntime {
         this.reactLoopService = reactLoopService;
         this.memoryRecallService = memoryRecallService;
         this.memoryWriteService = memoryWriteService;
+        this.contextBuilder = contextBuilder;
+        this.contextEventPublisher = contextEventPublisher;
         this.eventPublisher = eventPublisher;
         this.tracingPublisher = tracingPublisher;
         this.recoveryStrategyManager = new RecoveryStrategyManager(maxRetries, maxDecompose);
@@ -144,8 +162,14 @@ public class AgentRuntime {
         if (request != null && request.getToolChoice() != null) {
             runtimeContext.put("toolChoice", request.getToolChoice());
         }
+        if (workflowId != null && !workflowId.isBlank()) {
+            runtimeContext.putIfAbsent("workflowId", workflowId);
+        }
         MemoryRecallResult recallResult = memoryRecallService.recall(request, runtimeContext, tenantContext);
         applyMemoryContext(runtimeContext, recallResult);
+        ContextBuildResult buildResult = buildContextSnapshot(request, tenantContext, workflowId, taskId,
+                recallResult, runtimeContext, seqCounter);
+        applyContextSnapshot(runtimeContext, buildResult);
         TaskRequest effectiveRequest = buildRequestWithContext(request, runtimeContext);
 
         List<Map<String, Object>> stepOutputs = new java.util.ArrayList<>();
@@ -175,6 +199,7 @@ public class AgentRuntime {
             }
             if (!replan) {
                 Map<String, Object> finalOutput = finalOutputService.finalizeOutput(
+                        effectiveRequest,
                         effectiveRequest != null ? effectiveRequest.getQuery() : null,
                         plan != null ? plan.getSummary() : null,
                         stepOutputs,
@@ -489,6 +514,73 @@ public class AgentRuntime {
         memoryContext.put("count", recallResult.getCount());
         memoryContext.put("reason", recallResult.getReason());
         runtimeContext.put("memory", memoryContext);
+    }
+
+    /**
+     * 构建上下文快照并发布事件。
+     *
+     * @param request 任务请求
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param taskId 任务标识
+     * @param recallResult 记忆召回结果
+     * @param runtimeContext 运行时上下文
+     * @param seqCounter 序列计数器
+     * @return 构建结果
+     */
+    private ContextBuildResult buildContextSnapshot(TaskRequest request,
+                                                    TenantContext tenantContext,
+                                                    String workflowId,
+                                                    String taskId,
+                                                    MemoryRecallResult recallResult,
+                                                    Map<String, Object> runtimeContext,
+                                                    AtomicLong seqCounter) {
+        if (contextBuilder == null) {
+            return null;
+        }
+        ContextBuildRequest buildRequest = new ContextBuildRequest();
+        buildRequest.setTaskRequest(request);
+        buildRequest.setTenantContext(tenantContext);
+        buildRequest.setWorkflowId(workflowId);
+        buildRequest.setTaskId(taskId);
+        buildRequest.setRecallResult(recallResult);
+        buildRequest.setRuntimeContext(runtimeContext);
+        ContextBuildResult result = contextBuilder.build(buildRequest);
+        if (result != null && result.getSnapshot() != null && contextEventPublisher != null) {
+            contextEventPublisher.publishSnapshot(tenantContext, workflowId, seqCounter,
+                    result.getSnapshot(), result.getBudgetAllocation(), result.getPruneResult(), result.getMetrics());
+        }
+        return result;
+    }
+
+    /**
+     * 将上下文快照写入运行时上下文。
+     *
+     * @param runtimeContext 运行时上下文
+     * @param buildResult 上下文构建结果
+     */
+    private void applyContextSnapshot(Map<String, Object> runtimeContext, ContextBuildResult buildResult) {
+        if (runtimeContext == null || buildResult == null) {
+            return;
+        }
+        if (buildResult.getSnapshot() != null) {
+            runtimeContext.put("contextSnapshot", buildResult.getSnapshot());
+            String snapshotId = buildResult.getSnapshot().getSnapshotId();
+            if (snapshotId != null && !snapshotId.isBlank()) {
+                runtimeContext.putIfAbsent("snapshotId", snapshotId);
+                Object evidenceObj = runtimeContext.get(EvidencePackService.CONTEXT_EVIDENCE_PACK);
+                if (evidenceObj instanceof EvidencePack pack
+                        && (pack.getSnapshotId() == null || pack.getSnapshotId().isBlank())) {
+                    pack.setSnapshotId(snapshotId);
+                }
+            }
+        }
+        if (buildResult.getBudgetAllocation() != null) {
+            runtimeContext.put("contextBudget", buildResult.getBudgetAllocation());
+        }
+        if (buildResult.getPruneResult() != null) {
+            runtimeContext.put("contextPrune", buildResult.getPruneResult());
+        }
     }
 
     /**

@@ -1,8 +1,14 @@
 package com.example.agent.model;
 
 import com.example.agent.agentcore.ToolRegistry;
+import com.example.agent.common.ErrorCodeException;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.tools.McpToolDefinition;
+import com.example.agent.tools.ToolCatalog;
+import com.example.agent.tools.ToolCatalogService;
+import com.example.agent.tools.ToolQuery;
+import com.example.agent.tools.ToolSummary;
 import com.example.agent.tools.skill.SkillDefinition;
 import com.example.agent.tools.skill.SkillRegistry;
 import com.example.agent.tools.skill.SkillRoute;
@@ -12,6 +18,10 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -21,14 +31,38 @@ import org.springframework.util.StringUtils;
 @Component
 public class ModelToolResolver {
 
+    private static final Logger log = LoggerFactory.getLogger(ModelToolResolver.class);
+
     private final ToolRegistry toolRegistry;
     private final SkillRegistry skillRegistry;
+    private final ToolCatalog toolCatalog;
+    private final ToolCatalogService toolCatalogService;
     private final ObjectMapper objectMapper;
+    private final MetricsPublisher metricsPublisher;
 
-    public ModelToolResolver(ToolRegistry toolRegistry, SkillRegistry skillRegistry, ObjectMapper objectMapper) {
+    /**
+     * 工具注入模式配置。
+     */
+    @Value("${agent.tool.inject-mode:summary}")
+    private String toolInjectMode;
+
+    /**
+     * 工具摘要最大注入数量。
+     */
+    @Value("${agent.tool.max-summaries:200}")
+    private int maxSummaries;
+
+    public ModelToolResolver(ToolRegistry toolRegistry,
+                             SkillRegistry skillRegistry,
+                             ToolCatalog toolCatalog,
+                             ObjectMapper objectMapper,
+                             MetricsPublisher metricsPublisher) {
         this.toolRegistry = toolRegistry;
         this.skillRegistry = skillRegistry;
+        this.toolCatalog = toolCatalog;
+        this.toolCatalogService = toolCatalog instanceof ToolCatalogService service ? service : null;
         this.objectMapper = objectMapper;
+        this.metricsPublisher = metricsPublisher;
     }
 
     /**
@@ -42,6 +76,9 @@ public class ModelToolResolver {
         if (request == null) {
             return;
         }
+        long startNs = System.nanoTime();
+        ToolInjectMode injectMode = resolveInjectMode();
+        String tenantId = resolveTenantId(taskRequest, stepInput);
         String skillName = resolveSkillName(taskRequest, stepInput);
         SkillDefinition skillDefinition = resolveSkillDefinition(skillName);
         List<String> allowedTools = resolveAllowedTools(skillDefinition);
@@ -50,11 +87,14 @@ public class ModelToolResolver {
         List<ModelToolDefinition> tools = request.getTools();
         boolean hasTools = tools != null && !tools.isEmpty();
         if (!hasTools) {
-            tools = resolveTools();
+            tools = resolveTools(injectMode);
         }
         if (allowedTools != null) {
             // 技能约束优先收敛可用工具，避免无关工具进入模型上下文。
             tools = filterTools(tools, allowedTools);
+        }
+        if (injectMode == ToolInjectMode.SUMMARY) {
+            tools = limitSummaries(tools);
         }
         if (!hasTools || allowedTools != null) {
             if (tools != null && (!tools.isEmpty() || allowedTools != null)) {
@@ -72,6 +112,16 @@ public class ModelToolResolver {
                 request.setToolChoice(ModelToolChoice.auto());
             }
         }
+
+        if (request.getToolChoice() != null
+                && request.getToolChoice().getMode() == ModelToolChoice.Mode.SPECIFIED
+                && StringUtils.hasText(request.getToolChoice().getToolName())) {
+            ModelToolDefinition specified = resolveToolByName(request.getToolChoice().getToolName(), injectMode, tenantId);
+            if (specified != null) {
+                request.setTools(List.of(specified));
+            }
+        }
+        logToolInjection(request.getTools(), injectMode, tenantId, startNs);
     }
 
     private String resolveSkillName(TaskRequest taskRequest, Map<String, Object> stepInput) {
@@ -197,7 +247,14 @@ public class ModelToolResolver {
         return filtered;
     }
 
-    private List<ModelToolDefinition> resolveTools() {
+    private List<ModelToolDefinition> resolveTools(ToolInjectMode injectMode) {
+        if (injectMode == ToolInjectMode.FULL) {
+            return resolveToolsFromDefinitions();
+        }
+        return resolveSummaryTools();
+    }
+
+    private List<ModelToolDefinition> resolveToolsFromDefinitions() {
         List<McpToolDefinition> definitions = toolRegistry.listDefinitions();
         if (definitions == null || definitions.isEmpty()) {
             return List.of();
@@ -214,9 +271,165 @@ public class ModelToolResolver {
                     definition.getName(),
                     definition.getDescription(),
                     parameters);
+            tool.setTags(definition.getTags());
             tools.add(tool);
         }
         return tools;
+    }
+
+    private List<ModelToolDefinition> resolveSummaryTools() {
+        if (toolCatalog == null && toolCatalogService == null) {
+            return List.of();
+        }
+        List<ToolSummary> summaries = toolCatalogService != null
+                ? toolCatalogService.listToolSummaries(new ToolQuery())
+                : toolCatalog.listSummaries(new ToolQuery());
+        if (summaries == null || summaries.isEmpty()) {
+            return List.of();
+        }
+        List<ModelToolDefinition> tools = new ArrayList<>();
+        for (ToolSummary summary : summaries) {
+            if (summary == null || !StringUtils.hasText(summary.getToolName())) {
+                continue;
+            }
+            ModelToolDefinition tool = new ModelToolDefinition(
+                    summary.getToolName(),
+                    summary.getDescription(),
+                    null);
+            tool.setTags(summary.getTags());
+            tool.setCostLevel(summary.getCostLevel());
+            tool.setLatencyLevel(summary.getLatencyLevel());
+            tool.setAuthScope(summary.getAuthScope());
+            tools.add(tool);
+        }
+        return tools;
+    }
+
+    private ModelToolDefinition resolveToolByName(String toolName, ToolInjectMode injectMode, String tenantId) {
+        if (!StringUtils.hasText(toolName)) {
+            return null;
+        }
+        if (injectMode == ToolInjectMode.SUMMARY) {
+            return resolveToolByNameOnDemand(toolName, tenantId);
+        }
+        return resolveToolByNameFull(toolName);
+    }
+
+    private ModelToolDefinition resolveToolByNameFull(String toolName) {
+        McpToolDefinition definition = toolCatalog != null ? toolCatalog.getDefinition(toolName) : null;
+        if (definition == null) {
+            for (McpToolDefinition item : toolRegistry.listDefinitions()) {
+                if (item != null && toolName.equalsIgnoreCase(item.getName())) {
+                    definition = item;
+                    break;
+                }
+            }
+        }
+        if (definition == null) {
+            return null;
+        }
+        JsonNode parameters = definition.getInputSchema() != null
+                ? objectMapper.valueToTree(definition.getInputSchema())
+                : null;
+        ModelToolDefinition tool = new ModelToolDefinition(definition.getName(), definition.getDescription(), parameters);
+        tool.setTags(definition.getTags());
+        return tool;
+    }
+
+    private ModelToolDefinition resolveToolByNameOnDemand(String toolName, String tenantId) {
+        long startNs = System.nanoTime();
+        Map<String, Object> schema = resolveToolSchema(toolName, tenantId, startNs);
+        McpToolDefinition definition = toolCatalog != null ? toolCatalog.getDefinition(toolName) : null;
+        ModelToolDefinition tool = new ModelToolDefinition(toolName,
+                definition != null ? definition.getDescription() : null,
+                objectMapper.valueToTree(schema));
+        if (definition != null) {
+            tool.setTags(definition.getTags());
+        }
+        return tool;
+    }
+
+    private Map<String, Object> resolveToolSchema(String toolName, String tenantId, long startNs) {
+        Map<String, Object> schema = null;
+        if (toolCatalogService != null) {
+            schema = toolCatalogService.getToolSchema(toolName);
+        } else if (toolCatalog != null) {
+            McpToolDefinition definition = toolCatalog.getDefinition(toolName);
+            schema = definition != null ? definition.getInputSchema() : null;
+        }
+        long durationMs = Math.max(0, (System.nanoTime() - startNs) / 1_000_000);
+        if (schema == null || schema.isEmpty()) {
+            if (metricsPublisher != null) {
+                metricsPublisher.increment("model_tool_on_demand_schema_not_found_total");
+            }
+            log.error("按需加载工具结构失败, tenantId={}, toolName={}, durationMs={}, hitOrLoad=not_found",
+                    tenantId, toolName, durationMs);
+            throw new ErrorCodeException(HttpStatus.NOT_FOUND, "TOOL_SCHEMA_NOT_FOUND", "未找到工具输入结构");
+        }
+        if (metricsPublisher != null) {
+            metricsPublisher.increment("model_tool_on_demand_schema_total");
+        }
+        log.info("按需加载工具结构完成, tenantId={}, toolName={}, durationMs={}, hitOrLoad=cache_or_load",
+                tenantId, toolName, durationMs);
+        return schema;
+    }
+
+    private ToolInjectMode resolveInjectMode() {
+        if ("full".equalsIgnoreCase(toolInjectMode)) {
+            return ToolInjectMode.FULL;
+        }
+        return ToolInjectMode.SUMMARY;
+    }
+
+    private List<ModelToolDefinition> limitSummaries(List<ModelToolDefinition> tools) {
+        if (tools == null || tools.isEmpty()) {
+            return tools == null ? List.of() : tools;
+        }
+        int limit = maxSummaries > 0 ? maxSummaries : 200;
+        if (tools.size() <= limit) {
+            return tools;
+        }
+        return new ArrayList<>(tools.subList(0, limit));
+    }
+
+    private void logToolInjection(List<ModelToolDefinition> tools,
+                                  ToolInjectMode injectMode,
+                                  String tenantId,
+                                  long startNs) {
+        if (tools == null) {
+            return;
+        }
+        long durationMs = Math.max(0, (System.nanoTime() - startNs) / 1_000_000);
+        log.info("工具注入完成, tenantId={}, mode={}, summaryCount={}, durationMs={}",
+                tenantId, injectMode.name().toLowerCase(java.util.Locale.ROOT), tools.size(), durationMs);
+        recordSummaryMetrics(tools, injectMode);
+    }
+
+    private void recordSummaryMetrics(List<ModelToolDefinition> tools, ToolInjectMode injectMode) {
+        if (metricsPublisher == null || injectMode != ToolInjectMode.SUMMARY || tools == null) {
+            return;
+        }
+        for (ModelToolDefinition tool : tools) {
+            if (tool != null && tool.getParameters() == null) {
+                metricsPublisher.increment("model_tool_injected_summaries_total");
+            }
+        }
+    }
+
+    private String resolveTenantId(TaskRequest taskRequest, Map<String, Object> stepInput) {
+        if (stepInput != null) {
+            Object value = stepInput.get("tenantId");
+            if (value != null && StringUtils.hasText(value.toString())) {
+                return value.toString();
+            }
+        }
+        if (taskRequest != null && taskRequest.getContext() != null) {
+            Object value = taskRequest.getContext().get("tenantId");
+            if (value != null && StringUtils.hasText(value.toString())) {
+                return value.toString();
+            }
+        }
+        return null;
     }
 
     private ModelToolChoice resolveToolChoice(TaskRequest taskRequest, Map<String, Object> stepInput) {
@@ -256,5 +469,13 @@ public class ModelToolResolver {
             return parsed;
         }
         return null;
+    }
+
+    /**
+     * 工具注入模式。
+     */
+    private enum ToolInjectMode {
+        SUMMARY,
+        FULL
     }
 }

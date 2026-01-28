@@ -6,6 +6,9 @@ import com.example.agent.budget.TokenUsageInput;
 import com.example.agent.budget.TokenUsageRecord;
 import com.example.agent.common.ErrorCodeException;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.context.EvidencePack;
+import com.example.agent.context.EvidencePackService;
+import com.example.agent.context.ToolCallEvidence;
 import com.example.agent.model.ModelDefinition;
 import com.example.agent.model.ModelRouter;
 import com.example.agent.model.ModelScene;
@@ -22,6 +25,7 @@ import com.fasterxml.jackson.databind.MapperFeature;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializationFeature;
 import java.time.Duration;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +43,11 @@ public class ToolExecutor {
 
     private static final Logger log = LoggerFactory.getLogger(ToolExecutor.class);
 
+    private static final int MAX_DIGEST_CHARS = 800;
+    private static final int MAX_DIGEST_KEYS = 20;
+    private static final String INTERNAL_EVIDENCE_PACK = "EvidencePack";
+    private static final String INTERNAL_EVIDENCE_PACK_ALIAS = "_internalEvidencePack";
+
     private final ToolRegistry toolRegistry;
     private final McpToolClient mcpToolClient;
     private final ToolCache toolCache;
@@ -48,6 +57,10 @@ public class ToolExecutor {
     private final ObjectMapper objectMapper;
     private final MetricsPublisher metricsPublisher;
     private final TracingPublisher tracingPublisher;
+    /**
+     * 证据包聚合器。
+     */
+    private final EvidencePackService evidencePackService;
     private final ToolArgumentValidator argumentValidator = new ToolArgumentValidator();
 
     @Value("${agent.tool.cache.enabled:true}")
@@ -79,7 +92,8 @@ public class ToolExecutor {
                         ModelRouter modelRouter,
                         ObjectMapper objectMapper,
                         MetricsPublisher metricsPublisher,
-                        TracingPublisher tracingPublisher) {
+                        TracingPublisher tracingPublisher,
+                        EvidencePackService evidencePackService) {
         this.toolRegistry = toolRegistry;
         this.mcpToolClient = mcpToolClient;
         this.toolCache = toolCache;
@@ -89,6 +103,7 @@ public class ToolExecutor {
         this.objectMapper = objectMapper;
         this.metricsPublisher = metricsPublisher;
         this.tracingPublisher = tracingPublisher;
+        this.evidencePackService = evidencePackService;
     }
 
     /**
@@ -111,6 +126,7 @@ public class ToolExecutor {
         arguments = validateArguments(resolvedTool, arguments);
         String cacheKey = buildCacheKey(resolvedTool, arguments);
         Duration ttl = Duration.ofSeconds(Math.max(0, cacheTtlSeconds));
+        long cacheStartNs = System.nanoTime();
 
         if (cacheEnabled) {
             Object cached = toolCache.getIfFresh(cacheKey, ttl);
@@ -126,6 +142,9 @@ public class ToolExecutor {
                 response.put("result", cachedOutput);
                 response.put("tokenUsage", usageRecord);
                 response.put("cacheHit", true);
+                long durationMs = Duration.ofNanos(System.nanoTime() - cacheStartNs).toMillis();
+                appendToolEvidence(request, tenantContext, resolvedTool, usageId, arguments, cachedOutput,
+                        durationMs, "SUCCESS", null);
                 return response;
             }
         }
@@ -162,10 +181,12 @@ public class ToolExecutor {
                 response.put("tokenUsage", usageRecord);
                 response.put("cacheHit", false);
 
+                long durationMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
                 metricsPublisher.increment("tool.call.count", resolveTraceId(tenantContext));
-                metricsPublisher.recordTime("tool.call.latency.ms",
-                        Duration.ofNanos(System.nanoTime() - startNs).toMillis(),
+                metricsPublisher.recordTime("tool.call.latency.ms", durationMs,
                         resolveTraceId(tenantContext));
+                appendToolEvidence(request, tenantContext, resolvedTool, usageId, arguments, merged,
+                        durationMs, "SUCCESS", null);
 
                 if (cacheEnabled) {
                     toolCache.put(cacheKey, merged, ttl);
@@ -187,6 +208,9 @@ public class ToolExecutor {
                 log.error("工具执行失败, tenantId={}, tool={}, attempt={}, errorCode={}, traceId={}",
                         tenantContext.getTenantId(), resolvedTool, attempt, ex.getErrorCode(),
                         resolveTraceId(tenantContext), ex);
+                long durationMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
+                appendToolEvidence(request, tenantContext, resolvedTool, usageId, arguments, null,
+                        durationMs, "FAILED", ex.getErrorCode());
                 throw ex;
             } catch (Exception ex) {
                 metricsPublisher.increment("tool.call.failure.count", resolveTraceId(tenantContext));
@@ -200,6 +224,9 @@ public class ToolExecutor {
                 log.error("工具执行异常, tenantId={}, tool={}, attempt={}, traceId={}",
                         tenantContext.getTenantId(), resolvedTool, attempt,
                         resolveTraceId(tenantContext), ex);
+                long durationMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
+                appendToolEvidence(request, tenantContext, resolvedTool, usageId, arguments, null,
+                        durationMs, "FAILED", "MCP_UNAVAILABLE");
                 throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE",
                         "工具执行异常");
             }
@@ -260,7 +287,17 @@ public class ToolExecutor {
                 arguments.putAll(request.getContext());
             }
         }
+        removeInternalArguments(arguments);
         return arguments;
+    }
+
+    private void removeInternalArguments(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return;
+        }
+        arguments.remove(EvidencePackService.CONTEXT_EVIDENCE_PACK);
+        arguments.remove(INTERNAL_EVIDENCE_PACK);
+        arguments.remove(INTERNAL_EVIDENCE_PACK_ALIAS);
     }
 
     String buildCacheKey(String toolName, Map<String, Object> arguments) {
@@ -273,6 +310,108 @@ public class ToolExecutor {
         } catch (JsonProcessingException ex) {
             return toolName + ":" + safeArguments.toString();
         }
+    }
+
+    /**
+     * 追加工具调用证据，避免影响主流程。
+     */
+    private void appendToolEvidence(TaskRequest request,
+                                    TenantContext tenantContext,
+                                    String toolName,
+                                    String usageId,
+                                    Map<String, Object> arguments,
+                                    Map<String, Object> result,
+                                    long durationMs,
+                                    String status,
+                                    String errorCode) {
+        if (evidencePackService == null || request == null || request.getContext() == null) {
+            return;
+        }
+        String tenantId = tenantContext != null ? tenantContext.getTenantId() : null;
+        Map<String, Object> context = request.getContext();
+        String workflowId = resolveWorkflowId(context);
+        String snapshotId = resolveSnapshotId(context);
+        EvidencePack pack = evidencePackService.getOrCreatePack(context, tenantId, workflowId, snapshotId);
+        ToolCallEvidence evidence = new ToolCallEvidence();
+        evidence.setToolName(toolName);
+        evidence.setToolCallId(usageId);
+        evidence.setArgsDigest(buildDigest(arguments));
+        evidence.setResultDigest(buildDigest(result));
+        evidence.setDurationMs(durationMs);
+        evidence.setStatus(status);
+        evidence.setErrorCode(errorCode);
+        evidencePackService.addToolCall(pack, evidence, tenantId, workflowId);
+        evidencePackService.finalizePack(pack, tenantId, workflowId);
+    }
+
+    private String resolveWorkflowId(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object value = context.get("workflowId");
+        if (value instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        return null;
+    }
+
+    private String resolveSnapshotId(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object value = context.get("snapshotId");
+        if (value instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        return null;
+    }
+
+    private String buildDigest(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Map<?, ?> map) {
+            return buildMapDigest(map);
+        }
+        if (value instanceof List<?> list) {
+            return "list(size=" + list.size() + ")";
+        }
+        if (value instanceof String text) {
+            return truncate(text, MAX_DIGEST_CHARS);
+        }
+        return truncate(value.toString(), MAX_DIGEST_CHARS);
+    }
+
+    private String buildMapDigest(Map<?, ?> map) {
+        if (map == null || map.isEmpty()) {
+            return "{}";
+        }
+        List<String> keys = new ArrayList<>();
+        for (Object key : map.keySet()) {
+            if (key == null) {
+                continue;
+            }
+            keys.add(key.toString());
+            if (keys.size() >= MAX_DIGEST_KEYS) {
+                break;
+            }
+        }
+        StringBuilder builder = new StringBuilder("keys=").append(keys);
+        if (map.size() > keys.size()) {
+            builder.append("...");
+        }
+        builder.append(",size=").append(map.size());
+        return truncate(builder.toString(), MAX_DIGEST_CHARS);
+    }
+
+    private String truncate(String value, int maxLength) {
+        if (value == null || maxLength <= 0) {
+            return value;
+        }
+        if (value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 
     private boolean isRetryable(ErrorCodeException ex) {

@@ -7,6 +7,8 @@ import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
+import com.example.agent.model.PromptAssembler;
+import com.example.agent.model.PromptBundle;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -29,15 +31,18 @@ public class DebateCoordinator {
     private static final Logger log = LoggerFactory.getLogger(DebateCoordinator.class);
 
     private final ModelInvocationService modelInvocationService;
+    private final PromptAssembler promptAssembler;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
 
     public DebateCoordinator(ModelInvocationService modelInvocationService,
+                             PromptAssembler promptAssembler,
                              ObjectMapper objectMapper,
                              ApplicationEventPublisher eventPublisher,
                              EventStreamService eventStreamService) {
         this.modelInvocationService = modelInvocationService;
+        this.promptAssembler = promptAssembler;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
@@ -58,6 +63,7 @@ public class DebateCoordinator {
                               AtomicLong seqCounter) {
         String prompt = buildPrompt(topic);
         ModelRequest request = new ModelRequest(prompt, ModelScene.REFLECT);
+        applyPromptBundle(request, prompt);
         Map<String, Object> metadata = new HashMap<>();
         if (topic != null) {
             metadata.put("topic", topic);
@@ -156,5 +162,15 @@ public class DebateCoordinator {
         }
         event.setPayload(payload);
         eventPublisher.publishEvent(event);
+    }
+
+    private void applyPromptBundle(ModelRequest request, String prompt) {
+        if (promptAssembler == null || request == null) {
+            return;
+        }
+        PromptBundle bundle = promptAssembler.build(prompt, null, null);
+        if (bundle != null && bundle.getMessages() != null) {
+            request.setMessages(bundle.getMessages());
+        }
     }
 }

@@ -62,7 +62,7 @@ public class DefaultModelProvider implements ModelProvider {
     }
 
     private ModelResponse invokeLocal(ModelDefinition definition, ModelRequest request) {
-        String prompt = request != null ? request.getPrompt() : null;
+        String prompt = resolvePrompt(request);
         String modelId = definition != null ? definition.getModelId() : "local";
         int inputTokens = prompt != null ? prompt.length() : 0;
         String content = buildLocalResponse(prompt);
@@ -128,7 +128,7 @@ public class DefaultModelProvider implements ModelProvider {
         body.put("model", modelId);
         Double temperatureOverride = request != null ? request.getTemperature() : null;
         body.put("temperature", temperatureOverride != null ? temperatureOverride : temperature);
-        body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
+        body.put("messages", buildMessages(request, prompt));
         if (request != null && request.getTools() != null && !request.getTools().isEmpty()) {
             body.put("tools", request.getTools());
             Object toolChoice = buildToolChoiceValue(request.getToolChoice());
@@ -198,6 +198,58 @@ public class DefaultModelProvider implements ModelProvider {
             return buildLocalChainOfThought(context);
         }
         return "response:" + prompt;
+    }
+
+    private String resolvePrompt(ModelRequest request) {
+        if (request == null) {
+            return null;
+        }
+        if (request.getPrompt() != null) {
+            return request.getPrompt();
+        }
+        if (request.getMessages() == null || request.getMessages().isEmpty()) {
+            return null;
+        }
+        StringBuilder builder = new StringBuilder();
+        for (PromptMessage message : request.getMessages()) {
+            if (message == null) {
+                continue;
+            }
+            builder.append(message.getRole() != null ? message.getRole().name() : "USER");
+            builder.append(":");
+            builder.append(message.getContent() == null ? "" : message.getContent());
+            builder.append("\n");
+        }
+        return builder.toString().trim();
+    }
+
+    private List<Map<String, Object>> buildMessages(ModelRequest request, String prompt) {
+        if (request != null && request.getMessages() != null && !request.getMessages().isEmpty()) {
+            List<Map<String, Object>> messages = new java.util.ArrayList<>();
+            for (PromptMessage message : request.getMessages()) {
+                if (message == null) {
+                    continue;
+                }
+                String role = toOpenAiRole(message.getRole());
+                messages.add(Map.of(
+                        "role", role,
+                        "content", message.getContent() == null ? "" : message.getContent()
+                ));
+            }
+            return messages;
+        }
+        return List.of(Map.of("role", "user", "content", prompt));
+    }
+
+    private String toOpenAiRole(PromptRole role) {
+        if (role == null) {
+            return "user";
+        }
+        return switch (role) {
+            case SYSTEM -> "system";
+            case DEVELOPER -> "developer";
+            case USER -> "user";
+        };
     }
 
     private Map<String, Object> parseJsonAfterMarker(String prompt, String marker) {

@@ -8,6 +8,8 @@ import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
 import com.example.agent.model.ModelToolResolver;
+import com.example.agent.model.PromptAssembler;
+import com.example.agent.model.PromptBundle;
 import com.example.agent.runtime.StepRequest;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -35,6 +37,7 @@ public class MultiAgentCoordinator {
     private final AgentProfileProperties profileProperties;
     private final ModelInvocationService modelInvocationService;
     private final ModelToolResolver modelToolResolver;
+    private final PromptAssembler promptAssembler;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
@@ -42,12 +45,14 @@ public class MultiAgentCoordinator {
     public MultiAgentCoordinator(AgentProfileProperties profileProperties,
                                  ModelInvocationService modelInvocationService,
                                  ModelToolResolver modelToolResolver,
+                                 PromptAssembler promptAssembler,
                                  ObjectMapper objectMapper,
                                  ApplicationEventPublisher eventPublisher,
                                  EventStreamService eventStreamService) {
         this.profileProperties = profileProperties;
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
+        this.promptAssembler = promptAssembler;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
@@ -68,6 +73,7 @@ public class MultiAgentCoordinator {
                                           AtomicLong seqCounter) {
         String prompt = buildPrompt(step);
         ModelRequest request = new ModelRequest(prompt, ModelScene.PLANNER);
+        applyPromptBundle(request, prompt, step);
         modelToolResolver.applyTooling(request, null, step != null ? step.getInput() : null);
         Map<String, Object> metadata = new HashMap<>();
         if (step != null && step.getStepType() != null) {
@@ -211,5 +217,16 @@ public class MultiAgentCoordinator {
         event.setTenantId(tenantContext.getTenantId());
         event.setPayload(payload);
         eventPublisher.publishEvent(event);
+    }
+
+    private void applyPromptBundle(ModelRequest request, String prompt, StepRequest step) {
+        if (promptAssembler == null || request == null) {
+            return;
+        }
+        Map<String, Object> input = step != null ? step.getInput() : null;
+        PromptBundle bundle = promptAssembler.build(prompt, null, input);
+        if (bundle != null && bundle.getMessages() != null) {
+            request.setMessages(bundle.getMessages());
+        }
     }
 }

@@ -139,6 +139,9 @@ public class QdrantVectorStore implements VectorStore {
         if (record.getCreatedAt() != null) {
             payload.put("created_at", record.getCreatedAt().toString());
         }
+        if (record.getExpiresAt() != null) {
+            payload.put("expires_at", record.getExpiresAt().toString());
+        }
         return payload;
     }
 
@@ -188,6 +191,14 @@ public class QdrantVectorStore implements VectorStore {
                     record.setCreatedAt(Instant.parse(createdAt));
                 } catch (Exception ignore) {
                     record.setCreatedAt(null);
+                }
+            }
+            String expiresAt = valueAsString(payload.get("expires_at"));
+            if (expiresAt != null) {
+                try {
+                    record.setExpiresAt(Instant.parse(expiresAt));
+                } catch (Exception ignore) {
+                    record.setExpiresAt(null);
                 }
             }
             records.add(record);

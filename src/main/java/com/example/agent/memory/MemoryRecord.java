@@ -16,6 +16,18 @@ public class MemoryRecord {
     private String tenantId;
     private String layer;
     private Instant createdAt;
+    /**
+     * 过期时间。
+     */
+    private Instant expiresAt;
+    /**
+     * 会话摘要结构化信息，主要用于压缩输出，持久化存储可能不落库。
+     */
+    private ConversationSummary conversationSummary;
+    /**
+     * 工作记忆结构化信息，主要用于压缩输出，持久化存储可能不落库。
+     */
+    private WorkingMemorySummary workingMemorySummary;
 
     public MemoryRecord() {
     }
@@ -90,5 +102,29 @@ public class MemoryRecord {
 
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public Instant getExpiresAt() {
+        return expiresAt;
+    }
+
+    public void setExpiresAt(Instant expiresAt) {
+        this.expiresAt = expiresAt;
+    }
+
+    public ConversationSummary getConversationSummary() {
+        return conversationSummary;
+    }
+
+    public void setConversationSummary(ConversationSummary conversationSummary) {
+        this.conversationSummary = conversationSummary;
+    }
+
+    public WorkingMemorySummary getWorkingMemorySummary() {
+        return workingMemorySummary;
+    }
+
+    public void setWorkingMemorySummary(WorkingMemorySummary workingMemorySummary) {
+        this.workingMemorySummary = workingMemorySummary;
     }
 }

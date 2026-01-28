@@ -99,9 +99,11 @@ CREATE TABLE IF NOT EXISTS memory_records (
   embedding_ref TEXT,
   tenant_id TEXT NOT NULL,
   layer TEXT,
-  created_at TIMESTAMPTZ NOT NULL
+  created_at TIMESTAMPTZ NOT NULL,
+  expires_at TIMESTAMPTZ
 );
 CREATE INDEX IF NOT EXISTS idx_memory_session ON memory_records (tenant_id, session_id);
+CREATE INDEX IF NOT EXISTS idx_memory_expire ON memory_records (tenant_id, expires_at);
 
 CREATE TABLE IF NOT EXISTS memory_chunks (
   chunk_id TEXT PRIMARY KEY,

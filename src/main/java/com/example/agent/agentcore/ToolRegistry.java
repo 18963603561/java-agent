@@ -46,6 +46,19 @@ public class ToolRegistry {
     }
 
     /**
+     * 按名称获取工具定义。
+     *
+     * @param toolName 工具名称
+     * @return 工具定义
+     */
+    public McpToolDefinition getDefinition(String toolName) {
+        if (toolName == null) {
+            return null;
+        }
+        return definitions.get(toolName);
+    }
+
+    /**
      * 注册外部工具定义，供模型侧展示与选择。
      *
      * @param toolDefinitions 工具定义列表

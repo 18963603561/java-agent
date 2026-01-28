@@ -5,6 +5,7 @@ import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelResponse;
+import com.example.agent.model.PromptAssembler;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -37,8 +38,10 @@ class ChainOfThoughtServiceTest {
         props.setEmitStepEvents(true);
 
         TestEventPublisher eventPublisher = new TestEventPublisher();
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ChainOfThoughtService service = new ChainOfThoughtService(
                 modelInvocationService,
+                promptAssembler,
                 new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
@@ -72,8 +75,10 @@ class ChainOfThoughtServiceTest {
         props.setEmitStepEvents(true);
 
         TestEventPublisher eventPublisher = new TestEventPublisher();
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ChainOfThoughtService service = new ChainOfThoughtService(
                 modelInvocationService,
+                promptAssembler,
                 new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
@@ -105,8 +110,10 @@ class ChainOfThoughtServiceTest {
         props.setMaxSteps(1);
 
         TestEventPublisher eventPublisher = new TestEventPublisher();
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ChainOfThoughtService service = new ChainOfThoughtService(
                 modelInvocationService,
+                promptAssembler,
                 new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
@@ -137,8 +144,10 @@ class ChainOfThoughtServiceTest {
         props.setMaxSteps(1);
 
         TestEventPublisher eventPublisher = new TestEventPublisher();
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ChainOfThoughtService service = new ChainOfThoughtService(
                 modelInvocationService,
+                promptAssembler,
                 new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),

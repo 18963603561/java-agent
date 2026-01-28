@@ -7,6 +7,8 @@ import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
+import com.example.agent.model.PromptAssembler;
+import com.example.agent.model.PromptBundle;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -68,17 +70,20 @@ public class ChainOfThoughtService {
     );
 
     private final ModelInvocationService modelInvocationService;
+    private final PromptAssembler promptAssembler;
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
     private final CotProperties properties;
 
     public ChainOfThoughtService(ModelInvocationService modelInvocationService,
+                                 PromptAssembler promptAssembler,
                                  ObjectMapper objectMapper,
                                  ApplicationEventPublisher eventPublisher,
                                  EventStreamService eventStreamService,
                                  CotProperties properties) {
         this.modelInvocationService = modelInvocationService;
+        this.promptAssembler = promptAssembler;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
@@ -126,6 +131,7 @@ public class ChainOfThoughtService {
                 stepsExecuted++;
                 String prompt = buildPrompt(safeQuestion, input, stepSummaries, stepIndex, maxSteps);
                 ModelRequest request = new ModelRequest(prompt, resolveScene(properties.getModelHint()));
+                applyPromptBundle(request, prompt, input);
                 if (properties.getTemperatureOverride() != null) {
                     request.setTemperature(properties.getTemperatureOverride());
                 }
@@ -512,6 +518,16 @@ public class ChainOfThoughtService {
         event.setTenantId(tenantContext.getTenantId());
         event.setPayload(payload != null ? new HashMap<>(payload) : new HashMap<>());
         eventPublisher.publishEvent(event);
+    }
+
+    private void applyPromptBundle(ModelRequest request, String prompt, Map<String, Object> input) {
+        if (promptAssembler == null || request == null) {
+            return;
+        }
+        PromptBundle bundle = promptAssembler.build(prompt, null, input);
+        if (bundle != null && bundle.getMessages() != null) {
+            request.setMessages(bundle.getMessages());
+        }
     }
 
     private String truncate(String text, int maxChars) {

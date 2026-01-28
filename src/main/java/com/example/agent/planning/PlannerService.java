@@ -10,6 +10,8 @@ import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
 import com.example.agent.model.ModelToolResolver;
+import com.example.agent.model.PromptAssembler;
+import com.example.agent.model.PromptBundle;
 import com.example.agent.runtime.StepRequest;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -34,17 +36,20 @@ public class PlannerService {
 
     private final ModelInvocationService modelInvocationService;
     private final ModelToolResolver modelToolResolver;
+    private final PromptAssembler promptAssembler;
     private final PlannerProperties plannerProperties;
     private final CapabilityBoundaryEvaluator capabilityBoundaryEvaluator;
     private final ObjectMapper objectMapper;
 
     public PlannerService(ModelInvocationService modelInvocationService,
                           ModelToolResolver modelToolResolver,
+                          PromptAssembler promptAssembler,
                           PlannerProperties plannerProperties,
                           CapabilityBoundaryEvaluator capabilityBoundaryEvaluator,
                           ObjectMapper objectMapper) {
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
+        this.promptAssembler = promptAssembler;
         this.plannerProperties = plannerProperties;
         this.capabilityBoundaryEvaluator = capabilityBoundaryEvaluator;
         this.objectMapper = objectMapper;
@@ -306,6 +311,7 @@ public class PlannerService {
         try {
             String prompt = buildPlanPrompt(request, context);
             ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.PLANNER);
+            applyPromptBundle(modelRequest, prompt, request, context);
             modelToolResolver.applyTooling(modelRequest, request, null);
             ModelResponse response = modelInvocationService.invoke(
                     modelRequest,
@@ -499,6 +505,19 @@ public class PlannerService {
                 steps 每项包含 type、input，可选 tool、dependsOn。
                 PLAN_CONTEXT_JSON:%s
                 """.formatted(contextJson);
+    }
+
+    private void applyPromptBundle(ModelRequest modelRequest,
+                                   String prompt,
+                                   TaskRequest request,
+                                   Map<String, Object> context) {
+        if (promptAssembler == null || modelRequest == null) {
+            return;
+        }
+        PromptBundle bundle = promptAssembler.build(prompt, request, context);
+        if (bundle != null && bundle.getMessages() != null) {
+            modelRequest.setMessages(bundle.getMessages());
+        }
     }
 
     private PlanParsingResult parsePlan(String content, TaskRequest request, Map<String, Object> context)

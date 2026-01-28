@@ -1,0 +1,562 @@
+package com.example.agent.streaming;
+
+import com.example.agent.auth.TenantContext;
+import com.example.agent.budget.ContextBudgetAllocation;
+import com.example.agent.budget.ContextPruneResult;
+import com.example.agent.budget.ContextSection;
+import com.example.agent.budget.PrunedItem;
+import com.example.agent.context.BuildMetrics;
+import com.example.agent.context.ContextSnapshot;
+import com.example.agent.context.DomainKnowledge;
+import com.example.agent.context.EvidencePack;
+import com.example.agent.context.EvidenceStats;
+import com.example.agent.context.LongTermMemory;
+import com.example.agent.context.RoleBoundary;
+import com.example.agent.context.RuntimeMeta;
+import com.example.agent.context.TaskIntent;
+import com.example.agent.context.ToolState;
+import com.example.agent.context.WorkingMemory;
+import com.example.agent.domain.event.EventType;
+import com.example.agent.domain.event.StreamEvent;
+import java.time.Instant;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.stereotype.Service;
+
+/**
+ * 上下文事件发布器。
+ */
+@Service
+public class ContextEventPublisher {
+
+    private static final Logger log = LoggerFactory.getLogger(ContextEventPublisher.class);
+
+    private final ApplicationEventPublisher eventPublisher;
+    private final EventStreamService eventStreamService;
+
+    public ContextEventPublisher(ApplicationEventPublisher eventPublisher, EventStreamService eventStreamService) {
+        this.eventPublisher = eventPublisher;
+        this.eventStreamService = eventStreamService;
+    }
+
+    /**
+     * 发布上下文快照事件。
+     *
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param seqCounter 事件序列计数器
+     * @param snapshot 上下文快照
+     * @param allocation 预算分配结果
+     * @param pruneResult 裁剪结果
+     */
+    public void publishSnapshot(TenantContext tenantContext,
+                                String workflowId,
+                                AtomicLong seqCounter,
+                                ContextSnapshot snapshot,
+                                ContextBudgetAllocation allocation,
+                                ContextPruneResult pruneResult,
+                                BuildMetrics metrics) {
+        if (tenantContext == null || snapshot == null || workflowId == null) {
+            return;
+        }
+        ContextSnapshotSummary snapshotSummary = buildSnapshotSummary(snapshot);
+        ContextBudgetSummary budgetSummary = buildBudgetSummary(allocation);
+        ContextPruneSummary pruneSummary = buildPruneSummary(pruneResult);
+        SummaryStats summaryStats = resolveSummaryStats(snapshot);
+        EvidenceStatsSummary evidenceStats = resolveEvidenceStats(snapshot);
+        List<String> sections = snapshotSummary != null ? snapshotSummary.getSections() : resolveSections(snapshot);
+
+        ContextDelta snapshotDelta = buildDelta(sections, null);
+        Map<String, Object> payload = buildPayload(snapshot, snapshotSummary, budgetSummary, null, metrics, summaryStats,
+                evidenceStats);
+        payload.put("delta", snapshotDelta);
+        publishEvent(tenantContext, workflowId, seqCounter, EventType.CONTEXT_SNAPSHOT_CREATED, payload);
+
+        if (pruneSummary != null && pruneSummary.getRemovedCount() != null
+                && pruneSummary.getRemovedCount() > 0) {
+            ContextDelta pruneDelta = buildDelta(sections, pruneSummary);
+            Map<String, Object> prunePayload = buildPayload(snapshot, snapshotSummary, budgetSummary, pruneSummary,
+                    metrics, summaryStats, evidenceStats);
+            prunePayload.put("delta", pruneDelta);
+            publishEvent(tenantContext, workflowId, seqCounter, EventType.CONTEXT_PRUNED, prunePayload);
+        }
+    }
+
+    private List<String> resolveSections(ContextSnapshot snapshot) {
+        List<String> sections = new java.util.ArrayList<>();
+        if (snapshot.getRuntimeMeta() != null) {
+            sections.add("runtime");
+        }
+        if (snapshot.getRoleBoundary() != null) {
+            sections.add("role");
+        }
+        if (snapshot.getTaskIntent() != null) {
+            sections.add("intent");
+        }
+        if (snapshot.getWorkingMemory() != null) {
+            sections.add("working");
+        }
+        if (snapshot.getDomainKnowledge() != null) {
+            sections.add("knowledge");
+        }
+        if (snapshot.getLongTermMemory() != null) {
+            sections.add("long_term");
+        }
+        if (snapshot.getToolState() != null) {
+            sections.add("tool");
+        }
+        if (snapshot.getBudgetState() != null) {
+            sections.add("budget");
+        }
+        return sections;
+    }
+
+    private Map<String, Object> buildPayload(ContextSnapshot snapshot,
+                                             ContextSnapshotSummary snapshotSummary,
+                                             ContextBudgetSummary budgetSummary,
+                                             ContextPruneSummary pruneSummary,
+                                             BuildMetrics metrics,
+                                             SummaryStats summaryStats,
+                                             EvidenceStatsSummary evidenceStats) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("snapshotId", snapshot.getSnapshotId());
+        if (snapshotSummary != null) {
+            payload.put("snapshotSummary", snapshotSummary);
+        }
+        if (budgetSummary != null) {
+            payload.put("budgetSummary", budgetSummary);
+        }
+        if (pruneSummary != null) {
+            payload.put("pruneSummary", pruneSummary);
+        }
+        if (snapshot.getBudgetState() != null) {
+            payload.put("budgetState", snapshot.getBudgetState());
+        }
+        if (snapshot.getToolState() != null) {
+            payload.put("toolState", snapshot.getToolState());
+        }
+        if (metrics != null) {
+            payload.put("buildMetrics", metrics);
+        }
+        if (snapshot.getAuditMetadata() != null) {
+            payload.put("auditMetadata", snapshot.getAuditMetadata());
+        }
+        if (summaryStats != null) {
+            payload.put("usedStructuredSummary", summaryStats.isUsedStructuredSummary());
+            payload.put("summaryVersion", summaryStats.getSummaryVersion());
+            payload.put("summaryChars", summaryStats.getSummaryChars());
+            payload.put("workingMemoryItems", summaryStats.getWorkingMemoryItems());
+        }
+        if (evidenceStats != null) {
+            payload.put("evidencePackPresent", evidenceStats.isPresent());
+            payload.put("evidenceToolCallsCount", evidenceStats.getToolCallsCount());
+            payload.put("evidenceMemoriesCount", evidenceStats.getMemoriesCount());
+            payload.put("evidenceCitationsCount", evidenceStats.getCitationsCount());
+            payload.put("evidenceApproxChars", evidenceStats.getApproxChars());
+            if (evidenceStats.isPresent() && evidenceStats.getVersion() != null
+                    && !evidenceStats.getVersion().isBlank()) {
+                payload.put("evidencePackVersion", evidenceStats.getVersion());
+            }
+        }
+        return payload;
+    }
+
+    private ContextSnapshotSummary buildSnapshotSummary(ContextSnapshot snapshot) {
+        if (snapshot == null) {
+            return null;
+        }
+        ContextSnapshotSummary summary = new ContextSnapshotSummary();
+        List<String> sections = resolveSections(snapshot);
+        summary.setSections(sections == null || sections.isEmpty() ? null : sections);
+
+        TaskIntent taskIntent = snapshot.getTaskIntent();
+        if (taskIntent != null) {
+            summary.setTaskId(taskIntent.getTaskId());
+            summary.setInputSize(resolveLength(taskIntent.getInputText()));
+            summary.setConstraintCount(resolveSize(taskIntent.getConstraints()));
+        }
+
+        RoleBoundary roleBoundary = snapshot.getRoleBoundary();
+        if (roleBoundary != null) {
+            summary.setApprovalRequired(roleBoundary.getApprovalRequired());
+            summary.setRiskLevel(roleBoundary.getRiskLevel());
+        }
+
+        WorkingMemory workingMemory = snapshot.getWorkingMemory();
+        if (workingMemory != null) {
+            summary.setWorkingSummarySize(resolveLength(workingMemory.getSummary()));
+            summary.setKeyFactCount(resolveSize(workingMemory.getKeyFacts()));
+            summary.setPlanStepCount(resolveSize(workingMemory.getPlanSteps()));
+            summary.setRecentToolCallCount(resolveSize(workingMemory.getRecentToolCalls()));
+            if (workingMemory.getEvidencePack() != null) {
+                summary.setEvidenceCount(resolveSize(workingMemory.getEvidencePack().getItems()));
+            }
+        }
+
+        DomainKnowledge domainKnowledge = snapshot.getDomainKnowledge();
+        if (domainKnowledge != null) {
+            summary.setCitationCount(resolveSize(domainKnowledge.getCitations()));
+        }
+
+        LongTermMemory longTermMemory = snapshot.getLongTermMemory();
+        if (longTermMemory != null) {
+            summary.setMemoryCount(resolveSize(longTermMemory.getMemoryRefs()));
+        }
+
+        ToolState toolState = snapshot.getToolState();
+        if (toolState != null) {
+            summary.setToolCount(resolveSize(toolState.getAvailableTools()));
+            summary.setSelectedToolCount(resolveSize(toolState.getSelectedTools()));
+        }
+
+        RuntimeMeta runtimeMeta = snapshot.getRuntimeMeta();
+        if (runtimeMeta != null) {
+            summary.setAllowedToolCount(resolveSize(runtimeMeta.getAllowedTools()));
+        }
+
+        return summary;
+    }
+
+    private SummaryStats resolveSummaryStats(ContextSnapshot snapshot) {
+        SummaryStats stats = new SummaryStats();
+        if (snapshot == null || snapshot.getWorkingMemory() == null) {
+            return stats;
+        }
+        WorkingMemory memory = snapshot.getWorkingMemory();
+        boolean usedStructuredSummary = Boolean.TRUE.equals(memory.getUsedStructuredSummary());
+        String summaryVersion = memory.getSummaryVersion();
+        if ((summaryVersion == null || summaryVersion.isBlank()) && usedStructuredSummary) {
+            summaryVersion = "v1";
+        }
+        Integer summaryChars = memory.getSummaryChars();
+        if (summaryChars == null) {
+            summaryChars = memory.getSummary() != null ? memory.getSummary().length() : 0;
+        }
+        Integer workingMemoryItems = memory.getWorkingMemoryItems();
+        if (workingMemoryItems == null) {
+            workingMemoryItems = memory.getKeyFacts() != null ? memory.getKeyFacts().size() : 0;
+        }
+        stats.setUsedStructuredSummary(usedStructuredSummary);
+        stats.setSummaryVersion(summaryVersion);
+        stats.setSummaryChars(summaryChars);
+        stats.setWorkingMemoryItems(workingMemoryItems);
+        return stats;
+    }
+
+    private EvidenceStatsSummary resolveEvidenceStats(ContextSnapshot snapshot) {
+        EvidenceStatsSummary stats = new EvidenceStatsSummary();
+        if (snapshot == null || snapshot.getWorkingMemory() == null) {
+            return stats;
+        }
+        EvidencePack pack = snapshot.getWorkingMemory().getEvidencePack();
+        if (pack == null) {
+            return stats;
+        }
+        EvidenceStats packStats = pack.getStats();
+        if (packStats == null) {
+            packStats = pack.recomputeStats();
+        }
+        stats.setPresent(true);
+        if (pack.getVersion() != null && !pack.getVersion().isBlank()) {
+            stats.setVersion(pack.getVersion());
+        }
+        stats.setToolCallsCount(resolveCount(packStats != null ? packStats.getToolCallsCount() : null));
+        stats.setMemoriesCount(resolveCount(packStats != null ? packStats.getMemoriesCount() : null));
+        stats.setCitationsCount(resolveCount(packStats != null ? packStats.getCitationsCount() : null));
+        stats.setApproxChars(resolveCount(packStats != null ? packStats.getApproxChars() : null));
+        return stats;
+    }
+
+    private ContextBudgetSummary buildBudgetSummary(ContextBudgetAllocation allocation) {
+        if (allocation == null) {
+            return null;
+        }
+        ContextBudgetSummary summary = new ContextBudgetSummary();
+        summary.setTotalTokens(allocation.getTotalTokens());
+        summary.setReservedTokens(allocation.getReservedTokens());
+        if (allocation.getSectionTokens() != null && !allocation.getSectionTokens().isEmpty()) {
+            Map<String, Integer> sectionTokens = new HashMap<>();
+            for (Map.Entry<ContextSection, Integer> entry : allocation.getSectionTokens().entrySet()) {
+                if (entry.getKey() != null) {
+                    sectionTokens.put(entry.getKey().name(), entry.getValue());
+                }
+            }
+            summary.setSectionTokens(sectionTokens.isEmpty() ? null : sectionTokens);
+        }
+        return summary;
+    }
+
+    private ContextPruneSummary buildPruneSummary(ContextPruneResult pruneResult) {
+        if (pruneResult == null) {
+            return null;
+        }
+        List<PrunedItem> removedItems = pruneResult.getRemovedItems();
+        ContextPruneSummary summary = new ContextPruneSummary();
+        if (removedItems != null && !removedItems.isEmpty()) {
+            summary.setRemovedCount(removedItems.size());
+            summary.setRemovedItemTypes(resolveRemovedItemTypes(removedItems));
+        }
+        summary.setSummary(pruneResult.getSummary());
+        return summary;
+    }
+
+    private ContextDelta buildDelta(List<String> sections, ContextPruneSummary pruneSummary) {
+        ContextDelta delta = new ContextDelta();
+        if (sections != null && !sections.isEmpty()) {
+            delta.setChangedSections(sections);
+        }
+        if (pruneSummary != null) {
+            delta.setSummary(pruneSummary.getSummary());
+            delta.setRemovedCount(pruneSummary.getRemovedCount());
+            delta.setRemovedItemTypes(pruneSummary.getRemovedItemTypes());
+        }
+        return delta;
+    }
+
+    private Map<String, Integer> resolveRemovedItemTypes(List<PrunedItem> removedItems) {
+        if (removedItems == null || removedItems.isEmpty()) {
+            return null;
+        }
+        Map<String, Integer> counts = new HashMap<>();
+        for (PrunedItem item : removedItems) {
+            if (item == null) {
+                continue;
+            }
+            String type = item.getItemType();
+            if (type == null || type.isBlank()) {
+                type = "unknown";
+            }
+            counts.put(type, counts.getOrDefault(type, 0) + 1);
+        }
+        return counts.isEmpty() ? null : counts;
+    }
+
+    private Integer resolveSize(Collection<?> items) {
+        if (items == null) {
+            return null;
+        }
+        return items.size();
+    }
+
+    private Integer resolveLength(String value) {
+        if (value == null) {
+            return null;
+        }
+        return value.length();
+    }
+
+    private int resolveCount(Integer value) {
+        return value == null ? 0 : value;
+    }
+
+    private void publishEvent(TenantContext tenantContext,
+                              String workflowId,
+                              AtomicLong seqCounter,
+                              EventType type,
+                              Map<String, Object> payload) {
+        long seq = seqCounter != null
+                ? seqCounter.incrementAndGet()
+                : eventStreamService.nextSequence(tenantContext.getTenantId(), workflowId);
+        StreamEvent event = new StreamEvent();
+        event.setEventId(workflowId + ":" + seq);
+        event.setSchemaVersion("v1");
+        event.setWorkflowId(workflowId);
+        event.setType(type);
+        Instant eventTime = Instant.now();
+        event.setTimestamp(eventTime);
+        event.setSeq(seq);
+        event.setStreamId(workflowId);
+        event.setTenantId(tenantContext.getTenantId());
+        payload.putIfAbsent("eventId", event.getEventId());
+        payload.putIfAbsent("eventType", type != null ? type.name() : null);
+        payload.putIfAbsent("eventTime", eventTime);
+        payload.putIfAbsent("traceId", tenantContext.getTraceId());
+        payload.putIfAbsent("requestId", tenantContext.getRequestId());
+        SummaryStats summaryStats = resolveSummaryStats(payload);
+        EvidenceStatsSummary evidenceStats = resolveEvidenceStats(payload);
+        Object snapshotId = payload != null ? payload.get("snapshotId") : null;
+        log.info("上下文事件统计, tenantId={}, workflowId={}, snapshotId={}, eventType={}, usedStructuredSummary={}, "
+                        + "summaryVersion={}, summaryChars={}, workingMemoryItems={}, evidenceToolCallsCount={}, "
+                        + "evidenceMemoriesCount={}, evidenceApproxChars={}",
+                tenantContext.getTenantId(),
+                workflowId,
+                snapshotId,
+                type,
+                summaryStats.isUsedStructuredSummary(),
+                summaryStats.getSummaryVersion(),
+                summaryStats.getSummaryChars(),
+                summaryStats.getWorkingMemoryItems(),
+                evidenceStats.getToolCallsCount(),
+                evidenceStats.getMemoriesCount(),
+                evidenceStats.getApproxChars());
+        event.setPayload(payload);
+        eventPublisher.publishEvent(event);
+        log.debug("上下文事件发布, type={}, workflowId={}, seq={}", type, workflowId, seq);
+    }
+
+    private SummaryStats resolveSummaryStats(Map<String, Object> payload) {
+        SummaryStats stats = new SummaryStats();
+        if (payload == null || payload.isEmpty()) {
+            return stats;
+        }
+        Object usedStructured = payload.get("usedStructuredSummary");
+        Object version = payload.get("summaryVersion");
+        Object summaryChars = payload.get("summaryChars");
+        Object workingItems = payload.get("workingMemoryItems");
+        if (usedStructured instanceof Boolean bool) {
+            stats.setUsedStructuredSummary(bool);
+        }
+        if (version instanceof String text && !text.isBlank()) {
+            stats.setSummaryVersion(text);
+        }
+        if (summaryChars instanceof Number number) {
+            stats.setSummaryChars(number.intValue());
+        }
+        if (workingItems instanceof Number number) {
+            stats.setWorkingMemoryItems(number.intValue());
+        }
+        return stats;
+    }
+
+    private EvidenceStatsSummary resolveEvidenceStats(Map<String, Object> payload) {
+        EvidenceStatsSummary stats = new EvidenceStatsSummary();
+        if (payload == null || payload.isEmpty()) {
+            return stats;
+        }
+        Object present = payload.get("evidencePackPresent");
+        Object version = payload.get("evidencePackVersion");
+        Object toolCallsCount = payload.get("evidenceToolCallsCount");
+        Object memoriesCount = payload.get("evidenceMemoriesCount");
+        Object citationsCount = payload.get("evidenceCitationsCount");
+        Object approxChars = payload.get("evidenceApproxChars");
+        if (present instanceof Boolean bool) {
+            stats.setPresent(bool);
+        }
+        if (version instanceof String text && !text.isBlank()) {
+            stats.setVersion(text);
+        }
+        if (toolCallsCount instanceof Number number) {
+            stats.setToolCallsCount(number.intValue());
+        }
+        if (memoriesCount instanceof Number number) {
+            stats.setMemoriesCount(number.intValue());
+        }
+        if (citationsCount instanceof Number number) {
+            stats.setCitationsCount(number.intValue());
+        }
+        if (approxChars instanceof Number number) {
+            stats.setApproxChars(number.intValue());
+        }
+        return stats;
+    }
+
+    /**
+     * 结构化摘要统计信息，用于事件载荷补齐与日志输出。
+     */
+    private static class SummaryStats {
+
+        private boolean usedStructuredSummary;
+        private String summaryVersion;
+        private int summaryChars;
+        private int workingMemoryItems;
+
+        public boolean isUsedStructuredSummary() {
+            return usedStructuredSummary;
+        }
+
+        public void setUsedStructuredSummary(boolean usedStructuredSummary) {
+            this.usedStructuredSummary = usedStructuredSummary;
+        }
+
+        public String getSummaryVersion() {
+            return summaryVersion;
+        }
+
+        public void setSummaryVersion(String summaryVersion) {
+            this.summaryVersion = summaryVersion;
+        }
+
+        public int getSummaryChars() {
+            return summaryChars;
+        }
+
+        public void setSummaryChars(int summaryChars) {
+            this.summaryChars = summaryChars;
+        }
+
+        public int getWorkingMemoryItems() {
+            return workingMemoryItems;
+        }
+
+        public void setWorkingMemoryItems(int workingMemoryItems) {
+            this.workingMemoryItems = workingMemoryItems;
+        }
+    }
+
+    /**
+     * 证据包统计信息，用于事件载荷补齐与日志输出。
+     */
+    private static class EvidenceStatsSummary {
+
+        private boolean present;
+        private String version;
+        private int toolCallsCount;
+        private int memoriesCount;
+        private int citationsCount;
+        private int approxChars;
+
+        public boolean isPresent() {
+            return present;
+        }
+
+        public void setPresent(boolean present) {
+            this.present = present;
+        }
+
+        public String getVersion() {
+            return version;
+        }
+
+        public void setVersion(String version) {
+            this.version = version;
+        }
+
+        public int getToolCallsCount() {
+            return toolCallsCount;
+        }
+
+        public void setToolCallsCount(int toolCallsCount) {
+            this.toolCallsCount = toolCallsCount;
+        }
+
+        public int getMemoriesCount() {
+            return memoriesCount;
+        }
+
+        public void setMemoriesCount(int memoriesCount) {
+            this.memoriesCount = memoriesCount;
+        }
+
+        public int getCitationsCount() {
+            return citationsCount;
+        }
+
+        public void setCitationsCount(int citationsCount) {
+            this.citationsCount = citationsCount;
+        }
+
+        public int getApproxChars() {
+            return approxChars;
+        }
+
+        public void setApproxChars(int approxChars) {
+            this.approxChars = approxChars;
+        }
+    }
+}

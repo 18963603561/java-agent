@@ -120,6 +120,12 @@ public class ModelInvocationService {
         payload.put("scene", request != null && request.getScene() != null ? request.getScene().name() : null);
         payload.put("modelId", modelId);
         payload.put("prompt", request != null ? request.getPrompt() : null);
+        if (request != null && request.getMessages() != null && !request.getMessages().isEmpty()) {
+            payload.put("messageCount", request.getMessages().size());
+            payload.put("messageRoles", request.getMessages().stream()
+                    .map(message -> message != null && message.getRole() != null ? message.getRole().name() : "USER")
+                    .toList());
+        }
         if (metadata != null) {
             payload.putAll(metadata);
         }

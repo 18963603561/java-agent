@@ -12,6 +12,8 @@ import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
 import com.example.agent.model.ModelToolResolver;
+import com.example.agent.model.PromptAssembler;
+import com.example.agent.model.PromptBundle;
 import com.example.agent.observability.TracingPublisher;
 import com.example.agent.streaming.EventStreamService;
 import com.example.agent.tools.hook.HookManager;
@@ -40,6 +42,7 @@ public class ReactLoopService {
 
     private final ModelInvocationService modelInvocationService;
     private final ModelToolResolver modelToolResolver;
+    private final PromptAssembler promptAssembler;
     private final EnforcementGateway enforcementGateway;
     private final MemoryWriteService memoryWriteService;
     private final ExecutionControlService executionControlService;
@@ -53,6 +56,7 @@ public class ReactLoopService {
 
     public ReactLoopService(ModelInvocationService modelInvocationService,
                             ModelToolResolver modelToolResolver,
+                            PromptAssembler promptAssembler,
                             EnforcementGateway enforcementGateway,
                             MemoryWriteService memoryWriteService,
                             ExecutionControlService executionControlService,
@@ -64,6 +68,7 @@ public class ReactLoopService {
                             ObjectMapper objectMapper) {
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
+        this.promptAssembler = promptAssembler;
         this.enforcementGateway = enforcementGateway;
         this.memoryWriteService = memoryWriteService;
         this.executionControlService = executionControlService;
@@ -162,6 +167,7 @@ public class ReactLoopService {
 
         String prompt = buildThinkPrompt(request, iteration, observations);
         ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.PLANNER);
+        applyPromptBundle(modelRequest, prompt, request, null);
         modelToolResolver.applyTooling(modelRequest, request, null);
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("iteration", iteration);
@@ -425,6 +431,19 @@ public class ReactLoopService {
         record.setAttempt(1);
         record.setTenantId(tenantContext != null ? tenantContext.getTenantId() : null);
         return record;
+    }
+
+    private void applyPromptBundle(ModelRequest modelRequest,
+                                   String prompt,
+                                   TaskRequest request,
+                                   Map<String, Object> stepInput) {
+        if (promptAssembler == null || modelRequest == null) {
+            return;
+        }
+        PromptBundle bundle = promptAssembler.build(prompt, request, stepInput);
+        if (bundle != null && bundle.getMessages() != null) {
+            modelRequest.setMessages(bundle.getMessages());
+        }
     }
 
     private void publishReactStopped(TenantContext tenantContext,

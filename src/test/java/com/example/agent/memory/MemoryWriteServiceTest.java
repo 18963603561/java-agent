@@ -52,12 +52,14 @@ class MemoryWriteServiceTest {
         ObjectProvider<EmbeddingService> embeddingProvider = new FixedObjectProvider<>(null);
         RecentMemoryStore recentMemoryStore = new RecentMemoryStore(repository);
         SemanticMemoryStore semanticMemoryStore = new SemanticMemoryStore(vectorProvider, embeddingProvider);
-        CompressedMemoryStore compressedMemoryStore = new CompressedMemoryStore(repository);
+        MemoryExpireProperties expireProperties = new MemoryExpireProperties();
+        MemoryExpirationService expirationService = new MemoryExpirationService(expireProperties);
+        CompressedMemoryStore compressedMemoryStore = new CompressedMemoryStore(repository, expirationService);
         MemoryPolicyProperties policyProperties = new MemoryPolicyProperties();
         policyProperties.setEnabled(false);
         MemoryPolicy memoryPolicy = new MemoryPolicy(policyProperties, new TokenEstimator());
         return new MemoryStore(repository, vectorProvider, embeddingProvider, recentMemoryStore,
-                semanticMemoryStore, compressedMemoryStore, memoryPolicy);
+                semanticMemoryStore, compressedMemoryStore, memoryPolicy, expireProperties, expirationService);
     }
 
     private static class FixedObjectProvider<T> implements ObjectProvider<T> {

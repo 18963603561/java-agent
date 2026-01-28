@@ -9,6 +9,7 @@ import com.example.agent.memory.MemoryWriteService;
 import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelToolResolver;
+import com.example.agent.model.PromptAssembler;
 import com.example.agent.observability.TracingPublisher;
 import com.example.agent.streaming.EventStreamService;
 import com.example.agent.tools.hook.HookManager;
@@ -218,9 +219,11 @@ class ReactLoopServiceTest {
         when(tracingPublisher.currentTraceId()).thenReturn("trace");
 
         EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
 
         return new ReactLoopService(modelInvocationService,
                 modelToolResolver,
+                promptAssembler,
                 enforcementGateway,
                 memoryWriteService,
                 executionControlService,

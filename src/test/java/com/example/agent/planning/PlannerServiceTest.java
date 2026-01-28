@@ -9,6 +9,7 @@ import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
 import com.example.agent.model.ModelToolResolver;
+import com.example.agent.model.PromptAssembler;
 import com.example.agent.runtime.StepRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -31,11 +32,12 @@ class PlannerServiceTest {
     void planReturnsToolStepForSimpleQueryWithFallback() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(false);
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver,
+        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
                 properties, evaluator, new ObjectMapper());
 
         TaskRequest request = new TaskRequest();
@@ -55,11 +57,12 @@ class PlannerServiceTest {
     void planUsesLlmWhenEnabled() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(true);
         properties.setFallbackEnabled(false);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver,
+        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
                 properties, evaluator, new ObjectMapper());
 
         String content = """
@@ -88,11 +91,12 @@ class PlannerServiceTest {
     void disabledEvaluationDoesNotAffectPlanning() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(false);
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver,
+        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
                 properties, evaluator, new ObjectMapper());
 
         TaskRequest request = new TaskRequest();

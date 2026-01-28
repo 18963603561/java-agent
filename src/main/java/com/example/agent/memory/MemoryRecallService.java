@@ -2,6 +2,9 @@ package com.example.agent.memory;
 
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.context.EvidencePack;
+import com.example.agent.context.EvidencePackService;
+import com.example.agent.context.MemoryEvidence;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -36,9 +39,17 @@ public class MemoryRecallService {
      */
     private final MemoryRecallProperties properties;
 
-    public MemoryRecallService(MemoryStore memoryStore, MemoryRecallProperties properties) {
+    /**
+     * 证据包聚合器。
+     */
+    private final EvidencePackService evidencePackService;
+
+    public MemoryRecallService(MemoryStore memoryStore,
+                               MemoryRecallProperties properties,
+                               EvidencePackService evidencePackService) {
         this.memoryStore = memoryStore;
         this.properties = properties;
+        this.evidencePackService = evidencePackService;
     }
 
     /**
@@ -107,6 +118,7 @@ public class MemoryRecallService {
             }
             List<MemoryRecord> trimmed = trimRecords(records, maxRecordChars);
             String summary = buildSummary(trimmed, maxSummaryChars);
+            appendMemoryEvidence(effectiveContext, tenantContext, trimmed);
             log.info("记忆召回完成, tenantId={}, sessionId={}, count={}, summaryLength={}",
                     tenantContext.getTenantId(), sessionId, trimmed.size(),
                     summary == null ? 0 : summary.length());
@@ -169,6 +181,9 @@ public class MemoryRecallService {
             copy.setTenantId(record.getTenantId());
             copy.setLayer(record.getLayer());
             copy.setCreatedAt(record.getCreatedAt());
+            copy.setExpiresAt(record.getExpiresAt());
+            copy.setConversationSummary(record.getConversationSummary());
+            copy.setWorkingMemorySummary(record.getWorkingMemorySummary());
             copy.setContent(trimText(record.getContent(), maxChars));
             copy.setSummary(trimText(record.getSummary(), maxChars));
             trimmed.add(copy);
@@ -215,6 +230,58 @@ public class MemoryRecallService {
         }
         String summary = builder.toString().trim();
         return summary.isEmpty() ? null : summary;
+    }
+
+    /**
+     * 追加记忆证据到证据包，避免影响主流程。
+     */
+    private void appendMemoryEvidence(Map<String, Object> context,
+                                      TenantContext tenantContext,
+                                      List<MemoryRecord> records) {
+        if (evidencePackService == null || context == null || records == null || records.isEmpty()) {
+            return;
+        }
+        String tenantId = tenantContext != null ? tenantContext.getTenantId() : null;
+        String workflowId = readString(context, "workflowId");
+        String snapshotId = readString(context, "snapshotId");
+        EvidencePack pack = evidencePackService.getOrCreatePack(context, tenantId, workflowId, snapshotId);
+        List<MemoryEvidence> memories = new ArrayList<>();
+        for (MemoryRecord record : records) {
+            if (record == null) {
+                continue;
+            }
+            MemoryEvidence evidence = new MemoryEvidence();
+            evidence.setMemoryId(record.getMemoryId());
+            evidence.setExpiresAt(record.getExpiresAt());
+            evidence.setSummaryVersion(resolveSummaryVersion(record));
+            memories.add(evidence);
+        }
+        evidencePackService.addMemoriesUsed(pack, memories, tenantId, workflowId);
+        evidencePackService.finalizePack(pack, tenantId, workflowId);
+    }
+
+    private String resolveSummaryVersion(MemoryRecord record) {
+        if (record == null) {
+            return null;
+        }
+        String workingVersion = record.getWorkingMemorySummary() != null
+                ? record.getWorkingMemorySummary().getVersion()
+                : null;
+        String conversationVersion = record.getConversationSummary() != null
+                ? record.getConversationSummary().getVersion()
+                : null;
+        return firstNonBlank(workingVersion, conversationVersion);
+    }
+
+    private String readString(Map<String, Object> context, String key) {
+        if (context == null || key == null) {
+            return null;
+        }
+        Object value = context.get(key);
+        if (value instanceof String text && StringUtils.hasText(text)) {
+            return text;
+        }
+        return null;
     }
 
     private String firstNonBlank(String first, String second) {

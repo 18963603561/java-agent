@@ -1,7 +1,9 @@
 package com.example.agent.memory;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -38,7 +40,7 @@ public class InMemoryMemoryRepository implements MemoryRepository {
         if (list == null) {
             return List.of();
         }
-        return new ArrayList<>(list);
+        return filterNotExpired(new ArrayList<>(list), Instant.now());
     }
 
     @Override
@@ -60,11 +62,76 @@ public class InMemoryMemoryRepository implements MemoryRepository {
         return result;
     }
 
+    @Override
+    public int deleteExpired(String tenantId, Instant now) {
+        if (now == null) {
+            return 0;
+        }
+        int removed = 0;
+        Iterator<Map.Entry<String, MemoryRecord>> iterator = records.entrySet().iterator();
+        while (iterator.hasNext()) {
+            Map.Entry<String, MemoryRecord> entry = iterator.next();
+            MemoryRecord record = entry.getValue();
+            if (record == null) {
+                iterator.remove();
+                continue;
+            }
+            if (!matchesTenant(tenantId, record)) {
+                continue;
+            }
+            if (isExpired(record, now)) {
+                iterator.remove();
+                removed++;
+                String key = buildSessionKey(record.getTenantId(), record.getSessionId());
+                List<MemoryRecord> list = sessionIndex.get(key);
+                if (list != null) {
+                    synchronized (list) {
+                        list.removeIf(item -> item != null
+                                && record.getMemoryId() != null
+                                && record.getMemoryId().equals(item.getMemoryId()));
+                    }
+                }
+            }
+        }
+        return removed;
+    }
+
     private boolean matches(MemoryRecord record, String lowerQuery) {
         if (record.getContent() != null && record.getContent().toLowerCase().contains(lowerQuery)) {
             return true;
         }
         return record.getSummary() != null && record.getSummary().toLowerCase().contains(lowerQuery);
+    }
+
+    private boolean matchesTenant(String tenantId, MemoryRecord record) {
+        if (tenantId == null) {
+            return true;
+        }
+        return tenantId.equals(record.getTenantId());
+    }
+
+    private boolean isExpired(MemoryRecord record, Instant now) {
+        if (record == null || now == null) {
+            return false;
+        }
+        Instant expiresAt = record.getExpiresAt();
+        return expiresAt != null && !expiresAt.isAfter(now);
+    }
+
+    private List<MemoryRecord> filterNotExpired(List<MemoryRecord> records, Instant now) {
+        if (records == null || records.isEmpty() || now == null) {
+            return records == null ? List.of() : records;
+        }
+        List<MemoryRecord> filtered = new ArrayList<>(records.size());
+        for (MemoryRecord record : records) {
+            if (record == null) {
+                continue;
+            }
+            if (!isExpired(record, now)) {
+                filtered.add(record);
+            }
+        }
+        return filtered;
     }
 
     private String buildSessionKey(String tenantId, String sessionId) {
