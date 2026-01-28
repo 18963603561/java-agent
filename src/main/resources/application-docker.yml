@@ -13,6 +13,19 @@ spring:
 agent:
   storage:
     mode: postgres
+  cot:
+    max-steps: 4
+    temperature-override: 0.2
+    model-hint: reflect
+    emit-step-events: false
+    max-final-answer-chars: 400
+  capability-evaluation:
+    enabled: true
+    risk-threshold: 0.7
+    complexity-threshold: 0.7
+    force-approval-above-risk: true
+    budget-threshold-tokens: 10000
+    default-strategy: tool
   idempotency:
     redis-enabled: true
   tool:
