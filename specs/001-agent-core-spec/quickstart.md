@@ -141,3 +141,10 @@
    - `POLICY_DENY`：触发策略拒绝，期望 `HTTP 403`，`ErrorResponse.code=POLICY_DENIED`（别名 `POLICY_DENY`）。
    - `SANDBOX_DENY`：触发沙箱拒绝的工具调用，期望 `HTTP 403`，`ErrorResponse.code=SANDBOX_DENIED`（别名 `SANDBOX_DENY`）。
    - `HOOK_BLOCKED`：启用阻断型 `Hook` 调用 `/api/v1/mcp/tools/call`，期望 `HTTP 409`，`ErrorResponse.code=HOOK_BLOCKED`。
+
+
+## ???????Chain-of-Thought
+- ?? `context.strategy=chain_of_thought` ?????????????????? `stepType=CHAIN_OF_THOUGHT`
+- ?????? `finalAnswer`?`stepsCount`?`confidence`?`stopReason`
+- ?????? `COT_STARTED`?`COT_STEP`?`COT_COMPLETED`?`COT_STOPPED`
+- ????? `agent.cot.max-steps`?`agent.cot.temperature-override`?`agent.cot.model-hint`?`agent.cot.emit-step-events`

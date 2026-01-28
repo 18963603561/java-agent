@@ -13,6 +13,8 @@ import com.example.agent.planning.PlanResult;
 import com.example.agent.planning.PlannerService;
 import com.example.agent.reasoning.DebateCoordinator;
 import com.example.agent.reasoning.DebateRound;
+import com.example.agent.reasoning.ChainOfThoughtResult;
+import com.example.agent.reasoning.ChainOfThoughtService;
 import com.example.agent.reasoning.ThoughtNode;
 import com.example.agent.reasoning.ThoughtTreeConfig;
 import com.example.agent.reasoning.ThoughtTreeResult;
@@ -28,6 +30,7 @@ import com.example.agent.common.ErrorCodeException;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
@@ -54,6 +57,10 @@ public class AgentRuntime {
      */
     private final ExecutionControlService executionControlService;
     private final ThoughtTreeService thoughtTreeService;
+    /**
+     * 链式推理执行器，用于处理 COT 步骤。
+     */
+    private final ChainOfThoughtService chainOfThoughtService;
     private final MultiAgentCoordinator multiAgentCoordinator;
     private final DebateCoordinator debateCoordinator;
     private final ResearchPipeline researchPipeline;
@@ -80,6 +87,7 @@ public class AgentRuntime {
                         HookManager hookManager,
                         ExecutionControlService executionControlService,
                         ThoughtTreeService thoughtTreeService,
+                        ChainOfThoughtService chainOfThoughtService,
                         MultiAgentCoordinator multiAgentCoordinator,
                         DebateCoordinator debateCoordinator,
                         ResearchPipeline researchPipeline,
@@ -101,6 +109,7 @@ public class AgentRuntime {
         this.hookManager = hookManager;
         this.executionControlService = executionControlService;
         this.thoughtTreeService = thoughtTreeService;
+        this.chainOfThoughtService = chainOfThoughtService;
         this.multiAgentCoordinator = multiAgentCoordinator;
         this.debateCoordinator = debateCoordinator;
         this.researchPipeline = researchPipeline;
@@ -194,7 +203,7 @@ public class AgentRuntime {
             attempt++;
             Map<String, Object> stepInput = mergeStepInput(step, runtimeContext);
             applyExecutionControl(workflowId, tenantContext, seqCounter);
-            requestApprovalIfNeeded(step, request, stepInput, workflowId, tenantContext, seqCounter);
+            requestApprovalIfNeeded(step, request, stepInput, runtimeContext, workflowId, tenantContext, seqCounter);
             StepRecord record = stepRuntimeService.startStep(
                     workflowId,
                     step.getStepType(),
@@ -209,6 +218,9 @@ public class AgentRuntime {
                 String stepType = step.getStepType();
                 if ("THOUGHT_TREE".equalsIgnoreCase(stepType)) {
                     output = executeThoughtTree(step, tenantContext, workflowId, seqCounter);
+                } else if ("CHAIN_OF_THOUGHT".equalsIgnoreCase(stepType)
+                        || "COT".equalsIgnoreCase(stepType)) {
+                    output = executeChainOfThought(request, stepInput, tenantContext, workflowId, seqCounter);
                 } else if ("REACT".equalsIgnoreCase(stepType)) {
                     output = executeReactLoop(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
                 } else if ("MULTI_AGENT".equalsIgnoreCase(stepType)) {
@@ -339,6 +351,26 @@ public class AgentRuntime {
         output.put("totalThoughts", result.getTotalThoughts());
         output.put("treeDepth", result.getTreeDepth());
         output.put("nodes", nodes);
+        return output;
+    }
+
+    /**
+     * 链式推理步骤执行，输出结构化摘要以避免暴露推理细节。
+     */
+    private Map<String, Object> executeChainOfThought(TaskRequest request,
+                                                      Map<String, Object> stepInput,
+                                                      TenantContext tenantContext,
+                                                      String workflowId,
+                                                      AtomicLong seqCounter) {
+        String question = resolveStepQuestion(stepInput, request);
+        ChainOfThoughtResult result = chainOfThoughtService.run(question, stepInput, tenantContext, workflowId,
+                seqCounter);
+        Map<String, Object> output = new HashMap<>();
+        output.put("finalAnswer", result.getFinalAnswer());
+        output.put("stepsCount", result.getStepsCount());
+        output.put("confidence", result.getConfidence());
+        output.put("stopReason", result.getStopReason());
+        output.put("status", result.isCompleted() ? "COMPLETED" : "STOPPED");
         return output;
     }
 
@@ -526,7 +558,29 @@ public class AgentRuntime {
         if (step.getInput() != null) {
             merged.putAll(step.getInput());
         }
+        promoteApprovalFields(merged);
         return merged;
+    }
+
+    /**
+     * 将上下文中的审批标记提升到顶层，避免审批信息丢失。
+     *
+     * @param merged 合并后的步骤输入
+     */
+    private void promoteApprovalFields(Map<String, Object> merged) {
+        if (merged == null || merged.containsKey("requiresApproval")) {
+            return;
+        }
+        Object context = merged.get("context");
+        if (!(context instanceof Map<?, ?> contextMap)) {
+            return;
+        }
+        if (contextMap.containsKey("requiresApproval")) {
+            merged.put("requiresApproval", contextMap.get("requiresApproval"));
+        }
+        if (contextMap.containsKey("approvalSource")) {
+            merged.putIfAbsent("approvalSource", contextMap.get("approvalSource"));
+        }
     }
 
     private void updateRuntimeContext(Map<String, Object> runtimeContext,
@@ -623,6 +677,20 @@ public class AgentRuntime {
         return "";
     }
 
+    private String resolveStepQuestion(Map<String, Object> stepInput, TaskRequest request) {
+        if (stepInput != null) {
+            Object question = stepInput.get("question");
+            if (question instanceof String value && !value.isBlank()) {
+                return value;
+            }
+            Object topic = stepInput.get("topic");
+            if (topic instanceof String value && !value.isBlank()) {
+                return value;
+            }
+        }
+        return resolveStepQuery(request, new StepRequest(null, stepInput));
+    }
+
     private String resolveStepTopic(TaskRequest request, StepRequest step) {
         if (step.getInput() != null) {
             Object topic = step.getInput().get("topic");
@@ -697,17 +765,27 @@ public class AgentRuntime {
     private void requestApprovalIfNeeded(StepRequest step,
                                          TaskRequest request,
                                          Map<String, Object> stepInput,
+                                         Map<String, Object> runtimeContext,
                                          String workflowId,
                                          TenantContext tenantContext,
                                          AtomicLong seqCounter) {
-        if (!isApprovalRequired(step, request, stepInput)) {
+        ApprovalDecision decision = resolveApprovalDecision(step, request, stepInput);
+        if (!decision.explicit || !decision.required) {
+            return;
+        }
+        if (isEvaluationApprovalResolved(decision, runtimeContext)) {
             return;
         }
         ExecutionControlState state = executionControlService.getState(workflowId);
         if (state != ExecutionControlState.WAIT_APPROVAL) {
-            Map<String, Object> payload = buildApprovalPayload(step, request, stepInput);
+            Map<String, Object> payload = buildApprovalPayload(step, request, stepInput, decision.source);
             executionControlService.requestApproval(workflowId, payload);
             publishEvent(tenantContext, workflowId, seqCounter, EventType.APPROVAL_REQUESTED, payload);
+            log.info("触发审批, tenantId={}, workflowId={}, source={}, stepType={}",
+                    tenantContext != null ? tenantContext.getTenantId() : null,
+                    workflowId,
+                    decision.source,
+                    step != null ? step.getStepType() : null);
         }
         try {
             executionControlService.awaitIfBlocked(workflowId);
@@ -718,30 +796,9 @@ public class AgentRuntime {
             }
             throw ex;
         }
-    }
-
-    /**
-     * 判断步骤或请求是否需要审批。
-     *
-     * @param step 步骤定义
-     * @param request 任务请求
-     * @param stepInput 步骤输入
-     * @return 是否需要审批
-     */
-    private boolean isApprovalRequired(StepRequest step,
-                                       TaskRequest request,
-                                       Map<String, Object> stepInput) {
-        if (stepInput != null) {
-            Object requiresApproval = stepInput.get("requiresApproval");
-            if (isTruthy(requiresApproval)) {
-                return true;
-            }
+        if ("evaluation".equalsIgnoreCase(decision.source) && runtimeContext != null) {
+            runtimeContext.put("evaluationApprovalGranted", true);
         }
-        if (request != null && request.getContext() != null) {
-            Object requiresApproval = request.getContext().get("requiresApproval");
-            return isTruthy(requiresApproval);
-        }
-        return false;
     }
 
     /**
@@ -760,6 +817,114 @@ public class AgentRuntime {
         return false;
     }
 
+    private boolean isEvaluationApprovalResolved(ApprovalDecision decision, Map<String, Object> runtimeContext) {
+        if (decision == null || runtimeContext == null) {
+            return false;
+        }
+        if (!"evaluation".equalsIgnoreCase(decision.source)) {
+            return false;
+        }
+        Object resolved = runtimeContext.get("evaluationApprovalGranted");
+        return isTruthy(resolved);
+    }
+
+    private ApprovalDecision resolveApprovalDecision(StepRequest step,
+                                                     TaskRequest request,
+                                                     Map<String, Object> stepInput) {
+        ApprovalDecision userDecision = resolveApprovalFromUser(request);
+        if (userDecision.explicit) {
+            return userDecision;
+        }
+        ApprovalDecision stepDecision = resolveApprovalFromStep(step);
+        if (stepDecision.explicit) {
+            return stepDecision;
+        }
+        ApprovalDecision evaluationDecision = resolveApprovalFromEvaluation(step, stepInput);
+        if (evaluationDecision.explicit) {
+            return evaluationDecision;
+        }
+        return ApprovalDecision.none();
+    }
+
+    private ApprovalDecision resolveApprovalFromUser(TaskRequest request) {
+        if (request == null || request.getContext() == null) {
+            return ApprovalDecision.none();
+        }
+        Map<String, Object> context = request.getContext();
+        if (!context.containsKey("requiresApproval")) {
+            return ApprovalDecision.none();
+        }
+        boolean required = isTruthy(context.get("requiresApproval"));
+        return new ApprovalDecision(true, required, "user");
+    }
+
+    private ApprovalDecision resolveApprovalFromStep(StepRequest step) {
+        if (step == null) {
+            return ApprovalDecision.none();
+        }
+        if (step.getRequiresApproval() != null) {
+            String source = normalizeApprovalSource(step.getApprovalSource(), "step");
+            if (isEvaluationSource(source)) {
+                return ApprovalDecision.none();
+            }
+            return new ApprovalDecision(true, step.getRequiresApproval(), source);
+        }
+        Map<String, Object> input = step.getInput();
+        if (input != null && input.containsKey("requiresApproval")) {
+            String source = normalizeApprovalSource(input.get("approvalSource"), "step");
+            if (isEvaluationSource(source)) {
+                return ApprovalDecision.none();
+            }
+            boolean required = isTruthy(input.get("requiresApproval"));
+            return new ApprovalDecision(true, required, source);
+        }
+        return ApprovalDecision.none();
+    }
+
+    private ApprovalDecision resolveApprovalFromEvaluation(StepRequest step, Map<String, Object> stepInput) {
+        Object value = null;
+        String source = null;
+        if (step != null && step.getRequiresApproval() != null) {
+            String stepSource = normalizeApprovalSource(step.getApprovalSource(), "evaluation");
+            if (isEvaluationSource(stepSource)) {
+                value = step.getRequiresApproval();
+                source = stepSource;
+            }
+        }
+        if (source == null && step != null && step.getInput() != null && step.getInput().containsKey("requiresApproval")) {
+            String inputSource = normalizeApprovalSource(step.getInput().get("approvalSource"), "evaluation");
+            if (isEvaluationSource(inputSource)) {
+                value = step.getInput().get("requiresApproval");
+                source = inputSource;
+            }
+        }
+        if (source == null && stepInput != null && stepInput.containsKey("requiresApproval")) {
+            value = stepInput.get("requiresApproval");
+            source = normalizeApprovalSource(stepInput.get("approvalSource"), "evaluation");
+        }
+        if (source == null && stepInput != null && stepInput.get("context") instanceof Map<?, ?> contextMap
+                && contextMap.containsKey("requiresApproval")) {
+            value = contextMap.get("requiresApproval");
+            source = normalizeApprovalSource(contextMap.get("approvalSource"), "evaluation");
+        }
+        if (source == null) {
+            return ApprovalDecision.none();
+        }
+        boolean required = isTruthy(value);
+        return new ApprovalDecision(true, required, source);
+    }
+
+    private boolean isEvaluationSource(String source) {
+        return "evaluation".equalsIgnoreCase(source);
+    }
+
+    private String normalizeApprovalSource(Object source, String fallback) {
+        if (source instanceof String text && !text.isBlank()) {
+            return text.trim().toLowerCase(Locale.ROOT);
+        }
+        return fallback;
+    }
+
     /**
      * 构造审批事件载荷摘要。
      *
@@ -770,7 +935,8 @@ public class AgentRuntime {
      */
     private Map<String, Object> buildApprovalPayload(StepRequest step,
                                                      TaskRequest request,
-                                                     Map<String, Object> stepInput) {
+                                                     Map<String, Object> stepInput,
+                                                     String approvalSource) {
         Map<String, Object> payload = new HashMap<>();
         if (step != null && step.getStepType() != null) {
             payload.put("stepType", step.getStepType());
@@ -793,6 +959,8 @@ public class AgentRuntime {
             payload.put("query", truncate(request.getQuery(), 200));
         }
         payload.put("approval", "required");
+        payload.put("approvalSource", approvalSource);
+        payload.put("status", "PENDING_APPROVAL");
         return payload;
     }
 
@@ -839,5 +1007,12 @@ public class AgentRuntime {
     private enum StepOutcome {
         SUCCESS,
         REPLAN
+    }
+
+    private record ApprovalDecision(boolean explicit, boolean required, String source) {
+
+        private static ApprovalDecision none() {
+            return new ApprovalDecision(false, false, null);
+        }
     }
 }

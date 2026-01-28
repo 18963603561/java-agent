@@ -2,6 +2,8 @@ package com.example.agent.planning;
 
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.evaluation.CapabilityBoundaryEvaluator;
+import com.example.agent.evaluation.CapabilityEvaluationProperties;
 import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
@@ -11,6 +13,7 @@ import com.example.agent.runtime.StepRequest;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
+import org.springframework.context.ApplicationEventPublisher;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 
@@ -31,8 +34,9 @@ class PlannerServiceTest {
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(false);
         properties.setFallbackEnabled(true);
+        CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver,
-                properties, new ObjectMapper());
+                properties, evaluator, new ObjectMapper());
 
         TaskRequest request = new TaskRequest();
         request.setQuery("ping");
@@ -54,8 +58,9 @@ class PlannerServiceTest {
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(true);
         properties.setFallbackEnabled(false);
+        CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver,
-                properties, new ObjectMapper());
+                properties, evaluator, new ObjectMapper());
 
         String content = """
                 {
@@ -77,5 +82,34 @@ class PlannerServiceTest {
                 "wf-1", new java.util.concurrent.atomic.AtomicLong(0));
         assertEquals(1, plan.getSteps().size());
         assertEquals("TOOL", plan.getSteps().get(0).getStepType());
+    }
+
+    @Test
+    void disabledEvaluationDoesNotAffectPlanning() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PlannerProperties properties = new PlannerProperties();
+        properties.setLlmEnabled(false);
+        properties.setFallbackEnabled(true);
+        CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
+        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver,
+                properties, evaluator, new ObjectMapper());
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        request.setContext(Map.of("tool", "demo_tool"));
+
+        PlanResult plan = plannerService.plan(request, new TenantContext("t-1", "u-1", List.of(), "req", "trace"));
+        assertEquals(1, plan.getSteps().size());
+        assertEquals("TOOL", plan.getSteps().get(0).getStepType());
+    }
+
+    private CapabilityBoundaryEvaluator buildEvaluator(boolean enabled) {
+        CapabilityEvaluationProperties evalProps = new CapabilityEvaluationProperties();
+        evalProps.setEnabled(enabled);
+        ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
+        com.example.agent.streaming.EventStreamService eventStreamService = Mockito.mock(
+                com.example.agent.streaming.EventStreamService.class);
+        return new CapabilityBoundaryEvaluator(evalProps, publisher, eventStreamService);
     }
 }

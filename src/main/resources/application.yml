@@ -5,7 +5,16 @@ spring:
   application:
     name: java-agent
   autoconfigure:
-    exclude: "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration"
+    exclude: ""
+  datasource:
+    url: jdbc:postgresql://localhost:5433/agent
+    username: agent
+    password: agent
+    driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      host: localhost
+      port: 6379
 
 management:
   endpoints:
@@ -63,12 +72,12 @@ agent:
     budget-threshold-tokens: 10000
     default-strategy: tool
   storage:
-    mode: memory
+    mode: postgres
   sse:
     timeoutSeconds: 30
     max-stream-size: 1024
   idempotency:
-    redis-enabled: false
+    redis-enabled: true
     ttl-seconds: 86400
   mcp:
     servers:
@@ -141,7 +150,7 @@ agent:
         model-id: reflect
   memory:
     vector:
-      enabled: false
+      enabled: true
       provider: qdrant
       base-url: http://localhost:6333
       collection: memory_records
@@ -170,4 +179,4 @@ agent:
     open-seconds: 30
   tool:
     cache:
-      redis-enabled: false
+      redis-enabled: true

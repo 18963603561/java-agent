@@ -33,6 +33,7 @@ public class DefaultModelProvider implements ModelProvider {
     private static final String RESEARCH_MARKER = "RESEARCH_CONTEXT_JSON:";
     private static final String DEBATE_MARKER = "DEBATE_CONTEXT_JSON:";
     private static final String MULTI_AGENT_MARKER = "MULTI_AGENT_CONTEXT_JSON:";
+    private static final String COT_MARKER = "COT_CONTEXT_JSON:";
 
     private final ObjectMapper objectMapper;
     private final WebClient.Builder webClientBuilder;
@@ -125,7 +126,8 @@ public class DefaultModelProvider implements ModelProvider {
         String prompt = request != null ? request.getPrompt() : "";
         Map<String, Object> body = new HashMap<>();
         body.put("model", modelId);
-        body.put("temperature", temperature);
+        Double temperatureOverride = request != null ? request.getTemperature() : null;
+        body.put("temperature", temperatureOverride != null ? temperatureOverride : temperature);
         body.put("messages", List.of(Map.of("role", "user", "content", prompt)));
         if (request != null && request.getTools() != null && !request.getTools().isEmpty()) {
             body.put("tools", request.getTools());
@@ -190,6 +192,10 @@ public class DefaultModelProvider implements ModelProvider {
         if (prompt.contains(MULTI_AGENT_MARKER)) {
             Map<String, Object> context = parseJsonAfterMarker(prompt, MULTI_AGENT_MARKER);
             return buildLocalMultiAgent(context);
+        }
+        if (prompt.contains(COT_MARKER)) {
+            Map<String, Object> context = parseJsonAfterMarker(prompt, COT_MARKER);
+            return buildLocalChainOfThought(context);
         }
         return "response:" + prompt;
     }
@@ -312,6 +318,27 @@ public class DefaultModelProvider implements ModelProvider {
             return objectMapper.writeValueAsString(result);
         } catch (Exception ex) {
             return "{\"team\":[]}";
+        }
+    }
+
+    /**
+     * 本地链式推理的兜底输出，返回结构化 JSON。
+     *
+     * @param context 上下文
+     * @return JSON 字符串
+     */
+    private String buildLocalChainOfThought(Map<String, Object> context) {
+        String question = context.get("question") instanceof String value ? value : "";
+        Map<String, Object> result = new HashMap<>();
+        result.put("stepSummary", "本地链式推理摘要");
+        result.put("shouldContinue", false);
+        result.put("finalAnswer", question.isBlank() ? "本地推理完成" : "已完成问题解析: " + question);
+        result.put("confidence", 0.6);
+        result.put("stopReason", "completed");
+        try {
+            return objectMapper.writeValueAsString(result);
+        } catch (Exception ex) {
+            return "{\"shouldContinue\":false,\"finalAnswer\":\"local\"}";
         }
     }
 

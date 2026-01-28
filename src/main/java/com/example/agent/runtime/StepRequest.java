@@ -9,6 +9,14 @@ public class StepRequest {
 
     private String stepType;
     private Map<String, Object> input;
+    /**
+     * 是否需要审批，空值表示未显式指定。
+     */
+    private Boolean requiresApproval;
+    /**
+     * 审批来源，用于标识 user/step/evaluation 等。
+     */
+    private String approvalSource;
 
     public StepRequest() {
     }
@@ -32,5 +40,21 @@ public class StepRequest {
 
     public void setInput(Map<String, Object> input) {
         this.input = input;
+    }
+
+    public Boolean getRequiresApproval() {
+        return requiresApproval;
+    }
+
+    public void setRequiresApproval(Boolean requiresApproval) {
+        this.requiresApproval = requiresApproval;
+    }
+
+    public String getApprovalSource() {
+        return approvalSource;
+    }
+
+    public void setApprovalSource(String approvalSource) {
+        this.approvalSource = approvalSource;
     }
 }

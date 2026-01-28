@@ -2,6 +2,9 @@ package com.example.agent.planning;
 
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.evaluation.CapabilityBoundaryEvaluator;
+import com.example.agent.evaluation.CapabilityEvaluationInput;
+import com.example.agent.evaluation.CapabilityEvaluationResult;
 import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
@@ -32,15 +35,18 @@ public class PlannerService {
     private final ModelInvocationService modelInvocationService;
     private final ModelToolResolver modelToolResolver;
     private final PlannerProperties plannerProperties;
+    private final CapabilityBoundaryEvaluator capabilityBoundaryEvaluator;
     private final ObjectMapper objectMapper;
 
     public PlannerService(ModelInvocationService modelInvocationService,
                           ModelToolResolver modelToolResolver,
                           PlannerProperties plannerProperties,
+                          CapabilityBoundaryEvaluator capabilityBoundaryEvaluator,
                           ObjectMapper objectMapper) {
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
         this.plannerProperties = plannerProperties;
+        this.capabilityBoundaryEvaluator = capabilityBoundaryEvaluator;
         this.objectMapper = objectMapper;
     }
 
@@ -73,10 +79,14 @@ public class PlannerService {
         Map<String, Object> context = request != null && request.getContext() != null
                 ? new HashMap<>(request.getContext())
                 : new HashMap<>();
+        CapabilityEvaluationResult evaluation = evaluateCapability(request, context, tenantContext, workflowId,
+                seqCounter);
+        applyEvaluationToContext(context, evaluation);
 
         if (plannerProperties.isLlmEnabled()) {
             PlanResult llmPlan = tryLlmPlan(request, tenantContext, workflowId, seqCounter, context, planId);
             if (llmPlan != null) {
+                applyApprovalRequirement(llmPlan, request, evaluation);
                 return llmPlan;
             }
         }
@@ -84,7 +94,207 @@ public class PlannerService {
         if (!plannerProperties.isFallbackEnabled()) {
             throw new IllegalStateException("planner_fallback_disabled");
         }
-        return buildHeuristicPlan(planId, query, context, tenantContext);
+        PlanResult fallback = buildHeuristicPlan(planId, query, context, tenantContext);
+        applyApprovalRequirement(fallback, request, evaluation);
+        return fallback;
+    }
+
+    private CapabilityEvaluationResult evaluateCapability(TaskRequest request,
+                                                          Map<String, Object> context,
+                                                          TenantContext tenantContext,
+                                                          String workflowId,
+                                                          AtomicLong seqCounter) {
+        if (capabilityBoundaryEvaluator == null || !capabilityBoundaryEvaluator.isEnabled()) {
+            return null;
+        }
+        CapabilityEvaluationInput input = new CapabilityEvaluationInput();
+        input.setTaskDescription(request != null ? request.getQuery() : null);
+        input.setPlanSummary(resolvePlanSummary(context));
+        input.setToolSummary(resolveToolSummary(context));
+        input.setBudgetThresholdTokens(resolveBudgetThreshold(context));
+        input.setFailureTypes(resolveFailureTypes(context));
+        input.setComplexityScore(estimateComplexity(request != null ? request.getQuery() : null));
+        return capabilityBoundaryEvaluator.evaluate(input, tenantContext, workflowId, seqCounter);
+    }
+
+    private void applyEvaluationToContext(Map<String, Object> context, CapabilityEvaluationResult evaluation) {
+        if (context == null || evaluation == null || evaluation.isSkipped()) {
+            return;
+        }
+        if (evaluation.isShouldAskApproval() && !context.containsKey("requiresApproval")) {
+            context.put("requiresApproval", true);
+            context.putIfAbsent("approvalSource", "evaluation");
+        }
+        if (!hasExplicitStrategy(context) && evaluation.getRecommendedStrategy() != null) {
+            mapStrategyToContext(context, evaluation.getRecommendedStrategy());
+        }
+        context.put("capabilityScore", evaluation.getComplexityScore());
+        context.put("capabilityRisk", evaluation.getRiskLevel() != null
+                ? evaluation.getRiskLevel().name()
+                : null);
+    }
+
+    private void applyApprovalRequirement(PlanResult plan,
+                                          TaskRequest request,
+                                          CapabilityEvaluationResult evaluation) {
+        if (plan == null || plan.getSteps() == null || plan.getSteps().isEmpty()) {
+            return;
+        }
+        if (evaluation == null || evaluation.isSkipped() || !evaluation.isShouldAskApproval()) {
+            return;
+        }
+        if (hasExplicitApproval(request) || hasExplicitApproval(plan.getSteps())) {
+            return;
+        }
+        StepRequest first = plan.getSteps().get(0);
+        markStepRequiresApproval(first, "evaluation");
+    }
+
+    private boolean hasExplicitApproval(TaskRequest request) {
+        if (request == null || request.getContext() == null) {
+            return false;
+        }
+        return request.getContext().containsKey("requiresApproval");
+    }
+
+    private boolean hasExplicitApproval(List<StepRequest> steps) {
+        if (steps == null) {
+            return false;
+        }
+        for (StepRequest step : steps) {
+            if (step == null) {
+                continue;
+            }
+            if (step.getRequiresApproval() != null) {
+                return true;
+            }
+            Map<String, Object> input = step.getInput();
+            if (input != null && input.containsKey("requiresApproval")) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private void markStepRequiresApproval(StepRequest step, String source) {
+        if (step == null) {
+            return;
+        }
+        step.setRequiresApproval(true);
+        step.setApprovalSource(source);
+        Map<String, Object> input = step.getInput();
+        if (input != null && !input.containsKey("requiresApproval")) {
+            input.put("requiresApproval", true);
+            input.putIfAbsent("approvalSource", source);
+        }
+    }
+
+    private boolean hasExplicitStrategy(Map<String, Object> context) {
+        if (context == null) {
+            return false;
+        }
+        return context.containsKey("strategy")
+                || context.containsKey("mode")
+                || context.containsKey("cognitive_strategy")
+                || context.containsKey("react")
+                || context.containsKey("reactEnabled");
+    }
+
+    private void mapStrategyToContext(Map<String, Object> context, String strategy) {
+        if (context == null || strategy == null) {
+            return;
+        }
+        String normalized = strategy.toLowerCase(Locale.ROOT);
+        if ("thought_tree".equals(normalized) || "tree_of_thoughts".equals(normalized)) {
+            context.put("cognitive_strategy", "tree_of_thoughts");
+            return;
+        }
+        if ("debate".equals(normalized)) {
+            context.put("strategy", "debate");
+            return;
+        }
+        if ("research".equals(normalized)) {
+            context.put("mode", "deep_research");
+            context.put("strategy", "research");
+            return;
+        }
+        if ("react".equals(normalized)) {
+            context.put("react", true);
+        }
+    }
+
+    private String resolvePlanSummary(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object summary = context.get("planSummary");
+        return summary instanceof String value ? value : null;
+    }
+
+    private String resolveToolSummary(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object tool = context.get("tool");
+        Object toolName = context.get("toolName");
+        Object fallbackTool = context.get("fallbackTool");
+        StringBuilder builder = new StringBuilder();
+        if (tool instanceof String value && !value.isBlank()) {
+            builder.append(value);
+        }
+        if (toolName instanceof String value && !value.isBlank()) {
+            appendWithComma(builder, value);
+        }
+        if (fallbackTool instanceof String value && !value.isBlank()) {
+            appendWithComma(builder, value);
+        }
+        return builder.length() == 0 ? null : builder.toString();
+    }
+
+    private void appendWithComma(StringBuilder builder, String value) {
+        if (builder.length() > 0) {
+            builder.append(',');
+        }
+        builder.append(value);
+    }
+
+    private int resolveBudgetThreshold(Map<String, Object> context) {
+        if (context == null) {
+            return 0;
+        }
+        Object threshold = context.get("budgetThresholdTokens");
+        if (threshold instanceof Number number) {
+            return number.intValue();
+        }
+        if (threshold instanceof String text && !text.isBlank()) {
+            try {
+                return Integer.parseInt(text.trim());
+            } catch (NumberFormatException ignored) {
+                return 0;
+            }
+        }
+        return 0;
+    }
+
+    @SuppressWarnings("unchecked")
+    private List<String> resolveFailureTypes(Map<String, Object> context) {
+        if (context == null) {
+            return List.of();
+        }
+        Object failures = context.get("failureTypes");
+        if (failures instanceof List<?> list) {
+            List<String> output = new ArrayList<>();
+            for (Object item : list) {
+                if (item instanceof String value && !value.isBlank()) {
+                    output.add(value);
+                }
+            }
+            return output;
+        }
+        if (failures instanceof String text && !text.isBlank()) {
+            return List.of(text.trim());
+        }
+        return List.of();
     }
 
     private PlanResult tryLlmPlan(TaskRequest request,
@@ -140,6 +350,26 @@ public class PlannerService {
 
         String previousStepKey = null;
         String thoughtStepKey = null;
+        if (isChainOfThoughtRequested(mode, strategy, cognitiveStrategy)) {
+            String stepKey = "step-1";
+            Map<String, Object> input = new HashMap<>();
+            input.put("question", query);
+            input.put("context", context);
+            input.put("stepKey", stepKey);
+            steps.add(new StepRequest("CHAIN_OF_THOUGHT", input));
+            planSteps.add(Map.of("id", stepKey, "type", "CHAIN_OF_THOUGHT", "name", "chain-of-thought"));
+            String summary = String.format(Locale.ROOT,
+                    "strategy=%s, cognitive=%s, complexity=%.2f, steps=%d",
+                    executionStrategy, cognitiveStrategy, complexityScore, steps.size());
+            PlanResult result = new PlanResult(planId, summary, steps);
+            log.info("规划生成(链式推理), tenantId={}, planId={}, summary={}",
+                    tenantContext.getTenantId(), planId, summary);
+            context.put("planSteps", planSteps);
+            context.put("planDependencies", dependencies);
+            context.put("executionStrategy", executionStrategy);
+            context.put("cognitiveStrategy", cognitiveStrategy);
+            return result;
+        }
         if (needsThoughtTree(cognitiveStrategy, complexityScore)) {
             thoughtStepKey = "step-1";
             Map<String, Object> thoughtInput = new HashMap<>();
@@ -377,6 +607,22 @@ public class PlannerService {
             return "true".equalsIgnoreCase(text.trim());
         }
         return false;
+    }
+
+    private boolean isChainOfThoughtRequested(String mode, String strategy, String cognitiveStrategy) {
+        return isChainOfThoughtValue(mode)
+                || isChainOfThoughtValue(strategy)
+                || isChainOfThoughtValue(cognitiveStrategy);
+    }
+
+    private boolean isChainOfThoughtValue(String value) {
+        if (value == null || value.isBlank()) {
+            return false;
+        }
+        String normalized = value.trim().toLowerCase(Locale.ROOT);
+        return "cot".equals(normalized)
+                || "chain_of_thought".equals(normalized)
+                || "chain-of-thought".equals(normalized);
     }
 
     private static class PlanParsingResult {

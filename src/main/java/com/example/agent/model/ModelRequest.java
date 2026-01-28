@@ -23,6 +23,10 @@ public class ModelRequest {
      * 工具选择策略。
      */
     private ModelToolChoice toolChoice;
+    /**
+     * 温度覆盖值，空值表示沿用默认配置。
+     */
+    private Double temperature;
 
     public ModelRequest() {
     }
@@ -62,5 +66,13 @@ public class ModelRequest {
 
     public void setToolChoice(ModelToolChoice toolChoice) {
         this.toolChoice = toolChoice;
+    }
+
+    public Double getTemperature() {
+        return temperature;
+    }
+
+    public void setTemperature(Double temperature) {
+        this.temperature = temperature;
     }
 }
