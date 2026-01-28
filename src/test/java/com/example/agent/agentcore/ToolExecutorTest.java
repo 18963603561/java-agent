@@ -64,7 +64,8 @@ class ToolExecutorTest {
         when(toolRegistry.resolve("demo_tool")).thenReturn("demo_tool");
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, evidencePackService);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, evidencePackService,
+                null);
         ReflectionTestUtils.setField(executor, "cacheEnabled", true);
         ReflectionTestUtils.setField(executor, "cacheTtlSeconds", 300L);
 
@@ -117,7 +118,8 @@ class ToolExecutorTest {
                 .thenReturn(okResponse);
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, evidencePackService);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, evidencePackService,
+                null);
         ReflectionTestUtils.setField(executor, "cacheEnabled", false);
         ReflectionTestUtils.setField(executor, "maxAttempts", 2);
         ReflectionTestUtils.setField(executor, "baseDelayMs", 0L);
@@ -168,7 +170,8 @@ class ToolExecutorTest {
                 .thenReturn(new McpToolCallResponse("call-1", "SUCCESS", Map.of("value", "ok"), null));
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, evidencePackService);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, evidencePackService,
+                null);
         ReflectionTestUtils.setField(executor, "cacheEnabled", false);
 
         TaskRequest request = new TaskRequest();

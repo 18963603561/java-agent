@@ -3,6 +3,8 @@ package com.example.agent.budget;
 import com.example.agent.context.ContextSnapshot;
 import com.example.agent.context.WorkingMemory;
 import com.example.agent.memory.TokenEstimator;
+import com.example.agent.observability.MetricsPublisher;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.EnumMap;
 import org.junit.jupiter.api.Test;
 
@@ -14,7 +16,8 @@ class DefaultContextPrunerTest {
 
     @Test
     void pruneTruncatesWorkingSummaryWhenOverBudget() {
-        DefaultContextPruner pruner = new DefaultContextPruner(new TokenEstimator());
+        DefaultContextPruner pruner = new DefaultContextPruner(new TokenEstimator(),
+                new MetricsPublisher(new SimpleMeterRegistry()));
 
         WorkingMemory memory = new WorkingMemory();
         memory.setSummary("这是一个很长的摘要，需要被裁剪以适配预算限制。重复重复重复重复重复重复。");

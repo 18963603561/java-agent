@@ -2,9 +2,14 @@ package com.example.agent.planning;
 
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.context.ContextAssembler;
+import com.example.agent.context.ContextSnapshot;
+import com.example.agent.context.PromptAssemblyInput;
 import com.example.agent.evaluation.CapabilityBoundaryEvaluator;
 import com.example.agent.evaluation.CapabilityEvaluationInput;
 import com.example.agent.evaluation.CapabilityEvaluationResult;
+import com.example.agent.budget.ContextBudgetAllocation;
+import com.example.agent.budget.ContextPruneResult;
 import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
@@ -13,6 +18,8 @@ import com.example.agent.model.ModelToolResolver;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
 import com.example.agent.runtime.StepRequest;
+import com.example.agent.streaming.ContextEventPublisher;
+import com.example.agent.streaming.ContextSnapshotStage;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -40,19 +47,31 @@ public class PlannerService {
     private final PlannerProperties plannerProperties;
     private final CapabilityBoundaryEvaluator capabilityBoundaryEvaluator;
     private final ObjectMapper objectMapper;
+    /**
+     * 上下文装配器。
+     */
+    private final ContextAssembler contextAssembler;
+    /**
+     * 上下文事件发布器。
+     */
+    private final ContextEventPublisher contextEventPublisher;
 
     public PlannerService(ModelInvocationService modelInvocationService,
                           ModelToolResolver modelToolResolver,
                           PromptAssembler promptAssembler,
                           PlannerProperties plannerProperties,
                           CapabilityBoundaryEvaluator capabilityBoundaryEvaluator,
-                          ObjectMapper objectMapper) {
+                          ObjectMapper objectMapper,
+                          ContextAssembler contextAssembler,
+                          ContextEventPublisher contextEventPublisher) {
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
         this.promptAssembler = promptAssembler;
         this.plannerProperties = plannerProperties;
         this.capabilityBoundaryEvaluator = capabilityBoundaryEvaluator;
         this.objectMapper = objectMapper;
+        this.contextAssembler = contextAssembler;
+        this.contextEventPublisher = contextEventPublisher;
     }
 
     /**
@@ -311,7 +330,7 @@ public class PlannerService {
         try {
             String prompt = buildPlanPrompt(request, context);
             ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.PLANNER);
-            applyPromptBundle(modelRequest, prompt, request, context);
+            applyPromptBundle(modelRequest, prompt, request, context, tenantContext, workflowId, seqCounter);
             modelToolResolver.applyTooling(modelRequest, request, null);
             ModelResponse response = modelInvocationService.invoke(
                     modelRequest,
@@ -510,14 +529,145 @@ public class PlannerService {
     private void applyPromptBundle(ModelRequest modelRequest,
                                    String prompt,
                                    TaskRequest request,
-                                   Map<String, Object> context) {
+                                   Map<String, Object> context,
+                                   TenantContext tenantContext,
+                                   String workflowId,
+                                   AtomicLong seqCounter) {
         if (promptAssembler == null || modelRequest == null) {
             return;
         }
-        PromptBundle bundle = promptAssembler.build(prompt, request, context);
+        Map<String, Object> assemblyContext = context != null ? new HashMap<>(context) : new HashMap<>();
+        PromptAssemblyInput assemblyInput = buildPromptAssemblyInput(prompt, request, assemblyContext);
+        Integer beforeTokens = resolveTokenTotal(assemblyInput != null ? assemblyInput.getBudgetUsedTokens() : null);
+        if (assemblyInput != null) {
+            assemblyContext.put("promptAssemblyInput", assemblyInput);
+        }
+        PromptBundle bundle = promptAssembler.build(prompt, request, assemblyContext);
         if (bundle != null && bundle.getMessages() != null) {
             modelRequest.setMessages(bundle.getMessages());
         }
+        publishPlanStage(tenantContext, workflowId, seqCounter, assemblyContext, assemblyInput, bundle,
+                beforeTokens);
+    }
+
+    /**
+     * 发布规划提示词装配阶段事件。
+     */
+    private void publishPlanStage(TenantContext tenantContext,
+                                  String workflowId,
+                                  AtomicLong seqCounter,
+                                  Map<String, Object> context,
+                                  PromptAssemblyInput assemblyInput,
+                                  PromptBundle bundle,
+                                  Integer beforeTokens) {
+        if (contextEventPublisher == null || tenantContext == null || workflowId == null || bundle == null) {
+            return;
+        }
+        ContextSnapshot snapshot = resolveContextSnapshot(context);
+        ContextBudgetAllocation allocation = resolveContextBudget(context);
+        Integer afterTokens = resolveTokenTotal(assemblyInput != null ? assemblyInput.getBudgetUsedTokens() : null);
+        if (afterTokens == null) {
+            afterTokens = bundle.getEstimatedTokens();
+        }
+        List<String> truncatedSections = bundle.getTruncatedSections() != null
+                ? bundle.getTruncatedSections()
+                : List.of();
+        contextEventPublisher.publishSnapshotStage(
+                tenantContext,
+                workflowId,
+                seqCounter,
+                snapshot,
+                null,
+                allocation,
+                null,
+                null,
+                truncatedSections,
+                ContextSnapshotStage.PLAN_ASSEMBLED,
+                beforeTokens,
+                afterTokens);
+    }
+
+    private Integer resolveTokenTotal(Map<String, Integer> tokens) {
+        if (tokens == null || tokens.isEmpty()) {
+            return null;
+        }
+        Integer total = tokens.get("total");
+        if (total != null) {
+            return total;
+        }
+        int sum = 0;
+        for (Integer value : tokens.values()) {
+            sum += value == null ? 0 : value;
+        }
+        return sum;
+    }
+
+    private PromptAssemblyInput buildPromptAssemblyInput(String prompt,
+                                                         TaskRequest request,
+                                                         Map<String, Object> context) {
+        if (contextAssembler == null) {
+            return null;
+        }
+        ContextSnapshot snapshot = resolveContextSnapshot(context);
+        ContextBudgetAllocation allocation = resolveContextBudget(context);
+        ContextPruneResult pruneResult = resolveContextPrune(context);
+        String tenantId = null;
+        String workflowId = null;
+        if (snapshot != null && snapshot.getRuntimeMeta() != null) {
+            if (snapshot.getRuntimeMeta().getTenantId() != null
+                    && !snapshot.getRuntimeMeta().getTenantId().isBlank()) {
+                tenantId = snapshot.getRuntimeMeta().getTenantId();
+            }
+            if (snapshot.getRuntimeMeta().getWorkflowId() != null
+                    && !snapshot.getRuntimeMeta().getWorkflowId().isBlank()) {
+                workflowId = snapshot.getRuntimeMeta().getWorkflowId();
+            }
+        }
+        if (tenantId == null && request != null && request.getContext() != null) {
+            Object value = request.getContext().get("tenantId");
+            if (value instanceof String text && !text.isBlank()) {
+                tenantId = text;
+            }
+        }
+        if (workflowId == null && context != null && context.get("workflowId") instanceof String text
+                && !text.isBlank()) {
+            workflowId = text;
+        }
+        return contextAssembler.assemble(snapshot, allocation, null, pruneResult, null,
+                tenantId, workflowId, prompt);
+    }
+
+    private ContextSnapshot resolveContextSnapshot(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object value = context.get("contextSnapshot");
+        if (value instanceof ContextSnapshot snapshot) {
+            return snapshot;
+        }
+        return null;
+    }
+
+    private ContextBudgetAllocation resolveContextBudget(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object value = context.get("contextBudget");
+        if (value instanceof ContextBudgetAllocation allocation) {
+            return allocation;
+        }
+        return null;
+    }
+
+    private ContextPruneResult resolveContextPrune(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object value = context.get("contextPrune");
+        if (value instanceof ContextPruneResult pruneResult) {
+            return pruneResult;
+        }
+        return null;
     }
 
     private PlanParsingResult parsePlan(String content, TaskRequest request, Map<String, Object> context)

@@ -2,8 +2,10 @@ package com.example.agent.streaming;
 
 import com.example.agent.auth.TenantContext;
 import com.example.agent.budget.ContextBudgetAllocation;
+import com.example.agent.budget.ContextCompressionResult;
 import com.example.agent.budget.ContextPruneResult;
 import com.example.agent.budget.ContextSection;
+import com.example.agent.budget.ContextTrimReport;
 import com.example.agent.budget.PrunedItem;
 import com.example.agent.context.BuildMetrics;
 import com.example.agent.context.ContextSnapshot;
@@ -18,6 +20,7 @@ import com.example.agent.context.ToolState;
 import com.example.agent.context.WorkingMemory;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
+import com.example.agent.observability.MetricsPublisher;
 import java.time.Instant;
 import java.util.Collection;
 import java.util.HashMap;
@@ -39,10 +42,14 @@ public class ContextEventPublisher {
 
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
+    private final MetricsPublisher metricsPublisher;
 
-    public ContextEventPublisher(ApplicationEventPublisher eventPublisher, EventStreamService eventStreamService) {
+    public ContextEventPublisher(ApplicationEventPublisher eventPublisher,
+                                 EventStreamService eventStreamService,
+                                 MetricsPublisher metricsPublisher) {
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
+        this.metricsPublisher = metricsPublisher;
     }
 
     /**
@@ -86,6 +93,71 @@ public class ContextEventPublisher {
             prunePayload.put("delta", pruneDelta);
             publishEvent(tenantContext, workflowId, seqCounter, EventType.CONTEXT_PRUNED, prunePayload);
         }
+    }
+
+    /**
+     * 发布上下文快照阶段事件。
+     *
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param seqCounter 事件序列计数器
+     * @param snapshot 上下文快照，可为空
+     * @param snapshotId 快照标识，可为空
+     * @param allocation 预算分配，可为空
+     * @param trimReport 裁剪报告，可为空
+     * @param compressionResult 压缩结果，可为空
+     * @param promptTruncatedSections 提示词裁剪段落标识
+     * @param stage 快照阶段
+     * @param beforeTokens 阶段前 token 估算
+     * @param afterTokens 阶段后 token 估算
+     */
+    public void publishSnapshotStage(TenantContext tenantContext,
+                                     String workflowId,
+                                     AtomicLong seqCounter,
+                                     ContextSnapshot snapshot,
+                                     String snapshotId,
+                                     ContextBudgetAllocation allocation,
+                                     ContextTrimReport trimReport,
+                                     ContextCompressionResult compressionResult,
+                                     List<String> promptTruncatedSections,
+                                     ContextSnapshotStage stage,
+                                     Integer beforeTokens,
+                                     Integer afterTokens) {
+        if (tenantContext == null || workflowId == null || stage == null) {
+            return;
+        }
+        String resolvedSnapshotId = snapshotId;
+        if ((resolvedSnapshotId == null || resolvedSnapshotId.isBlank()) && snapshot != null) {
+            resolvedSnapshotId = snapshot.getSnapshotId();
+        }
+
+        ContextSnapshotEventPayload payload = new ContextSnapshotEventPayload();
+        payload.setTenantId(tenantContext.getTenantId());
+        payload.setWorkflowId(workflowId);
+        if (resolvedSnapshotId != null && !resolvedSnapshotId.isBlank()) {
+            payload.setSnapshotId(resolvedSnapshotId);
+        }
+        payload.setStage(stage);
+        payload.setBudgetSummary(buildBudgetSummary(allocation));
+        payload.setTrimSummary(buildTrimSummary(trimReport));
+        payload.setCompressionSummary(buildCompressionSummary(compressionResult));
+        payload.setPromptTruncatedSections(promptTruncatedSections);
+        fillEvidenceStats(payload, snapshot);
+
+        Map<String, Object> payloadMap = buildStagePayload(payload);
+        publishEvent(tenantContext, workflowId, seqCounter, EventType.CONTEXT_SNAPSHOT_STAGE, payloadMap);
+
+        int truncatedCount = promptTruncatedSections != null ? promptTruncatedSections.size() : 0;
+        log.info("上下文快照阶段事件, tenantId={}, workflowId={}, stage={}, snapshotId={}, beforeTokens={}, afterTokens={}, "
+                        + "truncatedSectionsCount={}",
+                tenantContext.getTenantId(),
+                workflowId,
+                stage,
+                resolvedSnapshotId,
+                beforeTokens,
+                afterTokens,
+                truncatedCount);
+        recordStageMetrics(stage, payloadMap);
     }
 
     private List<String> resolveSections(ContextSnapshot snapshot) {
@@ -165,6 +237,123 @@ public class ContextEventPublisher {
             }
         }
         return payload;
+    }
+
+    private ContextTrimSummary buildTrimSummary(ContextTrimReport trimReport) {
+        if (trimReport == null) {
+            return null;
+        }
+        ContextTrimSummary summary = new ContextTrimSummary();
+        summary.setVersion(trimReport.getVersion());
+        summary.setBeforeTokens(trimReport.getTotalBeforeTokens());
+        summary.setAfterTokens(trimReport.getTotalAfterTokens());
+        if (trimReport.getRemovedItemsBySection() != null && !trimReport.getRemovedItemsBySection().isEmpty()) {
+            Map<String, com.example.agent.budget.ContextTrimStats> removedBySection = new HashMap<>();
+            for (Map.Entry<com.example.agent.budget.ContextSection, com.example.agent.budget.ContextTrimStats> entry
+                    : trimReport.getRemovedItemsBySection().entrySet()) {
+                if (entry.getKey() != null) {
+                    removedBySection.put(entry.getKey().name(), entry.getValue());
+                }
+            }
+            summary.setRemovedBySection(removedBySection.isEmpty() ? null : removedBySection);
+        }
+        summary.setReasons(trimReport.getReasons());
+        return summary;
+    }
+
+    private ContextCompressionSummary buildCompressionSummary(ContextCompressionResult result) {
+        if (result == null) {
+            return null;
+        }
+        if (!result.isTriggered()) {
+            return null;
+        }
+        ContextCompressionSummary summary = new ContextCompressionSummary();
+        summary.setTriggerReason(result.getTriggerReason());
+        Integer beforeTokens = result.getAfterTrimTokens() != null
+                ? result.getAfterTrimTokens()
+                : result.getBeforeTokens();
+        summary.setBeforeTokens(beforeTokens);
+        summary.setAfterTokens(result.getAfterCompressTokens());
+        summary.setDurationMs(result.getDurationMs());
+        summary.setSummaryVersion(result.getSummaryVersion());
+        return summary;
+    }
+
+    private void fillEvidenceStats(ContextSnapshotEventPayload payload, ContextSnapshot snapshot) {
+        if (payload == null) {
+            return;
+        }
+        EvidenceStatsSummary evidenceStats = resolveEvidenceStats(snapshot);
+        if (evidenceStats == null) {
+            return;
+        }
+        payload.setEvidencePackPresent(evidenceStats.isPresent());
+        payload.setEvidenceToolCallsCount(evidenceStats.getToolCallsCount());
+        payload.setEvidenceMemoriesCount(evidenceStats.getMemoriesCount());
+        payload.setEvidenceCitationsCount(evidenceStats.getCitationsCount());
+        payload.setEvidenceApproxChars(evidenceStats.getApproxChars());
+        payload.setEvidencePackVersion(evidenceStats.getVersion());
+    }
+
+    private Map<String, Object> buildStagePayload(ContextSnapshotEventPayload payload) {
+        Map<String, Object> map = new HashMap<>();
+        if (payload == null) {
+            return map;
+        }
+        if (payload.getTenantId() != null) {
+            map.put("tenantId", payload.getTenantId());
+        }
+        if (payload.getWorkflowId() != null) {
+            map.put("workflowId", payload.getWorkflowId());
+        }
+        if (payload.getSnapshotId() != null) {
+            map.put("snapshotId", payload.getSnapshotId());
+        }
+        if (payload.getStage() != null) {
+            map.put("stage", payload.getStage().name());
+        }
+        if (payload.getBudgetSummary() != null) {
+            map.put("budgetSummary", payload.getBudgetSummary());
+        }
+        if (payload.getTrimSummary() != null) {
+            map.put("trimSummary", payload.getTrimSummary());
+        }
+        if (payload.getCompressionSummary() != null) {
+            map.put("compressionSummary", payload.getCompressionSummary());
+        }
+        if (payload.getPromptTruncatedSections() != null) {
+            map.put("promptTruncatedSections", payload.getPromptTruncatedSections());
+        }
+        if (payload.getEvidencePackPresent() != null) {
+            map.put("evidencePackPresent", payload.getEvidencePackPresent());
+        }
+        if (payload.getEvidenceToolCallsCount() != null) {
+            map.put("evidenceToolCallsCount", payload.getEvidenceToolCallsCount());
+        }
+        if (payload.getEvidenceMemoriesCount() != null) {
+            map.put("evidenceMemoriesCount", payload.getEvidenceMemoriesCount());
+        }
+        if (payload.getEvidenceCitationsCount() != null) {
+            map.put("evidenceCitationsCount", payload.getEvidenceCitationsCount());
+        }
+        if (payload.getEvidenceApproxChars() != null) {
+            map.put("evidenceApproxChars", payload.getEvidenceApproxChars());
+        }
+        if (payload.getEvidencePackVersion() != null) {
+            map.put("evidencePackVersion", payload.getEvidencePackVersion());
+        }
+        return map;
+    }
+
+    private void recordStageMetrics(ContextSnapshotStage stage, Map<String, Object> payload) {
+        if (metricsPublisher == null || stage == null) {
+            return;
+        }
+        metricsPublisher.incrementWithTags("context_snapshot_events_total", "stage", stage.name());
+        if (payload != null) {
+            metricsPublisher.recordSummary("context_snapshot_event_payload_chars", payload.toString().length());
+        }
     }
 
     private ContextSnapshotSummary buildSnapshotSummary(ContextSnapshot snapshot) {

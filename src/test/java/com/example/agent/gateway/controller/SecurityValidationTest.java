@@ -38,15 +38,7 @@ import static org.mockito.Mockito.when;
         "auth.jwt.verify-signature=true",
         "auth.jwt.secret=test-secret",
         "auth.trusted-upstream.enabled=false",
-        "tenant.whitelist-paths=/actuator/health,/actuator/info",
-        "spring.autoconfigure.exclude="
-                + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.jdbc.JdbcRepositoriesAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration"
+        "tenant.whitelist-paths=/actuator/health,/actuator/info"
 })
 @AutoConfigureWebTestClient
 class SecurityValidationTest {

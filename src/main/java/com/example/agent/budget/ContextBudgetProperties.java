@@ -1,6 +1,8 @@
 package com.example.agent.budget;
 
+import java.util.ArrayList;
 import java.util.EnumMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -18,14 +20,19 @@ public class ContextBudgetProperties {
     private boolean enabled = true;
 
     /**
-     * 总预算令牌数，需大于等于 0，0 表示不分配预算。
+     * 总预算令牌数，需要大于等于 0，等于 0 表示不分配预算。
      */
     private int totalBudgetTokens = 8192;
 
     /**
-     * 分段比例配置，比例之和应不超过 1。
+     * 分区比例配置，比例之和应不超过 1。
      */
     private Ratios ratios = new Ratios();
+
+    /**
+     * 裁剪顺序配置。
+     */
+    private List<ContextTrimSection> trimOrder = new ArrayList<>(ContextTrimSection.defaultOrder());
 
     public boolean isEnabled() {
         return enabled;
@@ -51,6 +58,26 @@ public class ContextBudgetProperties {
         this.ratios = ratios;
     }
 
+    public List<ContextTrimSection> getTrimOrder() {
+        return trimOrder;
+    }
+
+    public void setTrimOrder(List<ContextTrimSection> trimOrder) {
+        this.trimOrder = trimOrder;
+    }
+
+    /**
+     * 获取有效裁剪顺序，未配置时返回默认顺序。
+     *
+     * @return 裁剪顺序
+     */
+    public List<ContextTrimSection> resolveTrimOrder() {
+        if (trimOrder == null || trimOrder.isEmpty()) {
+            return ContextTrimSection.defaultOrder();
+        }
+        return trimOrder;
+    }
+
     /**
      * 将配置转换为预算策略。
      *
@@ -63,9 +90,9 @@ public class ContextBudgetProperties {
     }
 
     /**
-     * 构建分段比例映射，未设置的分段默认为 0。
+     * 构建分区比例映射，未设置的分区默认为 0。
      *
-     * @return 分段比例映射
+     * @return 分区比例映射
      */
     public Map<ContextSection, Double> buildRatioMap() {
         EnumMap<ContextSection, Double> ratiosMap = new EnumMap<>(ContextSection.class);
@@ -84,57 +111,57 @@ public class ContextBudgetProperties {
     }
 
     /**
-     * 分段比例配置。
+     * 分区比例配置。
      */
     public static class Ratios {
 
         /**
-         * 系统策略分段比例。
+         * 系统策略分区比例。
          */
         private double systemPolicy = 0.05;
 
         /**
-         * 开发者策略分段比例。
+         * 开发者策略分区比例。
          */
         private double developerPolicy = 0.05;
 
         /**
-         * 任务意图分段比例。
+         * 任务意图分区比例。
          */
         private double taskIntent = 0.40;
 
         /**
-         * 工作记忆分段比例。
+         * 工作记忆分区比例。
          */
         private double workingMemory = 0.20;
 
         /**
-         * 领域知识分段比例。
+         * 领域知识分区比例。
          */
         private double domainKnowledge = 0.10;
 
         /**
-         * 长期记忆分段比例。
+         * 长期记忆分区比例。
          */
         private double longTermMemory = 0.10;
 
         /**
-         * 工具摘要分段比例。
+         * 工具摘要分区比例。
          */
         private double toolSummaries = 0.05;
 
         /**
-         * 工具模式分段比例。
+         * 工具模式分区比例。
          */
         private double toolSchema = 0.03;
 
         /**
-         * 证据包分段比例。
+         * 证据包分区比例。
          */
         private double evidencePack = 0.02;
 
         /**
-         * 余量分段比例。
+         * 余量分区比例。
          */
         private double slack = 0.0;
 

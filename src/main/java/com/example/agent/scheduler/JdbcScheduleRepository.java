@@ -2,6 +2,7 @@ package com.example.agent.scheduler;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -35,6 +36,7 @@ public class JdbcScheduleRepository implements ScheduleRepository {
             return null;
         }
         Instant now = Instant.now();
+        Timestamp nowTs = Timestamp.from(now);
         try {
             jdbcTemplate.update("""
                             INSERT INTO scheduled_tasks
@@ -54,8 +56,8 @@ public class JdbcScheduleRepository implements ScheduleRepository {
                     spec.getStatus(),
                     spec.getIdempotencyKey(),
                     spec.getTenantId(),
-                    now,
-                    now
+                    nowTs,
+                    nowTs
             );
             log.debug("调度入库, tenantId={}, scheduleId={}", spec.getTenantId(), spec.getScheduleId());
             return spec;

@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -42,6 +43,8 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
         }
         Instant startedAt = record.getStartedAt();
         Instant completedAt = record.getCompletedAt();
+        Timestamp startedAtTs = startedAt != null ? Timestamp.from(startedAt) : null;
+        Timestamp completedAtTs = completedAt != null ? Timestamp.from(completedAt) : null;
         try {
             jdbcTemplate.update("""
                             INSERT INTO step_records
@@ -71,8 +74,8 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
                     toJson(record.getOutput()),
                     record.getErrorCode(),
                     record.getTenantId(),
-                    startedAt,
-                    completedAt
+                    startedAtTs,
+                    completedAtTs
             );
             log.debug("步骤记录入库, tenantId={}, stepId={}", record.getTenantId(), record.getStepId());
         } catch (DataAccessException ex) {

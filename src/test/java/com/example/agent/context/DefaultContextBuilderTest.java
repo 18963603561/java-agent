@@ -7,16 +7,31 @@ import com.example.agent.budget.ContextBudgetProperties;
 import com.example.agent.budget.ContextBudgetRequest;
 import com.example.agent.budget.ContextPruneResult;
 import com.example.agent.budget.ContextPruner;
+import com.example.agent.budget.ContextSection;
+import com.example.agent.budget.ContextTrimReport;
+import com.example.agent.budget.ContextTrimRequest;
+import com.example.agent.budget.ContextTrimResult;
+import com.example.agent.budget.ContextTrimmer;
+import com.example.agent.budget.DefaultContextTrimmer;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.memory.ConversationSummary;
 import com.example.agent.memory.MemoryRecallResult;
 import com.example.agent.memory.MemoryRecord;
+import com.example.agent.memory.TokenEstimator;
 import com.example.agent.memory.WorkingMemorySummary;
+import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.runtime.ReactObservation;
+import com.example.agent.streaming.ContextEventPublisher;
+import com.example.agent.streaming.ContextSnapshotStage;
+import com.example.agent.domain.event.EventType;
+import com.example.agent.domain.event.StreamEvent;
+import com.example.agent.streaming.EventStreamService;
 import com.example.agent.tools.ToolCatalog;
 import com.example.agent.tools.ToolQuery;
 import com.example.agent.tools.ToolSummary;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -40,7 +55,7 @@ class DefaultContextBuilderTest {
         budgetProperties.setTotalBudgetTokens(2048);
 
         DefaultContextBuilder builder = new DefaultContextBuilder(toolCatalog, budgetAllocator, contextPruner,
-                budgetProperties);
+                null, null, budgetProperties, null, new MetricsPublisher(new SimpleMeterRegistry()));
         ReflectionTestUtils.setField(builder, "defaultTokenBudget", 2048);
         ReflectionTestUtils.setField(builder, "maxWorkingSummaryChars", 200);
 
@@ -90,7 +105,8 @@ class DefaultContextBuilderTest {
     void buildUsesStructuredSummaryWhenAvailable() {
         ContextBudgetProperties budgetProperties = new ContextBudgetProperties();
         budgetProperties.setTotalBudgetTokens(2048);
-        DefaultContextBuilder builder = new DefaultContextBuilder(null, null, null, budgetProperties);
+        DefaultContextBuilder builder = new DefaultContextBuilder(null, null, null, null, null, budgetProperties,
+                null, new MetricsPublisher(new SimpleMeterRegistry()));
         ReflectionTestUtils.setField(builder, "defaultTokenBudget", 2048);
         ReflectionTestUtils.setField(builder, "maxWorkingSummaryChars", 200);
 
@@ -131,5 +147,128 @@ class DefaultContextBuilderTest {
         assertEquals("结构化会话摘要", result.getSnapshot().getWorkingMemory().getSummary());
         assertEquals(List.of("要点1", "要点2"), result.getSnapshot().getWorkingMemory().getKeyFacts());
         assertEquals(Boolean.TRUE, result.getSnapshot().getWorkingMemory().getUsedStructuredSummary());
+    }
+    @Test
+    void buildGeneratesTrimReportWhenBudgetEnabled() {
+        ContextBudgetAllocator budgetAllocator = Mockito.mock(ContextBudgetAllocator.class);
+        ContextBudgetProperties budgetProperties = new ContextBudgetProperties();
+        budgetProperties.setTotalBudgetTokens(200);
+
+        TokenEstimator tokenEstimator = new TokenEstimator();
+        MetricsPublisher metricsPublisher = new MetricsPublisher(new SimpleMeterRegistry());
+        DefaultContextTrimmer contextTrimmer = new DefaultContextTrimmer(tokenEstimator, metricsPublisher, budgetProperties);
+
+        DefaultContextBuilder builder = new DefaultContextBuilder(null, budgetAllocator, null, contextTrimmer,
+                null, budgetProperties, null, new MetricsPublisher(new SimpleMeterRegistry()));
+        ReflectionTestUtils.setField(builder, "defaultTokenBudget", 200);
+        ReflectionTestUtils.setField(builder, "maxWorkingSummaryChars", 1000);
+
+        ContextBudgetAllocation allocation = new ContextBudgetAllocation();
+        allocation.setTotalTokens(80);
+        EnumMap<ContextSection, Integer> sectionTokens = new EnumMap<>(ContextSection.class);
+        for (ContextSection section : ContextSection.values()) {
+            sectionTokens.put(section, 0);
+        }
+        sectionTokens.put(ContextSection.WORKING_MEMORY, 20);
+        sectionTokens.put(ContextSection.USER_INPUT, 10);
+        allocation.setSectionTokens(sectionTokens);
+        when(budgetAllocator.allocate(any(ContextBudgetRequest.class))).thenReturn(allocation);
+
+        MemoryRecord record = new MemoryRecord();
+        record.setMemoryId("m3");
+        record.setSummary("a".repeat(600));
+        record.setLayer("recent");
+        MemoryRecallResult recallResult = MemoryRecallResult.hit(List.of(record), "a".repeat(600));
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("a".repeat(200));
+        request.setSessionId("s3");
+
+        TenantContext tenantContext = new TenantContext("t3", "u3", List.of(), "req", "trace");
+
+        ContextBuildRequest buildRequest = new ContextBuildRequest();
+        buildRequest.setTaskRequest(request);
+        buildRequest.setTenantContext(tenantContext);
+        buildRequest.setWorkflowId("wf-3");
+        buildRequest.setTaskId("task-3");
+        buildRequest.setRecallResult(recallResult);
+
+        ContextBuildResult result = builder.build(buildRequest);
+
+        assertNotNull(result.getTrimReport());
+        assertTrue(result.getTrimReport().getTotalAfterTokens() <= allocation.getTotalTokens());
+    }
+
+    @Test
+    void buildPublishesContextTrimmedStageEvent() {
+        ContextBudgetAllocator budgetAllocator = Mockito.mock(ContextBudgetAllocator.class);
+        ContextTrimmer contextTrimmer = Mockito.mock(ContextTrimmer.class);
+        ContextBudgetProperties budgetProperties = new ContextBudgetProperties();
+        budgetProperties.setTotalBudgetTokens(200);
+
+        TestEventPublisher eventPublisher = new TestEventPublisher();
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        when(eventStreamService.nextSequence(any(), any())).thenReturn(1L);
+        ContextEventPublisher contextEventPublisher = new ContextEventPublisher(
+                eventPublisher,
+                eventStreamService,
+                new MetricsPublisher(new SimpleMeterRegistry()));
+
+        DefaultContextBuilder builder = new DefaultContextBuilder(null, budgetAllocator, null, contextTrimmer,
+                null, budgetProperties, contextEventPublisher, new MetricsPublisher(new SimpleMeterRegistry()));
+        ReflectionTestUtils.setField(builder, "defaultTokenBudget", 200);
+
+        ContextBudgetAllocation allocation = new ContextBudgetAllocation();
+        allocation.setTotalTokens(80);
+        when(budgetAllocator.allocate(any(ContextBudgetRequest.class))).thenReturn(allocation);
+
+        ContextTrimReport report = new ContextTrimReport();
+        report.setTotalBeforeTokens(120);
+        report.setTotalAfterTokens(80);
+        report.setReasons(List.of("OVER_BUDGET"));
+        ContextTrimResult trimResult = new ContextTrimResult();
+        trimResult.setReport(report);
+        when(contextTrimmer.trim(any(ContextTrimRequest.class))).thenReturn(trimResult);
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("q");
+        request.setSessionId("s1");
+
+        TenantContext tenantContext = new TenantContext("t1", "u1", List.of(), "req", "trace");
+
+        ContextBuildRequest buildRequest = new ContextBuildRequest();
+        buildRequest.setTaskRequest(request);
+        buildRequest.setTenantContext(tenantContext);
+        buildRequest.setWorkflowId("wf-1");
+
+        builder.build(buildRequest);
+
+        StreamEvent event = eventPublisher.findFirst(EventType.CONTEXT_SNAPSHOT_STAGE);
+        assertNotNull(event);
+        assertEquals(ContextSnapshotStage.CONTEXT_TRIMMED.name(), event.getPayload().get("stage"));
+        assertNotNull(event.getPayload().get("trimSummary"));
+    }
+
+    static class TestEventPublisher implements org.springframework.context.ApplicationEventPublisher {
+        private final List<StreamEvent> events = new java.util.ArrayList<>();
+
+        @Override
+        public void publishEvent(Object event) {
+            if (event instanceof StreamEvent streamEvent) {
+                events.add(streamEvent);
+            }
+        }
+
+        @Override
+        public void publishEvent(org.springframework.context.ApplicationEvent event) {
+            // 忽略 ApplicationEvent 分支
+        }
+
+        public StreamEvent findFirst(EventType type) {
+            return events.stream()
+                    .filter(event -> event.getType() == type)
+                    .findFirst()
+                    .orElse(null);
+        }
     }
 }

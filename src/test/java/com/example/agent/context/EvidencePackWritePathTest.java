@@ -19,10 +19,13 @@ import com.example.agent.model.ModelDefinition;
 import com.example.agent.model.ModelRouter;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.observability.TracingPublisher;
+import com.example.agent.security.RedactionProperties;
+import com.example.agent.security.RedactionService;
 import com.example.agent.sandbox.SandboxResult;
 import com.example.agent.tools.McpToolCallResponse;
 import com.example.agent.tools.McpToolClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
@@ -72,7 +75,8 @@ class EvidencePackWritePathTest {
                 .thenReturn(new McpToolCallResponse("call-1", "SUCCESS", Map.of("value", "ok"), null));
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, evidencePackService);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, evidencePackService,
+                null);
         ReflectionTestUtils.setField(executor, "cacheEnabled", false);
 
         Map<String, Object> context = new HashMap<>();
@@ -109,7 +113,8 @@ class EvidencePackWritePathTest {
 
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         EvidencePackService evidencePackService = new EvidencePackService(metricsPublisher);
-        MemoryRecallService service = new MemoryRecallService(memoryStore, properties, evidencePackService);
+        MemoryRecallService service = new MemoryRecallService(memoryStore, properties, evidencePackService,
+                buildRedactionService(), new MetricsPublisher(new SimpleMeterRegistry()));
 
         MemoryRecord recordA = new MemoryRecord();
         recordA.setMemoryId("memory-a");
@@ -126,7 +131,7 @@ class EvidencePackWritePathTest {
         recordB.setLayer("recent");
 
         MemorySearchResult searchResult = new MemorySearchResult(List.of(recordA, recordB));
-        when(memoryStore.search(any(), any())).thenReturn(searchResult);
+        when(memoryStore.search(any(), any(), any())).thenReturn(searchResult);
 
         Map<String, Object> context = new HashMap<>();
         context.put("workflowId", "workflow-1");
@@ -149,5 +154,13 @@ class EvidencePackWritePathTest {
         assertEquals("v1", evidence.getSummaryVersion());
         assertNotNull(pack.getStats());
         assertEquals(2, pack.getStats().getMemoriesCount());
+    }
+
+    private RedactionService buildRedactionService() {
+        RedactionProperties properties = new RedactionProperties();
+        properties.setEnabled(true);
+        properties.setRejectOnSecrets(true);
+        properties.setRedactOnPii(true);
+        return new RedactionService(properties, new MetricsPublisher(new SimpleMeterRegistry()));
     }
 }

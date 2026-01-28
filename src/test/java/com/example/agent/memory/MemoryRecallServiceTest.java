@@ -3,6 +3,10 @@ package com.example.agent.memory;
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.context.EvidencePackService;
+import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.security.RedactionProperties;
+import com.example.agent.security.RedactionService;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -28,7 +32,8 @@ class MemoryRecallServiceTest {
         properties.setMaxRecordChars(100);
         properties.setMaxSummaryChars(200);
         EvidencePackService evidencePackService = Mockito.mock(EvidencePackService.class);
-        MemoryRecallService service = new MemoryRecallService(store, properties, evidencePackService);
+        MemoryRecallService service = new MemoryRecallService(store, properties, evidencePackService,
+                buildRedactionService(), new MetricsPublisher(new SimpleMeterRegistry()));
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
         MemoryRecord record = new MemoryRecord();
@@ -55,7 +60,8 @@ class MemoryRecallServiceTest {
         MemoryRecallProperties properties = new MemoryRecallProperties();
         properties.setEnabled(true);
         EvidencePackService evidencePackService = Mockito.mock(EvidencePackService.class);
-        MemoryRecallService service = new MemoryRecallService(store, properties, evidencePackService);
+        MemoryRecallService service = new MemoryRecallService(store, properties, evidencePackService,
+                buildRedactionService(), new MetricsPublisher(new SimpleMeterRegistry()));
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
         TaskRequest request = new TaskRequest();
@@ -65,6 +71,37 @@ class MemoryRecallServiceTest {
         MemoryRecallResult result = service.recall(request, request.getContext(), tenantContext);
         assertFalse(result.isUsed());
         assertEquals(0, result.getCount());
+    }
+
+    @Test
+    void recallRedactsSensitiveContent() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryStore store = buildStore(repository);
+        MemoryRecallProperties properties = new MemoryRecallProperties();
+        properties.setEnabled(true);
+        properties.setMinQueryLength(1);
+        properties.setLimit(5);
+        properties.setMaxRecordChars(200);
+        properties.setMaxSummaryChars(200);
+        EvidencePackService evidencePackService = Mockito.mock(EvidencePackService.class);
+        MemoryRecallService service = new MemoryRecallService(store, properties, evidencePackService,
+                buildRedactionService(), new MetricsPublisher(new SimpleMeterRegistry()));
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        MemoryRecord record = new MemoryRecord();
+        record.setSessionId("session-1");
+        record.setContent("联系邮箱 test@example.com");
+        store.save(record, tenantContext);
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("邮箱");
+        request.setSessionId("session-1");
+        request.setContext(Map.of());
+
+        MemoryRecallResult result = service.recall(request, request.getContext(), tenantContext);
+        assertTrue(result.isUsed());
+        assertTrue(result.getRedactionsAppliedCount() > 0);
+        assertTrue(result.getSummary().contains("【已脱敏邮箱】"));
     }
 
     private MemoryStore buildStore(InMemoryMemoryRepository repository) {
@@ -129,5 +166,13 @@ class MemoryRecallServiceTest {
         public Stream<T> orderedStream() {
             return stream();
         }
+    }
+
+    private RedactionService buildRedactionService() {
+        RedactionProperties properties = new RedactionProperties();
+        properties.setEnabled(true);
+        properties.setRejectOnSecrets(true);
+        properties.setRedactOnPii(true);
+        return new RedactionService(properties, new MetricsPublisher(new SimpleMeterRegistry()));
     }
 }

@@ -24,15 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         "auth.api-keys.test-key.roles=ROLE_USER",
         "auth.trusted-upstream.enabled=false",
         "tenant.whitelist-paths=/actuator/health,/actuator/info",
-        "agent.sse.timeoutSeconds=0",
-        "spring.autoconfigure.exclude="
-                + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.jdbc.JdbcRepositoriesAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration"
+        "agent.sse.timeoutSeconds=0"
 })
 @AutoConfigureWebTestClient
 class McpToolEventTest {

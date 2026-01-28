@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -41,6 +42,8 @@ public class JdbcEventLogRepository implements EventLogRepository {
             return false;
         }
         Instant timestamp = record.getTimestamp() != null ? record.getTimestamp() : Instant.now();
+        Timestamp timestampTs = Timestamp.from(timestamp);
+        Timestamp createdAtTs = Timestamp.from(Instant.now());
         Long seq = parseSeq(record.getEventId());
         PGobject payload = toJson(record.getPayload());
         try {
@@ -53,12 +56,12 @@ public class JdbcEventLogRepository implements EventLogRepository {
                     record.getEventId(),
                     record.getWorkflowId(),
                     record.getType(),
-                    timestamp,
+                    timestampTs,
                     payload,
                     record.getTenantId(),
                     seq,
                     record.getWorkflowId(),
-                    Instant.now()
+                    createdAtTs
             );
             log.debug("事件日志入库, tenantId={}, workflowId={}, eventId={}, updated={}",
                     record.getTenantId(), record.getWorkflowId(), record.getEventId(), updated);

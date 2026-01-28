@@ -53,6 +53,11 @@ public class WorkingMemory {
     private Integer workingMemoryItems;
 
     /**
+     * 记忆脱敏处理次数。
+     */
+    private Integer redactionsAppliedCount;
+
+    /**
      * 是否使用结构化摘要填充工作记忆。
      */
     private Boolean usedStructuredSummary;
@@ -127,6 +132,14 @@ public class WorkingMemory {
 
     public void setWorkingMemoryItems(Integer workingMemoryItems) {
         this.workingMemoryItems = workingMemoryItems;
+    }
+
+    public Integer getRedactionsAppliedCount() {
+        return redactionsAppliedCount;
+    }
+
+    public void setRedactionsAppliedCount(Integer redactionsAppliedCount) {
+        this.redactionsAppliedCount = redactionsAppliedCount;
     }
 
     public Boolean getUsedStructuredSummary() {

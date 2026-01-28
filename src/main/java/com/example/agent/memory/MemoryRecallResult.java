@@ -27,11 +27,21 @@ public class MemoryRecallResult {
      */
     private final String summary;
 
-    private MemoryRecallResult(boolean used, String reason, List<MemoryRecord> records, String summary) {
+    /**
+     * 脱敏替换次数统计。
+     */
+    private final int redactionsAppliedCount;
+
+    private MemoryRecallResult(boolean used,
+                               String reason,
+                               List<MemoryRecord> records,
+                               String summary,
+                               int redactionsAppliedCount) {
         this.used = used;
         this.reason = reason;
         this.records = records == null ? List.of() : records;
         this.summary = summary;
+        this.redactionsAppliedCount = redactionsAppliedCount;
     }
 
     /**
@@ -41,7 +51,7 @@ public class MemoryRecallResult {
      * @return 跳过结果
      */
     public static MemoryRecallResult skipped(String reason) {
-        return new MemoryRecallResult(false, reason, List.of(), null);
+        return new MemoryRecallResult(false, reason, List.of(), null, 0);
     }
 
     /**
@@ -52,7 +62,19 @@ public class MemoryRecallResult {
      * @return 命中结果
      */
     public static MemoryRecallResult hit(List<MemoryRecord> records, String summary) {
-        return new MemoryRecallResult(true, "ok", records, summary);
+        return new MemoryRecallResult(true, "ok", records, summary, 0);
+    }
+
+    /**
+     * 创建命中结果，带脱敏统计。
+     *
+     * @param records 召回记录
+     * @param summary 摘要文本
+     * @param redactionsAppliedCount 脱敏替换次数
+     * @return 命中结果
+     */
+    public static MemoryRecallResult hit(List<MemoryRecord> records, String summary, int redactionsAppliedCount) {
+        return new MemoryRecallResult(true, "ok", records, summary, redactionsAppliedCount);
     }
 
     public boolean isUsed() {
@@ -69,6 +91,10 @@ public class MemoryRecallResult {
 
     public String getSummary() {
         return summary;
+    }
+
+    public int getRedactionsAppliedCount() {
+        return redactionsAppliedCount;
     }
 
     public int getCount() {

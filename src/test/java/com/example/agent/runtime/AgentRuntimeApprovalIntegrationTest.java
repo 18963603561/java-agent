@@ -3,6 +3,8 @@ package com.example.agent.runtime;
 import com.example.agent.agentcore.EnforcementGateway;
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.context.ContextAssembler;
+import com.example.agent.context.EvidencePackService;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.evaluation.CapabilityBoundaryEvaluator;
@@ -81,7 +83,9 @@ class AgentRuntimeApprovalIntegrationTest {
                 promptAssembler,
                 plannerProperties,
                 evaluator,
-                new ObjectMapper()
+                new ObjectMapper(),
+                Mockito.mock(ContextAssembler.class),
+                Mockito.mock(ContextEventPublisher.class)
         );
 
         ExecutionControlService executionControlService = new ExecutionControlService();
@@ -130,6 +134,7 @@ class AgentRuntimeApprovalIntegrationTest {
         when(memoryRecallService.recall(any(), any(), any()))
                 .thenReturn(MemoryRecallResult.skipped("skip"));
         MemoryWriteService memoryWriteService = mock(MemoryWriteService.class);
+        EvidencePackService evidencePackService = mock(EvidencePackService.class);
         TracingPublisher tracingPublisher = mock(TracingPublisher.class);
         when(tracingPublisher.currentTraceId()).thenReturn("trace");
         ContextBuilder contextBuilder = mock(ContextBuilder.class);
@@ -151,6 +156,7 @@ class AgentRuntimeApprovalIntegrationTest {
                 reactLoopService,
                 memoryRecallService,
                 memoryWriteService,
+                evidencePackService,
                 contextBuilder,
                 contextEventPublisher,
                 eventPublisher,

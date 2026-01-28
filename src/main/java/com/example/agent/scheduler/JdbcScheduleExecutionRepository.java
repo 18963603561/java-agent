@@ -2,6 +2,7 @@ package com.example.agent.scheduler;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -34,6 +35,9 @@ public class JdbcScheduleExecutionRepository implements ScheduleExecutionReposit
             return;
         }
         Instant startedAt = record.getStartedAt() != null ? record.getStartedAt() : Instant.now();
+        Timestamp startedAtTs = Timestamp.from(startedAt);
+        Instant endedAt = record.getEndedAt();
+        Timestamp endedAtTs = endedAt != null ? Timestamp.from(endedAt) : null;
         try {
             jdbcTemplate.update("""
                             INSERT INTO scheduled_task_executions
@@ -43,8 +47,8 @@ public class JdbcScheduleExecutionRepository implements ScheduleExecutionReposit
                     record.getExecutionId(),
                     record.getScheduleId(),
                     record.getStatus(),
-                    startedAt,
-                    record.getEndedAt(),
+                    startedAtTs,
+                    endedAtTs,
                     record.getCostUsd(),
                     record.getTokenUsage(),
                     record.getTenantId()

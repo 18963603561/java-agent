@@ -18,6 +18,9 @@ public class EvidencePackService {
     public static final String CONTEXT_EVIDENCE_PACK = "evidencePack";
 
     private static final Logger log = LoggerFactory.getLogger(EvidencePackService.class);
+    private static final int MAX_CITATION_LABEL_CHARS = 120;
+    private static final int MAX_CITATION_REF_ID_CHARS = 200;
+    private static final int MAX_CITATION_SOURCE_CHARS = 64;
 
     private final MetricsPublisher metricsPublisher;
 
@@ -154,6 +157,65 @@ public class EvidencePackService {
      * @param workflowId 工作流标识
      * @return 刷新后的证据包
      */
+    /**
+     * 追加研究引用证据并刷新统计信息。
+     *
+     * @param pack 证据包
+     * @param citations 研究引用列表
+     * @param tenantId 租户标识
+     * @param workflowId 工作流标识
+     * @param stage 引用来源阶段
+     */
+    public void addResearchCitations(EvidencePack pack,
+                                     List<com.example.agent.research.ResearchCitation> citations,
+                                     String tenantId,
+                                     String workflowId,
+                                     String stage) {
+        if (citations == null || citations.isEmpty()) {
+            return;
+        }
+        List<Citation> mapped = mapResearchCitations(citations);
+        addCitations(pack, mapped, tenantId, workflowId, stage);
+    }
+
+    /**
+     * 追加引用证据并刷新统计信息。
+     *
+     * @param pack 证据包
+     * @param citations 引用列表
+     * @param tenantId 租户标识
+     * @param workflowId 工作流标识
+     * @param stage 引用来源阶段
+     */
+    public void addCitations(EvidencePack pack,
+                             List<Citation> citations,
+                             String tenantId,
+                             String workflowId,
+                             String stage) {
+        if (pack == null || citations == null || citations.isEmpty()) {
+            return;
+        }
+        synchronized (pack) {
+            if (pack.getCitations() == null) {
+                pack.setCitations(new CopyOnWriteArrayList<>());
+            }
+            pack.getCitations().addAll(citations);
+        }
+        int addedCount = citations.size();
+        for (int i = 0; i < addedCount; i++) {
+            metricsPublisher.increment("evidence_pack_citations_added_total");
+        }
+        EvidenceStats stats = pack.recomputeStats();
+        int totalCount = stats != null && stats.getCitationsCount() != null ? stats.getCitationsCount() : 0;
+        String stageTag = stage == null || stage.isBlank() ? "unknown" : stage;
+        metricsPublisher.incrementWithTags("evidence_pack_citations_total", totalCount, "stage", stageTag);
+        log.info("evidence citations append tenantId={}, workflowId={}, citationsAddedCount={}, citationsTotalCount={}",
+                tenantId,
+                workflowId,
+                addedCount,
+                totalCount);
+    }
+
     public EvidencePack finalizePack(EvidencePack pack, String tenantId, String workflowId) {
         if (pack == null) {
             return null;
@@ -171,5 +233,50 @@ public class EvidencePackService {
                 stats != null ? stats.getCitationsCount() : null,
                 stats != null ? stats.getApproxChars() : null);
         return pack;
+    }
+
+    /**
+     * 将研究引用映射为证据引用，并做截断处理。
+     */
+    private List<Citation> mapResearchCitations(List<com.example.agent.research.ResearchCitation> citations) {
+        List<Citation> mapped = new java.util.ArrayList<>();
+        for (com.example.agent.research.ResearchCitation research : citations) {
+            if (research == null) {
+                continue;
+            }
+            String source = trimText(research.getSource(), MAX_CITATION_SOURCE_CHARS);
+            String label = trimText(research.getSnippet(), MAX_CITATION_LABEL_CHARS);
+            String refId = buildRefId(source, label);
+            Citation citation = new Citation();
+            citation.setType("RESEARCH");
+            citation.setSource(source);
+            citation.setRefId(refId);
+            if (label != null && !label.isBlank()) {
+                citation.setLabel(label);
+            }
+            citation.setFetchedAt(research.getFetchedAt());
+            mapped.add(citation);
+        }
+        return mapped;
+    }
+
+    private String buildRefId(String source, String label) {
+        if (source != null && (source.startsWith("http://") || source.startsWith("https://"))) {
+            return trimText(source, MAX_CITATION_REF_ID_CHARS);
+        }
+        String base = source != null && !source.isBlank() ? source : "research";
+        String hash = label != null && !label.isBlank() ? Integer.toHexString(label.hashCode()) : "unknown";
+        return trimText(base + ":" + hash, MAX_CITATION_REF_ID_CHARS);
+    }
+
+    private String trimText(String text, int maxChars) {
+        if (text == null) {
+            return null;
+        }
+        String trimmed = text.trim();
+        if (maxChars <= 0 || trimmed.length() <= maxChars) {
+            return trimmed;
+        }
+        return trimmed.substring(0, maxChars);
     }
 }

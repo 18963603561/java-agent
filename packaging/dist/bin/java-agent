@@ -1,0 +1,171 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+JAVA_AGENT_HOME="${JAVA_AGENT_HOME:-${TOOLBOX_HOME:-$(cd "${script_dir}/.." && pwd)}}"
+export JAVA_AGENT_HOME
+export TOOLBOX_HOME="${JAVA_AGENT_HOME}"
+
+# Load environment
+# shellcheck disable=SC1090
+. "${script_dir}/java-agent-env.sh"
+
+pid_file="${JAVA_AGENT_HOME}/run/java-agent.pid"
+log_file="${JAVA_AGENT_HOME}/logs/java-agent.out"
+jar_file="${JAVA_AGENT_HOME}/lib/java-agent.jar"
+java_cmd="${JAVA_HOME}/bin/java"
+
+ensure_dirs() {
+  mkdir -p "${JAVA_AGENT_HOME}/logs" "${JAVA_AGENT_HOME}/run"
+}
+
+is_running() {
+  if [ ! -f "${pid_file}" ]; then
+    return 1
+  fi
+  local pid
+  pid="$(cat "${pid_file}" 2>/dev/null || true)"
+  if [ -z "${pid}" ]; then
+    return 1
+  fi
+  if ps -p "${pid}" >/dev/null 2>&1; then
+    return 0
+  fi
+  return 1
+}
+
+start() {
+  if is_running; then
+    echo "Already running: pid=$(cat "${pid_file}")"
+    return 0
+  fi
+  if [ ! -f "${jar_file}" ]; then
+    echo "Jar not found: ${jar_file}" >&2
+    exit 1
+  fi
+  ensure_dirs
+  # shellcheck disable=SC2086
+  "${java_cmd}" ${JAVA_OPTS} -jar "${jar_file}" \
+    --spring.config.location="${JAVA_AGENT_CONFIG}" \
+    ${APP_OPTS} >>"${log_file}" 2>&1 &
+  echo $! >"${pid_file}"
+  echo "Started: pid=$(cat "${pid_file}")"
+}
+
+stop() {
+  if ! is_running; then
+    if [ -f "${pid_file}" ]; then
+      rm -f "${pid_file}"
+    fi
+    echo "Not running"
+    return 0
+  fi
+  local pid
+  pid="$(cat "${pid_file}")"
+  kill -TERM "${pid}" >/dev/null 2>&1 || true
+  local waited=0
+  while ps -p "${pid}" >/dev/null 2>&1; do
+    if [ "${waited}" -ge 20 ]; then
+      break
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  if ps -p "${pid}" >/dev/null 2>&1; then
+    kill -KILL "${pid}" >/dev/null 2>&1 || true
+  fi
+  rm -f "${pid_file}"
+  echo "Stopped"
+}
+
+status() {
+  if is_running; then
+    local pid
+    pid="$(cat "${pid_file}")"
+    local cmdline
+    cmdline="$(ps -p "${pid}" -o command=)"
+    echo "Running: pid=${pid}"
+    echo "Command: ${cmdline}"
+    return 0
+  fi
+  echo "Not running"
+  return 1
+}
+
+run() {
+  if [ ! -f "${jar_file}" ]; then
+    echo "Jar not found: ${jar_file}" >&2
+    exit 1
+  fi
+  # shellcheck disable=SC2086
+  exec "${java_cmd}" ${JAVA_OPTS} -jar "${jar_file}" \
+    --spring.config.location="${JAVA_AGENT_CONFIG}" \
+    ${APP_OPTS}
+}
+
+update() {
+  local pkg="${1:-}"
+  if [ -z "${pkg}" ]; then
+    echo "Usage: java-agent update /path/to/java-agent-<version>-linux-x64.tar.gz" >&2
+    exit 2
+  fi
+  if [ ! -f "${pkg}" ]; then
+    echo "Package not found: ${pkg}" >&2
+    exit 1
+  fi
+
+  if is_running; then
+    stop
+  fi
+
+  local tmp_dir
+  tmp_dir="$(mktemp -d)"
+  trap 'rm -rf "${tmp_dir}"' EXIT
+  tar -xzf "${pkg}" -C "${tmp_dir}"
+
+  local new_root="${tmp_dir}/java-agent"
+  if [ ! -d "${new_root}" ]; then
+    echo "Invalid package layout: missing java-agent directory" >&2
+    exit 1
+  fi
+
+  if [ -f "${JAVA_AGENT_HOME}/conf/java-agent.conf" ]; then
+    cp "${JAVA_AGENT_HOME}/conf/java-agent.conf" "${new_root}/conf/java-agent.conf"
+  fi
+
+  for item in bin lib conf README.md; do
+    rm -rf "${JAVA_AGENT_HOME:?}/${item}"
+    cp -a "${new_root}/${item}" "${JAVA_AGENT_HOME}/"
+  done
+  ensure_dirs
+  echo "Update complete"
+}
+
+cmd="${1:-}"
+shift || true
+
+case "${cmd}" in
+  start)
+    start "$@"
+    ;;
+  stop)
+    stop "$@"
+    ;;
+  restart)
+    stop "$@"
+    start "$@"
+    ;;
+  status)
+    status "$@"
+    ;;
+  run)
+    run "$@"
+    ;;
+  update)
+    update "$@"
+    ;;
+  *)
+    echo "Usage: java-agent {start|stop|restart|status|run|update}" >&2
+    exit 2
+    ;;
+esac

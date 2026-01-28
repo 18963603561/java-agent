@@ -6,16 +6,25 @@ import com.example.agent.budget.ContextBudgetAllocator;
 import com.example.agent.budget.ContextBudgetPolicy;
 import com.example.agent.budget.ContextBudgetProperties;
 import com.example.agent.budget.ContextBudgetRequest;
+import com.example.agent.budget.ContextCompressionController;
+import com.example.agent.budget.ContextCompressionRequest;
+import com.example.agent.budget.ContextCompressionResult;
 import com.example.agent.budget.ContextPruneRequest;
 import com.example.agent.budget.ContextPruneResult;
 import com.example.agent.budget.ContextPruner;
+import com.example.agent.budget.ContextTrimRequest;
+import com.example.agent.budget.ContextTrimResult;
+import com.example.agent.budget.ContextTrimmer;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.memory.ConversationSummary;
 import com.example.agent.memory.MemoryRecallResult;
 import com.example.agent.memory.MemoryRecord;
 import com.example.agent.memory.WorkingMemorySummary;
+import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.research.ResearchCitation;
 import com.example.agent.runtime.ReactObservation;
+import com.example.agent.streaming.ContextEventPublisher;
+import com.example.agent.streaming.ContextSnapshotStage;
 import com.example.agent.tools.ToolCatalog;
 import com.example.agent.tools.ToolQuery;
 import com.example.agent.tools.ToolSummary;
@@ -42,7 +51,17 @@ public class DefaultContextBuilder implements ContextBuilder {
     private final ToolCatalog toolCatalog;
     private final ContextBudgetAllocator budgetAllocator;
     private final ContextPruner contextPruner;
+    private final ContextTrimmer contextTrimmer;
+    private final ContextCompressionController compressionController;
     private final ContextBudgetProperties budgetProperties;
+    /**
+     * 上下文事件发布器。
+     */
+    private final ContextEventPublisher contextEventPublisher;
+    /**
+     * 指标发布器，用于记录策略应用情况。
+     */
+    private final MetricsPublisher metricsPublisher;
 
     @Value("${agent.context.default-token-budget:4096}")
     private int defaultTokenBudget;
@@ -53,11 +72,19 @@ public class DefaultContextBuilder implements ContextBuilder {
     public DefaultContextBuilder(ToolCatalog toolCatalog,
                                  ContextBudgetAllocator budgetAllocator,
                                  ContextPruner contextPruner,
-                                 ContextBudgetProperties budgetProperties) {
+                                 ContextTrimmer contextTrimmer,
+                                 ContextCompressionController compressionController,
+                                 ContextBudgetProperties budgetProperties,
+                                 ContextEventPublisher contextEventPublisher,
+                                 MetricsPublisher metricsPublisher) {
         this.toolCatalog = toolCatalog;
         this.budgetAllocator = budgetAllocator;
         this.contextPruner = contextPruner;
+        this.contextTrimmer = contextTrimmer;
+        this.compressionController = compressionController;
         this.budgetProperties = budgetProperties;
+        this.contextEventPublisher = contextEventPublisher;
+        this.metricsPublisher = metricsPublisher;
     }
 
     @Override
@@ -74,6 +101,8 @@ public class DefaultContextBuilder implements ContextBuilder {
         log.debug("上下文构建开始, tenantId={}, workflowId={}",
                 tenantContext != null ? tenantContext.getTenantId() : null,
                 request.getWorkflowId());
+        ContextPolicy policy = resolvePolicy(request, runtimeContext);
+        recordPolicyApplied(tenantContext, request.getWorkflowId(), policy);
         try {
             ContextSnapshot snapshot = new ContextSnapshot();
             snapshot.setSnapshotId(UUID.randomUUID().toString());
@@ -98,16 +127,45 @@ public class DefaultContextBuilder implements ContextBuilder {
 
             ContextPruneResult pruneResult = null;
             if (contextPruner != null && allocation != null) {
-                pruneResult = contextPruner.prune(new ContextPruneRequest(snapshot, allocation, request.getPolicy()));
+                pruneResult = contextPruner.prune(new ContextPruneRequest(snapshot, allocation, policy));
                 if (pruneResult != null && pruneResult.getPrunedSnapshot() != null) {
                     snapshot = pruneResult.getPrunedSnapshot();
                 }
             }
 
+            ContextTrimResult trimResult = null;
+            if (contextTrimmer != null && allocation != null) {
+                ContextBudgetPolicy budgetPolicy = budgetRequest != null ? budgetRequest.getBudgetPolicy() : null;
+                trimResult = contextTrimmer.trim(new ContextTrimRequest(snapshot, allocation, budgetPolicy));
+                if (trimResult != null && trimResult.getTrimmedSnapshot() != null) {
+                    snapshot = trimResult.getTrimmedSnapshot();
+                }
+            }
+            publishTrimStage(tenantContext, request.getWorkflowId(), snapshot, allocation,
+                    trimResult != null ? trimResult.getReport() : null);
+
+            ContextCompressionResult compressionResult = null;
+            if (compressionController != null && allocation != null) {
+                String sessionId = taskRequest != null ? taskRequest.getSessionId()
+                        : runtimeMeta != null ? runtimeMeta.getSessionId() : null;
+                compressionResult = compressionController.compressIfNeeded(new ContextCompressionRequest(
+                        snapshot,
+                        allocation,
+                        trimResult != null ? trimResult.getReport() : null,
+                        tenantContext,
+                        request.getWorkflowId(),
+                        sessionId));
+                if (compressionResult != null && compressionResult.getSnapshot() != null) {
+                    snapshot = compressionResult.getSnapshot();
+                }
+            }
+            publishCompressionStage(tenantContext, request.getWorkflowId(), snapshot, allocation, compressionResult);
+
             BuildMetrics metrics = buildMetrics(snapshot, request.getRecallResult(), System.nanoTime() - startNs);
             result.setSnapshot(snapshot);
             result.setBudgetAllocation(allocation);
             result.setPruneResult(pruneResult);
+            result.setTrimReport(trimResult != null ? trimResult.getReport() : null);
             result.setMetrics(metrics);
 
             log.info("上下文构建完成, tenantId={}, snapshotId={}, buildMillis={}",
@@ -119,6 +177,62 @@ public class DefaultContextBuilder implements ContextBuilder {
             log.error("上下文构建失败, tenantId={}", tenantContext != null ? tenantContext.getTenantId() : null, ex);
             return result;
         }
+    }
+
+    /**
+     * 发布裁剪阶段事件，便于审计与回放。
+     */
+    private void publishTrimStage(TenantContext tenantContext,
+                                  String workflowId,
+                                  ContextSnapshot snapshot,
+                                  ContextBudgetAllocation allocation,
+                                  com.example.agent.budget.ContextTrimReport trimReport) {
+        if (contextEventPublisher == null || tenantContext == null || workflowId == null || trimReport == null) {
+            return;
+        }
+        contextEventPublisher.publishSnapshotStage(
+                tenantContext,
+                workflowId,
+                null,
+                snapshot,
+                null,
+                allocation,
+                trimReport,
+                null,
+                null,
+                ContextSnapshotStage.CONTEXT_TRIMMED,
+                trimReport.getTotalBeforeTokens(),
+                trimReport.getTotalAfterTokens());
+    }
+
+    /**
+     * 发布压缩阶段事件，便于审计与回放。
+     */
+    private void publishCompressionStage(TenantContext tenantContext,
+                                         String workflowId,
+                                         ContextSnapshot snapshot,
+                                         ContextBudgetAllocation allocation,
+                                         ContextCompressionResult compressionResult) {
+        if (contextEventPublisher == null || tenantContext == null || workflowId == null
+                || compressionResult == null || !compressionResult.isTriggered()) {
+            return;
+        }
+        Integer beforeTokens = compressionResult.getAfterTrimTokens() != null
+                ? compressionResult.getAfterTrimTokens()
+                : compressionResult.getBeforeTokens();
+        contextEventPublisher.publishSnapshotStage(
+                tenantContext,
+                workflowId,
+                null,
+                snapshot,
+                null,
+                allocation,
+                null,
+                compressionResult,
+                null,
+                ContextSnapshotStage.CONTEXT_COMPRESSED,
+                beforeTokens,
+                compressionResult.getAfterCompressTokens());
     }
 
     private RuntimeMeta buildRuntimeMeta(TaskRequest request,
@@ -205,6 +319,9 @@ public class DefaultContextBuilder implements ContextBuilder {
         }
         if (recallResult != null && recallResult.isUsed()) {
             memory.setUsedStructuredSummary(usedStructuredSummary);
+        }
+        if (recallResult != null && recallResult.getRedactionsAppliedCount() > 0) {
+            memory.setRedactionsAppliedCount(recallResult.getRedactionsAppliedCount());
         }
         if (memory.getSummaryChars() == null) {
             memory.setSummaryChars(memory.getSummary() != null ? memory.getSummary().length() : 0);
@@ -415,6 +532,102 @@ public class DefaultContextBuilder implements ContextBuilder {
         return metrics;
     }
 
+    /**
+     * 解析并补齐上下文策略，优先使用请求中显式配置。
+     */
+    private ContextPolicy resolvePolicy(ContextBuildRequest request, Map<String, Object> runtimeContext) {
+        if (request == null) {
+            return null;
+        }
+        ContextPolicy policy = request.getPolicy();
+        if (policy != null) {
+            return policy;
+        }
+        ContextPolicy resolved = resolvePolicyFromContext(runtimeContext);
+        if (resolved == null && request.getTaskRequest() != null) {
+            resolved = resolvePolicyFromContext(request.getTaskRequest().getContext());
+        }
+        if (resolved != null) {
+            request.setPolicy(resolved);
+        }
+        return resolved;
+    }
+
+    private ContextPolicy resolvePolicyFromContext(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object raw = context.get("contextPolicy");
+        if (raw == null) {
+            raw = context.get("policy");
+        }
+        if (raw instanceof ContextPolicy policy) {
+            return policy;
+        }
+        if (raw instanceof Map<?, ?> map) {
+            ContextPolicy policy = buildPolicyFromMap(map);
+            return hasPolicyContent(policy) ? policy : null;
+        }
+        return null;
+    }
+
+    private ContextPolicy buildPolicyFromMap(Map<?, ?> map) {
+        if (map == null) {
+            return null;
+        }
+        ContextPolicy policy = new ContextPolicy();
+        policy.setPolicyId(readString(map, "policyId"));
+        policy.setRetrievalPriority(readStringList(map.get("retrievalPriority")));
+        policy.setPruneOrder(readStringList(map.get("pruneOrder")));
+        policy.setMaxEvidenceCount(readInteger(map, "maxEvidenceCount"));
+        policy.setMaxMemoryCount(readInteger(map, "maxMemoryCount"));
+        policy.setEnableSensitiveMask(readBoolean(map.get("enableSensitiveMask")));
+        return policy;
+    }
+
+    private boolean hasPolicyContent(ContextPolicy policy) {
+        if (policy == null) {
+            return false;
+        }
+        return StringUtils.hasText(policy.getPolicyId())
+                || (policy.getRetrievalPriority() != null && !policy.getRetrievalPriority().isEmpty())
+                || (policy.getPruneOrder() != null && !policy.getPruneOrder().isEmpty())
+                || policy.getMaxEvidenceCount() != null
+                || policy.getMaxMemoryCount() != null
+                || policy.getEnableSensitiveMask() != null;
+    }
+
+    /**
+     * 记录策略应用的日志与指标，便于审计与观测。
+     */
+    private void recordPolicyApplied(TenantContext tenantContext, String workflowId, ContextPolicy policy) {
+        boolean hasPolicy = policy != null;
+        if (metricsPublisher != null) {
+            metricsPublisher.incrementWithTags("context_policy_applied_total",
+                    "hasPolicy", String.valueOf(hasPolicy));
+        }
+        log.info("上下文策略应用, tenantId={}, workflowId={}, hasPolicy={}, retrievalPriority={}, pruneOrder={}, enableSensitiveMask={}",
+                tenantContext != null ? tenantContext.getTenantId() : null,
+                workflowId,
+                hasPolicy,
+                formatList(policy != null ? policy.getRetrievalPriority() : null),
+                formatList(policy != null ? policy.getPruneOrder() : null),
+                policy != null ? policy.getEnableSensitiveMask() : null);
+    }
+
+    private String formatList(List<String> values) {
+        if (values == null || values.isEmpty()) {
+            return null;
+        }
+        List<String> cleaned = new ArrayList<>();
+        for (String value : values) {
+            if (StringUtils.hasText(value)) {
+                cleaned.add(value.trim());
+            }
+        }
+        return cleaned.isEmpty() ? null : String.join(",", cleaned);
+    }
+
     private ContextBudgetRequest resolveBudgetRequest(ContextBuildRequest request, Map<String, Object> context) {
         if (budgetProperties != null && !budgetProperties.isEnabled()) {
             return null;
@@ -568,7 +781,7 @@ public class DefaultContextBuilder implements ContextBuilder {
         return null;
     }
 
-    private Integer readInteger(Map<String, Object> map, String key) {
+    private Integer readInteger(Map<?, ?> map, String key) {
         if (map == null || key == null) {
             return null;
         }

@@ -8,7 +8,9 @@ import com.example.agent.common.ErrorCodeException;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.context.EvidencePack;
 import com.example.agent.context.EvidencePackService;
+import com.example.agent.context.ContextSnapshot;
 import com.example.agent.context.ToolCallEvidence;
+import com.example.agent.context.WorkingMemory;
 import com.example.agent.model.ModelDefinition;
 import com.example.agent.model.ModelRouter;
 import com.example.agent.model.ModelScene;
@@ -18,6 +20,8 @@ import com.example.agent.tools.McpToolClient;
 import com.example.agent.tools.McpToolDefinition;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.observability.TracingPublisher;
+import com.example.agent.streaming.ContextEventPublisher;
+import com.example.agent.streaming.ContextSnapshotStage;
 import com.example.agent.runtime.RetryPolicy;
 import com.example.agent.sandbox.SandboxResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -61,6 +65,10 @@ public class ToolExecutor {
      * 证据包聚合器。
      */
     private final EvidencePackService evidencePackService;
+    /**
+     * 上下文事件发布器。
+     */
+    private final ContextEventPublisher contextEventPublisher;
     private final ToolArgumentValidator argumentValidator = new ToolArgumentValidator();
 
     @Value("${agent.tool.cache.enabled:true}")
@@ -93,7 +101,8 @@ public class ToolExecutor {
                         ObjectMapper objectMapper,
                         MetricsPublisher metricsPublisher,
                         TracingPublisher tracingPublisher,
-                        EvidencePackService evidencePackService) {
+                        EvidencePackService evidencePackService,
+                        ContextEventPublisher contextEventPublisher) {
         this.toolRegistry = toolRegistry;
         this.mcpToolClient = mcpToolClient;
         this.toolCache = toolCache;
@@ -104,6 +113,7 @@ public class ToolExecutor {
         this.metricsPublisher = metricsPublisher;
         this.tracingPublisher = tracingPublisher;
         this.evidencePackService = evidencePackService;
+        this.contextEventPublisher = contextEventPublisher;
     }
 
     /**
@@ -342,6 +352,9 @@ public class ToolExecutor {
         evidence.setErrorCode(errorCode);
         evidencePackService.addToolCall(pack, evidence, tenantId, workflowId);
         evidencePackService.finalizePack(pack, tenantId, workflowId);
+        ContextSnapshot snapshot = resolveContextSnapshot(context);
+        syncSnapshotEvidence(snapshot, pack);
+        publishToolObservedStage(tenantContext, workflowId, snapshot, snapshotId);
     }
 
     private String resolveWorkflowId(Map<String, Object> context) {
@@ -364,6 +377,54 @@ public class ToolExecutor {
             return text;
         }
         return null;
+    }
+
+    private ContextSnapshot resolveContextSnapshot(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object value = context.get("contextSnapshot");
+        if (value instanceof ContextSnapshot snapshot) {
+            return snapshot;
+        }
+        return null;
+    }
+
+    /**
+     * 同步证据包到快照工作记忆，避免后续阶段丢失最新工具观察。
+     */
+    private void syncSnapshotEvidence(ContextSnapshot snapshot, EvidencePack pack) {
+        if (snapshot == null || pack == null) {
+            return;
+        }
+        WorkingMemory memory = snapshot.getWorkingMemory();
+        if (memory == null) {
+            memory = new WorkingMemory();
+            snapshot.setWorkingMemory(memory);
+        }
+        memory.setEvidencePack(pack);
+    }
+
+    private void publishToolObservedStage(TenantContext tenantContext,
+                                          String workflowId,
+                                          ContextSnapshot snapshot,
+                                          String snapshotId) {
+        if (contextEventPublisher == null || tenantContext == null || workflowId == null) {
+            return;
+        }
+        contextEventPublisher.publishSnapshotStage(
+                tenantContext,
+                workflowId,
+                null,
+                snapshot,
+                snapshotId,
+                null,
+                null,
+                null,
+                null,
+                ContextSnapshotStage.TOOL_OBSERVED,
+                null,
+                null);
     }
 
     private String buildDigest(Object value) {

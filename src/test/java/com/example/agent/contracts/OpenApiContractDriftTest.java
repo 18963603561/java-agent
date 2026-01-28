@@ -19,15 +19,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
  * OpenAPI 契约漂移校验测试，比较运行时导出与合同文件。
  */
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
-        "tenant.whitelist-paths=/actuator/health,/actuator/info",
-        "spring.autoconfigure.exclude="
-                + "org.springframework.boot.autoconfigure.jdbc.DataSourceAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.jdbc.DataSourceTransactionManagerAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.jdbc.JdbcTemplateAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.jdbc.JdbcRepositoriesAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.redis.RedisRepositoriesAutoConfiguration,"
-                + "org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration"
+        "tenant.whitelist-paths=/actuator/health,/actuator/info"
 })
 @AutoConfigureWebTestClient
 class OpenApiContractDriftTest {

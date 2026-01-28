@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -43,6 +44,8 @@ public class JdbcTaskRepository implements TaskRepository {
         Instant now = Instant.now();
         Instant createdAt = record.getCreatedAt() != null ? record.getCreatedAt() : now;
         Instant updatedAt = record.getUpdatedAt() != null ? record.getUpdatedAt() : now;
+        Timestamp createdAtTs = Timestamp.from(createdAt);
+        Timestamp updatedAtTs = Timestamp.from(updatedAt);
         try {
             jdbcTemplate.update("""
                             INSERT INTO tasks
@@ -62,8 +65,8 @@ public class JdbcTaskRepository implements TaskRepository {
                     toJson(record.getRequest()),
                     toJson(record.getResult()),
                     record.getIdempotencyKey(),
-                    createdAt,
-                    updatedAt,
+                    createdAtTs,
+                    updatedAtTs,
                     record.getTenantId()
             );
             log.debug("任务入库, tenantId={}, taskId={}", record.getTenantId(), record.getTaskId());

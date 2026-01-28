@@ -2,6 +2,7 @@ package com.example.agent.context;
 
 import com.example.agent.budget.ContextBudgetAllocation;
 import com.example.agent.budget.ContextPruneResult;
+import com.example.agent.budget.ContextTrimReport;
 
 /**
  * 上下文构建结果。
@@ -22,6 +23,11 @@ public class ContextBuildResult {
      * 裁剪结果。
      */
     private ContextPruneResult pruneResult;
+
+    /**
+     * 裁剪报告。
+     */
+    private ContextTrimReport trimReport;
 
     /**
      * 构建指标。
@@ -50,6 +56,14 @@ public class ContextBuildResult {
 
     public void setPruneResult(ContextPruneResult pruneResult) {
         this.pruneResult = pruneResult;
+    }
+
+    public ContextTrimReport getTrimReport() {
+        return trimReport;
+    }
+
+    public void setTrimReport(ContextTrimReport trimReport) {
+        this.trimReport = trimReport;
     }
 
     public BuildMetrics getMetrics() {

@@ -1,0 +1,1042 @@
+server:
+  # 说明: 监听端口
+  # 可选项:
+  # - 1-65535
+  # 默认项:
+  # - 8080
+  port: 8080
+
+spring:
+  application:
+    # 说明: 应用程序名称
+    # 可选项:
+    # - 任意字符串
+    # 默认项:
+    # - java-agent
+    name: java-agent
+  autoconfigure:
+    # 说明: 自动配置排除列表
+    # 可选项:
+    # - 以逗号分隔的类名
+    # - 空字符串
+    # 默认项:
+    # - ""
+    exclude: ""
+  datasource:
+    # 说明: 数据库连接地址
+    # 可选项:
+    # - 任意连接地址
+    # 默认项:
+    # - jdbc:postgresql://localhost:5433/agent
+    url: jdbc:postgresql://localhost:5433/agent
+    # 说明: 数据库用户名
+    # 可选项:
+    # - 任意字符串
+    # 默认项:
+    # - agent
+    username: agent
+    # 说明: 数据库密码
+    # 可选项:
+    # - 任意字符串
+    # 默认项:
+    # - agent
+    password: agent
+    # 说明: 数据库驱动类名
+    # 可选项:
+    # - 完整类名
+    # 默认项:
+    # - org.postgresql.Driver
+    driver-class-name: org.postgresql.Driver
+  data:
+    redis:
+      # 说明: 缓存服务主机
+      # 可选项:
+      # - 主机名或地址
+      # 默认项:
+      # - localhost
+      host: localhost
+      # 说明: 缓存服务端口
+      # 可选项:
+      # - 1-65535
+      # 默认项:
+      # - 6379
+      port: 6379
+
+management:
+  endpoints:
+    web:
+      exposure:
+        # 说明: 暴露的端点列表
+        # 可选项:
+        # - 以逗号分隔的端点名称
+        # 默认项:
+        # - health
+        # - info
+        # - metrics
+        include: health,info,metrics
+  endpoint:
+    health:
+      probes:
+        # 说明: 启用运行状况探测
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - true
+        enabled: true
+  tracing:
+    sampling:
+      # 说明: 采样比例
+      # 可选项:
+      # - 0.0-1.0
+      # 默认项:
+      # - 1.0
+      probability: 1.0
+
+logging:
+  level:
+    # 说明: 根日志级别
+    # 可选项:
+    # - trace
+    # - debug
+    # - info
+    # - warn
+    # - error
+    # 默认项:
+    # - debug
+    root: debug
+    # 说明: 应用程序日志级别
+    # 可选项:
+    # - trace
+    # - debug
+    # - info
+    # - warn
+    # - error
+    # 默认项:
+    # - debug
+    com.example.agent: debug
+
+auth:
+  api-keys:
+    # 说明: 接口密钥配置集合, 键为密钥别名
+    # 可选项:
+    # - 任意字符串键
+    # 默认项:
+    # - demo-key
+    demo-key:
+      # 说明: 绑定的用户标识
+      # 可选项:
+      # - 任意字符串
+      # 默认项:
+      # - demo-user
+      user-id: demo-user
+      # 说明: 角色列表
+      # 可选项:
+      # - ROLE_USER
+      # - ROLE_ADMIN
+      # 默认项:
+      # - ROLE_USER
+      roles:
+        - ROLE_USER
+  trusted-upstream:
+    # 说明: 启用可信上游鉴权
+    # 可选项:
+    # - true
+    # - false
+    # 默认项:
+    # - false
+    enabled: false
+    # 说明: 可信上游令牌
+    # 可选项:
+    # - 任意字符串
+    # 默认项:
+    # - change-me
+    token: change-me
+    # 说明: 可信令牌请求头名称
+    # 可选项:
+    # - 任意字符串
+    # 默认项:
+    # - X-Trusted-Token
+    token-header: X-Trusted-Token
+
+tenant:
+  # 说明: 白名单路径
+  # 可选项:
+  # - 任意路径
+  # 默认项:
+  # - /actuator/health
+  # - /actuator/info
+  whitelist-paths:
+    - /actuator/health
+    - /actuator/info
+
+agent:
+  openapi:
+    # 说明: 接口合约文件路径
+    # 可选项:
+    # - 任意路径
+    # 默认项:
+    # - specs/001-agent-core-spec/contracts/openapi.yaml
+    contract-path: specs/001-agent-core-spec/contracts/openapi.yaml
+  runtime:
+    # 说明: 最大重试次数
+    # 可选项:
+    # - 非负整数
+    # 默认项:
+    # - 1
+    max-retries: 1
+    # 说明: 最大迭代次数
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 10
+    maxIterations: 10
+    # 说明: 最小迭代次数
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 1
+    minIterations: 1
+    # 说明: 观测窗口大小
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 3
+    observationWindow: 3
+  cot:
+    # 说明: 最大推理步数
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 4
+    max-steps: 4
+    # 说明: 温度覆盖值
+    # 可选项:
+    # - 0.0-2.0
+    # 默认项:
+    # - 0.2
+    temperature-override: 0.2
+    # 说明: 推理模型提示标识
+    # 可选项:
+    # - 已配置模型标识
+    # 默认项:
+    # - reflect
+    model-hint: reflect
+    # 说明: 是否发出推理步骤事件
+    # 可选项:
+    # - true
+    # - false
+    # 默认项:
+    # - false
+    emit-step-events: false
+    # 说明: 最终答案最大字符数
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 400
+    max-final-answer-chars: 400
+  capability-evaluation:
+    # 说明: 启用能力评估
+    # 可选项:
+    # - true
+    # - false
+    # 默认项:
+    # - true
+    enabled: true
+    # 说明: 风险阈值
+    # 可选项:
+    # - 0.0-1.0
+    # 默认项:
+    # - 0.7
+    risk-threshold: 0.7
+    # 说明: 复杂度阈值
+    # 可选项:
+    # - 0.0-1.0
+    # 默认项:
+    # - 0.7
+    complexity-threshold: 0.7
+    # 说明: 高于风险阈值时强制审批
+    # 可选项:
+    # - true
+    # - false
+    # 默认项:
+    # - true
+    force-approval-above-risk: true
+    # 说明: 预算阈值令牌数
+    # 可选项:
+    # - 非负整数
+    # 默认项:
+    # - 10000
+    budget-threshold-tokens: 10000
+    # 说明: 默认策略
+    # 可选项:
+    # - tool
+    # - memory
+    # - manual
+    # 默认项:
+    # - tool
+    default-strategy: tool
+  storage:
+    # 说明: 存储方式
+    # 可选项:
+    # - 实现支持的取值
+    # 默认项:
+    # - postgres
+    mode: postgres
+  sse:
+    # 说明: 流式响应超时秒数
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 30
+    timeoutSeconds: 30
+    # 说明: 最大流消息大小
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 1024
+    max-stream-size: 1024
+  idempotency:
+    # 说明: 启用幂等性缓存
+    # 可选项:
+    # - true
+    # - false
+    # 默认项:
+    # - true
+    redis-enabled: true
+    # 说明: 幂等缓存存活时间秒数
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 86400
+    ttl-seconds: 86400
+  mcp:
+    # 说明: 外部工具服务列表
+    # 可选项:
+    # - 列表
+    # 默认项:
+    # - 包含一个示例项
+    servers:
+      -
+        # 说明: 服务标识
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - mcp-default
+        id: mcp-default
+        # 说明: 是否可用
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - true
+        available: true
+        # 说明: 服务基础地址
+        # 可选项:
+        # - 任意地址
+        # 默认项:
+        # - http://localhost:9999
+        base-url: http://localhost:9999
+  hook:
+    # 说明: 启用钩子
+    # 可选项:
+    # - true
+    # - false
+    # 默认项:
+    # - true
+    enabled: true
+    # 说明: 被拦截工具列表
+    # 可选项:
+    # - 工具名称
+    # 默认项:
+    # - []
+    blocked-tools: []
+  sandbox:
+    wasi:
+      # 说明: 启用沙盒
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      enabled: true
+      # 说明: 沙盒阻止工具列表
+      # 可选项:
+      # - 工具名称
+      # 默认项:
+      # - []
+      blocked-tools: []
+  model:
+    models:
+      planner:
+        # 说明: 模型标识
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - planner
+        model-id: planner
+        # 说明: 提供商
+        # 可选项:
+        # - 实现支持的取值
+        # 默认项:
+        # - local
+        provider: local
+        # 说明: 调用端点
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - local
+        endpoint: local
+        # 说明: 输入成本
+        # 可选项:
+        # - 非负数
+        # 默认项:
+        # - 0
+        input-cost-usd: 0
+        # 说明: 输出成本
+        # 可选项:
+        # - 非负数
+        # 默认项:
+        # - 0
+        output-cost-usd: 0
+        # 说明: 最大令牌数
+        # 可选项:
+        # - 正整数
+        # 默认项:
+        # - 4096
+        max-tokens: 4096
+      reflect:
+        # 说明: 模型标识
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - reflect
+        model-id: reflect
+        # 说明: 提供商
+        # 可选项:
+        # - 实现支持的取值
+        # 默认项:
+        # - local
+        provider: local
+        # 说明: 调用端点
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - local
+        endpoint: local
+        # 说明: 输入成本
+        # 可选项:
+        # - 非负数
+        # 默认项:
+        # - 0
+        input-cost-usd: 0
+        # 说明: 输出成本
+        # 可选项:
+        # - 非负数
+        # 默认项:
+        # - 0
+        output-cost-usd: 0
+        # 说明: 最大令牌数
+        # 可选项:
+        # - 正整数
+        # 默认项:
+        # - 4096
+        max-tokens: 4096
+      research:
+        # 说明: 模型标识
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - research
+        model-id: research
+        # 说明: 提供商
+        # 可选项:
+        # - 实现支持的取值
+        # 默认项:
+        # - local
+        provider: local
+        # 说明: 调用端点
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - local
+        endpoint: local
+        # 说明: 输入成本
+        # 可选项:
+        # - 非负数
+        # 默认项:
+        # - 0
+        input-cost-usd: 0
+        # 说明: 输出成本
+        # 可选项:
+        # - 非负数
+        # 默认项:
+        # - 0
+        output-cost-usd: 0
+        # 说明: 最大令牌数
+        # 可选项:
+        # - 正整数
+        # 默认项:
+        # - 4096
+        max-tokens: 4096
+      cheap:
+        # 说明: 模型标识
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - cheap
+        model-id: cheap
+        # 说明: 提供商
+        # 可选项:
+        # - 实现支持的取值
+        # 默认项:
+        # - local
+        provider: local
+        # 说明: 调用端点
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - local
+        endpoint: local
+        # 说明: 输入成本
+        # 可选项:
+        # - 非负数
+        # 默认项:
+        # - 0
+        input-cost-usd: 0
+        # 说明: 输出成本
+        # 可选项:
+        # - 非负数
+        # 默认项:
+        # - 0
+        output-cost-usd: 0
+        # 说明: 最大令牌数
+        # 可选项:
+        # - 正整数
+        # 默认项:
+        # - 2048
+        max-tokens: 2048
+    routes:
+      # 说明: 规划模型路由
+      # 可选项:
+      # - 已配置模型标识
+      # 默认项:
+      # - planner
+      planner: planner
+      # 说明: 反思模型路由
+      # 可选项:
+      # - 已配置模型标识
+      # 默认项:
+      # - reflect
+      reflect: reflect
+      # 说明: 研究模型路由
+      # 可选项:
+      # - 已配置模型标识
+      # 默认项:
+      # - research
+      research: research
+      # 说明: 低成本模型路由
+      # 可选项:
+      # - 已配置模型标识
+      # 默认项:
+      # - cheap
+      cheap: cheap
+    # 说明: 启用回退
+    # 可选项:
+    # - true
+    # - false
+    # 默认项:
+    # - true
+    fallback-enabled: true
+    # 说明: 回退模型标识
+    # 可选项:
+    # - 已配置模型标识
+    # 默认项:
+    # - cheap
+    fallback-model-id: cheap
+  profiles:
+    # 说明: 代理配置列表
+    # 可选项:
+    # - 列表
+    # 默认项:
+    # - 包含示例项
+    items:
+      -
+        # 说明: 代理标识
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - planner
+        agent-id: planner
+        # 说明: 模型标识
+        # 可选项:
+        # - 已配置模型标识
+        # 默认项:
+        # - planner
+        model-id: planner
+        # 说明: 提示模板标识
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - planner
+        prompt: planner
+        # 说明: 允许的工具列表
+        # 可选项:
+        # - 工具名称
+        # 默认项:
+        # - demo_tool
+        allow-tools:
+          - demo_tool
+        # 说明: 预算令牌数
+        # 可选项:
+        # - 正整数
+        # 默认项:
+        # - 2000
+        budget-tokens: 2000
+      -
+        # 说明: 代理标识
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - reflector
+        agent-id: reflector
+        # 说明: 模型标识
+        # 可选项:
+        # - 已配置模型标识
+        # 默认项:
+        # - reflect
+        model-id: reflect
+        # 说明: 提示模板标识
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - reflect
+        prompt: reflect
+        # 说明: 允许的工具列表
+        # 可选项:
+        # - 工具名称
+        # 默认项:
+        # - demo_tool
+        allow-tools:
+          - demo_tool
+        # 说明: 预算令牌数
+        # 可选项:
+        # - 正整数
+        # 默认项:
+        # - 2000
+        budget-tokens: 2000
+  deep-research:
+    # 说明: 深度研究步骤列表
+    # 可选项:
+    # - 列表
+    # 默认项:
+    # - 包含示例项
+    steps:
+      -
+        # 说明: 步骤名称
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - gather
+        name: gather
+        # 说明: 模型标识
+        # 可选项:
+        # - 已配置模型标识
+        # 默认项:
+        # - research
+        model-id: research
+      -
+        # 说明: 步骤名称
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - synthesize
+        name: synthesize
+        # 说明: 模型标识
+        # 可选项:
+        # - 已配置模型标识
+        # 默认项:
+        # - reflect
+        model-id: reflect
+  context:
+    budget:
+      # 说明: 启用上下文预算分配
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      enabled: true
+      # 说明: 总预算令牌数
+      # 可选项:
+      # - 非负整数
+      # 默认项:
+      # - 8192
+      total-budget-tokens: 8192
+      ratios:
+        # 说明: 系统策略分段比例
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.05
+        system-policy: 0.05
+        # 说明: 开发者策略分段比例
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.05
+        developer-policy: 0.05
+        # 说明: 任务意图分段比例
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.40
+        task-intent: 0.40
+        # 说明: 工作记忆分段比例
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.20
+        working-memory: 0.20
+        # 说明: 领域知识分段比例
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.10
+        domain-knowledge: 0.10
+        # 说明: 长期记忆分段比例
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.10
+        long-term-memory: 0.10
+        # 说明: 工具摘要分段比例
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.05
+        tool-summaries: 0.05
+        # 说明: 工具模式分段比例
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.03
+        tool-schema: 0.03
+        # 说明: 证据包分段比例
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.02
+        evidence-pack: 0.02
+        # 说明: 余量分段比例
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.0
+        slack: 0.0
+      # 说明: 裁剪顺序
+      # 可选项:
+      # - evidence-pack
+      # - recalled-memories
+      # - working-memory
+      # - tool-summary
+      # - task-and-system
+      # 默认项:
+      # - [evidence-pack, recalled-memories, working-memory, tool-summary, task-and-system]
+      trim-order:
+        - evidence-pack
+        - recalled-memories
+        - working-memory
+        - tool-summary
+        - task-and-system
+    compression:
+      # 说明: 启用预算触发压缩
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      enabled: true
+      # 说明: 总预算超限时触发压缩
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      trigger-over-total-budget: true
+      # 说明: 分区预算超限时触发压缩
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      trigger-over-section-budget: true
+      # 说明: 压缩触发最小间隔（秒），用于防抖
+      # 可选项:
+      # - 非负整数
+      # 默认项:
+      # - 30
+      min-interval-seconds: 30
+  security:
+    redaction:
+      # 说明: 启用脱敏治理
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      enabled: true
+      # 说明: 命中密钥类规则时拒写
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      reject-on-secrets: true
+      # 说明: 命中个人信息时脱敏替换
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      redact-on-pii: true
+      # 说明: 忽略字段列表
+      # 可选项:
+      # - 通过字段名忽略
+      # 默认项:
+      # - []
+      ignore-keys: []
+      # 说明: 单次扫描最大字符数
+      # 可选项:
+      # - 非负整数
+      # 默认项:
+      # - 8000
+      max-scan-chars: 8000
+
+  memory:
+    vector:
+      # 说明: 启用向量存储
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      enabled: true
+      # 说明: 向量存储提供方
+      # 可选项:
+      # - 实现支持的取值
+      # 默认项:
+      # - qdrant
+      provider: qdrant
+      # 说明: 向量存储地址
+      # 可选项:
+      # - 任意地址
+      # 默认项:
+      # - http://localhost:6333
+      base-url: http://localhost:6333
+      # 说明: 集合名称
+      # 可选项:
+      # - 任意字符串
+      # 默认项:
+      # - memory_records
+      collection: memory_records
+      # 说明: 向量维度
+      # 可选项:
+      # - 正整数
+      # 默认项:
+      # - 256
+      dimension: 256
+      # 说明: 请求超时秒数
+      # 可选项:
+      # - 正整数
+      # 默认项:
+      # - 5
+      timeout-seconds: 5
+    recall:
+      # 说明: 启用召回
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      enabled: true
+      # 说明: 召回条数上限
+      # 可选项:
+      # - 正整数
+      # 默认项:
+      # - 10
+      limit: 10
+      # 说明: 最小查询长度
+      # 可选项:
+      # - 正整数
+      # 默认项:
+      # - 4
+      min-query-length: 4
+      # 说明: 包含压缩记忆
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      include-compressed: true
+      # 说明: 最大摘要字符数
+      # 可选项:
+      # - 正整数
+      # 默认项:
+      # - 800
+      max-summary-chars: 800
+      # 说明: 最大记录字符数
+      # 可选项:
+      # - 正整数
+      # 默认项:
+      # - 500
+      max-record-chars: 500
+    write:
+      # 说明: 允许写入
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      enabled: true
+      # 说明: 保存用户查询
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      save-user-query: true
+      # 说明: 保存最终输出
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      save-final-output: true
+      # 说明: 最大记录字符数
+      # 可选项:
+      # - 正整数
+      # 默认项:
+      # - 2000
+      max-record-chars: 2000
+      # 说明: 最大摘要字符数
+      # 可选项:
+      # - 正整数
+      # 默认项:
+      # - 500
+      max-summary-chars: 500
+    expire:
+      # 说明: 启用过期
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      enabled: true
+      # 说明: 存活时间秒数
+      # 可选项:
+      # - 正整数
+      # 默认项:
+      # - 2592000
+      ttl-seconds: 2592000
+      # 说明: 读取时清理
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      cleanup-on-read: true
+      # 说明: 清理间隔秒数
+      # 可选项:
+      # - 正整数
+      # 默认项:
+      # - 300
+      cleanup-interval-seconds: 300
+  budget:
+    # 说明: 启用预算
+    # 可选项:
+    # - true
+    # - false
+    # 默认项:
+    # - true
+    enabled: true
+    # 说明: 预算阈值令牌数
+    # 可选项:
+    # - 非负整数
+    # 默认项:
+    # - 10000
+    threshold-tokens: 10000
+  rate-limit:
+    # 说明: 每分钟最大请求数
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 100
+    max-per-minute: 100
+  circuit:
+    # 说明: 失败阈值
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 3
+    failure-threshold: 3
+    # 说明: 熔断打开秒数
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 30
+    open-seconds: 30
+  tool:
+    # 说明: 工具注入模式
+    # 可选项:
+    # - summary
+    # - full
+    # 默认项:
+    # - summary
+    inject-mode: summary
+    # 说明: 最大摘要数量
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 200
+    max-summaries: 200
+    approval:
+      # 说明: 启用高风险工具审批
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - false
+      enabled: false
+      # 说明: 高风险工具列表
+      # 可选项:
+      # - 工具名称列表
+      # 默认项:
+      # - []
+      high-risk-tools: []
+      # 说明: 审批等待超时秒数
+      # 可选项:
+      # - 正整数
+      # 默认项:
+      # - 300
+      timeout-seconds: 300
+    cache:
+      # 说明: 启用缓存
+      # 可选项:
+      # - true
+      # - false
+      # 默认项:
+      # - true
+      redis-enabled: true
+    # 说明: 工具定义缓存存活时间秒数
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 300
+    definition-cache-ttl-seconds: 300
+    # 说明: 工具模型缓存存活时间秒数
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 300
+    schema-cache-ttl-seconds: 300

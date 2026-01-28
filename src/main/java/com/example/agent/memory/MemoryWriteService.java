@@ -3,6 +3,9 @@ package com.example.agent.memory;
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.runtime.RuntimeResult;
+import com.example.agent.security.RedactionResult;
+import com.example.agent.security.RedactionService;
+import com.example.agent.security.RedactionStage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -35,12 +38,19 @@ public class MemoryWriteService {
      */
     private final ObjectMapper objectMapper;
 
+    /**
+     * 脱敏服务。
+     */
+    private final RedactionService redactionService;
+
     public MemoryWriteService(MemoryStore memoryStore,
                               MemoryWriteProperties properties,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              RedactionService redactionService) {
         this.memoryStore = memoryStore;
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.redactionService = redactionService;
     }
 
     /**
@@ -66,43 +76,66 @@ public class MemoryWriteService {
             return;
         }
         String sessionId = request.getSessionId();
+        String workflowId = readString(request.getContext(), "workflowId");
         if (!StringUtils.hasText(sessionId)) {
             log.debug("记忆写入跳过, tenantId={}, reason=session_missing", tenantContext.getTenantId());
             return;
         }
 
         int saved = 0;
-        log.info("记忆写入开始, tenantId={}, sessionId={}, taskId={}",
-                tenantContext.getTenantId(), sessionId, taskId);
+        int writesRejectedCount = 0;
+        int redactionsAppliedCount = 0;
+        log.info("记忆写入开始, tenantId={}, workflowId={}, sessionId={}, taskId={}",
+                tenantContext.getTenantId(), workflowId, sessionId, taskId);
 
         if (properties.isSaveUserQuery() && StringUtils.hasText(request.getQuery())) {
-            MemoryRecord record = new MemoryRecord();
-            record.setSessionId(sessionId);
-            record.setTaskId(taskId);
-            record.setContent(trimText(request.getQuery(), properties.getMaxRecordChars()));
-            record.setSummary(trimText(request.getQuery(), properties.getMaxSummaryChars()));
-            record.setLayer("recent");
-            if (saveSafely(record, tenantContext)) {
-                saved++;
+            RedactionResult redaction = applyRedaction(request.getQuery(), RedactionStage.WRITE, "userQuery");
+            if (redaction.isRejected()) {
+                writesRejectedCount++;
+            } else {
+                redactionsAppliedCount += redaction.getRedactedCount();
+                String text = redaction.getRedactedText();
+                MemoryRecord record = new MemoryRecord();
+                record.setSessionId(sessionId);
+                record.setTaskId(taskId);
+                record.setContent(trimText(text, properties.getMaxRecordChars()));
+                record.setSummary(trimText(text, properties.getMaxSummaryChars()));
+                record.setLayer("recent");
+                if (saveSafely(record, tenantContext)) {
+                    saved++;
+                }
             }
         }
 
         if (properties.isSaveFinalOutput() && result != null && result.getFinalOutput() != null) {
             String outputText = serializeOutput(result.getFinalOutput());
             String summary = buildOutputSummary(result.getPlanSummary(), outputText);
-            MemoryRecord record = new MemoryRecord();
-            record.setSessionId(sessionId);
-            record.setTaskId(taskId);
-            record.setContent(trimText(outputText, properties.getMaxRecordChars()));
-            record.setSummary(trimText(summary, properties.getMaxSummaryChars()));
-            record.setLayer("recent");
-            if (saveSafely(record, tenantContext)) {
-                saved++;
+            RedactionResult outputRedaction = applyRedaction(outputText, RedactionStage.WRITE, "finalOutput");
+            RedactionResult summaryRedaction = applyRedaction(summary, RedactionStage.WRITE, "finalOutputSummary");
+            if (outputRedaction.isRejected() || summaryRedaction.isRejected()) {
+                writesRejectedCount++;
+            } else {
+                redactionsAppliedCount += outputRedaction.getRedactedCount();
+                redactionsAppliedCount += summaryRedaction.getRedactedCount();
+                MemoryRecord record = new MemoryRecord();
+                record.setSessionId(sessionId);
+                record.setTaskId(taskId);
+                record.setContent(trimText(outputRedaction.getRedactedText(), properties.getMaxRecordChars()));
+                record.setSummary(trimText(summaryRedaction.getRedactedText(), properties.getMaxSummaryChars()));
+                record.setLayer("recent");
+                if (saveSafely(record, tenantContext)) {
+                    saved++;
+                }
             }
         }
 
-        log.info("记忆写入完成, tenantId={}, sessionId={}, taskId={}, count={}",
-                tenantContext.getTenantId(), sessionId, taskId, saved);
+        log.info("记忆写入完成, tenantId={}, workflowId={}, sessionId={}, taskId={}, count={}, writesRejectedCount={}, "
+                        + "redactionsAppliedCount={}, enabledFlags={}, rejectOnSecrets={}, redactOnPii={}",
+                tenantContext.getTenantId(), workflowId, sessionId, taskId, saved, writesRejectedCount,
+                redactionsAppliedCount,
+                redactionService != null && redactionService.isEnabled(),
+                redactionService != null && redactionService.isRejectOnSecrets(),
+                redactionService != null && redactionService.isRedactOnPii());
     }
 
     /**
@@ -129,11 +162,18 @@ public class MemoryWriteService {
         if (!StringUtils.hasText(observation)) {
             return;
         }
+        RedactionResult redaction = applyRedaction(observation, RedactionStage.WRITE, "observation");
+        if (redaction.isRejected()) {
+            String workflowId = readString(request.getContext(), "workflowId");
+            log.info("观察记忆拒写, tenantId={}, workflowId={}, sessionId={}, taskId={}",
+                    tenantContext.getTenantId(), workflowId, request.getSessionId(), taskId);
+            return;
+        }
         MemoryRecord record = new MemoryRecord();
         record.setSessionId(request.getSessionId());
         record.setTaskId(taskId);
-        record.setContent(trimText(observation, properties.getMaxRecordChars()));
-        record.setSummary(trimText(observation, properties.getMaxSummaryChars()));
+        record.setContent(trimText(redaction.getRedactedText(), properties.getMaxRecordChars()));
+        record.setSummary(trimText(redaction.getRedactedText(), properties.getMaxSummaryChars()));
         record.setLayer("recent");
         saveSafely(record, tenantContext);
     }
@@ -151,6 +191,26 @@ public class MemoryWriteService {
             return Boolean.parseBoolean(text.trim());
         }
         return properties.isEnabled();
+    }
+
+    private RedactionResult applyRedaction(String text, RedactionStage stage, String fieldKey) {
+        if (redactionService == null) {
+            RedactionResult result = new RedactionResult();
+            result.setRedactedText(text);
+            return result;
+        }
+        return redactionService.apply(text, stage, fieldKey);
+    }
+
+    private String readString(Map<String, Object> context, String key) {
+        if (context == null || key == null) {
+            return null;
+        }
+        Object value = context.get(key);
+        if (value instanceof String text && StringUtils.hasText(text)) {
+            return text;
+        }
+        return null;
     }
 
     private boolean saveSafely(MemoryRecord record, TenantContext tenantContext) {

@@ -2,6 +2,7 @@ package com.example.agent.budget;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
@@ -34,6 +35,7 @@ public class JdbcTokenUsageRepository implements TokenUsageRepository {
             return false;
         }
         Instant createdAt = record.getCreatedAt() != null ? record.getCreatedAt() : Instant.now();
+        Timestamp createdAtTs = Timestamp.from(createdAt);
         try {
             int updated = jdbcTemplate.update("""
                             INSERT INTO token_usage
@@ -52,7 +54,7 @@ public class JdbcTokenUsageRepository implements TokenUsageRepository {
                     record.getOutputTokens(),
                     record.getTotalTokens(),
                     record.getCostUsd(),
-                    createdAt,
+                    createdAtTs,
                     record.getTenantId()
             );
             log.debug("预算记录入库, tenantId={}, usageId={}, updated={}",

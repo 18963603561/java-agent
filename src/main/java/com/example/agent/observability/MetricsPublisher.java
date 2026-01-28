@@ -25,13 +25,34 @@ public class MetricsPublisher {
     }
 
     /**
-     * 递增计数器指标（带 traceId 标签）。
+     * 递增计数器指标（带链路标识）。
      *
      * @param name 指标名称
      * @param traceId 链路标识
      */
     public void increment(String name, String traceId) {
         meterRegistry.counter(name, "traceId", safeTag(traceId)).increment();
+    }
+
+    /**
+     * 递增计数器指标（自定义标签）。
+     *
+     * @param name 指标名称
+     * @param tags 标签键值对
+     */
+    public void incrementWithTags(String name, String... tags) {
+        meterRegistry.counter(name, tags).increment();
+    }
+
+    /**
+     * 递增计数器指标（自定义标签与增量）。
+     *
+     * @param name 指标名称
+     * @param amount 增量
+     * @param tags 标签键值对
+     */
+    public void incrementWithTags(String name, double amount, String... tags) {
+        meterRegistry.counter(name, tags).increment(amount);
     }
 
     /**
@@ -45,7 +66,7 @@ public class MetricsPublisher {
     }
 
     /**
-     * 记录耗时指标（带 traceId 标签）。
+     * 记录耗时指标（带链路标识）。
      *
      * @param name 指标名称
      * @param millis 耗时毫秒

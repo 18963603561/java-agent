@@ -10,6 +10,8 @@ import com.example.agent.context.ToolCallEvidence;
 import com.example.agent.context.WorkingMemory;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
+import com.example.agent.observability.MetricsPublisher;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -29,7 +31,8 @@ class ContextEventPublisherTest {
     void publishSnapshotAddsStructuredSummaryStats() {
         TestEventPublisher eventPublisher = new TestEventPublisher();
         EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
-        ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService);
+        ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService,
+                new MetricsPublisher(new SimpleMeterRegistry()));
 
         WorkingMemory workingMemory = new WorkingMemory();
         workingMemory.setSummary("结构化摘要");
@@ -59,7 +62,8 @@ class ContextEventPublisherTest {
     void publishSnapshotAddsLegacySummaryStats() {
         TestEventPublisher eventPublisher = new TestEventPublisher();
         EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
-        ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService);
+        ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService,
+                new MetricsPublisher(new SimpleMeterRegistry()));
 
         WorkingMemory workingMemory = new WorkingMemory();
         workingMemory.setSummary("旧摘要");
@@ -86,7 +90,8 @@ class ContextEventPublisherTest {
     void publishSnapshotAddsEvidenceStatsWhenPresent() {
         TestEventPublisher eventPublisher = new TestEventPublisher();
         EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
-        ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService);
+        ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService,
+                new MetricsPublisher(new SimpleMeterRegistry()));
 
         ToolCallEvidence toolCallEvidence = new ToolCallEvidence();
         toolCallEvidence.setToolName("tool-a");
@@ -140,7 +145,8 @@ class ContextEventPublisherTest {
     void publishSnapshotKeepsEvidenceStatsOptionalWhenMissing() {
         TestEventPublisher eventPublisher = new TestEventPublisher();
         EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
-        ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService);
+        ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService,
+                new MetricsPublisher(new SimpleMeterRegistry()));
 
         WorkingMemory workingMemory = new WorkingMemory();
         ContextSnapshot snapshot = new ContextSnapshot();

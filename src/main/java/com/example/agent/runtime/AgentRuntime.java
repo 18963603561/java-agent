@@ -7,6 +7,7 @@ import com.example.agent.common.TaskRequest;
 import com.example.agent.context.ContextBuildRequest;
 import com.example.agent.context.ContextBuildResult;
 import com.example.agent.context.ContextBuilder;
+import com.example.agent.context.ContextSnapshot;
 import com.example.agent.context.EvidencePack;
 import com.example.agent.context.EvidencePackService;
 import com.example.agent.domain.event.EventType;
@@ -81,6 +82,10 @@ public class AgentRuntime {
      */
     private final MemoryWriteService memoryWriteService;
     /**
+     * 证据包聚合器。
+     */
+    private final EvidencePackService evidencePackService;
+    /**
      * 上下文构建器。
      */
     private final ContextBuilder contextBuilder;
@@ -109,6 +114,7 @@ public class AgentRuntime {
                         ReactLoopService reactLoopService,
                         MemoryRecallService memoryRecallService,
                         MemoryWriteService memoryWriteService,
+                        EvidencePackService evidencePackService,
                         ContextBuilder contextBuilder,
                         ContextEventPublisher contextEventPublisher,
                         ApplicationEventPublisher eventPublisher,
@@ -133,6 +139,7 @@ public class AgentRuntime {
         this.reactLoopService = reactLoopService;
         this.memoryRecallService = memoryRecallService;
         this.memoryWriteService = memoryWriteService;
+        this.evidencePackService = evidencePackService;
         this.contextBuilder = contextBuilder;
         this.contextEventPublisher = contextEventPublisher;
         this.eventPublisher = eventPublisher;
@@ -260,6 +267,7 @@ public class AgentRuntime {
                 } else if ("RESEARCH".equalsIgnoreCase(stepType)) {
                     String query = resolveStepQuery(request, step);
                     List<ResearchCitation> citations = researchPipeline.run(query, tenantContext, workflowId, seqCounter);
+                    appendResearchCitations(runtimeContext, tenantContext, workflowId, citations);
                     output = new HashMap<>();
                     output.put("query", query);
                     output.put("citations", citations);
@@ -581,6 +589,40 @@ public class AgentRuntime {
         if (buildResult.getPruneResult() != null) {
             runtimeContext.put("contextPrune", buildResult.getPruneResult());
         }
+    }
+
+    /**
+     * 将研究引用写入证据包，确保引用链路可追溯。
+     */
+    private void appendResearchCitations(Map<String, Object> runtimeContext,
+                                         TenantContext tenantContext,
+                                         String workflowId,
+                                         List<ResearchCitation> citations) {
+        if (evidencePackService == null || runtimeContext == null
+                || citations == null || citations.isEmpty()) {
+            return;
+        }
+        String tenantId = tenantContext != null ? tenantContext.getTenantId() : null;
+        String snapshotId = resolveSnapshotId(runtimeContext);
+        EvidencePack pack = evidencePackService.getOrCreatePack(runtimeContext, tenantId, workflowId, snapshotId);
+        evidencePackService.addResearchCitations(pack, citations, tenantId, workflowId, "research");
+    }
+
+    private String resolveSnapshotId(Map<String, Object> runtimeContext) {
+        if (runtimeContext == null) {
+            return null;
+        }
+        Object value = runtimeContext.get("snapshotId");
+        if (value instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        Object snapshotObj = runtimeContext.get("contextSnapshot");
+        if (snapshotObj instanceof ContextSnapshot snapshot
+                && snapshot.getSnapshotId() != null
+                && !snapshot.getSnapshotId().isBlank()) {
+            return snapshot.getSnapshotId();
+        }
+        return null;
     }
 
     /**
