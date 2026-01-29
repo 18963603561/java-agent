@@ -24,6 +24,7 @@ class DefaultModelProviderTest {
         Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request);
 
         assertFalse(body.containsKey("tools"));
+        assertFalse(body.containsKey("tool_choice"));
         assertFalse(body.containsKey("toolChoice"));
     }
 
@@ -48,10 +49,14 @@ class DefaultModelProviderTest {
         assertTrue(toolsObj instanceof List<?>);
         List<?> tools = (List<?>) toolsObj;
         assertEquals(1, tools.size());
-        assertTrue(tools.get(0) instanceof ModelToolDefinition);
-        ModelToolDefinition resolved = (ModelToolDefinition) tools.get(0);
-        assertEquals("demo_tool", resolved.getName());
-        assertEquals(parameters, resolved.getParameters());
+        assertTrue(tools.get(0) instanceof Map<?, ?>);
+        Map<?, ?> toolMap = (Map<?, ?>) tools.get(0);
+        assertEquals("function", toolMap.get("type"));
+        assertTrue(toolMap.get("function") instanceof Map<?, ?>);
+        Map<?, ?> functionMap = (Map<?, ?>) toolMap.get("function");
+        assertEquals("demo_tool", functionMap.get("name"));
+        assertEquals("demo", functionMap.get("description"));
+        assertEquals(parameters, functionMap.get("parameters"));
     }
 
     @Test
@@ -66,12 +71,52 @@ class DefaultModelProviderTest {
 
         Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request);
 
+        assertTrue(body.containsKey("tool_choice"));
         assertTrue(body.containsKey("toolChoice"));
+        Object snakeCaseChoice = body.get("tool_choice");
+        assertTrue(snakeCaseChoice instanceof Map<?, ?>);
+        Map<?, ?> snakeChoiceMap = (Map<?, ?>) snakeCaseChoice;
+        assertEquals("function", snakeChoiceMap.get("type"));
+        assertTrue(snakeChoiceMap.get("function") instanceof Map<?, ?>);
+        Map<?, ?> snakeFunction = (Map<?, ?>) snakeChoiceMap.get("function");
+        assertNotNull(snakeFunction.get("name"));
+        assertEquals("demo_tool", snakeFunction.get("name"));
         Object toolChoiceObj = body.get("toolChoice");
         assertTrue(toolChoiceObj instanceof Map<?, ?>);
         Map<?, ?> toolChoiceMap = (Map<?, ?>) toolChoiceObj;
-        assertNotNull(toolChoiceMap.get("name"));
-        assertEquals("demo_tool", toolChoiceMap.get("name"));
+        assertEquals("function", toolChoiceMap.get("type"));
+        assertTrue(toolChoiceMap.get("function") instanceof Map<?, ?>);
+        Map<?, ?> camelFunction = (Map<?, ?>) toolChoiceMap.get("function");
+        assertNotNull(camelFunction.get("name"));
+        assertEquals("demo_tool", camelFunction.get("name"));
+    }
+
+    @Test
+    void buildOpenAiRequestBodyDefaultsParametersWhenMissing() {
+        DefaultModelProvider provider = new DefaultModelProvider(new ObjectMapper(), WebClient.builder());
+        ModelToolDefinition tool = new ModelToolDefinition("demo_tool", "demo", null);
+
+        ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
+        request.setTools(List.of(tool));
+
+        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request);
+
+        assertTrue(body.containsKey("tools"));
+        Object toolsObj = body.get("tools");
+        assertTrue(toolsObj instanceof List<?>);
+        List<?> tools = (List<?>) toolsObj;
+        assertEquals(1, tools.size());
+        assertTrue(tools.get(0) instanceof Map<?, ?>);
+        Map<?, ?> toolMap = (Map<?, ?>) tools.get(0);
+        assertEquals("function", toolMap.get("type"));
+        assertTrue(toolMap.get("function") instanceof Map<?, ?>);
+        Map<?, ?> functionMap = (Map<?, ?>) toolMap.get("function");
+        assertTrue(functionMap.get("parameters") instanceof Map<?, ?>);
+        Map<?, ?> parameters = (Map<?, ?>) functionMap.get("parameters");
+        assertEquals("object", parameters.get("type"));
+        assertTrue(parameters.get("properties") instanceof Map<?, ?>);
+        Map<?, ?> properties = (Map<?, ?>) parameters.get("properties");
+        assertTrue(properties.isEmpty());
     }
 
     @Test
@@ -90,5 +135,64 @@ class DefaultModelProviderTest {
         assertTrue(messagesObj instanceof List<?>);
         List<?> messages = (List<?>) messagesObj;
         assertEquals(2, messages.size());
+    }
+
+    @Test
+    void buildOllamaRequestBodyOmitsToolsWhenChoiceNone() {
+        DefaultModelProvider provider = new DefaultModelProvider(new ObjectMapper(), WebClient.builder());
+        ModelToolDefinition tool = new ModelToolDefinition("demo_tool", "demo", null);
+        ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
+        request.setTools(List.of(tool));
+        request.setToolChoice(ModelToolChoice.none());
+
+        Map<String, Object> body = provider.buildOllamaRequestBody("model-x", request);
+
+        assertFalse(body.containsKey("tools"));
+    }
+
+    @Test
+    void buildOllamaRequestBodyFiltersSpecifiedTool() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        DefaultModelProvider provider = new DefaultModelProvider(objectMapper, WebClient.builder());
+        ModelToolDefinition tool = new ModelToolDefinition("demo_tool", "demo", null);
+        ModelToolDefinition other = new ModelToolDefinition("other_tool", "other", null);
+        ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
+        request.setTools(List.of(tool, other));
+        request.setToolChoice(ModelToolChoice.specified("demo_tool"));
+
+        Map<String, Object> body = provider.buildOllamaRequestBody("model-x", request);
+
+        assertTrue(body.containsKey("tools"));
+        Object toolsObj = body.get("tools");
+        assertTrue(toolsObj instanceof List<?>);
+        List<?> tools = (List<?>) toolsObj;
+        assertEquals(1, tools.size());
+        assertTrue(tools.get(0) instanceof Map<?, ?>);
+        Map<?, ?> toolMap = (Map<?, ?>) tools.get(0);
+        assertEquals("function", toolMap.get("type"));
+        assertTrue(toolMap.get("function") instanceof Map<?, ?>);
+        Map<?, ?> functionMap = (Map<?, ?>) toolMap.get("function");
+        assertEquals("demo_tool", functionMap.get("name"));
+    }
+
+    @Test
+    void buildOllamaRequestBodyMapsDeveloperRoleToSystem() {
+        DefaultModelProvider provider = new DefaultModelProvider(new ObjectMapper(), WebClient.builder());
+        ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
+        request.setMessages(List.of(
+                new PromptMessage(PromptRole.DEVELOPER, "dev"),
+                new PromptMessage(PromptRole.USER, "user")
+        ));
+
+        Map<String, Object> body = provider.buildOllamaRequestBody("model-x", request);
+
+        assertTrue(body.containsKey("messages"));
+        Object messagesObj = body.get("messages");
+        assertTrue(messagesObj instanceof List<?>);
+        List<?> messages = (List<?>) messagesObj;
+        assertEquals(2, messages.size());
+        assertTrue(messages.get(0) instanceof Map<?, ?>);
+        Map<?, ?> first = (Map<?, ?>) messages.get(0);
+        assertEquals("system", first.get("role"));
     }
 }

@@ -1,7 +1,7 @@
 package com.example.agent.model;
 
 /**
- * LLM 客户端接口，用于统一模型调用。
+ * 模型客户端接口，用于统一模型调用。
  */
 public interface LlmClient {
 

@@ -13,12 +13,24 @@ import org.springframework.util.StringUtils;
 @Component
 public class DefaultPromptTemplate implements PromptTemplate {
 
+    /**
+     * 系统提示默认内容。
+     */
     @Value("${agent.prompt.system:你是智能体运行时执行器，必须遵守安全边界与多租户隔离。}")
     private String systemMessage;
 
+    /**
+     * 开发者提示默认内容。
+     */
     @Value("${agent.prompt.developer:输出必须结构化且可追溯，遇到不确定先检索再回答。}")
     private String developerMessage;
 
+    /**
+     * 渲染系统与开发者提示消息。
+     *
+     * @param snapshot 上下文快照
+     * @return 提示消息列表
+     */
     @Override
     public List<PromptMessage> render(ContextSnapshot snapshot) {
         List<PromptMessage> messages = new ArrayList<>();
@@ -32,6 +44,11 @@ public class DefaultPromptTemplate implements PromptTemplate {
         return messages;
     }
 
+    /**
+     * 获取模板标识。
+     *
+     * @return 模板标识
+     */
     @Override
     public String getTemplateId() {
         return "default";

@@ -24,7 +24,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         "auth.api-keys.test-key.roles=ROLE_USER",
         "auth.trusted-upstream.enabled=false",
         "tenant.whitelist-paths=/actuator/health,/actuator/info",
-        "agent.sse.timeoutSeconds=0"
+        "agent.sse.timeoutSeconds=0",
+        "agent.mcp.remote-enabled=false"
 })
 @AutoConfigureWebTestClient
 class McpToolEventTest {

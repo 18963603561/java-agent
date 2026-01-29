@@ -12,11 +12,26 @@ import org.springframework.util.StringUtils;
 @Component
 public class ModelRouter {
 
+    /**
+     * 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(ModelRouter.class);
 
+    /**
+     * 模型配置集合。
+     */
     private final ModelConfigProperties modelConfigProperties;
+    /**
+     * 模型注册表。
+     */
     private final ModelRegistry modelRegistry;
 
+    /**
+     * 构造模型路由器。
+     *
+     * @param modelConfigProperties 模型配置集合
+     * @param modelRegistry 模型注册表
+     */
     public ModelRouter(ModelConfigProperties modelConfigProperties, ModelRegistry modelRegistry) {
         this.modelConfigProperties = modelConfigProperties;
         this.modelRegistry = modelRegistry;

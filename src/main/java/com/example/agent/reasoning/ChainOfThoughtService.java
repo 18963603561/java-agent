@@ -267,7 +267,11 @@ public class ChainOfThoughtService {
             return StepDecision.invalid("empty_response");
         }
         try {
-            Map<String, Object> root = objectMapper.readValue(content, new TypeReference<Map<String, Object>>() {
+            String normalized = normalizeJsonPayload(content);
+            if (!StringUtils.hasText(normalized)) {
+                return StepDecision.invalid("empty_response");
+            }
+            Map<String, Object> root = objectMapper.readValue(normalized, new TypeReference<Map<String, Object>>() {
             });
             boolean shouldContinue = resolveBoolean(root, "shouldContinue", true);
             String stepSummary = resolveString(root, "stepSummary", "summary");
@@ -282,6 +286,33 @@ public class ChainOfThoughtService {
             log.warn("链式推理输出解析失败, reason={}", ex.getMessage());
             return StepDecision.invalid("invalid_response");
         }
+    }
+
+    // 兼容模型输出的代码块包裹与前后噪声
+    private String normalizeJsonPayload(String content) {
+        if (!StringUtils.hasText(content)) {
+            return content;
+        }
+        String trimmed = content.trim();
+        if (trimmed.startsWith("```")) {
+            int firstLineEnd = trimmed.indexOf('\n');
+            if (firstLineEnd >= 0) {
+                trimmed = trimmed.substring(firstLineEnd + 1);
+            } else {
+                trimmed = trimmed.substring(3);
+            }
+            int lastFence = trimmed.lastIndexOf("```");
+            if (lastFence >= 0) {
+                trimmed = trimmed.substring(0, lastFence);
+            }
+        }
+        trimmed = trimmed.trim();
+        int start = trimmed.indexOf('{');
+        int end = trimmed.lastIndexOf('}');
+        if (start >= 0 && end > start) {
+            trimmed = trimmed.substring(start, end + 1);
+        }
+        return trimmed.trim();
     }
 
     private boolean resolveBoolean(Map<String, Object> root, String key, boolean defaultValue) {

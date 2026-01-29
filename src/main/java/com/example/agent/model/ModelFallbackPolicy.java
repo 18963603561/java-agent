@@ -11,8 +11,16 @@ import org.springframework.stereotype.Component;
 @Component
 public class ModelFallbackPolicy {
 
+    /**
+     * 模型配置集合。
+     */
     private final ModelConfigProperties modelConfigProperties;
 
+    /**
+     * 构造回退策略。
+     *
+     * @param modelConfigProperties 模型配置集合
+     */
     public ModelFallbackPolicy(ModelConfigProperties modelConfigProperties) {
         this.modelConfigProperties = modelConfigProperties;
     }

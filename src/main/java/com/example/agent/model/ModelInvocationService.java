@@ -16,16 +16,31 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 /**
- * 模型调用协调器，负责统一调用模型并发布 LLM 事件。
+ * 模型调用协调器，负责统一调用模型并发布事件。
  */
 @Service
 public class ModelInvocationService {
 
+    /**
+     * 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(ModelInvocationService.class);
 
+    /**
+     * 模型调用客户端。
+     */
     private final LlmClient llmClient;
+    /**
+     * 模型路由器。
+     */
     private final ModelRouter modelRouter;
+    /**
+     * 事件发布器。
+     */
     private final ApplicationEventPublisher eventPublisher;
+    /**
+     * 事件流服务。
+     */
     private final EventStreamService eventStreamService;
 
     public ModelInvocationService(LlmClient llmClient,
@@ -39,7 +54,7 @@ public class ModelInvocationService {
     }
 
     /**
-     * 调用模型并发布 LLM 事件。
+     * 调用模型并发布事件。
      *
      * @param request 模型请求
      * @param scene 模型场景
@@ -104,6 +119,9 @@ public class ModelInvocationService {
         }
     }
 
+    /**
+     * 发布模型请求事件。
+     */
     private void publishPromptEvent(TenantContext tenantContext,
                                     String workflowId,
                                     AtomicLong seqCounter,
@@ -132,6 +150,9 @@ public class ModelInvocationService {
         publishEvent(tenantContext, workflowId, seq, EventType.LLM_PROMPT, payload);
     }
 
+    /**
+     * 发布模型响应事件。
+     */
     private void publishOutputEvent(TenantContext tenantContext,
                                     String workflowId,
                                     AtomicLong seqCounter,
@@ -154,6 +175,9 @@ public class ModelInvocationService {
         publishEvent(tenantContext, workflowId, seq, EventType.LLM_OUTPUT, payload);
     }
 
+    /**
+     * 发布事件到事件流。
+     */
     private void publishEvent(TenantContext tenantContext,
                               String workflowId,
                               long seq,
@@ -172,6 +196,9 @@ public class ModelInvocationService {
         eventPublisher.publishEvent(event);
     }
 
+    /**
+     * 获取事件序号。
+     */
     private long nextSeq(TenantContext tenantContext, String workflowId, AtomicLong seqCounter) {
         if (seqCounter != null) {
             return seqCounter.incrementAndGet();

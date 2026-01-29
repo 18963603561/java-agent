@@ -40,6 +40,25 @@ public class McpServerProperties {
         private String id;
         private boolean available = true;
         private String baseUrl;
+        /**
+         * MCP 调用协议类型，支持 rest 或 jsonrpc。
+         */
+        private String protocol = "rest";
+
+        /**
+         * SSE 会话地址，配置后自动获取 sessionId。
+         */
+        private String sseUrl;
+
+        /**
+         * SSE 会话参数名称。
+         */
+        private String sessionParamName = "sessionId";
+
+        /**
+         * SSE 会话刷新间隔秒数，0 表示不主动刷新。
+         */
+        private long sessionRefreshSeconds = 300;
 
         public String getId() {
             return id;
@@ -63,6 +82,38 @@ public class McpServerProperties {
 
         public void setBaseUrl(String baseUrl) {
             this.baseUrl = baseUrl;
+        }
+
+        public String getProtocol() {
+            return protocol;
+        }
+
+        public void setProtocol(String protocol) {
+            this.protocol = protocol;
+        }
+
+        public String getSseUrl() {
+            return sseUrl;
+        }
+
+        public void setSseUrl(String sseUrl) {
+            this.sseUrl = sseUrl;
+        }
+
+        public String getSessionParamName() {
+            return sessionParamName;
+        }
+
+        public void setSessionParamName(String sessionParamName) {
+            this.sessionParamName = sessionParamName;
+        }
+
+        public long getSessionRefreshSeconds() {
+            return sessionRefreshSeconds;
+        }
+
+        public void setSessionRefreshSeconds(long sessionRefreshSeconds) {
+            this.sessionRefreshSeconds = sessionRefreshSeconds;
         }
 
         public List<String> getAllowedHosts() {

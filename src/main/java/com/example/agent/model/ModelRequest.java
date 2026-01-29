@@ -32,9 +32,18 @@ public class ModelRequest {
      */
     private Double temperature;
 
+    /**
+     * 空构造方法，便于序列化。
+     */
     public ModelRequest() {
     }
 
+    /**
+     * 构造模型请求。
+     *
+     * @param prompt 提示内容
+     * @param scene 模型场景
+     */
     public ModelRequest(String prompt, ModelScene scene) {
         this.prompt = prompt;
         this.scene = scene;

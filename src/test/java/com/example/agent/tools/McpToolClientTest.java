@@ -9,6 +9,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.core.io.buffer.DefaultDataBufferFactory;
@@ -69,6 +70,44 @@ class McpToolClientTest {
         McpToolListResponse response = client.listTools(request,
                 new TenantContext("t1", "u1", List.of(), "req", "trace"));
 
+        assertEquals(0, response.getTools().size());
+        assertEquals(false, response.isHasMore());
+    }
+
+    @Test
+    void listToolsUsesJsonRpcWhenConfigured() {
+        McpServerProperties serverProperties = new McpServerProperties();
+        McpServerProperties.McpServer server = new McpServerProperties.McpServer();
+        server.setId("mcp-default");
+        server.setBaseUrl("http://example.com/mcp/test");
+        server.setAllowedHosts(List.of("example.com"));
+        server.setProtocol("jsonrpc");
+        serverProperties.setServers(List.of(server));
+
+        AtomicInteger calls = new AtomicInteger();
+        ExchangeFunction exchangeFunction = request -> {
+            int index = calls.incrementAndGet();
+            Map<String, Object> payload;
+            if (index == 1) {
+                payload = Map.of("jsonrpc", "2.0", "id", "init", "result", Map.of());
+            } else {
+                payload = Map.of("jsonrpc", "2.0", "id", "list",
+                        "result", Map.of("tools", List.of(), "hasMore", false));
+            }
+            return okResponse(toJsonBytes(payload)).exchange(request);
+        };
+
+        McpToolClient client = buildClient(serverProperties, exchangeFunction);
+        ReflectionTestUtils.setField(client, "remoteEnabled", true);
+        ReflectionTestUtils.setField(client, "timeoutSeconds", 5L);
+
+        McpToolListRequest request = new McpToolListRequest();
+        request.setServerId("mcp-default");
+
+        McpToolListResponse response = client.listTools(request,
+                new TenantContext("t1", "u1", List.of(), "req", "trace"));
+
+        assertEquals(2, calls.get());
         assertEquals(0, response.getTools().size());
         assertEquals(false, response.isHasMore());
     }

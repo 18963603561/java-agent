@@ -162,6 +162,39 @@ class ChainOfThoughtServiceTest {
         assertFalse(result.getFinalAnswer().toLowerCase().contains("think step by step"));
     }
 
+    @Test
+    void parseDecisionAcceptsCodeFenceJson() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new ModelResponse("cot-model",
+                        "```json\n"
+                                + "{\"stepSummary\":\"summary\",\"shouldContinue\":false,"
+                                + "\"finalAnswer\":\"answer\",\"confidence\":0.9}\n"
+                                + "```",
+                        1, 1));
+
+        CotProperties props = new CotProperties();
+        props.setMaxSteps(1);
+
+        TestEventPublisher eventPublisher = new TestEventPublisher();
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        ChainOfThoughtService service = new ChainOfThoughtService(
+                modelInvocationService,
+                promptAssembler,
+                new ObjectMapper(),
+                eventPublisher,
+                Mockito.mock(EventStreamService.class),
+                props
+        );
+
+        TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
+        ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
+
+        assertTrue(result.isCompleted());
+        assertEquals("answer", result.getFinalAnswer());
+        assertEquals("completed", result.getStopReason());
+    }
+
     static class TestEventPublisher implements ApplicationEventPublisher {
         private final List<StreamEvent> events = new ArrayList<>();
 

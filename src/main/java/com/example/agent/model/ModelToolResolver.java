@@ -31,13 +31,34 @@ import org.springframework.util.StringUtils;
 @Component
 public class ModelToolResolver {
 
+    /**
+     * 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(ModelToolResolver.class);
 
+    /**
+     * 工具注册表。
+     */
     private final ToolRegistry toolRegistry;
+    /**
+     * 技能注册表。
+     */
     private final SkillRegistry skillRegistry;
+    /**
+     * 工具目录。
+     */
     private final ToolCatalog toolCatalog;
+    /**
+     * 工具目录服务。
+     */
     private final ToolCatalogService toolCatalogService;
+    /**
+     * 序列化工具。
+     */
     private final ObjectMapper objectMapper;
+    /**
+     * 指标发布器。
+     */
     private final MetricsPublisher metricsPublisher;
 
     /**

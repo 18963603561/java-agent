@@ -21,21 +21,35 @@ public class ModelToolDefinition {
      */
     private JsonNode parameters;
     /**
-     * 宸ュ叿鏍囩銆?     */
+     * ?????
+     */
     private List<String> tags;
     /**
-     * 鎴愭湰绛夌骇鎻愮ず銆?     */
+     * ?????
+     */
     private String costLevel;
     /**
-     * 鏃跺欢绛夌骇鎻愮ず銆?     */
+     * ?????
+     */
     private String latencyLevel;
     /**
-     * 鎺堟潈鑼冨洿鎻愮ず銆?     */
+     * ?????
+     */
     private String authScope;
 
+    /**
+     * 空构造方法，便于序列化。
+     */
     public ModelToolDefinition() {
     }
 
+    /**
+     * 构造工具定义。
+     *
+     * @param name 工具名称
+     * @param description 工具描述
+     * @param parameters 工具参数定义
+     */
     public ModelToolDefinition(String name, String description, JsonNode parameters) {
         this.name = name;
         this.description = description;

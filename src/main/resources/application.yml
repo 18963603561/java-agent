@@ -28,7 +28,7 @@ spring:
     # - 任意连接地址
     # 默认项:
     # - jdbc:postgresql://localhost:5433/agent
-    url: jdbc:postgresql://localhost:5432/testpg
+    url: jdbc:postgresql://localhost:5432/agent
     # 说明: 数据库用户名
     # 可选项:
     # - 任意字符串
@@ -235,6 +235,8 @@ agent:
     # 默认项:
     # - 400
     max-final-answer-chars: 400
+  planner:
+    llm-enabled: false
   capability-evaluation:
     # 说明: 启用能力评估
     # 可选项:
@@ -311,6 +313,8 @@ agent:
     # - 86400
     ttl-seconds: 86400
   mcp:
+    remote-enabled: true
+    default-server-id: mcp-test
     # 说明: 外部工具服务列表
     # 可选项:
     # - 列表
@@ -331,12 +335,52 @@ agent:
         # 默认项:
         # - true
         available: true
+        allowed-hosts:
+          - localhost
+          - 127.0.0.1
+        # 说明: SSE 会话地址
+        # 可选项:
+        # - 任意地址
+        # 默认项:
+        # - ""
+        sse-url: http://localhost:8088/mcp/sse
+        # 说明: SSE 会话参数名称
+        # 可选项:
+        # - 任意字符串
+        # 默认项:
+        # - sessionId
+        session-param-name: sessionId
+        # 说明: SSE 会话刷新间隔秒数，0 表示不主动刷新
+        # 可选项:
+        # - 非负整数
+        # 默认项:
+        # - 300
+        session-refresh-seconds: 300
+        # 说明: 远程调用协议
+        # 可选项:
+        # - rest
+        # - jsonrpc
+        # 默认项:
+        # - rest
+        protocol: jsonrpc
         # 说明: 服务基础地址
+        # 说明: SSE 场景会自动拼接 sessionId
         # 可选项:
         # - 任意地址
         # 默认项:
         # - http://localhost:9999
-        base-url: http://localhost:9999
+        base-url: http://localhost:8088/mcp
+      -
+        id: mcp-test
+        available: true
+        allowed-hosts:
+          - localhost
+          - 127.0.0.1
+        sse-url: http://localhost:8088/mcp/sse
+        session-param-name: sessionId
+        session-refresh-seconds: 300
+        protocol: jsonrpc
+        base-url: http://localhost:8088/mcp/test
   hook:
     # 说明: 启用钩子
     # 可选项:
@@ -367,6 +411,14 @@ agent:
       # - []
       blocked-tools: []
   model:
+    http:
+      # 说明: 全局接口密钥, 模型级配置优先
+      # 可选项:
+      # - 任意字符串
+      # - 空字符串表示不需要鉴权
+      # 默认项:
+      # - ""
+      api-key: "sk-1101c8c7a1954494b1cac9b01b9d2447"
     models:
       planner:
         # 说明: 模型标识
@@ -374,19 +426,26 @@ agent:
         # - 任意字符串
         # 默认项:
         # - planner
-        model-id: planner
+        model-id: deepseek-chat
         # 说明: 提供商
         # 可选项:
         # - 实现支持的取值
         # 默认项:
         # - local
-        provider: local
+        provider: openai
         # 说明: 调用端点
         # 可选项:
         # - 任意字符串
         # 默认项:
         # - local
-        endpoint: local
+        endpoint: https://api.deepseek.com/v1
+        # 说明: 模型级接口密钥
+        # 可选项:
+        # - 任意字符串
+        # - 空字符串表示不需要鉴权
+        # 默认项:
+        # - ""
+        api-key: ""
         # 说明: 输入成本
         # 可选项:
         # - 非负数
@@ -411,19 +470,26 @@ agent:
         # - 任意字符串
         # 默认项:
         # - reflect
-        model-id: reflect
+        model-id: deepseek-chat
         # 说明: 提供商
         # 可选项:
         # - 实现支持的取值
         # 默认项:
         # - local
-        provider: local
+        provider: openai
         # 说明: 调用端点
         # 可选项:
         # - 任意字符串
         # 默认项:
         # - local
-        endpoint: local
+        endpoint: https://api.deepseek.com/v1
+        # 说明: 模型级接口密钥
+        # 可选项:
+        # - 任意字符串
+        # - 空字符串表示不需要鉴权
+        # 默认项:
+        # - ""
+        api-key: ""
         # 说明: 输入成本
         # 可选项:
         # - 非负数
@@ -448,19 +514,26 @@ agent:
         # - 任意字符串
         # 默认项:
         # - research
-        model-id: research
+        model-id: deepseek-chat
         # 说明: 提供商
         # 可选项:
         # - 实现支持的取值
         # 默认项:
         # - local
-        provider: local
+        provider: openai
         # 说明: 调用端点
         # 可选项:
         # - 任意字符串
         # 默认项:
         # - local
-        endpoint: local
+        endpoint: https://api.deepseek.com/v1
+        # 说明: 模型级接口密钥
+        # 可选项:
+        # - 任意字符串
+        # - 空字符串表示不需要鉴权
+        # 默认项:
+        # - ""
+        api-key: ""
         # 说明: 输入成本
         # 可选项:
         # - 非负数
@@ -485,19 +558,26 @@ agent:
         # - 任意字符串
         # 默认项:
         # - cheap
-        model-id: cheap
+        model-id: deepseek-chat
         # 说明: 提供商
         # 可选项:
         # - 实现支持的取值
         # 默认项:
         # - local
-        provider: local
+        provider: openai
         # 说明: 调用端点
         # 可选项:
         # - 任意字符串
         # 默认项:
         # - local
-        endpoint: local
+        endpoint: https://api.deepseek.com/v1
+        # 说明: 模型级接口密钥
+        # 可选项:
+        # - 任意字符串
+        # - 空字符串表示不需要鉴权
+        # 默认项:
+        # - ""
+        api-key: ""
         # 说明: 输入成本
         # 可选项:
         # - 非负数
@@ -554,6 +634,8 @@ agent:
     # 默认项:
     # - cheap
     fallback-model-id: cheap
+  prompt:
+    developer: ""
   profiles:
     # 说明: 代理配置列表
     # 可选项:

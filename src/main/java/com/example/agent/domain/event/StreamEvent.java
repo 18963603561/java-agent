@@ -8,18 +8,54 @@ import java.util.Map;
  */
 public class StreamEvent {
 
+    /**
+     * 事件唯一标识。
+     */
     private String eventId;
+    /**
+     * 事件结构版本。
+     */
     private String schemaVersion;
+    /**
+     * 工作流标识。
+     */
     private String workflowId;
+    /**
+     * 事件类型。
+     */
     private EventType type;
+    /**
+     * 智能体标识。
+     */
     private String agentId;
+    /**
+     * 事件消息摘要。
+     */
     private String message;
+    /**
+     * 事件时间。
+     */
     private Instant timestamp;
+    /**
+     * 流内序号。
+     */
     private long seq;
+    /**
+     * 事件流标识。
+     */
     private String streamId;
+    /**
+     * 租户标识。
+     */
     private String tenantId;
+    /**
+     * 事件负载数据。
+     */
     private Map<String, Object> payload;
 
+    /**
+     * 空构造方法，便于序列化。
+     */
     public StreamEvent() {
     }
 

@@ -5,14 +5,37 @@ package com.example.agent.model;
  */
 public class ModelResponse {
 
+    /**
+     * 模型标识。
+     */
     private String modelId;
+    /**
+     * 输出内容。
+     */
     private String content;
+    /**
+     * 输入令牌数量。
+     */
     private int inputTokens;
+    /**
+     * 输出令牌数量。
+     */
     private int outputTokens;
 
+    /**
+     * 空构造方法，便于序列化。
+     */
     public ModelResponse() {
     }
 
+    /**
+     * 构造模型响应。
+     *
+     * @param modelId 模型标识
+     * @param content 输出内容
+     * @param inputTokens 输入令牌数量
+     * @param outputTokens 输出令牌数量
+     */
     public ModelResponse(String modelId, String content, int inputTokens, int outputTokens) {
         this.modelId = modelId;
         this.content = content;

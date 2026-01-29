@@ -13,26 +13,40 @@ import org.yaml.snakeyaml.Yaml;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
- * OpenAPI 文档加载配置，负责在启动时读取契约文件并缓存。
+ * 接口规范文档加载配置，负责在启动时读取契约文件并缓存。
  */
 @Configuration
 public class OpenApiConfig {
 
+    /**
+     * 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(OpenApiConfig.class);
 
+    /**
+     * 文档序列化工具。
+     */
     private final ObjectMapper objectMapper;
 
+    /**
+     * 契约文件路径。
+     */
     @Value("${agent.openapi.contract-path:specs/001-agent-core-spec/contracts/openapi.yaml}")
     private String contractPath;
 
+    /**
+     * 构造加载配置。
+     *
+     * @param objectMapper 文档序列化工具
+     */
     public OpenApiConfig(ObjectMapper objectMapper) {
         this.objectMapper = objectMapper;
     }
 
     /**
-     * 加载并缓存 OpenAPI 文档，启动后由控制器提供导出。
+     * 加载并缓存接口规范文档，启动后由控制器提供访问。
      *
-     * @return OpenAPI 文档缓存对象
+     * @return 文档缓存对象
      */
     @Bean
     public OpenApiDocumentStore openApiDocumentStore() {

@@ -26,9 +26,18 @@ public class ModelToolChoice {
      */
     private String toolName;
 
+    /**
+     * 空构造方法，便于序列化。
+     */
     public ModelToolChoice() {
     }
 
+    /**
+     * 构造工具选择策略。
+     *
+     * @param mode 选择模式
+     * @param toolName 指定工具名称
+     */
     public ModelToolChoice(Mode mode, String toolName) {
         this.mode = mode;
         this.toolName = toolName;

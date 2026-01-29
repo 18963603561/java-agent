@@ -23,13 +23,34 @@ import org.springframework.util.StringUtils;
 @Service
 public class DefaultPromptAssembler implements PromptAssembler {
 
+    /**
+     * 日志记录器。
+     */
     private static final Logger log = LoggerFactory.getLogger(DefaultPromptAssembler.class);
+    /**
+     * 系统提示最小保留长度。
+     */
     private static final int MIN_SYSTEM_CHARS = 30;
+    /**
+     * 用户提示最小保留长度。
+     */
     private static final int MIN_USER_CHARS = 40;
+    /**
+     * 开发者提示最小保留长度。
+     */
     private static final int MIN_DEVELOPER_CHARS = 10;
 
+    /**
+     * 提示模板。
+     */
     private final PromptTemplate promptTemplate;
+    /**
+     * 令牌估算器。
+     */
     private final TokenEstimator tokenEstimator;
+    /**
+     * 指标发布器。
+     */
     private final MetricsPublisher metricsPublisher;
 
     /**
@@ -38,6 +59,13 @@ public class DefaultPromptAssembler implements PromptAssembler {
     @Value("${agent.prompt.trim.enabled:true}")
     private boolean promptTrimEnabled;
 
+    /**
+     * 构造提示组装器。
+     *
+     * @param promptTemplate 提示模板
+     * @param tokenEstimator 令牌估算器
+     * @param metricsPublisher 指标发布器
+     */
     public DefaultPromptAssembler(PromptTemplate promptTemplate,
                                   TokenEstimator tokenEstimator,
                                   MetricsPublisher metricsPublisher) {
@@ -46,6 +74,14 @@ public class DefaultPromptAssembler implements PromptAssembler {
         this.metricsPublisher = metricsPublisher;
     }
 
+    /**
+     * 组装提示消息并按预算进行裁剪。
+     *
+     * @param prompt 用户提示内容
+     * @param taskRequest 任务请求
+     * @param stepInput 步骤输入
+     * @return 组装结果
+     */
     @Override
     public PromptBundle build(String prompt, TaskRequest taskRequest, Map<String, Object> stepInput) {
         ContextSnapshot snapshot = resolveSnapshot(taskRequest, stepInput);

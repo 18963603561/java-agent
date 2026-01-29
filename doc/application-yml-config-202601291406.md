@@ -213,6 +213,7 @@ agent:
       -
         id: mcp-default
         available: true
+        protocol: rest
         base-url: http://localhost:9999
   hook:
     enabled: true
@@ -232,7 +233,8 @@ agent:
 说明：外部工具服务与沙箱用于控制工具调用，脱敏用于输出治理。
 场景：对外环境建议保留沙箱与脱敏功能。
 
-补充说明：内网 `MCP` `HTTP` 工具服务需要开启远程调用开关，并配置允许访问的目标主机列表，否则会拒绝远程请求。
+补充说明：内网 MCP 工具服务需要开启远程调用开关，并配置允许访问的目标主机列表，否则会拒绝远程请求。
+协议类型通过 `protocol` 指定，支持 `rest` 与 `jsonrpc`。
 示例配置：
 ```yaml
 agent:
@@ -249,27 +251,29 @@ agent:
     servers:
       -
         id: mcp-internal
+        protocol: rest
         available: true
         base-url: http://mcp.internal:9999
         allowed-hosts:
           - mcp.internal
         max-response-bytes: 2097152
 ```
-接口约定：远程服务需提供 `POST /tools/list` 获取工具列表，`POST /tools/call` 执行工具调用。
+接口约定：`rest` 模式提供 `POST /tools/list` 与 `POST /tools/call`，`jsonrpc` 模式提供 `initialize`、`tools/list`、`tools/call`。
 
 ### 模型与路由
 配置片段：
 ```yaml
 agent:
   model:
-    models:
-      planner:
-        model-id: planner
-        provider: local
-        endpoint: local
-        input-cost-usd: 0
-        output-cost-usd: 0
-        max-tokens: 4096
+      models:
+        planner:
+          model-id: planner
+          provider: local
+          endpoint: local
+          api-key: ""
+          input-cost-usd: 0
+          output-cost-usd: 0
+          max-tokens: 4096
     routes:
       planner: planner
       reflect: reflect
@@ -287,7 +291,7 @@ agent:
           - demo_tool
         budget-tokens: 2000
 ```
-说明：模型列表、路由与代理配置用于控制不同能力的调用路径。`provider` 包含 `openai` 或 `deepseek` 时走 `OpenAI` 兼容接口，`endpoint` 为模型服务基础地址。
+说明：模型列表、路由与代理配置用于控制不同能力的调用路径。`provider` 包含 `openai` 或 `deepseek` 时走 `OpenAI` 兼容接口，`endpoint` 为模型服务基础地址。模型级密钥优先使用 `agent.model.models.<id>.api-key`，未配置时使用 `agent.model.http.api-key`。
 场景：内网统一模型服务或 `vLLM` 部署时修改 `provider` 与 `endpoint`，并确保 `model-id` 与部署名称一致。
 
 ### 可靠性与资源控制
@@ -433,11 +437,13 @@ agent:
 ```
 
 ### 场景五：内网 `vLLM` 部署 `Qwen3` 模型
-说明：适用于内网通过 `vLLM` 暴露 `OpenAI` 兼容接口的模型服务。`endpoint` 需包含 `/v1` 前缀，`model-id` 与 `vLLM` 启动时的模型名称一致。调用需要设置环境变量 `DEEPSEEK_API_KEY`，未启用鉴权时可设置为任意非空值。
+说明：适用于内网通过 `vLLM` 暴露 `OpenAI` 兼容接口的模型服务。`endpoint` 需包含 `/v1` 前缀，`model-id` 与 `vLLM` 启动时的模型名称一致。是否鉴权由 `agent.model.http.api-key` 控制，留空表示不需要鉴权。
 配置示例：
 ```yaml
 agent:
   model:
+    http:
+      api-key: ""
     models:
       qwen3:
         model-id: Qwen3-8B-Instruct
@@ -452,14 +458,16 @@ agent:
       research: qwen3
       cheap: qwen3
 ```
-
-环境变量示例：
-```bash
-DEEPSEEK_API_KEY=inner-token
+鉴权示例：
+```yaml
+agent:
+  model:
+    http:
+      api-key: inner-token
 ```
 
-### 场景六：内网 `MCP` `HTTP` 工具服务
-说明：适用于内网已有 `MCP` 服务，需要通过 `HTTP` 拉取工具列表并调用工具，`base-url` 指向服务根路径。
+### 场景六：内网 MCP REST 工具服务
+说明：适用于内网已有 MCP 服务，通过 REST 接口拉取工具列表并调用工具，`base-url` 指向服务根路径。
 配置示例：
 ```yaml
 agent:
@@ -470,11 +478,133 @@ agent:
       -
         id: mcp-internal
         available: true
+        protocol: rest
         base-url: http://mcp.internal:9999
         allowed-hosts:
           - mcp.internal
 ```
 校验要点：可通过 `POST /api/v1/mcp/tools/list` 获取工具列表，并使用 `POST /api/v1/mcp/tools/call` 验证工具调用。
+
+### 场景七：内网 MCP JSON-RPC 工具服务
+说明：适用于内网 MCP 服务提供 JSON-RPC 协议的工具调用，`base-url` 指向 JSON-RPC 入口路径。若服务通过 SSE 下发会话标识，需要配置 `sse-url` 与 `session-param-name`，`base-url` 无需拼接 `sessionId`。
+配置示例：
+```yaml
+agent:
+  mcp:
+    remote-enabled: true
+    default-server-id: mcp-internal
+    servers:
+      -
+        id: mcp-internal
+        available: true
+        protocol: jsonrpc
+        base-url: http://localhost:8088/mcp
+        sse-url: http://localhost:8088/mcp/sse
+        session-param-name: sessionId
+        session-refresh-seconds: 300
+        allowed-hosts:
+          - localhost
+```
+校验要点：依次调用 `initialize`、`tools/list`、`tools/call` 验证工具发现与调用链路。
+示例命令：
+```bash
+curl -s http://192.168.50.140:8088/mcp/test \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{}}'
+
+curl -s http://192.168.50.140:8088/mcp/test \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}'
+
+curl -s http://192.168.50.140:8088/mcp/test \
+  -H "Content-Type: application/json" \
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"fmdb_query","arguments":{"sql":"select id,name from users limit 5","params":[]}}}'
+```
+
+### 场景八：内网 `Ollama` 原生接口
+说明：适用于内网 `Ollama` 服务仅开放原生接口 `/api/chat` 的场景，`provider` 需设置为 `ollama`，`endpoint` 指向服务根地址。需要鉴权时通过 `agent.model.http.api-key` 传递令牌，不需要鉴权时保持为空。工具调用需模型本身支持。
+配置示例：
+```yaml
+agent:
+  model:
+    http:
+      api-key: ""
+    models:
+      ollama:
+        model-id: llama3
+        provider: ollama
+        endpoint: http://ollama.internal:11434
+        input-cost-usd: 0
+        output-cost-usd: 0
+        max-tokens: 8192
+    routes:
+      planner: ollama
+      reflect: ollama
+      research: ollama
+      cheap: ollama
+```
+鉴权示例：
+```yaml
+agent:
+  model:
+    http:
+      api-key: inner-token
+```
+
+### 场景九：内网 `Ollama` `OpenAI` 兼容接口
+说明：适用于内网 `Ollama` 开启 `OpenAI` 兼容接口的场景，`endpoint` 需包含 `/v1` 前缀，调用路径为 `/chat/completions`。
+配置示例：
+```yaml
+agent:
+  model:
+    http:
+      api-key: ""
+    models:
+      ollama:
+        model-id: llama3
+        provider: openai
+        endpoint: http://ollama.internal:11434/v1
+        input-cost-usd: 0
+        output-cost-usd: 0
+        max-tokens: 8192
+    routes:
+      planner: ollama
+      reflect: ollama
+      research: ollama
+      cheap: ollama
+```
+
+### 场景十：多模型不同密钥
+说明：适用于多个模型服务使用不同密钥的场景，每个模型可配置独立 `api-key` 覆盖全局密钥。
+配置示例：
+```yaml
+agent:
+  model:
+    http:
+      api-key: ""
+    models:
+      qwen3:
+        model-id: Qwen3-8B-Instruct
+        provider: openai
+        endpoint: http://vllm.internal:8000/v1
+        api-key: qwen3-token
+        input-cost-usd: 0
+        output-cost-usd: 0
+        max-tokens: 8192
+      distill:
+        model-id: distill-1b
+        provider: openai
+        endpoint: http://distill.internal:8001/v1
+        api-key: distill-token
+        input-cost-usd: 0
+        output-cost-usd: 0
+        max-tokens: 4096
+    routes:
+      planner: qwen3
+      reflect: qwen3
+      research: qwen3
+      cheap: distill
+```
 
 ## 变更与校验建议
 - 通过环境覆盖或配置中心分环境注入敏感信息。

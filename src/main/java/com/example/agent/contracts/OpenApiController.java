@@ -6,21 +6,29 @@ import org.springframework.web.bind.annotation.RestController;
 import reactor.core.publisher.Mono;
 
 /**
- * OpenAPI 文档导出接口，提供运行时文档访问。
+ * 接口规范文档导出接口，提供运行时访问入口。
  */
 @RestController
 public class OpenApiController {
 
+    /**
+     * 文档缓存存储。
+     */
     private final OpenApiDocumentStore documentStore;
 
+    /**
+     * 构造控制器。
+     *
+     * @param documentStore 文档缓存存储
+     */
     public OpenApiController(OpenApiDocumentStore documentStore) {
         this.documentStore = documentStore;
     }
 
     /**
-     * 获取 OpenAPI 文档。
+     * 获取接口规范文档内容。
      *
-     * @return OpenAPI JSON 文档
+     * @return 文档内容文本
      */
     @GetMapping(path = "/v3/api-docs", produces = MediaType.APPLICATION_JSON_VALUE)
     public Mono<String> getOpenApi() {
