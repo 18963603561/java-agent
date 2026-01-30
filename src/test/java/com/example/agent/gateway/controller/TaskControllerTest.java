@@ -3,6 +3,8 @@ package com.example.agent.gateway.controller;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.orchestrator.WorkflowRouter;
+import static org.assertj.core.api.Assertions.assertThat;
+
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -82,5 +84,79 @@ class TaskControllerTest {
                 .expectBody()
                 .jsonPath("$.data.tasks.length()").isEqualTo(0)
                 .jsonPath("$.data.total").isEqualTo(0);
+    }
+
+    @Test
+    void blankIdempotencyKeyCreatesNewTaskEachTime() {
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        request.setIdempotencyKey("   ");
+
+        AtomicReference<String> firstTaskId = new AtomicReference<>();
+        webTestClient.post()
+                .uri("/api/v1/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-API-Key", "test-key")
+                .header("X-Tenant-Id", "tenant-a")
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.taskId").value(firstTaskId::set);
+
+        TaskRequest secondRequest = new TaskRequest();
+        secondRequest.setQuery("ping");
+        secondRequest.setIdempotencyKey("   ");
+
+        AtomicReference<String> secondTaskId = new AtomicReference<>();
+        webTestClient.post()
+                .uri("/api/v1/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-API-Key", "test-key")
+                .header("X-Tenant-Id", "tenant-a")
+                .bodyValue(secondRequest)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.taskId").value(secondTaskId::set);
+
+        assertThat(secondTaskId.get()).isNotEqualTo(firstTaskId.get());
+    }
+
+    @Test
+    void idempotencyKeyReusesExistingTask() {
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        request.setIdempotencyKey("idem-001");
+
+        AtomicReference<String> firstTaskId = new AtomicReference<>();
+        webTestClient.post()
+                .uri("/api/v1/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-API-Key", "test-key")
+                .header("X-Tenant-Id", "tenant-a")
+                .bodyValue(request)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.taskId").value(firstTaskId::set);
+
+        TaskRequest secondRequest = new TaskRequest();
+        secondRequest.setQuery("ping");
+        secondRequest.setIdempotencyKey("idem-001");
+
+        AtomicReference<String> secondTaskId = new AtomicReference<>();
+        webTestClient.post()
+                .uri("/api/v1/tasks")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("X-API-Key", "test-key")
+                .header("X-Tenant-Id", "tenant-a")
+                .bodyValue(secondRequest)
+                .exchange()
+                .expectStatus().isOk()
+                .expectBody()
+                .jsonPath("$.data.taskId").value(secondTaskId::set);
+
+        assertThat(secondTaskId.get()).isEqualTo(firstTaskId.get());
     }
 }

@@ -103,7 +103,7 @@ description: "Task list for Java Shannon Agent Orchestrator Core"
   `com.example.agent.common.TaskRequest`、`com.example.agent.common.TaskResponse`、
   `com.example.agent.common.TaskStatusResponse`、`com.example.agent.common.TaskQuery`、
   `com.example.agent.common.TaskListResponse`；输入/输出: 请求体或查询参数 -> 任务响应；
-  日志/指标: 不新增日志；验证: `TaskRequest` 包含 `idempotencyKey`，`TaskQuery` 包含 `status`、
+  日志/指标: 不新增日志；验证: `TaskRequest` 支持可选 `idempotencyKey`，`TaskQuery` 包含 `status`、
   `cursor`、`size`，`TaskListResponse.tasks` 为 `TaskStatusResponse` 列表；
   路径: `src/main/java/com/example/agent/common/TaskRequest.java`、
   `src/main/java/com/example/agent/common/TaskResponse.java`、
@@ -751,7 +751,7 @@ description: "Task list for Java Shannon Agent Orchestrator Core"
   包/类/接口: `openapi` 定义；
   输入/输出: 规格与实现字段 -> `openapi.yaml`；
   日志/指标: 不新增日志；
-  验证: `StreamEvent`、`TaskRequest.idempotencyKey`、`TokenUsageInput.usageId`、`StepRecord`、
+  验证: `StreamEvent`、`TaskRequest.idempotencyKey`（可选）、`TokenUsageInput.usageId`、`StepRecord`、
   `McpToolCallRequest`、`PolicyRequest`、`ReplayRequest` 字段齐全；
   路径: `specs/001-agent-core-spec/contracts/openapi.yaml`；依赖: `T1-2`、`T1-3`、`T3-6`；
   需求映射: `maintenance`（非需求任务）。

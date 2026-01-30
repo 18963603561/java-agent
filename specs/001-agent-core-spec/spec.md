@@ -729,7 +729,7 @@ public interface WasiSandboxExecutor {
 - **`TaskStreamRequest`**
   - `workflowId`、`types`、`lastEventId`、`cursor`
 - **`TaskRequest`**
-  - `query`、`sessionId`、`context`、`idempotencyKey`
+  - `query`、`sessionId`、`context`、`idempotencyKey`（可选）
 - **`TaskResponse`**
   - `taskId`、`workflowId`、`status`
 - **`TaskStatusResponse`**
@@ -977,7 +977,7 @@ public interface WasiSandboxExecutor {
 
 ## 并发、幂等、重试与失败恢复
 
-- `TaskRequest.idempotencyKey` 在同一租户范围内唯一，重复提交需返回相同 `taskId`。
+- `TaskRequest.idempotencyKey` 为空时不做幂等；非空时在同一租户范围内唯一，重复提交需返回相同 `taskId`。
 - 定时任务创建与更新使用 `scheduleId` + `idempotencyKey` 去重，避免重复调度。
 - 事件发布采用至少一次语义，消费端以 `eventId` 去重。
 - 关键持久化与预算记录失败采用指数退避重试，达到上限后记录 `ERROR_OCCURRED` 并输出指标。

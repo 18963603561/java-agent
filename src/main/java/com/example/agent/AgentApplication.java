@@ -20,6 +20,6 @@ public class AgentApplication {
      */
     public static void main(String[] args) {
         SpringApplication.run(AgentApplication.class, args);
-        log.info("AgentApplication started");
+        log.info("FDMB AgentApplication started");
     }
 }

@@ -260,6 +260,77 @@ agent:
 ```
 接口约定：`rest` 模式提供 `POST /tools/list` 与 `POST /tools/call`，`jsonrpc` 模式提供 `initialize`、`tools/list`、`tools/call`。
 
+### MCP 调用策略解析与回退场景
+配置片段：
+```yaml
+agent:
+  mcp:
+    remote-enabled: true
+    fallback-to-local: true
+    merge-local-tools: true
+    call-strategy: remote-first
+```
+说明：`call-strategy` 决定远端/本地优先级，`fallback-to-local` 控制远端失败是否回退本地，`merge-local-tools` 控制工具清单是否合并。  
+策略解析规则：`remote-only`、`local-only`、`remote-first`、`local-first`，解析时忽略大小写并允许使用下划线或短横线。
+
+回退逻辑说明：
+1. `remote-first`：优先远端，出现远端不可用或工具不存在时，且开启 `fallback-to-local` 且本地存在同名工具，回退本地执行。
+2. `local-first`：优先本地，本地执行失败或不存在时再尝试远端。
+3. `remote-only`：只走远端，不回退本地。
+4. `local-only`：只走本地，不触发远端调用。
+
+回退触发条件建议：
+- 远端返回 `MCP_UNAVAILABLE` 或 `CIRCUIT_OPEN`。
+- 远端返回“工具不存在”类错误信息。
+
+列表合并说明：
+- 当 `merge-local-tools=true` 时，`tools/list` 会合并远端与本地工具清单，并优先保留远端版本。
+
+使用场景示例：
+1. 远端优先，本地兜底（推荐默认）
+```yaml
+agent:
+  mcp:
+    remote-enabled: true
+    fallback-to-local: true
+    merge-local-tools: true
+    call-strategy: remote-first
+```
+适用：远端为主，本地作为应急兜底。
+
+2. 本地优先，远端补充
+```yaml
+agent:
+  mcp:
+    remote-enabled: true
+    fallback-to-local: false
+    merge-local-tools: true
+    call-strategy: local-first
+```
+适用：本地低延迟优先，远端仅在本地失败时调用。
+
+3. 仅远端，禁止本地
+```yaml
+agent:
+  mcp:
+    remote-enabled: true
+    fallback-to-local: false
+    merge-local-tools: false
+    call-strategy: remote-only
+```
+适用：远端为唯一可信来源，严禁本地结果介入。
+
+4. 仅本地，离线运行
+```yaml
+agent:
+  mcp:
+    remote-enabled: false
+    fallback-to-local: true
+    merge-local-tools: false
+    call-strategy: local-only
+```
+适用：离线或内网环境，无远端依赖。
+
 ### 模型与路由
 配置片段：
 ```yaml

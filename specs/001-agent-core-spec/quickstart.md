@@ -42,6 +42,7 @@
      -X POST http://localhost:8080/api/v1/tasks \
      -d '{"query":"call_tool_and_fail","sessionId":"s-001","context":{"tool":"demo_tool"},"idempotencyKey":"idem-001"}'
    ```
+   说明：`idempotencyKey` 可选，省略或空白时每次提交都会创建新任务；提供时重复提交复用历史任务。
    期望关键字段：`data.taskId`、`data.workflowId`、`data.status`，`workflowId` 取自 `TaskResponse.workflowId`。
 
 2. 建立 `SSE` 订阅（包含 `types` 与断线续传）：

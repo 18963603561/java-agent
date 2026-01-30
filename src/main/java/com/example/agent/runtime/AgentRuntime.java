@@ -47,58 +47,181 @@ import org.springframework.stereotype.Service;
 import com.example.agent.streaming.ContextEventPublisher;
 
 /**
- * Agent Runtime 决策循环驱动，负责执行规划与步骤运行。
+ * 运行时执行器，负责驱动规划与步骤执行循环。
+ * <p>用途：统一编排规划、执行、反思、工具调用与最终输出生成。
+ * <p>输入：任务请求、租户上下文与工作流标识。
+ * <p>输出：运行时执行结果对象。
+ * <p>边界：执行异常会被分类并按策略重试或重规划。
+ * <p>示例：
+ * <pre>{@code
+ * RuntimeResult result = agentRuntime.run(request, tenantContext, workflowId, taskId, seqCounter);
+ * }</pre>
  */
 @Service
 public class AgentRuntime {
 
+    /**
+     * 日志记录器。
+     * <p>示例：记录规划为空或执行异常。
+     */
     private static final Logger log = LoggerFactory.getLogger(AgentRuntime.class);
 
+    /**
+     * 规划服务。
+     * <p>示例：生成执行步骤列表。
+     */
     private final PlannerService plannerService;
+    /**
+     * 反思服务。
+     * <p>示例：评估步骤输出并决定是否重试。
+     */
     private final ReflectionService reflectionService;
+    /**
+     * 步骤运行时服务。
+     * <p>示例：记录步骤开始、完成与失败信息。
+     */
     private final StepRuntimeService stepRuntimeService;
+    /**
+     * 执行约束网关。
+     * <p>示例：执行工具调用并应用安全策略。
+     */
     private final EnforcementGateway enforcementGateway;
+    /**
+     * 钩子管理器。
+     * <p>示例：执行步骤前后回调。
+     */
     private final HookManager hookManager;
     /**
      * 执行控制服务，用于暂停、恢复、取消与审批阻塞。
+     * <p>示例：在流程执行前检查暂停或审批状态。
      */
     private final ExecutionControlService executionControlService;
+    /**
+     * 思维树服务。
+     * <p>示例：生成思维树步骤输出。
+     */
     private final ThoughtTreeService thoughtTreeService;
     /**
-     * 链式推理执行器，用于处理 COT 步骤。
+     * 链式推理执行器，用于处理 {@code COT} 步骤。
+     * <p>示例：执行链式推理步骤并返回摘要。
      */
     private final ChainOfThoughtService chainOfThoughtService;
+    /**
+     * 多智能体协调器。
+     * <p>示例：协同多个智能体完成任务。
+     */
     private final MultiAgentCoordinator multiAgentCoordinator;
+    /**
+     * 辩论协调器。
+     * <p>示例：执行辩论型推理流程。
+     */
     private final DebateCoordinator debateCoordinator;
+    /**
+     * 研究流程管线。
+     * <p>示例：生成研究引用并写入证据包。
+     */
     private final ResearchPipeline researchPipeline;
+    /**
+     * 最终输出服务。
+     * <p>示例：整合步骤输出生成最终答复。
+     */
     private final FinalOutputService finalOutputService;
+    /**
+     * {@code ReAct} 循环服务。
+     * <p>示例：执行多轮观察与行动。
+     */
     private final ReactLoopService reactLoopService;
     /**
      * 记忆召回服务。
+     * <p>示例：召回历史对话摘要并注入上下文。
      */
     private final MemoryRecallService memoryRecallService;
     /**
      * 记忆写入服务。
+     * <p>示例：将任务结果写入记忆存储。
      */
     private final MemoryWriteService memoryWriteService;
     /**
      * 证据包聚合器。
+     * <p>示例：为研究引用生成可追溯证据包。
      */
     private final EvidencePackService evidencePackService;
     /**
      * 上下文构建器。
+     * <p>示例：构建包含预算与裁剪信息的上下文快照。
      */
     private final ContextBuilder contextBuilder;
     /**
      * 上下文事件发布器。
+     * <p>示例：发布上下文快照与裁剪结果事件。
      */
     private final ContextEventPublisher contextEventPublisher;
+    /**
+     * 应用事件发布器。
+     * <p>示例：发布运行时事件。
+     */
     private final ApplicationEventPublisher eventPublisher;
+    /**
+     * 链路跟踪发布器。
+     * <p>示例：获取当前链路跟踪标识。
+     */
     private final TracingPublisher tracingPublisher;
+    /**
+     * 失败分类器。
+     * <p>示例：根据异常类型选择恢复策略。
+     */
     private final FailureClassifier failureClassifier = new FailureClassifier();
+    /**
+     * 恢复策略管理器。
+     * <p>示例：在失败时选择重试或重规划。
+     */
     private final RecoveryStrategyManager recoveryStrategyManager;
+    /**
+     * 重试策略。
+     * <p>示例：执行指数退避等待。
+     */
     private final RetryPolicy retryPolicy;
 
+    /**
+     * 构造运行时执行器。
+     *
+     * <p>输入：各类服务依赖与重试配置。
+     * <p>输出：初始化后的运行时执行器。
+     * <p>示例：
+     * <pre>{@code
+     * new AgentRuntime(plannerService, reflectionService, stepRuntimeService, enforcementGateway, hookManager,
+     *     executionControlService, thoughtTreeService, chainOfThoughtService, multiAgentCoordinator,
+     *     debateCoordinator, researchPipeline, finalOutputService, reactLoopService, memoryRecallService,
+     *     memoryWriteService, evidencePackService, contextBuilder, contextEventPublisher, eventPublisher,
+     *     tracingPublisher, 1, 1, 100L, 1000L, 0.2);
+     * }</pre>
+     *
+     * @param plannerService 规划服务
+     * @param reflectionService 反思服务
+     * @param stepRuntimeService 步骤运行时服务
+     * @param enforcementGateway 执行约束网关
+     * @param hookManager 钩子管理器
+     * @param executionControlService 执行控制服务
+     * @param thoughtTreeService 思维树服务
+     * @param chainOfThoughtService 链式推理服务
+     * @param multiAgentCoordinator 多智能体协调器
+     * @param debateCoordinator 辩论协调器
+     * @param researchPipeline 研究流程
+     * @param finalOutputService 最终输出服务
+     * @param reactLoopService {@code ReAct} 循环服务
+     * @param memoryRecallService 记忆召回服务
+     * @param memoryWriteService 记忆写入服务
+     * @param evidencePackService 证据包服务
+     * @param contextBuilder 上下文构建器
+     * @param contextEventPublisher 上下文事件发布器
+     * @param eventPublisher 应用事件发布器
+     * @param tracingPublisher 链路跟踪发布器
+     * @param maxRetries 最大重试次数
+     * @param maxDecompose 最大重规划次数
+     * @param baseDelayMs 重试基础延迟
+     * @param maxDelayMs 重试最大延迟
+     * @param jitterRatio 抖动比例
+     */
     public AgentRuntime(PlannerService plannerService,
                         ReflectionService reflectionService,
                         StepRuntimeService stepRuntimeService,
@@ -151,6 +274,14 @@ public class AgentRuntime {
     /**
      * 执行任务的运行时循环。
      *
+     * <p>输入：任务请求、租户上下文、工作流标识与任务标识。
+     * <p>输出：运行时结果对象。
+     * <p>边界：规划为空时直接返回空结果；执行异常按策略处理。
+     * <p>示例：
+     * <pre>{@code
+     * RuntimeResult result = run(request, tenantContext, workflowId, taskId, seqCounter);
+     * }</pre>
+     *
      * @param request 任务请求
      * @param tenantContext 租户上下文
      * @param workflowId 工作流标识
@@ -163,6 +294,7 @@ public class AgentRuntime {
                              String taskId,
                              AtomicLong seqCounter) {
         Map<String, Object> runtimeContext = new HashMap<>();
+        // 合并请求上下文与工具选择。
         if (request != null && request.getContext() != null) {
             runtimeContext.putAll(request.getContext());
         }
@@ -172,15 +304,19 @@ public class AgentRuntime {
         if (workflowId != null && !workflowId.isBlank()) {
             runtimeContext.putIfAbsent("workflowId", workflowId);
         }
+        // 召回记忆并注入运行上下文。
         MemoryRecallResult recallResult = memoryRecallService.recall(request, runtimeContext, tenantContext);
         applyMemoryContext(runtimeContext, recallResult);
+        // 构建上下文快照并写入运行上下文。
         ContextBuildResult buildResult = buildContextSnapshot(request, tenantContext, workflowId, taskId,
                 recallResult, runtimeContext, seqCounter);
         applyContextSnapshot(runtimeContext, buildResult);
+        // 构造携带上下文的请求副本，避免修改原请求。
         TaskRequest effectiveRequest = buildRequestWithContext(request, runtimeContext);
 
         List<Map<String, Object>> stepOutputs = new java.util.ArrayList<>();
         int decomposeAttempts = 0;
+        // 生成规划步骤。
         PlanResult plan = plannerService.plan(effectiveRequest, tenantContext, workflowId, seqCounter);
         publishPlanEvent(tenantContext, workflowId, seqCounter, plan, EventType.PLAN_GENERATED);
 
@@ -192,10 +328,12 @@ public class AgentRuntime {
                 persistMemorySafely(effectiveRequest, result, tenantContext, taskId);
                 return result;
             }
+            // 顺序执行规划步骤。
             for (StepRequest step : plan.getSteps()) {
                 StepOutcome outcome = executeStep(step, effectiveRequest, tenantContext, workflowId, taskId, seqCounter,
                         runtimeContext, decomposeAttempts, stepOutputs);
                 if (outcome == StepOutcome.REPLAN) {
+                    // 需要重规划时重新生成计划。
                     decomposeAttempts++;
                     TaskRequest replanRequest = rebuildRequestForReplan(effectiveRequest, decomposeAttempts);
                     plan = plannerService.plan(replanRequest, tenantContext, workflowId, seqCounter);
@@ -205,6 +343,7 @@ public class AgentRuntime {
                 }
             }
             if (!replan) {
+                // 所有步骤完成后生成最终输出。
                 Map<String, Object> finalOutput = finalOutputService.finalizeOutput(
                         effectiveRequest,
                         effectiveRequest != null ? effectiveRequest.getQuery() : null,
@@ -221,6 +360,17 @@ public class AgentRuntime {
         }
     }
 
+    /**
+     * 执行单个步骤并处理重试与降级。
+     *
+     * <p>输入：步骤定义、任务请求与运行上下文。
+     * <p>输出：步骤执行结果状态。
+     * <p>边界：异常会触发重试、重规划或抛出。
+     * <p>示例：
+     * <pre>{@code
+     * StepOutcome outcome = executeStep(step, request, ctx, wfId, taskId, seq, runtimeContext, 0, outputs);
+     * }</pre>
+     */
     private StepOutcome executeStep(StepRequest step,
                                     TaskRequest request,
                                     TenantContext tenantContext,
@@ -233,8 +383,11 @@ public class AgentRuntime {
         int attempt = 0;
         while (true) {
             attempt++;
+            // 合并步骤输入与运行时上下文。
             Map<String, Object> stepInput = mergeStepInput(step, runtimeContext);
+            // 执行控制门禁：暂停、取消或审批等待。
             applyExecutionControl(workflowId, tenantContext, seqCounter);
+            // 根据配置触发审批并等待决策。
             requestApprovalIfNeeded(step, request, stepInput, runtimeContext, workflowId, tenantContext, seqCounter);
             StepRecord record = stepRuntimeService.startStep(
                     workflowId,
@@ -245,6 +398,7 @@ public class AgentRuntime {
                     seqCounter);
 
             try {
+                // 步骤前置钩子。
                 hookManager.preStep(tenantContext, record);
                 Map<String, Object> output;
                 String stepType = step.getStepType();
@@ -273,10 +427,12 @@ public class AgentRuntime {
                     output.put("citations", citations);
                     output.put("count", citations.size());
                 } else {
+                    // 默认按工具步骤执行。
                     String toolName = resolveToolName(request, step);
                     output = executeToolStep(request, tenantContext, workflowId, taskId, seqCounter, record, toolName);
                 }
 
+                // 对步骤输出进行反思评估，可能触发重试。
                 ReflectionResult reflection = reflectWithEvents(step, tenantContext, workflowId, seqCounter, output, attempt);
                 if (reflection != null && reflection.isRetryRequested()) {
                     Map<String, Object> details = new HashMap<>();
@@ -288,6 +444,7 @@ public class AgentRuntime {
                     continue;
                 }
 
+                // 正常完成步骤并更新上下文。
                 stepRuntimeService.completeStep(record, output, seqCounter);
                 updateRuntimeContext(runtimeContext, record, output);
                 recordStepOutput(stepOutputs, record, output);
@@ -300,6 +457,7 @@ public class AgentRuntime {
 
                 if (strategy == RecoveryStrategy.FALLBACK && fallbackTool != null) {
                     try {
+                        // 使用兜底工具执行，避免当前工具失败导致整体中断。
                         Map<String, Object> fallbackOutput = executeToolStep(request, tenantContext, workflowId,
                                 taskId, seqCounter, record, fallbackTool);
                         fallbackOutput.put("fallbackFrom", resolveToolName(request, step));
@@ -320,19 +478,33 @@ public class AgentRuntime {
                         record.getStepId(), attempt, strategy, ex);
 
                 if (strategy == RecoveryStrategy.RETRY) {
+                    // 执行重试策略。
                     retryPolicy.sleepBeforeRetry(attempt);
                     continue;
                 }
                 if (strategy == RecoveryStrategy.DECOMPOSE) {
+                    // 触发重规划。
                     return StepOutcome.REPLAN;
                 }
                 throw ex instanceof RuntimeException runtime ? runtime : new RuntimeException(ex);
             } finally {
+                // 步骤后置钩子。
                 hookManager.postStep(tenantContext, record);
             }
         }
     }
 
+    /**
+     * 执行工具步骤。
+     *
+     * <p>输入：任务请求、租户上下文与工具名称。
+     * <p>输出：工具执行输出。
+     * <p>边界：工具执行异常由上层处理。
+     * <p>示例：
+     * <pre>{@code
+     * Map<String, Object> output = executeToolStep(request, ctx, wfId, taskId, seq, record, "demo_tool");
+     * }</pre>
+     */
     private Map<String, Object> executeToolStep(TaskRequest request,
                                                 TenantContext tenantContext,
                                                 String workflowId,
@@ -340,20 +512,34 @@ public class AgentRuntime {
                                                 AtomicLong seqCounter,
                                                 StepRecord record,
                                                 String toolName) {
+        // 工具执行前先检查执行控制状态。
         applyExecutionControl(workflowId, tenantContext, seqCounter);
+        // 执行工具前置钩子。
         hookManager.preTool(tenantContext, record, toolName);
         Map<String, Object> output = enforcementGateway.execute(
                 request, tenantContext, workflowId, taskId, seqCounter, toolName);
+        // 执行工具后置钩子。
         hookManager.postTool(tenantContext, record, toolName, output);
         return output;
     }
 
+    /**
+     * 执行 {@code ReAct} 循环步骤。
+     *
+     * <p>输入：任务请求、步骤输入与链路信息。
+     * <p>输出：{@code ReAct} 执行摘要映射。
+     * <p>示例：
+     * <pre>{@code
+     * Map<String, Object> output = executeReactLoop(request, stepInput, ctx, wfId, taskId, seq);
+     * }</pre>
+     */
     private Map<String, Object> executeReactLoop(TaskRequest request,
                                                  Map<String, Object> stepInput,
                                                  TenantContext tenantContext,
                                                  String workflowId,
                                                  String taskId,
                                                  AtomicLong seqCounter) {
+        // 使用步骤输入构建反应式请求。
         TaskRequest reactRequest = buildRequestWithContext(request, stepInput);
         ReactLoopResult result = reactLoopService.run(reactRequest, tenantContext, workflowId, taskId, seqCounter);
         Map<String, Object> output = new HashMap<>();
@@ -366,6 +552,17 @@ public class AgentRuntime {
         return output;
     }
 
+    /**
+     * 执行思维树步骤。
+     *
+     * <p>输入：步骤定义与链路信息。
+     * <p>输出：思维树输出映射。
+     * <p>边界：无提示时使用空字符串。
+     * <p>示例：
+     * <pre>{@code
+     * Map<String, Object> output = executeThoughtTree(step, ctx, wfId, seq);
+     * }</pre>
+     */
     private Map<String, Object> executeThoughtTree(StepRequest step,
                                                    TenantContext tenantContext,
                                                    String workflowId,
@@ -373,6 +570,7 @@ public class AgentRuntime {
         String prompt = step.getInput() != null && step.getInput().get("prompt") instanceof String value
                 ? value
                 : "";
+        // 构建思维树并发布展开事件。
         ThoughtTreeConfig config = new ThoughtTreeConfig();
         ThoughtTreeResult result = thoughtTreeService.buildTree(prompt, config);
         List<ThoughtNode> nodes = flattenThoughtNodes(result.getRoot());
@@ -389,12 +587,20 @@ public class AgentRuntime {
 
     /**
      * 链式推理步骤执行，输出结构化摘要以避免暴露推理细节。
+     *
+     * <p>输入：任务请求、步骤输入与链路信息。
+     * <p>输出：链式推理输出映射。
+     * <p>示例：
+     * <pre>{@code
+     * Map<String, Object> output = executeChainOfThought(request, stepInput, ctx, wfId, seq);
+     * }</pre>
      */
     private Map<String, Object> executeChainOfThought(TaskRequest request,
                                                       Map<String, Object> stepInput,
                                                       TenantContext tenantContext,
                                                       String workflowId,
                                                       AtomicLong seqCounter) {
+        // 从输入中解析问题文本并执行链式推理。
         String question = resolveStepQuestion(stepInput, request);
         ChainOfThoughtResult result = chainOfThoughtService.run(question, stepInput, tenantContext, workflowId,
                 seqCounter);
@@ -407,6 +613,17 @@ public class AgentRuntime {
         return output;
     }
 
+    /**
+     * 执行反思并发布开始/结束事件。
+     *
+     * <p>输入：步骤定义、链路信息与步骤输出。
+     * <p>输出：反思结果对象。
+     * <p>边界：反思服务异常由上层捕获。
+     * <p>示例：
+     * <pre>{@code
+     * ReflectionResult result = reflectWithEvents(step, ctx, wfId, seq, output, attempt);
+     * }</pre>
+     */
     private ReflectionResult reflectWithEvents(StepRequest step,
                                                TenantContext tenantContext,
                                                String workflowId,
@@ -431,6 +648,17 @@ public class AgentRuntime {
         return result;
     }
 
+    /**
+     * 发布思维树展开事件。
+     *
+     * <p>输入：租户上下文、工作流标识与思维树节点列表。
+     * <p>输出：无。
+     * <p>边界：节点为空时不发布。
+     * <p>示例：
+     * <pre>{@code
+     * publishThoughtEvents(ctx, wfId, seq, nodes);
+     * }</pre>
+     */
     private void publishThoughtEvents(TenantContext tenantContext,
                                       String workflowId,
                                       AtomicLong seqCounter,
@@ -450,6 +678,17 @@ public class AgentRuntime {
         }
     }
 
+    /**
+     * 发布规划相关事件。
+     *
+     * <p>输入：租户上下文、工作流标识与规划结果。
+     * <p>输出：无。
+     * <p>边界：规划为空时不发布。
+     * <p>示例：
+     * <pre>{@code
+     * publishPlanEvent(ctx, wfId, seq, plan, EventType.PLAN_GENERATED);
+     * }</pre>
+     */
     private void publishPlanEvent(TenantContext tenantContext,
                                   String workflowId,
                                   AtomicLong seqCounter,
@@ -469,6 +708,16 @@ public class AgentRuntime {
         publishEvent(tenantContext, workflowId, seqCounter, type, payload);
     }
 
+    /**
+     * 发布通用运行时事件。
+     *
+     * <p>输入：租户上下文、工作流标识与事件载荷。
+     * <p>输出：无。
+     * <p>示例：
+     * <pre>{@code
+     * publishEvent(ctx, wfId, seq, EventType.PLAN_GENERATED, payload);
+     * }</pre>
+     */
     private void publishEvent(TenantContext tenantContext,
                               String workflowId,
                               AtomicLong seqCounter,
@@ -477,6 +726,7 @@ public class AgentRuntime {
         long seq = seqCounter.incrementAndGet();
         StreamEvent event = new StreamEvent();
         Map<String, Object> mutable = payload == null ? new HashMap<>() : new HashMap<>(payload);
+        // 补充链路标识信息。
         attachTraceContext(mutable, tenantContext);
         event.setEventId(workflowId + ":" + seq);
         event.setSchemaVersion("v1");
@@ -490,6 +740,17 @@ public class AgentRuntime {
         eventPublisher.publishEvent(event);
     }
 
+    /**
+     * 将链路标识写入事件载荷。
+     *
+     * <p>输入：载荷映射与租户上下文。
+     * <p>输出：无。
+     * <p>边界：参数为空时不处理。
+     * <p>示例：
+     * <pre>{@code
+     * attachTraceContext(payload, tenantContext);
+     * }</pre>
+     */
     private void attachTraceContext(Map<String, Object> payload, TenantContext tenantContext) {
         if (payload == null || tenantContext == null) {
             return;
@@ -498,6 +759,17 @@ public class AgentRuntime {
         payload.putIfAbsent("requestId", tenantContext.getRequestId());
     }
 
+    /**
+     * 解析链路跟踪标识。
+     *
+     * <p>输入：租户上下文。
+     * <p>输出：跟踪标识字符串。
+     * <p>边界：上下文缺失时使用当前链路标识。
+     * <p>示例：
+     * <pre>{@code
+     * String traceId = resolveTraceId(ctx);
+     * }</pre>
+     */
     private String resolveTraceId(TenantContext tenantContext) {
         if (tenantContext != null && tenantContext.getTraceId() != null
                 && !tenantContext.getTraceId().isBlank()) {
@@ -509,6 +781,14 @@ public class AgentRuntime {
     /**
      * 将记忆召回结果注入运行上下文，供规划与工具使用。
      *
+     * <p>输入：运行上下文与记忆召回结果。
+     * <p>输出：无。
+     * <p>边界：未使用记忆时不注入。
+     * <p>示例：
+     * <pre>{@code
+     * applyMemoryContext(runtimeContext, recallResult);
+     * }</pre>
+     *
      * @param runtimeContext 运行上下文
      * @param recallResult 记忆召回结果
      */
@@ -516,6 +796,7 @@ public class AgentRuntime {
         if (runtimeContext == null || recallResult == null || !recallResult.isUsed()) {
             return;
         }
+        // 将记忆摘要与记录写入上下文。
         Map<String, Object> memoryContext = new HashMap<>();
         memoryContext.put("summary", recallResult.getSummary());
         memoryContext.put("records", recallResult.getRecords());
@@ -526,6 +807,14 @@ public class AgentRuntime {
 
     /**
      * 构建上下文快照并发布事件。
+     *
+     * <p>输入：任务请求、租户上下文与运行时上下文。
+     * <p>输出：上下文构建结果。
+     * <p>边界：上下文构建器为空时返回 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * ContextBuildResult result = buildContextSnapshot(request, ctx, wfId, taskId, recall, runtimeContext, seq);
+     * }</pre>
      *
      * @param request 任务请求
      * @param tenantContext 租户上下文
@@ -546,6 +835,7 @@ public class AgentRuntime {
         if (contextBuilder == null) {
             return null;
         }
+        // 组装上下文构建请求。
         ContextBuildRequest buildRequest = new ContextBuildRequest();
         buildRequest.setTaskRequest(request);
         buildRequest.setTenantContext(tenantContext);
@@ -555,6 +845,7 @@ public class AgentRuntime {
         buildRequest.setRuntimeContext(runtimeContext);
         ContextBuildResult result = contextBuilder.build(buildRequest);
         if (result != null && result.getSnapshot() != null && contextEventPublisher != null) {
+            // 发布上下文快照事件，便于链路追踪。
             contextEventPublisher.publishSnapshot(tenantContext, workflowId, seqCounter,
                     result.getSnapshot(), result.getBudgetAllocation(), result.getPruneResult(), result.getMetrics());
         }
@@ -564,6 +855,14 @@ public class AgentRuntime {
     /**
      * 将上下文快照写入运行时上下文。
      *
+     * <p>输入：运行时上下文与构建结果。
+     * <p>输出：无。
+     * <p>边界：输入为空时不处理。
+     * <p>示例：
+     * <pre>{@code
+     * applyContextSnapshot(runtimeContext, buildResult);
+     * }</pre>
+     *
      * @param runtimeContext 运行时上下文
      * @param buildResult 上下文构建结果
      */
@@ -572,6 +871,7 @@ public class AgentRuntime {
             return;
         }
         if (buildResult.getSnapshot() != null) {
+            // 写入快照对象与快照标识。
             runtimeContext.put("contextSnapshot", buildResult.getSnapshot());
             String snapshotId = buildResult.getSnapshot().getSnapshotId();
             if (snapshotId != null && !snapshotId.isBlank()) {
@@ -593,6 +893,14 @@ public class AgentRuntime {
 
     /**
      * 将研究引用写入证据包，确保引用链路可追溯。
+     *
+     * <p>输入：运行时上下文、租户上下文与引用列表。
+     * <p>输出：无。
+     * <p>边界：引用为空时不处理。
+     * <p>示例：
+     * <pre>{@code
+     * appendResearchCitations(runtimeContext, ctx, wfId, citations);
+     * }</pre>
      */
     private void appendResearchCitations(Map<String, Object> runtimeContext,
                                          TenantContext tenantContext,
@@ -608,6 +916,16 @@ public class AgentRuntime {
         evidencePackService.addResearchCitations(pack, citations, tenantId, workflowId, "research");
     }
 
+    /**
+     * 解析运行时上下文中的快照标识。
+     *
+     * <p>输入：运行时上下文。
+     * <p>输出：快照标识或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * String snapshotId = resolveSnapshotId(runtimeContext);
+     * }</pre>
+     */
     private String resolveSnapshotId(Map<String, Object> runtimeContext) {
         if (runtimeContext == null) {
             return null;
@@ -627,6 +945,14 @@ public class AgentRuntime {
 
     /**
      * 构造携带运行上下文的任务请求副本，避免修改原请求对象。
+     *
+     * <p>输入：任务请求与运行时上下文。
+     * <p>输出：新的任务请求对象。
+     * <p>边界：原请求为空时返回 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * TaskRequest copy = buildRequestWithContext(request, runtimeContext);
+     * }</pre>
      *
      * @param request 原任务请求
      * @param runtimeContext 运行上下文
@@ -649,6 +975,14 @@ public class AgentRuntime {
     /**
      * 保护性写入记忆，失败不影响主流程。
      *
+     * <p>输入：任务请求、运行结果与租户上下文。
+     * <p>输出：无。
+     * <p>边界：写入失败仅记录日志。
+     * <p>示例：
+     * <pre>{@code
+     * persistMemorySafely(request, result, ctx, taskId);
+     * }</pre>
+     *
      * @param request 任务请求
      * @param result 运行结果
      * @param tenantContext 租户上下文
@@ -666,6 +1000,16 @@ public class AgentRuntime {
         }
     }
 
+    /**
+     * 构建用于重规划的请求副本。
+     *
+     * <p>输入：原任务请求与重规划次数。
+     * <p>输出：新的任务请求对象。
+     * <p>示例：
+     * <pre>{@code
+     * TaskRequest replan = rebuildRequestForReplan(request, 1);
+     * }</pre>
+     */
     private TaskRequest rebuildRequestForReplan(TaskRequest request, int attempt) {
         TaskRequest replan = new TaskRequest();
         if (request != null) {
@@ -684,6 +1028,16 @@ public class AgentRuntime {
         return replan;
     }
 
+    /**
+     * 合并步骤输入与运行时上下文。
+     *
+     * <p>输入：步骤定义与运行时上下文。
+     * <p>输出：合并后的输入映射。
+     * <p>示例：
+     * <pre>{@code
+     * Map<String, Object> input = mergeStepInput(step, runtimeContext);
+     * }</pre>
+     */
     private Map<String, Object> mergeStepInput(StepRequest step, Map<String, Object> runtimeContext) {
         Map<String, Object> merged = new HashMap<>();
         if (runtimeContext != null) {
@@ -692,12 +1046,21 @@ public class AgentRuntime {
         if (step.getInput() != null) {
             merged.putAll(step.getInput());
         }
+        // 提升审批字段，避免审批信息被嵌套丢失。
         promoteApprovalFields(merged);
         return merged;
     }
 
     /**
      * 将上下文中的审批标记提升到顶层，避免审批信息丢失。
+     *
+     * <p>输入：合并后的步骤输入。
+     * <p>输出：无。
+     * <p>边界：输入为空或已存在标记时直接返回。
+     * <p>示例：
+     * <pre>{@code
+     * promoteApprovalFields(mergedInput);
+     * }</pre>
      *
      * @param merged 合并后的步骤输入
      */
@@ -717,6 +1080,17 @@ public class AgentRuntime {
         }
     }
 
+    /**
+     * 更新运行时上下文的步骤执行信息。
+     *
+     * <p>输入：运行时上下文、步骤记录与步骤输出。
+     * <p>输出：无。
+     * <p>边界：上下文为空时不处理。
+     * <p>示例：
+     * <pre>{@code
+     * updateRuntimeContext(runtimeContext, record, output);
+     * }</pre>
+     */
     private void updateRuntimeContext(Map<String, Object> runtimeContext,
                                       StepRecord record,
                                       Map<String, Object> output) {
@@ -731,6 +1105,17 @@ public class AgentRuntime {
         }
     }
 
+    /**
+     * 记录步骤输出到列表。
+     *
+     * <p>输入：输出列表、步骤记录与步骤输出。
+     * <p>输出：无。
+     * <p>边界：列表或记录为空时不处理。
+     * <p>示例：
+     * <pre>{@code
+     * recordStepOutput(stepOutputs, record, output);
+     * }</pre>
+     */
     private void recordStepOutput(List<Map<String, Object>> stepOutputs,
                                   StepRecord record,
                                   Map<String, Object> output) {
@@ -745,6 +1130,17 @@ public class AgentRuntime {
         stepOutputs.add(entry);
     }
 
+    /**
+     * 将思维树节点展平为列表。
+     *
+     * <p>输入：思维树根节点。
+     * <p>输出：节点列表。
+     * <p>边界：根节点为空时返回空列表。
+     * <p>示例：
+     * <pre>{@code
+     * List<ThoughtNode> nodes = flattenThoughtNodes(root);
+     * }</pre>
+     */
     private List<ThoughtNode> flattenThoughtNodes(ThoughtNode root) {
         if (root == null) {
             return List.of();
@@ -762,6 +1158,17 @@ public class AgentRuntime {
         return nodes;
     }
 
+    /**
+     * 解析步骤需要使用的工具名称。
+     *
+     * <p>输入：任务请求与步骤定义。
+     * <p>输出：工具名称字符串。
+     * <p>边界：未指定时返回默认工具名称。
+     * <p>示例：
+     * <pre>{@code
+     * String tool = resolveToolName(request, step);
+     * }</pre>
+     */
     private String resolveToolName(TaskRequest request, StepRequest step) {
         if (step.getInput() != null) {
             Object tool = step.getInput().get("tool");
@@ -782,6 +1189,16 @@ public class AgentRuntime {
         return "demo_tool";
     }
 
+    /**
+     * 解析步骤的兜底工具名称。
+     *
+     * <p>输入：任务请求与步骤定义。
+     * <p>输出：兜底工具名称或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * String tool = resolveFallbackTool(request, step);
+     * }</pre>
+     */
     private String resolveFallbackTool(TaskRequest request, StepRequest step) {
         if (step.getInput() != null) {
             Object tool = step.getInput().get("fallbackTool");
@@ -798,6 +1215,17 @@ public class AgentRuntime {
         return null;
     }
 
+    /**
+     * 解析步骤查询文本。
+     *
+     * <p>输入：任务请求与步骤定义。
+     * <p>输出：查询文本。
+     * <p>边界：无内容时返回空字符串。
+     * <p>示例：
+     * <pre>{@code
+     * String query = resolveStepQuery(request, step);
+     * }</pre>
+     */
     private String resolveStepQuery(TaskRequest request, StepRequest step) {
         if (step.getInput() != null) {
             Object query = step.getInput().get("query");
@@ -811,6 +1239,16 @@ public class AgentRuntime {
         return "";
     }
 
+    /**
+     * 解析链式推理的问题文本。
+     *
+     * <p>输入：步骤输入与任务请求。
+     * <p>输出：问题文本。
+     * <p>示例：
+     * <pre>{@code
+     * String question = resolveStepQuestion(stepInput, request);
+     * }</pre>
+     */
     private String resolveStepQuestion(Map<String, Object> stepInput, TaskRequest request) {
         if (stepInput != null) {
             Object question = stepInput.get("question");
@@ -825,6 +1263,16 @@ public class AgentRuntime {
         return resolveStepQuery(request, new StepRequest(null, stepInput));
     }
 
+    /**
+     * 解析辩论步骤的主题。
+     *
+     * <p>输入：任务请求与步骤定义。
+     * <p>输出：主题文本。
+     * <p>示例：
+     * <pre>{@code
+     * String topic = resolveStepTopic(request, step);
+     * }</pre>
+     */
     private String resolveStepTopic(TaskRequest request, StepRequest step) {
         if (step.getInput() != null) {
             Object topic = step.getInput().get("topic");
@@ -835,6 +1283,17 @@ public class AgentRuntime {
         return resolveStepQuery(request, step);
     }
 
+    /**
+     * 解析异常对应的错误码。
+     *
+     * <p>输入：异常对象。
+     * <p>输出：错误码字符串。
+     * <p>边界：未实现错误码接口时返回默认错误码。
+     * <p>示例：
+     * <pre>{@code
+     * String code = resolveErrorCode(ex);
+     * }</pre>
+     */
     private String resolveErrorCode(Throwable throwable) {
         if (throwable instanceof ErrorCodeProvider provider) {
             return provider.getErrorCode();
@@ -842,6 +1301,17 @@ public class AgentRuntime {
         return "INTERNAL_ERROR";
     }
 
+    /**
+     * 解析异常信息。
+     *
+     * <p>输入：异常对象。
+     * <p>输出：错误信息字符串。
+     * <p>边界：异常无消息时返回默认提示。
+     * <p>示例：
+     * <pre>{@code
+     * String message = resolveErrorMessage(ex);
+     * }</pre>
+     */
     private String resolveErrorMessage(Throwable throwable) {
         return throwable.getMessage() == null ? "step_failed" : throwable.getMessage();
     }
@@ -849,6 +1319,15 @@ public class AgentRuntime {
     /**
      * 执行控制门禁：处理暂停、审批等待与取消。
      *
+     * <p>输入：工作流标识与租户上下文。
+     * <p>输出：无。
+     * <p>边界：被取消时抛出异常并发布取消事件。
+     * <p>示例：
+     * <pre>{@code
+     * applyExecutionControl(workflowId, ctx, seqCounter);
+     * }</pre>
+     *
+     * @param runtimeContext 运行时上下文
      * @param workflowId 工作流标识
      * @param tenantContext 租户上下文
      * @param seqCounter 序列计数器
@@ -888,6 +1367,14 @@ public class AgentRuntime {
 
     /**
      * 触发审批并等待决策。
+     *
+     * <p>输入：步骤定义、任务请求与步骤输入。
+     * <p>输出：无。
+     * <p>边界：审批被取消时抛出异常。
+     * <p>示例：
+     * <pre>{@code
+     * requestApprovalIfNeeded(step, request, stepInput, runtimeContext, wfId, ctx, seq);
+     * }</pre>
      *
      * @param step 步骤定义
      * @param request 任务请求
@@ -938,6 +1425,13 @@ public class AgentRuntime {
     /**
      * 将布尔值或字符串转换为审批标记。
      *
+     * <p>输入：原始值。
+     * <p>输出：是否为真。
+     * <p>示例：
+     * <pre>{@code
+     * boolean required = isTruthy("true");
+     * }</pre>
+     *
      * @param value 原始值
      * @return 是否为真
      */
@@ -951,6 +1445,16 @@ public class AgentRuntime {
         return false;
     }
 
+    /**
+     * 判断评估审批是否已被处理。
+     *
+     * <p>输入：审批决策与运行时上下文。
+     * <p>输出：是否已处理。
+     * <p>示例：
+     * <pre>{@code
+     * boolean resolved = isEvaluationApprovalResolved(decision, runtimeContext);
+     * }</pre>
+     */
     private boolean isEvaluationApprovalResolved(ApprovalDecision decision, Map<String, Object> runtimeContext) {
         if (decision == null || runtimeContext == null) {
             return false;
@@ -962,6 +1466,16 @@ public class AgentRuntime {
         return isTruthy(resolved);
     }
 
+    /**
+     * 解析审批决策来源。
+     *
+     * <p>输入：步骤定义、任务请求与步骤输入。
+     * <p>输出：审批决策对象。
+     * <p>示例：
+     * <pre>{@code
+     * ApprovalDecision decision = resolveApprovalDecision(step, request, stepInput);
+     * }</pre>
+     */
     private ApprovalDecision resolveApprovalDecision(StepRequest step,
                                                      TaskRequest request,
                                                      Map<String, Object> stepInput) {
@@ -980,6 +1494,16 @@ public class AgentRuntime {
         return ApprovalDecision.none();
     }
 
+    /**
+     * 从任务请求中解析审批决策。
+     *
+     * <p>输入：任务请求对象。
+     * <p>输出：审批决策对象。
+     * <p>示例：
+     * <pre>{@code
+     * ApprovalDecision decision = resolveApprovalFromUser(request);
+     * }</pre>
+     */
     private ApprovalDecision resolveApprovalFromUser(TaskRequest request) {
         if (request == null || request.getContext() == null) {
             return ApprovalDecision.none();
@@ -992,6 +1516,16 @@ public class AgentRuntime {
         return new ApprovalDecision(true, required, "user");
     }
 
+    /**
+     * 从步骤定义中解析审批决策。
+     *
+     * <p>输入：步骤定义对象。
+     * <p>输出：审批决策对象。
+     * <p>示例：
+     * <pre>{@code
+     * ApprovalDecision decision = resolveApprovalFromStep(step);
+     * }</pre>
+     */
     private ApprovalDecision resolveApprovalFromStep(StepRequest step) {
         if (step == null) {
             return ApprovalDecision.none();
@@ -1015,6 +1549,16 @@ public class AgentRuntime {
         return ApprovalDecision.none();
     }
 
+    /**
+     * 从评估上下文中解析审批决策。
+     *
+     * <p>输入：步骤定义与步骤输入。
+     * <p>输出：审批决策对象。
+     * <p>示例：
+     * <pre>{@code
+     * ApprovalDecision decision = resolveApprovalFromEvaluation(step, stepInput);
+     * }</pre>
+     */
     private ApprovalDecision resolveApprovalFromEvaluation(StepRequest step, Map<String, Object> stepInput) {
         Object value = null;
         String source = null;
@@ -1048,10 +1592,30 @@ public class AgentRuntime {
         return new ApprovalDecision(true, required, source);
     }
 
+    /**
+     * 判断是否为评估来源标记。
+     *
+     * <p>输入：来源字符串。
+     * <p>输出：是否为评估来源。
+     * <p>示例：
+     * <pre>{@code
+     * boolean match = isEvaluationSource("evaluation");
+     * }</pre>
+     */
     private boolean isEvaluationSource(String source) {
         return "evaluation".equalsIgnoreCase(source);
     }
 
+    /**
+     * 规整审批来源字符串。
+     *
+     * <p>输入：来源对象与默认值。
+     * <p>输出：规整后的来源字符串。
+     * <p>示例：
+     * <pre>{@code
+     * String source = normalizeApprovalSource("user", "step");
+     * }</pre>
+     */
     private String normalizeApprovalSource(Object source, String fallback) {
         if (source instanceof String text && !text.isBlank()) {
             return text.trim().toLowerCase(Locale.ROOT);
@@ -1062,9 +1626,18 @@ public class AgentRuntime {
     /**
      * 构造审批事件载荷摘要。
      *
+     * <p>输入：步骤定义、任务请求与步骤输入。
+     * <p>输出：审批事件载荷映射。
+     * <p>边界：输入为空时按可用信息构建。
+     * <p>示例：
+     * <pre>{@code
+     * Map<String, Object> payload = buildApprovalPayload(step, request, input, "evaluation");
+     * }</pre>
+     *
      * @param step 步骤定义
      * @param request 任务请求
      * @param stepInput 步骤输入
+     * @param approvalSource 审批来源
      * @return 审批事件载荷
      */
     private Map<String, Object> buildApprovalPayload(StepRequest step,
@@ -1101,6 +1674,14 @@ public class AgentRuntime {
     /**
      * 截断长文本，避免事件载荷过大。
      *
+     * <p>输入：原始文本与最大长度。
+     * <p>输出：截断后的文本。
+     * <p>边界：文本为空时返回 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * String shortText = truncate(text, 200);
+     * }</pre>
+     *
      * @param value 原始文本
      * @param maxLength 最大长度
      * @return 截断后的文本
@@ -1118,6 +1699,13 @@ public class AgentRuntime {
     /**
      * 判断异常是否为取消错误。
      *
+     * <p>输入：异常对象。
+     * <p>输出：是否为取消异常。
+     * <p>示例：
+     * <pre>{@code
+     * boolean cancelled = isCancelled(ex);
+     * }</pre>
+     *
      * @param ex 异常
      * @return 是否取消
      */
@@ -1125,6 +1713,16 @@ public class AgentRuntime {
         return ex != null && "CANCELLED".equals(ex.getErrorCode());
     }
 
+    /**
+     * 组装运行时结果对象。
+     *
+     * <p>输入：规划结果、步骤输出与最终输出。
+     * <p>输出：运行时结果对象。
+     * <p>示例：
+     * <pre>{@code
+     * RuntimeResult result = buildRuntimeResult(plan, outputs, finalOutput);
+     * }</pre>
+     */
     private RuntimeResult buildRuntimeResult(PlanResult plan,
                                              List<Map<String, Object>> stepOutputs,
                                              Map<String, Object> finalOutput) {
@@ -1138,13 +1736,37 @@ public class AgentRuntime {
         return result;
     }
 
+    /**
+     * 步骤执行结果枚举。
+     *
+     * <p>用途：标记步骤成功或触发重规划。
+     * <p>示例：{@code StepOutcome.REPLAN}。
+     */
     private enum StepOutcome {
         SUCCESS,
         REPLAN
     }
 
+    /**
+     * 审批决策记录对象。
+     *
+     * <p>用途：描述审批是否明确与是否需要。
+     * <p>示例：{@code new ApprovalDecision(true, true, "user")}。
+     */
     private record ApprovalDecision(boolean explicit, boolean required, String source) {
 
+        /**
+         * 构造空审批决策。
+         *
+         * <p>输入：无。
+         * <p>输出：空决策对象。
+         * <p>示例：
+         * <pre>{@code
+         * ApprovalDecision decision = ApprovalDecision.none();
+         * }</pre>
+         *
+         * @return 空审批决策
+         */
         private static ApprovalDecision none() {
             return new ApprovalDecision(false, false, null);
         }

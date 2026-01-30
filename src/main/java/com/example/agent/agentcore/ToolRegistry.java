@@ -59,6 +59,26 @@ public class ToolRegistry {
     }
 
     /**
+     * 判断是否存在可执行工具。
+     *
+     * <p>输入：工具名称。
+     * <p>输出：是否存在可执行处理器。
+     * <p>示例：
+     * <pre>{@code
+     * boolean available = toolRegistry.hasTool("demo_tool");
+     * }</pre>
+     *
+     * @param toolName 工具名称
+     * @return 是否可执行
+     */
+    public boolean hasTool(String toolName) {
+        if (toolName == null || toolName.isBlank()) {
+            return false;
+        }
+        return handlers.containsKey(toolName);
+    }
+
+    /**
      * 注册外部工具定义，供模型侧展示与选择。
      *
      * @param toolDefinitions 工具定义列表

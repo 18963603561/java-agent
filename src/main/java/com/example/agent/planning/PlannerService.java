@@ -35,27 +35,84 @@ import org.springframework.stereotype.Service;
 
 /**
  * 规划服务，负责基于任务生成可执行步骤。
+ * <p>用途：根据输入问题与上下文选择规划策略并生成步骤。
+ * <p>输入：任务请求与租户上下文。
+ * <p>输出：规划结果对象。
+ * <p>边界：当禁用回退且规划失败时抛出异常。
+ * <p>示例：
+ * <pre>{@code
+ * PlanResult plan = plannerService.plan(request, tenantContext);
+ * }</pre>
  */
 @Service
 public class PlannerService {
 
+    /**
+     * 日志记录器。
+     * <p>示例：记录规划生成结果与摘要。
+     */
     private static final Logger log = LoggerFactory.getLogger(PlannerService.class);
 
+    /**
+     * 模型调用服务。
+     * <p>示例：调用模型生成规划步骤。
+     */
     private final ModelInvocationService modelInvocationService;
+    /**
+     * 工具解析器。
+     * <p>示例：将工具配置注入模型请求。
+     */
     private final ModelToolResolver modelToolResolver;
+    /**
+     * 提示词装配器。
+     * <p>示例：生成结构化消息列表。
+     */
     private final PromptAssembler promptAssembler;
+    /**
+     * 规划相关配置。
+     * <p>示例：控制是否启用模型规划。
+     */
     private final PlannerProperties plannerProperties;
+    /**
+     * 能力边界评估器。
+     * <p>示例：根据风险决定是否需要审批。
+     */
     private final CapabilityBoundaryEvaluator capabilityBoundaryEvaluator;
+    /**
+     * 序列化工具。
+     * <p>示例：将上下文转换为 {@code JSON}。
+     */
     private final ObjectMapper objectMapper;
     /**
      * 上下文装配器。
+     * <p>示例：构建提示词所需的上下文片段。
      */
     private final ContextAssembler contextAssembler;
     /**
      * 上下文事件发布器。
+     * <p>示例：发布提示词装配阶段事件。
      */
     private final ContextEventPublisher contextEventPublisher;
 
+    /**
+     * 构造规划服务。
+     *
+     * <p>输入：模型调用服务、工具解析器与配置对象。
+     * <p>输出：初始化后的规划服务。
+     * <p>示例：
+     * <pre>{@code
+     * new PlannerService(invocationService, toolResolver, promptAssembler, props, evaluator, mapper, assembler, publisher);
+     * }</pre>
+     *
+     * @param modelInvocationService 模型调用服务
+     * @param modelToolResolver 工具解析器
+     * @param promptAssembler 提示词装配器
+     * @param plannerProperties 规划配置
+     * @param capabilityBoundaryEvaluator 能力评估器
+     * @param objectMapper 序列化工具
+     * @param contextAssembler 上下文装配器
+     * @param contextEventPublisher 上下文事件发布器
+     */
     public PlannerService(ModelInvocationService modelInvocationService,
                           ModelToolResolver modelToolResolver,
                           PromptAssembler promptAssembler,
@@ -77,6 +134,14 @@ public class PlannerService {
     /**
      * 生成规划结果。
      *
+     * <p>输入：任务请求与租户上下文。
+     * <p>输出：规划结果对象。
+     * <p>边界：会转调带上下文的方法，保持统一逻辑。
+     * <p>示例：
+     * <pre>{@code
+     * PlanResult plan = plan(request, tenantContext);
+     * }</pre>
+     *
      * @param request 任务请求
      * @param tenantContext 租户上下文
      * @return 规划结果
@@ -86,7 +151,15 @@ public class PlannerService {
     }
 
     /**
-     * 带运行上下文的规划入口，用于发布 LLM 事件。
+     * 带运行上下文的规划入口，用于发布模型事件。
+     *
+     * <p>输入：任务请求、租户上下文与链路标识。
+     * <p>输出：规划结果对象。
+     * <p>边界：当模型规划失败且禁用回退时抛出异常。
+     * <p>示例：
+     * <pre>{@code
+     * PlanResult plan = plan(request, tenantContext, workflowId, seqCounter);
+     * }</pre>
      *
      * @param request 任务请求
      * @param tenantContext 租户上下文
@@ -103,10 +176,12 @@ public class PlannerService {
         Map<String, Object> context = request != null && request.getContext() != null
                 ? new HashMap<>(request.getContext())
                 : new HashMap<>();
+        // 评估能力边界，决定是否需要审批或推荐策略。
         CapabilityEvaluationResult evaluation = evaluateCapability(request, context, tenantContext, workflowId,
                 seqCounter);
         applyEvaluationToContext(context, evaluation);
 
+        // 优先尝试模型规划，失败则回退规则规划。
         if (plannerProperties.isLlmEnabled()) {
             PlanResult llmPlan = tryLlmPlan(request, tenantContext, workflowId, seqCounter, context, planId);
             if (llmPlan != null) {
@@ -118,11 +193,23 @@ public class PlannerService {
         if (!plannerProperties.isFallbackEnabled()) {
             throw new IllegalStateException("planner_fallback_disabled");
         }
+        // 规则规划作为兜底策略。
         PlanResult fallback = buildHeuristicPlan(planId, query, context, tenantContext);
         applyApprovalRequirement(fallback, request, evaluation);
         return fallback;
     }
 
+    /**
+     * 执行能力边界评估。
+     *
+     * <p>输入：任务请求、上下文与链路信息。
+     * <p>输出：评估结果对象。
+     * <p>边界：评估器未启用时返回 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * CapabilityEvaluationResult result = evaluateCapability(request, context, ctx, wfId, seq);
+     * }</pre>
+     */
     private CapabilityEvaluationResult evaluateCapability(TaskRequest request,
                                                           Map<String, Object> context,
                                                           TenantContext tenantContext,
@@ -131,6 +218,7 @@ public class PlannerService {
         if (capabilityBoundaryEvaluator == null || !capabilityBoundaryEvaluator.isEnabled()) {
             return null;
         }
+        // 构建评估输入，包含问题、工具摘要与预算信息。
         CapabilityEvaluationInput input = new CapabilityEvaluationInput();
         input.setTaskDescription(request != null ? request.getQuery() : null);
         input.setPlanSummary(resolvePlanSummary(context));
@@ -141,6 +229,17 @@ public class PlannerService {
         return capabilityBoundaryEvaluator.evaluate(input, tenantContext, workflowId, seqCounter);
     }
 
+    /**
+     * 将评估结果写入上下文。
+     *
+     * <p>输入：上下文映射与评估结果。
+     * <p>输出：无。
+     * <p>边界：评估被跳过时不写入。
+     * <p>示例：
+     * <pre>{@code
+     * applyEvaluationToContext(context, evaluation);
+     * }</pre>
+     */
     private void applyEvaluationToContext(Map<String, Object> context, CapabilityEvaluationResult evaluation) {
         if (context == null || evaluation == null || evaluation.isSkipped()) {
             return;
@@ -158,6 +257,17 @@ public class PlannerService {
                 : null);
     }
 
+    /**
+     * 将审批要求绑定到规划步骤。
+     *
+     * <p>输入：规划结果、任务请求与评估结果。
+     * <p>输出：无。
+     * <p>边界：无步骤或已显式指定审批时不处理。
+     * <p>示例：
+     * <pre>{@code
+     * applyApprovalRequirement(plan, request, evaluation);
+     * }</pre>
+     */
     private void applyApprovalRequirement(PlanResult plan,
                                           TaskRequest request,
                                           CapabilityEvaluationResult evaluation) {
@@ -174,6 +284,16 @@ public class PlannerService {
         markStepRequiresApproval(first, "evaluation");
     }
 
+    /**
+     * 判断任务请求是否显式要求审批。
+     *
+     * <p>输入：任务请求对象。
+     * <p>输出：是否存在审批标记。
+     * <p>示例：
+     * <pre>{@code
+     * boolean required = hasExplicitApproval(request);
+     * }</pre>
+     */
     private boolean hasExplicitApproval(TaskRequest request) {
         if (request == null || request.getContext() == null) {
             return false;
@@ -181,6 +301,16 @@ public class PlannerService {
         return request.getContext().containsKey("requiresApproval");
     }
 
+    /**
+     * 判断步骤列表中是否显式标记审批。
+     *
+     * <p>输入：步骤列表。
+     * <p>输出：是否存在审批标记。
+     * <p>示例：
+     * <pre>{@code
+     * boolean required = hasExplicitApproval(steps);
+     * }</pre>
+     */
     private boolean hasExplicitApproval(List<StepRequest> steps) {
         if (steps == null) {
             return false;
@@ -200,6 +330,17 @@ public class PlannerService {
         return false;
     }
 
+    /**
+     * 标记步骤需要审批。
+     *
+     * <p>输入：步骤对象与来源标识。
+     * <p>输出：无。
+     * <p>边界：步骤为空时直接返回。
+     * <p>示例：
+     * <pre>{@code
+     * markStepRequiresApproval(step, "evaluation");
+     * }</pre>
+     */
     private void markStepRequiresApproval(StepRequest step, String source) {
         if (step == null) {
             return;
@@ -213,6 +354,16 @@ public class PlannerService {
         }
     }
 
+    /**
+     * 判断上下文中是否显式指定策略。
+     *
+     * <p>输入：上下文映射。
+     * <p>输出：是否存在策略字段。
+     * <p>示例：
+     * <pre>{@code
+     * boolean explicit = hasExplicitStrategy(context);
+     * }</pre>
+     */
     private boolean hasExplicitStrategy(Map<String, Object> context) {
         if (context == null) {
             return false;
@@ -224,6 +375,17 @@ public class PlannerService {
                 || context.containsKey("reactEnabled");
     }
 
+    /**
+     * 将推荐策略映射到上下文字段。
+     *
+     * <p>输入：上下文映射与策略名称。
+     * <p>输出：无。
+     * <p>边界：策略为空时不处理。
+     * <p>示例：
+     * <pre>{@code
+     * mapStrategyToContext(context, "react");
+     * }</pre>
+     */
     private void mapStrategyToContext(Map<String, Object> context, String strategy) {
         if (context == null || strategy == null) {
             return;
@@ -247,6 +409,16 @@ public class PlannerService {
         }
     }
 
+    /**
+     * 获取上下文中的规划摘要。
+     *
+     * <p>输入：上下文映射。
+     * <p>输出：规划摘要字符串或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * String summary = resolvePlanSummary(context);
+     * }</pre>
+     */
     private String resolvePlanSummary(Map<String, Object> context) {
         if (context == null) {
             return null;
@@ -255,6 +427,16 @@ public class PlannerService {
         return summary instanceof String value ? value : null;
     }
 
+    /**
+     * 获取上下文中的工具摘要。
+     *
+     * <p>输入：上下文映射。
+     * <p>输出：工具摘要字符串或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * String tools = resolveToolSummary(context);
+     * }</pre>
+     */
     private String resolveToolSummary(Map<String, Object> context) {
         if (context == null) {
             return null;
@@ -275,6 +457,16 @@ public class PlannerService {
         return builder.length() == 0 ? null : builder.toString();
     }
 
+    /**
+     * 以逗号拼接字符串。
+     *
+     * <p>输入：字符串构建器与待拼接值。
+     * <p>输出：无。
+     * <p>示例：
+     * <pre>{@code
+     * appendWithComma(builder, "toolA");
+     * }</pre>
+     */
     private void appendWithComma(StringBuilder builder, String value) {
         if (builder.length() > 0) {
             builder.append(',');
@@ -282,6 +474,16 @@ public class PlannerService {
         builder.append(value);
     }
 
+    /**
+     * 获取预算阈值配置。
+     *
+     * <p>输入：上下文映射。
+     * <p>输出：阈值整数，默认 {@code 0}。
+     * <p>示例：
+     * <pre>{@code
+     * int threshold = resolveBudgetThreshold(context);
+     * }</pre>
+     */
     private int resolveBudgetThreshold(Map<String, Object> context) {
         if (context == null) {
             return 0;
@@ -301,6 +503,17 @@ public class PlannerService {
     }
 
     @SuppressWarnings("unchecked")
+    /**
+     * 解析上下文中的失败类型列表。
+     *
+     * <p>输入：上下文映射。
+     * <p>输出：失败类型列表。
+     * <p>边界：解析失败时返回空列表。
+     * <p>示例：
+     * <pre>{@code
+     * List<String> failures = resolveFailureTypes(context);
+     * }</pre>
+     */
     private List<String> resolveFailureTypes(Map<String, Object> context) {
         if (context == null) {
             return List.of();
@@ -321,6 +534,17 @@ public class PlannerService {
         return List.of();
     }
 
+    /**
+     * 尝试使用模型生成规划。
+     *
+     * <p>输入：任务请求、租户上下文与上下文信息。
+     * <p>输出：规划结果对象或 {@code null}。
+     * <p>边界：模型输出不合法时返回 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * PlanResult plan = tryLlmPlan(request, ctx, wfId, seq, context, planId);
+     * }</pre>
+     */
     private PlanResult tryLlmPlan(TaskRequest request,
                                   TenantContext tenantContext,
                                   String workflowId,
@@ -328,10 +552,12 @@ public class PlannerService {
                                   Map<String, Object> context,
                                   String planId) {
         try {
+            // 构造规划提示词并生成模型请求。
             String prompt = buildPlanPrompt(request, context);
             ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.PLANNER);
             applyPromptBundle(modelRequest, prompt, request, context, tenantContext, workflowId, seqCounter);
             modelToolResolver.applyTooling(modelRequest, request, null);
+            // 调用模型生成规划内容。
             ModelResponse response = modelInvocationService.invoke(
                     modelRequest,
                     ModelScene.PLANNER,
@@ -344,6 +570,7 @@ public class PlannerService {
             if (response == null || response.getContent() == null) {
                 return null;
             }
+            // 解析模型输出为规划步骤。
             PlanParsingResult parsed = parsePlan(response.getContent(), request, context);
             if (parsed == null || parsed.steps == null || parsed.steps.isEmpty()) {
                 return null;
@@ -359,6 +586,17 @@ public class PlannerService {
         }
     }
 
+    /**
+     * 使用规则策略生成规划。
+     *
+     * <p>输入：规划标识、问题与上下文信息。
+     * <p>输出：规划结果对象。
+     * <p>边界：问题为空时使用默认复杂度。
+     * <p>示例：
+     * <pre>{@code
+     * PlanResult plan = buildHeuristicPlan(planId, query, context, tenantContext);
+     * }</pre>
+     */
     private PlanResult buildHeuristicPlan(String planId,
                                           String query,
                                           Map<String, Object> context,
@@ -366,7 +604,7 @@ public class PlannerService {
         double complexityScore = estimateComplexity(query);
         String cognitiveStrategy = resolveCognitiveStrategy(context, complexityScore);
         String executionStrategy = resolveExecutionStrategy(context, complexityScore);
-        String mode = context.get("mode") instanceof String value ? value.toLowerCase(Locale.ROOT) : "";
+            String mode = context.get("mode") instanceof String value ? value.toLowerCase(Locale.ROOT) : "";
         String strategy = context.get("strategy") instanceof String value ? value.toLowerCase(Locale.ROOT) : "";
 
         List<StepRequest> steps = new ArrayList<>();
@@ -375,6 +613,7 @@ public class PlannerService {
 
         String previousStepKey = null;
         String thoughtStepKey = null;
+        // 优先处理显式链式推理策略。
         if (isChainOfThoughtRequested(mode, strategy, cognitiveStrategy)) {
             String stepKey = "step-1";
             Map<String, Object> input = new HashMap<>();
@@ -395,6 +634,7 @@ public class PlannerService {
             context.put("cognitiveStrategy", cognitiveStrategy);
             return result;
         }
+        // 需要思维树策略时先插入思维树步骤。
         if (needsThoughtTree(cognitiveStrategy, complexityScore)) {
             thoughtStepKey = "step-1";
             Map<String, Object> thoughtInput = new HashMap<>();
@@ -407,6 +647,7 @@ public class PlannerService {
             previousStepKey = thoughtStepKey;
         }
 
+        // 多智能体策略。
         if ("multi_agent".equals(strategy) || "multi-agent".equals(strategy)) {
             String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
             Map<String, Object> input = new HashMap<>();
@@ -421,6 +662,7 @@ public class PlannerService {
             previousStepKey = stepKey;
         }
 
+        // 辩论策略。
         if ("debate".equals(strategy)) {
             String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
             Map<String, Object> input = new HashMap<>();
@@ -434,6 +676,7 @@ public class PlannerService {
             previousStepKey = stepKey;
         }
 
+        // 研究策略。
         if ("deep_research".equals(mode) || "research".equals(strategy)) {
             String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
             Map<String, Object> input = new HashMap<>();
@@ -448,6 +691,7 @@ public class PlannerService {
             previousStepKey = stepKey;
         }
 
+        // 反应式策略。
         if (shouldUseReact(context, mode, strategy)) {
             String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
             Map<String, Object> input = new HashMap<>();
@@ -463,7 +707,7 @@ public class PlannerService {
                     "strategy=%s, cognitive=%s, complexity=%.2f, steps=%d",
                     executionStrategy, cognitiveStrategy, complexityScore, steps.size());
             PlanResult result = new PlanResult(planId, summary, steps);
-            log.info("瑙勫垝鐢熸垚(ReAct), tenantId={}, planId={}, summary={}",
+            log.info("规划生成（ReAct）, tenantId={}, planId={}, summary={}",
                     tenantContext.getTenantId(), planId, summary);
             context.put("planSteps", planSteps);
             context.put("planDependencies", dependencies);
@@ -472,6 +716,7 @@ public class PlannerService {
             return result;
         }
 
+        // 默认工具步骤。
         String toolStepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
         Map<String, Object> toolInput = new HashMap<>();
         toolInput.put("query", query);
@@ -508,6 +753,17 @@ public class PlannerService {
         return result;
     }
 
+    /**
+     * 构建规划提示词。
+     *
+     * <p>输入：任务请求与上下文映射。
+     * <p>输出：提示词字符串。
+     * <p>边界：序列化失败时使用空上下文。
+     * <p>示例：
+     * <pre>{@code
+     * String prompt = buildPlanPrompt(request, context);
+     * }</pre>
+     */
     private String buildPlanPrompt(TaskRequest request, Map<String, Object> context) {
         Map<String, Object> promptContext = new HashMap<>();
         promptContext.put("query", request != null ? request.getQuery() : null);
@@ -526,6 +782,17 @@ public class PlannerService {
                 """.formatted(contextJson);
     }
 
+    /**
+     * 应用提示词装配器并发布装配阶段事件。
+     *
+     * <p>输入：模型请求、提示词与上下文信息。
+     * <p>输出：无。
+     * <p>边界：装配器为空时直接返回。
+     * <p>示例：
+     * <pre>{@code
+     * applyPromptBundle(modelRequest, prompt, request, context, ctx, wfId, seq);
+     * }</pre>
+     */
     private void applyPromptBundle(ModelRequest modelRequest,
                                    String prompt,
                                    TaskRequest request,
@@ -542,6 +809,7 @@ public class PlannerService {
         if (assemblyInput != null) {
             assemblyContext.put("promptAssemblyInput", assemblyInput);
         }
+        // 将提示词转换为消息结构。
         PromptBundle bundle = promptAssembler.build(prompt, request, assemblyContext);
         if (bundle != null && bundle.getMessages() != null) {
             modelRequest.setMessages(bundle.getMessages());
@@ -552,6 +820,14 @@ public class PlannerService {
 
     /**
      * 发布规划提示词装配阶段事件。
+     *
+     * <p>输入：租户上下文、工作流标识与装配结果。
+     * <p>输出：无。
+     * <p>边界：事件发布器为空时直接返回。
+     * <p>示例：
+     * <pre>{@code
+     * publishPlanStage(ctx, wfId, seq, context, input, bundle, beforeTokens);
+     * }</pre>
      */
     private void publishPlanStage(TenantContext tenantContext,
                                   String workflowId,
@@ -587,6 +863,17 @@ public class PlannerService {
                 afterTokens);
     }
 
+    /**
+     * 计算令牌总数。
+     *
+     * <p>输入：令牌明细映射。
+     * <p>输出：令牌总数或 {@code null}。
+     * <p>边界：映射为空时返回 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * Integer total = resolveTokenTotal(tokens);
+     * }</pre>
+     */
     private Integer resolveTokenTotal(Map<String, Integer> tokens) {
         if (tokens == null || tokens.isEmpty()) {
             return null;
@@ -602,6 +889,17 @@ public class PlannerService {
         return sum;
     }
 
+    /**
+     * 构建提示词装配输入。
+     *
+     * <p>输入：提示词、任务请求与上下文映射。
+     * <p>输出：装配输入对象或 {@code null}。
+     * <p>边界：装配器为空时返回 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * PromptAssemblyInput input = buildPromptAssemblyInput(prompt, request, context);
+     * }</pre>
+     */
     private PromptAssemblyInput buildPromptAssemblyInput(String prompt,
                                                          TaskRequest request,
                                                          Map<String, Object> context) {
@@ -637,6 +935,16 @@ public class PlannerService {
                 tenantId, workflowId, prompt);
     }
 
+    /**
+     * 解析上下文快照对象。
+     *
+     * <p>输入：上下文映射。
+     * <p>输出：上下文快照对象或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * ContextSnapshot snapshot = resolveContextSnapshot(context);
+     * }</pre>
+     */
     private ContextSnapshot resolveContextSnapshot(Map<String, Object> context) {
         if (context == null) {
             return null;
@@ -648,6 +956,16 @@ public class PlannerService {
         return null;
     }
 
+    /**
+     * 解析上下文预算分配对象。
+     *
+     * <p>输入：上下文映射。
+     * <p>输出：预算分配对象或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * ContextBudgetAllocation allocation = resolveContextBudget(context);
+     * }</pre>
+     */
     private ContextBudgetAllocation resolveContextBudget(Map<String, Object> context) {
         if (context == null) {
             return null;
@@ -659,6 +977,16 @@ public class PlannerService {
         return null;
     }
 
+    /**
+     * 解析上下文裁剪结果对象。
+     *
+     * <p>输入：上下文映射。
+     * <p>输出：裁剪结果对象或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * ContextPruneResult prune = resolveContextPrune(context);
+     * }</pre>
+     */
     private ContextPruneResult resolveContextPrune(Map<String, Object> context) {
         if (context == null) {
             return null;
@@ -670,6 +998,17 @@ public class PlannerService {
         return null;
     }
 
+    /**
+     * 解析模型规划输出。
+     *
+     * <p>输入：模型输出内容、任务请求与上下文映射。
+     * <p>输出：解析结果对象或 {@code null}。
+     * <p>边界：结构不合法时返回 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * PlanParsingResult parsed = parsePlan(content, request, context);
+     * }</pre>
+     */
     private PlanParsingResult parsePlan(String content, TaskRequest request, Map<String, Object> context)
             throws Exception {
         Map<String, Object> root = objectMapper.readValue(content, new TypeReference<Map<String, Object>>() {
@@ -707,6 +1046,17 @@ public class PlannerService {
         return new PlanParsingResult(summary, steps);
     }
 
+    /**
+     * 粗略估计问题复杂度。
+     *
+     * <p>输入：问题文本。
+     * <p>输出：复杂度分数。
+     * <p>边界：文本为空时返回低复杂度。
+     * <p>示例：
+     * <pre>{@code
+     * double score = estimateComplexity(query);
+     * }</pre>
+     */
     private double estimateComplexity(String query) {
         if (query == null || query.isBlank()) {
             return 0.1;
@@ -719,6 +1069,17 @@ public class PlannerService {
         return Math.min(1.0, lengthScore + clauseScore);
     }
 
+    /**
+     * 解析认知策略。
+     *
+     * <p>输入：上下文映射与复杂度分数。
+     * <p>输出：策略名称字符串。
+     * <p>边界：未指定时使用复杂度推断默认策略。
+     * <p>示例：
+     * <pre>{@code
+     * String strategy = resolveCognitiveStrategy(context, score);
+     * }</pre>
+     */
     private String resolveCognitiveStrategy(Map<String, Object> context, double complexityScore) {
         Object strategy = context.get("strategy");
         if (strategy == null) {
@@ -736,6 +1097,16 @@ public class PlannerService {
         return "simple";
     }
 
+    /**
+     * 解析执行策略。
+     *
+     * <p>输入：上下文映射与复杂度分数。
+     * <p>输出：策略名称字符串。
+     * <p>示例：
+     * <pre>{@code
+     * String strategy = resolveExecutionStrategy(context, score);
+     * }</pre>
+     */
     private String resolveExecutionStrategy(Map<String, Object> context, double complexityScore) {
         Object strategy = context.get("executionStrategy");
         if (strategy instanceof String value && !value.isBlank()) {
@@ -747,6 +1118,16 @@ public class PlannerService {
         return "sequential";
     }
 
+    /**
+     * 判断是否需要思维树策略。
+     *
+     * <p>输入：认知策略与复杂度分数。
+     * <p>输出：是否需要思维树。
+     * <p>示例：
+     * <pre>{@code
+     * boolean needed = needsThoughtTree(strategy, score);
+     * }</pre>
+     */
     private boolean needsThoughtTree(String cognitiveStrategy, double complexityScore) {
         if (cognitiveStrategy == null) {
             return false;
@@ -758,6 +1139,16 @@ public class PlannerService {
         return complexityScore >= 0.8;
     }
 
+    /**
+     * 判断是否启用反应式执行模式。
+     *
+     * <p>输入：上下文映射、模式与策略。
+     * <p>输出：是否启用。
+     * <p>示例：
+     * <pre>{@code
+     * boolean enabled = shouldUseReact(context, mode, strategy);
+     * }</pre>
+     */
     private boolean shouldUseReact(Map<String, Object> context, String mode, String strategy) {
         if ("react".equalsIgnoreCase(mode) || "react".equalsIgnoreCase(strategy)) {
             return true;
@@ -778,12 +1169,32 @@ public class PlannerService {
         return false;
     }
 
+    /**
+     * 判断是否显式请求链式推理。
+     *
+     * <p>输入：模式、策略与认知策略。
+     * <p>输出：是否为链式推理。
+     * <p>示例：
+     * <pre>{@code
+     * boolean enabled = isChainOfThoughtRequested(mode, strategy, cognitive);
+     * }</pre>
+     */
     private boolean isChainOfThoughtRequested(String mode, String strategy, String cognitiveStrategy) {
         return isChainOfThoughtValue(mode)
                 || isChainOfThoughtValue(strategy)
                 || isChainOfThoughtValue(cognitiveStrategy);
     }
 
+    /**
+     * 判断字符串是否表示链式推理。
+     *
+     * <p>输入：字符串值。
+     * <p>输出：是否匹配链式推理关键字。
+     * <p>示例：
+     * <pre>{@code
+     * boolean match = isChainOfThoughtValue("cot");
+     * }</pre>
+     */
     private boolean isChainOfThoughtValue(String value) {
         if (value == null || value.isBlank()) {
             return false;
@@ -794,10 +1205,29 @@ public class PlannerService {
                 || "chain-of-thought".equals(normalized);
     }
 
+    /**
+     * 规划解析结果载体。
+     *
+     * <p>用途：承载模型解析出的摘要与步骤列表。
+     * <p>示例：{@code new PlanParsingResult("summary", steps)}。
+     */
     private static class PlanParsingResult {
         private final String summary;
         private final List<StepRequest> steps;
 
+        /**
+         * 构造解析结果。
+         *
+         * <p>输入：摘要与步骤列表。
+         * <p>输出：解析结果对象。
+         * <p>示例：
+         * <pre>{@code
+         * new PlanParsingResult("summary", steps);
+         * }</pre>
+         *
+         * @param summary 摘要
+         * @param steps 步骤列表
+         */
         private PlanParsingResult(String summary, List<StepRequest> steps) {
             this.summary = summary;
             this.steps = steps;

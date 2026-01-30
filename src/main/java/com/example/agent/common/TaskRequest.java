@@ -31,9 +31,8 @@ public class TaskRequest {
     private Map<String, Object> context;
 
     /**
-     * 幂等键。
+     * 幂等键（可选）。
      */
-    @NotBlank(message = "幂等键不能为空")
     private String idempotencyKey;
 
     /**

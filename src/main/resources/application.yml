@@ -104,7 +104,7 @@ logging:
     # - error
     # 默认项:
     # - debug
-    root: debug
+    root: info
     # 说明: 应用程序日志级别
     # 可选项:
     # - trace
@@ -313,7 +313,36 @@ agent:
     # - 86400
     ttl-seconds: 86400
   mcp:
+    # 说明: 启用远端调用
+    # 可选项:
+    # - true
+    # - false
+    # 默认项:
+    # - false
     remote-enabled: true
+    # 说明: 远端失败后回退到本地
+    # 可选项:
+    # - true
+    # - false
+    # 默认项:
+    # - false
+    fallback-to-local: true
+    # 说明: 合并远端与本地工具清单
+    # 可选项:
+    # - true
+    # - false
+    # 默认项:
+    # - false
+    merge-local-tools: true
+    # 说明: 工具调用策略
+    # 可选项:
+    # - remote-only
+    # - local-only
+    # - remote-first
+    # - local-first
+    # 默认项:
+    # - remote-first
+    call-strategy: remote-first
     default-server-id: mcp-test
     # 说明: 外部工具服务列表
     # 可选项:

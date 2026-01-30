@@ -34,27 +34,90 @@ import org.springframework.web.server.ResponseStatusException;
 
 /**
  * 任务编排器，负责任务提交、事件发布与查询。
+ * <p>用途：串联任务持久化、事件流与运行时路由，保障任务全链路可追踪。
+ * <p>输入：任务请求与租户上下文。
+ * <p>输出：任务响应或任务状态列表。
+ * <p>边界：当任务不存在时返回 {@code 404}；幂等键冲突时返回已存在任务。
+ * <p>示例：
+ * <pre>{@code
+ * TaskResponse response = taskOrchestrator.submitTask(request, tenantContext);
+ * }</pre>
  */
 @Service
 public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService {
 
+    /**
+     * 日志记录器，用于记录任务编排关键节点。
+     * <p>示例：记录任务标识与工作流标识。
+     */
     private static final Logger log = LoggerFactory.getLogger(TaskOrchestrator.class);
 
+    /**
+     * 应用事件发布器，用于发布工作流事件。
+     * <p>示例：发布 {@code WORKFLOW_STARTED} 事件。
+     */
     private final ApplicationEventPublisher eventPublisher;
+    /**
+     * 工作流路由器，用于进入运行时。
+     * <p>示例：路由到 {@code AgentRuntime.run}。
+     */
     private final WorkflowRouter workflowRouter;
+    /**
+     * 指标发布器，用于输出耗时与数量指标。
+     * <p>示例：记录任务耗时与提交次数。
+     */
     private final MetricsPublisher metricsPublisher;
+    /**
+     * 链路跟踪发布器。
+     * <p>示例：补充当前链路的跟踪标识。
+     */
     private final TracingPublisher tracingPublisher;
+    /**
+     * 事件流服务，用于生成序列号。
+     * <p>示例：为工作流事件生成递增序号。
+     */
     private final EventStreamService eventStreamService;
+    /**
+     * 任务持久化仓库。
+     * <p>示例：创建、查询、更新任务记录。
+     */
     private final TaskRepository taskRepository;
+    /**
+     * 缓存模板提供器，用于幂等键缓存。
+     * <p>示例：读取或写入幂等键到 {@code Redis}。
+     */
     private final ObjectProvider<StringRedisTemplate> redisTemplateProvider;
+    /**
+     * 本地幂等锁容器，用于控制同一幂等键的并发提交。
+     * <p>示例：同一 {@code idempotencyKey} 仅允许单次提交进入创建逻辑。
+     */
     private final Map<String, Object> idempotencyLocks = new ConcurrentHashMap<>();
 
+    /**
+     * 是否启用 {@code Redis} 幂等存储。
+     * <p>示例：配置 {@code agent.idempotency.redis-enabled=true}。
+     */
     @Value("${agent.idempotency.redis-enabled:false}")
     private boolean redisIdempotencyEnabled;
 
+    /**
+     * 幂等键在 {@code Redis} 中的有效期秒数。
+     * <p>示例：配置 {@code agent.idempotency.ttl-seconds=86400}。
+     */
     @Value("${agent.idempotency.ttl-seconds:86400}")
     private long idempotencyTtlSeconds;
 
+    /**
+     * 构造任务编排器。
+     *
+     * @param eventPublisher 事件发布器
+     * @param workflowRouter 工作流路由器
+     * @param metricsPublisher 指标发布器
+     * @param tracingPublisher 链路跟踪发布器
+     * @param eventStreamService 事件流服务
+     * @param taskRepository 任务仓库
+     * @param redisTemplateProvider 缓存模板提供器
+     */
     public TaskOrchestrator(ApplicationEventPublisher eventPublisher,
                             WorkflowRouter workflowRouter,
                             MetricsPublisher metricsPublisher,
@@ -74,6 +137,14 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
     /**
      * 提交任务并发布工作流启动事件。
      *
+     * <p>输入：任务请求与租户上下文。
+     * <p>输出：包含任务标识、工作流标识与初始状态的响应。
+     * <p>边界：存在幂等键时返回已存在任务；无幂等键则每次生成新任务。
+     * <p>示例：
+     * <pre>{@code
+     * TaskResponse response = submitTask(request, tenantContext);
+     * }</pre>
+     *
      * @param request 任务请求
      * @param tenantContext 租户上下文
      * @return 任务响应
@@ -81,12 +152,13 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
     @Override
     public TaskResponse submitTask(TaskRequest request, TenantContext tenantContext) {
         String tenantId = tenantContext.getTenantId();
-        String idempotencyKey = request.getIdempotencyKey();
+        String idempotencyKey = normalizeIdempotencyKey(request);
         if (StringUtils.hasText(idempotencyKey)) {
             String lockKey = buildIdempotencyKey(tenantId, idempotencyKey);
             Object lock = idempotencyLocks.computeIfAbsent(lockKey, key -> new Object());
             synchronized (lock) {
                 try {
+                    // 先尝试命中幂等记录，避免重复创建任务。
                     TaskRecord idempotent = findIdempotent(tenantId, idempotencyKey);
                     if (idempotent != null) {
                         log.info("幂等命中, tenantId={}, taskId={}", tenantId, idempotent.getTaskId());
@@ -94,18 +166,23 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
                                 idempotent.getStatus());
                     }
 
+                    // 幂等未命中时创建任务并写入存储。
                     TaskRecord record = createTask(request, tenantContext);
                     TaskResponse response = new TaskResponse(record.getTaskId(), record.getWorkflowId(),
                             record.getStatus());
+                    // 记录幂等键，避免重复处理。
                     storeIdempotency(tenantId, idempotencyKey, record.getTaskId());
+                    // 路由任务进入运行时执行。
                     handleWorkflowRoute(request, tenantContext, response);
                     return response;
                 } finally {
+                    // 清理本地锁对象，避免内存占用。
                     idempotencyLocks.remove(lockKey, lock);
                 }
             }
         }
 
+        // 无幂等键时直接创建任务并进入路由。
         TaskRecord record = createTask(request, tenantContext);
         TaskResponse response = new TaskResponse(record.getTaskId(), record.getWorkflowId(), record.getStatus());
         handleWorkflowRoute(request, tenantContext, response);
@@ -113,7 +190,45 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
     }
 
     /**
+     * 归一化幂等键：空白视为未提供，非空则去除首尾空格并回写请求对象。
+     *
+     * <p>输入：任务请求对象（可能为空）。</p>
+     * <p>输出：归一化后的幂等键，空白时返回 {@code null}。</p>
+     * <p>注意：该方法会在必要时更新请求对象中的字段，避免持久化空白键。</p>
+     *
+     * @param request 任务请求
+     * @return 归一化后的幂等键
+     */
+    private String normalizeIdempotencyKey(TaskRequest request) {
+        if (request == null) {
+            return null;
+        }
+        String rawKey = request.getIdempotencyKey();
+        if (!StringUtils.hasText(rawKey)) {
+            request.setIdempotencyKey(null);
+            return null;
+        }
+        String trimmed = rawKey.trim();
+        if (!StringUtils.hasText(trimmed)) {
+            request.setIdempotencyKey(null);
+            return null;
+        }
+        if (!trimmed.equals(rawKey)) {
+            request.setIdempotencyKey(trimmed);
+        }
+        return trimmed;
+    }
+
+    /**
      * 查询任务状态。
+     *
+     * <p>输入：任务标识与租户上下文。
+     * <p>输出：任务状态响应对象。
+     * <p>边界：任务不存在时抛出 {@code 404}。
+     * <p>示例：
+     * <pre>{@code
+     * TaskStatusResponse status = getTask(taskId, tenantContext);
+     * }</pre>
      *
      * @param taskId 任务标识
      * @param tenantContext 租户上下文
@@ -121,8 +236,10 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
      */
     @Override
     public TaskStatusResponse getTask(String taskId, TenantContext tenantContext) {
+        // 从持久化层读取任务记录。
         TaskRecord record = taskRepository.findById(tenantContext.getTenantId(), taskId);
         if (record == null) {
+            // 任务不存在时直接返回错误，避免误判。
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Task not found");
         }
         return toStatusResponse(record);
@@ -130,6 +247,14 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
 
     /**
      * 查询任务列表。
+     *
+     * <p>输入：查询条件与租户上下文。
+     * <p>输出：分页后的任务列表。
+     * <p>边界：无分页参数时返回全量列表。
+     * <p>示例：
+     * <pre>{@code
+     * TaskListResponse list = listTasks(query, tenantContext);
+     * }</pre>
      *
      * @param query 查询条件
      * @param tenantContext 租户上下文
@@ -142,14 +267,17 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         String cursor = query != null ? query.getCursor() : null;
         Integer size = query != null ? query.getSize() : null;
 
+        // 先按租户过滤并转换为响应对象。
         ArrayList<TaskStatusResponse> filtered = new ArrayList<>();
         for (TaskRecord record : taskRepository.listByTenant(tenantId, statusFilter)) {
             filtered.add(toStatusResponse(record));
         }
 
+        // 按更新时间倒序排序，优先展示最新任务。
         filtered.sort(Comparator.comparing(TaskStatusResponse::getUpdatedAt,
                 Comparator.nullsLast(Comparator.naturalOrder())).reversed());
 
+        // 根据游标定位分页起点。
         int startIndex = 0;
         if (StringUtils.hasText(cursor)) {
             for (int i = 0; i < filtered.size(); i++) {
@@ -161,6 +289,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
             }
         }
 
+        // 计算分页范围。
         int pageSize = (size != null && size > 0) ? size : filtered.size();
         int endIndex = Math.min(startIndex + pageSize, filtered.size());
         ArrayList<TaskStatusResponse> page = new ArrayList<>();
@@ -168,6 +297,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
             page.addAll(filtered.subList(startIndex, endIndex));
         }
 
+        // 生成下一页游标与是否还有更多记录标志。
         String nextCursor = null;
         boolean hasMore = false;
         if (endIndex < filtered.size() && endIndex > 0) {
@@ -178,11 +308,27 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         return new TaskListResponse(page, nextCursor, hasMore, filtered.size());
     }
 
+    /**
+     * 创建任务记录并发布启动事件。
+     *
+     * <p>输入：任务请求与租户上下文。
+     * <p>输出：持久化后的任务记录。
+     * <p>边界：请求为空时仍会创建基础记录。
+     * <p>示例：
+     * <pre>{@code
+     * TaskRecord record = createTask(request, tenantContext);
+     * }</pre>
+     *
+     * @param request 任务请求
+     * @param tenantContext 租户上下文
+     * @return 任务记录
+     */
     private TaskRecord createTask(TaskRequest request, TenantContext tenantContext) {
         String tenantId = tenantContext.getTenantId();
         String taskId = UUID.randomUUID().toString();
         String workflowId = UUID.randomUUID().toString();
         TaskRecord record = new TaskRecord();
+        // 填充任务基础字段。
         record.setTaskId(taskId);
         record.setWorkflowId(workflowId);
         record.setStatus("SUBMITTED");
@@ -191,8 +337,10 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         record.setUpdatedAt(record.getCreatedAt());
         record.setIdempotencyKey(request.getIdempotencyKey());
         record.setRequest(buildRequestPayload(request));
+        // 持久化任务记录。
         taskRepository.save(record);
 
+        // 发布工作流启动事件并记录指标。
         AtomicLong seqCounter = eventStreamService.sequenceCounter(tenantId, workflowId);
         long startedSeq = seqCounter.incrementAndGet();
         publishEvent(buildEvent(tenantContext, workflowId, EventType.WORKFLOW_STARTED, startedSeq,
@@ -204,17 +352,32 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         return record;
     }
 
+    /**
+     * 路由任务进入运行时执行并更新状态。
+     *
+     * <p>输入：任务请求、租户上下文与任务响应。
+     * <p>输出：无，状态更新写入存储。
+     * <p>边界：运行时异常会被捕获并标记任务失败。
+     * <p>示例：
+     * <pre>{@code
+     * handleWorkflowRoute(request, tenantContext, response);
+     * }</pre>
+     */
     private void handleWorkflowRoute(TaskRequest request, TenantContext tenantContext, TaskResponse response) {
         String workflowId = response.getWorkflowId();
         AtomicLong seqCounter = eventStreamService.sequenceCounter(tenantContext.getTenantId(), workflowId);
         long startNs = System.nanoTime();
         TaskRecord record = taskRepository.findById(tenantContext.getTenantId(), response.getTaskId());
+        // 进入运行时前将任务状态置为运行中。
         updateTaskStatus(record, "RUNNING", null);
         try {
+            // 路由进入运行时执行。
             RuntimeResult runtimeResult = workflowRouter.route(request, tenantContext, workflowId,
                     response.getTaskId(), seqCounter);
+            // 执行成功后写入最终结果。
             updateTaskStatus(record, "COMPLETED", buildResultPayload(runtimeResult));
         } catch (RuntimeException ex) {
+            // 捕获异常并发布错误事件，标记任务失败。
             log.error("任务路由失败, tenantId={}, taskId={}, workflowId={}, traceId={}",
                     tenantContext.getTenantId(), response.getTaskId(), workflowId,
                     resolveTraceId(tenantContext), ex);
@@ -225,6 +388,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
             updateTaskStatus(record, "FAILED", Map.of("error", errorMessage));
             throw ex;
         } finally {
+            // 无论成功或失败都发布完成事件，并记录耗时指标。
             long endSeq = seqCounter.incrementAndGet();
             TaskRecord latest = taskRepository.findById(tenantContext.getTenantId(), response.getTaskId());
             String finalStatus = latest != null && latest.getStatus() != null
@@ -237,9 +401,21 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         }
     }
 
+    /**
+     * 查询幂等任务记录。
+     *
+     * <p>输入：租户标识与幂等键。
+     * <p>输出：已存在的任务记录或 {@code null}。
+     * <p>边界：{@code Redis} 不可用时回退到持久化查询。
+     * <p>示例：
+     * <pre>{@code
+     * TaskRecord record = findIdempotent(tenantId, idempotencyKey);
+     * }</pre>
+     */
     private TaskRecord findIdempotent(String tenantId, String idempotencyKey) {
         StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
         if (redisIdempotencyEnabled && redisTemplate != null) {
+            // 优先从 {@code Redis} 获取幂等映射。
             String redisKey = buildIdempotencyKey(tenantId, idempotencyKey);
             String taskId = redisTemplate.opsForValue().get(redisKey);
             if (StringUtils.hasText(taskId)) {
@@ -249,29 +425,73 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
                 }
             }
         }
+        // {@code Redis} 未命中时回退持久化层查询。
         return taskRepository.findByIdempotencyKey(tenantId, idempotencyKey);
     }
 
+    /**
+     * 保存幂等键映射。
+     *
+     * <p>输入：租户标识、幂等键与任务标识。
+     * <p>输出：无。
+     * <p>边界：未启用 {@code Redis} 时不写入。
+     * <p>示例：
+     * <pre>{@code
+     * storeIdempotency(tenantId, idempotencyKey, taskId);
+     * }</pre>
+     */
     private void storeIdempotency(String tenantId, String idempotencyKey, String taskId) {
         if (!StringUtils.hasText(idempotencyKey)) {
             return;
         }
         StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
         if (redisIdempotencyEnabled && redisTemplate != null) {
+            // 写入 {@code Redis} 并设置过期时间。
             String redisKey = buildIdempotencyKey(tenantId, idempotencyKey);
             redisTemplate.opsForValue().set(redisKey, taskId, Duration.ofSeconds(idempotencyTtlSeconds));
         }
     }
 
+    /**
+     * 生成幂等键的缓存键。
+     *
+     * <p>输入：租户标识与幂等键。
+     * <p>输出：缓存键字符串。
+     * <p>示例：
+     * <pre>{@code
+     * String key = buildIdempotencyKey("tenantA", "req-001");
+     * }</pre>
+     */
     private String buildIdempotencyKey(String tenantId, String idempotencyKey) {
         return "idempotency:task:" + tenantId + ":" + idempotencyKey;
     }
 
+    /**
+     * 将任务记录转换为状态响应。
+     *
+     * <p>输入：任务记录。
+     * <p>输出：状态响应对象。
+     * <p>示例：
+     * <pre>{@code
+     * TaskStatusResponse response = toStatusResponse(record);
+     * }</pre>
+     */
     private TaskStatusResponse toStatusResponse(TaskRecord record) {
         return new TaskStatusResponse(record.getTaskId(), record.getWorkflowId(), record.getStatus(),
                 record.getUpdatedAt(), record.getResult());
     }
 
+    /**
+     * 更新任务状态并持久化。
+     *
+     * <p>输入：任务记录、状态与结果。
+     * <p>输出：无。
+     * <p>边界：记录为空时直接返回。
+     * <p>示例：
+     * <pre>{@code
+     * updateTaskStatus(record, "COMPLETED", result);
+     * }</pre>
+     */
     private void updateTaskStatus(TaskRecord record, String status, Map<String, Object> result) {
         if (record == null) {
             return;
@@ -284,6 +504,17 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         taskRepository.save(record);
     }
 
+    /**
+     * 组装运行时结果载荷。
+     *
+     * <p>输入：运行时结果。
+     * <p>输出：可持久化的结果映射。
+     * <p>边界：运行时结果为空时返回 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * Map<String, Object> payload = buildResultPayload(runtimeResult);
+     * }</pre>
+     */
     private Map<String, Object> buildResultPayload(RuntimeResult runtimeResult) {
         if (runtimeResult == null) {
             return null;
@@ -296,6 +527,17 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         return payload;
     }
 
+    /**
+     * 构建任务请求的持久化副本。
+     *
+     * <p>输入：任务请求。
+     * <p>输出：可序列化的请求映射。
+     * <p>边界：请求为空时返回空映射。
+     * <p>示例：
+     * <pre>{@code
+     * Map<String, Object> payload = buildRequestPayload(request);
+     * }</pre>
+     */
     private Map<String, Object> buildRequestPayload(TaskRequest request) {
         if (request == null) {
             return Map.of();
@@ -310,14 +552,36 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         return payload;
     }
 
+    /**
+     * 发布事件。
+     *
+     * <p>输入：事件对象。
+     * <p>输出：无。
+     * <p>示例：
+     * <pre>{@code
+     * publishEvent(streamEvent);
+     * }</pre>
+     */
     private void publishEvent(StreamEvent event) {
         eventPublisher.publishEvent(event);
     }
 
+    /**
+     * 构建事件对象。
+     *
+     * <p>输入：租户上下文、工作流标识、事件类型与载荷。
+     * <p>输出：事件对象。
+     * <p>边界：载荷为空时会创建空映射。
+     * <p>示例：
+     * <pre>{@code
+     * StreamEvent event = buildEvent(context, workflowId, type, seq, payload);
+     * }</pre>
+     */
     private StreamEvent buildEvent(TenantContext tenantContext, String workflowId, EventType type, long seq,
                                    Map<String, Object> payload) {
         String streamId = workflowId;
         Map<String, Object> mutable = payload == null ? new HashMap<>() : new HashMap<>(payload);
+        // 补充链路跟踪信息，便于审计与排障。
         attachTraceContext(mutable, tenantContext);
         StreamEvent event = new StreamEvent();
         event.setEventId(streamId + ":" + seq);
@@ -332,6 +596,17 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         return event;
     }
 
+    /**
+     * 将链路追踪信息写入事件载荷。
+     *
+     * <p>输入：载荷映射与租户上下文。
+     * <p>输出：无。
+     * <p>边界：任一参数为空时不做处理。
+     * <p>示例：
+     * <pre>{@code
+     * attachTraceContext(payload, tenantContext);
+     * }</pre>
+     */
     private void attachTraceContext(Map<String, Object> payload, TenantContext tenantContext) {
         if (payload == null || tenantContext == null) {
             return;
@@ -340,6 +615,17 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         payload.putIfAbsent("requestId", tenantContext.getRequestId());
     }
 
+    /**
+     * 解析链路跟踪标识。
+     *
+     * <p>输入：租户上下文。
+     * <p>输出：跟踪标识字符串。
+     * <p>边界：上下文缺失时使用当前链路标识。
+     * <p>示例：
+     * <pre>{@code
+     * String traceId = resolveTraceId(context);
+     * }</pre>
+     */
     private String resolveTraceId(TenantContext tenantContext) {
         if (tenantContext != null && StringUtils.hasText(tenantContext.getTraceId())) {
             return tenantContext.getTraceId();

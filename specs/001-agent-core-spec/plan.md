@@ -299,7 +299,7 @@ src/test/java/com/example/agent/
 - `TaskStreamRequest`、`StreamCursor`
 - `StreamEvent`、`EventType`
 - `StreamEvent` 必须包含 `eventId`、`schemaVersion`、`tenantId`、`streamId`、`seq`
-- `TaskRequest` 必须包含 `idempotencyKey`
+- `TaskRequest` 可选包含 `idempotencyKey`（为空则每次创建新任务）
 - 事件类型：`WORKFLOW_STARTED`、`WORKFLOW_COMPLETED`、`AGENT_STARTED`、
   `AGENT_COMPLETED`、`ERROR_OCCURRED`、`LLM_PARTIAL`、`LLM_OUTPUT`、
   `TOOL_INVOKED`、`TOOL_OBSERVATION`、`TOOL_ERROR`

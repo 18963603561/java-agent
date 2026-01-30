@@ -7,6 +7,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Repository;
+import org.springframework.util.StringUtils;
 
 /**
  * 内存任务仓储，用于无持久化依赖时的兜底实现。
@@ -24,7 +25,7 @@ public class InMemoryTaskRepository implements TaskRepository {
             return null;
         }
         tasks.put(record.getTaskId(), record);
-        if (record.getIdempotencyKey() != null) {
+        if (StringUtils.hasText(record.getIdempotencyKey())) {
             idempotencyIndex.put(buildIdempotencyKey(record.getTenantId(), record.getIdempotencyKey()),
                     record.getTaskId());
         }
@@ -42,6 +43,9 @@ public class InMemoryTaskRepository implements TaskRepository {
 
     @Override
     public TaskRecord findByIdempotencyKey(String tenantId, String idempotencyKey) {
+        if (!StringUtils.hasText(idempotencyKey)) {
+            return null;
+        }
         String taskId = idempotencyIndex.get(buildIdempotencyKey(tenantId, idempotencyKey));
         if (taskId == null) {
             return null;

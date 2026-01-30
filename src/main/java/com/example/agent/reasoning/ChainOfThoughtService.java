@@ -27,15 +27,47 @@ import org.springframework.util.StringUtils;
 
 /**
  * 链式推理执行器，负责按步调用模型并输出结构化结果。
+ * <p>用途：通过多步模型调用生成简化推理摘要与最终答复。
+ * <p>输入：问题文本、上下文输入与链路信息。
+ * <p>输出：链式推理结果对象。
+ * <p>边界：超过最大步数或解析失败时返回未完成状态。
+ * <p>示例：
+ * <pre>{@code
+ * ChainOfThoughtResult result = chainOfThoughtService.run(question, input, ctx, wfId, seq);
+ * }</pre>
  */
 @Service
 public class ChainOfThoughtService {
 
+    /**
+     * 日志记录器。
+     * <p>示例：记录链式推理起止与异常。
+     */
     private static final Logger log = LoggerFactory.getLogger(ChainOfThoughtService.class);
+    /**
+     * 问题文本最大长度。
+     * <p>示例：{@code 500}。
+     */
     private static final int MAX_QUESTION_CHARS = 500;
+    /**
+     * 记忆摘要最大长度。
+     * <p>示例：{@code 800}。
+     */
     private static final int MAX_MEMORY_CHARS = 800;
+    /**
+     * 观测信息最大长度。
+     * <p>示例：{@code 500}。
+     */
     private static final int MAX_OBSERVATION_CHARS = 500;
+    /**
+     * 单步摘要最大长度。
+     * <p>示例：{@code 200}。
+     */
     private static final int MAX_STEP_SUMMARY_CHARS = 200;
+    /**
+     * 最终答案标记集合。
+     * <p>示例：{@code "final answer"}。
+     */
     private static final List<String> FINAL_ANSWER_MARKERS = List.of(
             "final answer",
             "answer:",
@@ -47,6 +79,10 @@ public class ChainOfThoughtService {
             "答案:",
             "答案："
     );
+    /**
+     * 推理标记集合，用于过滤推理文本。
+     * <p>示例：{@code "chain-of-thought"}。
+     */
     private static final List<String> REASONING_MARKERS = List.of(
             "chain-of-thought",
             "chain of thought",
@@ -69,13 +105,54 @@ public class ChainOfThoughtService {
             "思考过程"
     );
 
+    /**
+     * 模型调用服务。
+     * <p>示例：执行分步调用获取推理结果。
+     */
     private final ModelInvocationService modelInvocationService;
+    /**
+     * 提示词装配器。
+     * <p>示例：构建模型消息列表。
+     */
     private final PromptAssembler promptAssembler;
+    /**
+     * 序列化工具。
+     * <p>示例：构建上下文 {@code JSON}。
+     */
     private final ObjectMapper objectMapper;
+    /**
+     * 事件发布器。
+     * <p>示例：发布链式推理阶段事件。
+     */
     private final ApplicationEventPublisher eventPublisher;
+    /**
+     * 事件流服务。
+     * <p>示例：生成事件序列号。
+     */
     private final EventStreamService eventStreamService;
+    /**
+     * 链式推理配置。
+     * <p>示例：控制最大步数与温度参数。
+     */
     private final CotProperties properties;
 
+    /**
+     * 构造链式推理服务。
+     *
+     * <p>输入：模型调用服务、提示词装配器与配置对象。
+     * <p>输出：初始化后的服务实例。
+     * <p>示例：
+     * <pre>{@code
+     * new ChainOfThoughtService(invocationService, promptAssembler, mapper, publisher, streamService, props);
+     * }</pre>
+     *
+     * @param modelInvocationService 模型调用服务
+     * @param promptAssembler 提示词装配器
+     * @param objectMapper 序列化工具
+     * @param eventPublisher 事件发布器
+     * @param eventStreamService 事件流服务
+     * @param properties 配置对象
+     */
     public ChainOfThoughtService(ModelInvocationService modelInvocationService,
                                  PromptAssembler promptAssembler,
                                  ObjectMapper objectMapper,
@@ -93,6 +170,14 @@ public class ChainOfThoughtService {
     /**
      * 执行链式推理。
      *
+     * <p>输入：问题文本、上下文输入与链路信息。
+     * <p>输出：链式推理结果对象。
+     * <p>边界：达到最大步数或解析失败时返回未完成状态。
+     * <p>示例：
+     * <pre>{@code
+     * ChainOfThoughtResult result = run(question, input, tenantContext, workflowId, seqCounter);
+     * }</pre>
+     *
      * @param question 问题或主题
      * @param input 上下文输入
      * @param tenantContext 租户上下文
@@ -105,6 +190,7 @@ public class ChainOfThoughtService {
                                     TenantContext tenantContext,
                                     String workflowId,
                                     AtomicLong seqCounter) {
+        // 对问题文本进行截断，避免超长输入影响模型。
         String safeQuestion = truncate(question, MAX_QUESTION_CHARS);
         int maxSteps = Math.max(1, properties.getMaxSteps());
         List<String> stepSummaries = new ArrayList<>();
@@ -129,6 +215,7 @@ public class ChainOfThoughtService {
             // 逐步推理循环，直到完成或达到最大步数。
             for (int stepIndex = 1; stepIndex <= maxSteps; stepIndex++) {
                 stepsExecuted++;
+                // 构建当前步骤提示词并发起模型调用。
                 String prompt = buildPrompt(safeQuestion, input, stepSummaries, stepIndex, maxSteps);
                 ModelRequest request = new ModelRequest(prompt, resolveScene(properties.getModelHint()));
                 applyPromptBundle(request, prompt, input);
@@ -147,6 +234,7 @@ public class ChainOfThoughtService {
                         "cot",
                         metadata
                 );
+                // 解析模型输出的决策与摘要。
                 StepDecision decision = parseDecision(response != null ? response.getContent() : null);
                 if (StringUtils.hasText(decision.stepSummary)) {
                     stepSummaries.add(truncate(decision.stepSummary, MAX_STEP_SUMMARY_CHARS));
@@ -159,6 +247,7 @@ public class ChainOfThoughtService {
                     stepPayload.put("confidence", confidence);
                     publishEvent(tenantContext, workflowId, seqCounter, EventType.COT_STEP, stepPayload);
                 }
+                // 校验决策合法性。
                 if (!decision.valid) {
                     stopReason = normalizeStopReason(decision.stopReason, "invalid_response");
                     completed = false;
@@ -167,6 +256,7 @@ public class ChainOfThoughtService {
                 if (StringUtils.hasText(decision.finalAnswer)) {
                     finalAnswer = decision.finalAnswer.trim();
                 }
+                // 达到结束条件则退出循环。
                 if (!decision.shouldContinue || StringUtils.hasText(finalAnswer)) {
                     completed = true;
                     stopReason = normalizeStopReason(decision.stopReason, "completed");
@@ -227,6 +317,17 @@ public class ChainOfThoughtService {
         return result;
     }
 
+    /**
+     * 构建链式推理提示词。
+     *
+     * <p>输入：问题文本、上下文输入与步骤摘要。
+     * <p>输出：提示词字符串。
+     * <p>边界：序列化失败时使用空上下文。
+     * <p>示例：
+     * <pre>{@code
+     * String prompt = buildPrompt(question, input, summaries, 1, 3);
+     * }</pre>
+     */
     private String buildPrompt(String question,
                                Map<String, Object> input,
                                List<String> stepSummaries,
@@ -262,6 +363,17 @@ public class ChainOfThoughtService {
                 """.formatted(contextJson);
     }
 
+    /**
+     * 解析模型输出的决策信息。
+     *
+     * <p>输入：模型输出内容。
+     * <p>输出：决策对象。
+     * <p>边界：内容为空或解析失败时返回无效决策。
+     * <p>示例：
+     * <pre>{@code
+     * StepDecision decision = parseDecision(content);
+     * }</pre>
+     */
     private StepDecision parseDecision(String content) {
         if (!StringUtils.hasText(content)) {
             return StepDecision.invalid("empty_response");
@@ -288,7 +400,17 @@ public class ChainOfThoughtService {
         }
     }
 
-    // 兼容模型输出的代码块包裹与前后噪声
+    /**
+     * 兼容模型输出中的代码块包裹与噪声内容。
+     *
+     * <p>输入：模型输出内容。
+     * <p>输出：清洗后的 {@code JSON} 文本。
+     * <p>边界：内容为空时原样返回。
+     * <p>示例：
+     * <pre>{@code
+     * String json = normalizeJsonPayload(content);
+     * }</pre>
+     */
     private String normalizeJsonPayload(String content) {
         if (!StringUtils.hasText(content)) {
             return content;
@@ -315,6 +437,16 @@ public class ChainOfThoughtService {
         return trimmed.trim();
     }
 
+    /**
+     * 解析布尔值字段。
+     *
+     * <p>输入：映射对象、字段名与默认值。
+     * <p>输出：布尔值。
+     * <p>示例：
+     * <pre>{@code
+     * boolean value = resolveBoolean(root, "shouldContinue", true);
+     * }</pre>
+     */
     private boolean resolveBoolean(Map<String, Object> root, String key, boolean defaultValue) {
         if (root == null || !root.containsKey(key)) {
             return defaultValue;
@@ -329,6 +461,16 @@ public class ChainOfThoughtService {
         return defaultValue;
     }
 
+    /**
+     * 解析字符串字段，支持备用字段名。
+     *
+     * <p>输入：映射对象、主字段名与备用字段名。
+     * <p>输出：字符串值或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * String value = resolveString(root, "finalAnswer", "answer");
+     * }</pre>
+     */
     private String resolveString(Map<String, Object> root, String primary, String fallbackKey) {
         if (root == null) {
             return null;
@@ -344,6 +486,16 @@ public class ChainOfThoughtService {
         return null;
     }
 
+    /**
+     * 解析浮点字段。
+     *
+     * <p>输入：映射对象与字段名。
+     * <p>输出：浮点值或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * Double value = resolveDouble(root, "confidence");
+     * }</pre>
+     */
     private Double resolveDouble(Map<String, Object> root, String key) {
         if (root == null || !root.containsKey(key)) {
             return null;
@@ -362,6 +514,16 @@ public class ChainOfThoughtService {
         return null;
     }
 
+    /**
+     * 规整置信度范围到 {@code 0-1}。
+     *
+     * <p>输入：候选置信度与回退值。
+     * <p>输出：规整后的置信度。
+     * <p>示例：
+     * <pre>{@code
+     * double value = normalizeConfidence(candidate, 0.5);
+     * }</pre>
+     */
     private double normalizeConfidence(Double candidate, double fallback) {
         double value = candidate != null ? candidate : fallback;
         if (value < 0) {
@@ -373,6 +535,16 @@ public class ChainOfThoughtService {
         return value;
     }
 
+    /**
+     * 规整停止原因字段。
+     *
+     * <p>输入：停止原因与回退值。
+     * <p>输出：最终停止原因。
+     * <p>示例：
+     * <pre>{@code
+     * String reason = normalizeStopReason(stopReason, "completed");
+     * }</pre>
+     */
     private String normalizeStopReason(String stopReason, String fallback) {
         if (StringUtils.hasText(stopReason)) {
             return stopReason.trim();
@@ -380,6 +552,17 @@ public class ChainOfThoughtService {
         return fallback;
     }
 
+    /**
+     * 清洗最终答案，去除推理痕迹。
+     *
+     * <p>输入：原始答案文本。
+     * <p>输出：清洗后的答案文本。
+     * <p>边界：答案为空时返回空字符串。
+     * <p>示例：
+     * <pre>{@code
+     * String answer = sanitizeFinalAnswer(raw);
+     * }</pre>
+     */
     private String sanitizeFinalAnswer(String raw) {
         if (!StringUtils.hasText(raw)) {
             return "";
@@ -400,6 +583,16 @@ public class ChainOfThoughtService {
         return value.trim();
     }
 
+    /**
+     * 从最终答案标记后提取文本。
+     *
+     * <p>输入：原始文本。
+     * <p>输出：提取结果或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * String extracted = extractAfterFinalMarker(text);
+     * }</pre>
+     */
     private String extractAfterFinalMarker(String value) {
         if (!StringUtils.hasText(value)) {
             return null;
@@ -422,6 +615,16 @@ public class ChainOfThoughtService {
         return null;
     }
 
+    /**
+     * 删除包含推理标记的行。
+     *
+     * <p>输入：原始文本。
+     * <p>输出：过滤后的文本。
+     * <p>示例：
+     * <pre>{@code
+     * String cleaned = removeReasoningLines(text);
+     * }</pre>
+     */
     private String removeReasoningLines(String value) {
         if (!StringUtils.hasText(value)) {
             return value;
@@ -444,6 +647,16 @@ public class ChainOfThoughtService {
         return builder.toString().trim();
     }
 
+    /**
+     * 判断是否为推理标记行。
+     *
+     * <p>输入：单行文本。
+     * <p>输出：是否为推理行。
+     * <p>示例：
+     * <pre>{@code
+     * boolean match = isReasoningLine(line);
+     * }</pre>
+     */
     private boolean isReasoningLine(String line) {
         String lower = line.toLowerCase(Locale.ROOT);
         for (String marker : REASONING_MARKERS) {
@@ -457,6 +670,16 @@ public class ChainOfThoughtService {
         return false;
     }
 
+    /**
+     * 判断文本是否包含推理标记。
+     *
+     * <p>输入：文本内容。
+     * <p>输出：是否包含推理标记。
+     * <p>示例：
+     * <pre>{@code
+     * boolean hasMarker = containsReasoningMarker(text);
+     * }</pre>
+     */
     private boolean containsReasoningMarker(String value) {
         if (!StringUtils.hasText(value)) {
             return false;
@@ -470,6 +693,16 @@ public class ChainOfThoughtService {
         return false;
     }
 
+    /**
+     * 提取文本末尾的句子作为答案。
+     *
+     * <p>输入：文本内容。
+     * <p>输出：末尾句子或原文。
+     * <p>示例：
+     * <pre>{@code
+     * String tail = extractTailSentence(text);
+     * }</pre>
+     */
     private String extractTailSentence(String value) {
         if (!StringUtils.hasText(value)) {
             return "";
@@ -484,6 +717,16 @@ public class ChainOfThoughtService {
         return value.trim();
     }
 
+    /**
+     * 从输入中提取记忆摘要。
+     *
+     * <p>输入：上下文输入映射。
+     * <p>输出：记忆摘要字符串或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * String summary = extractMemorySummary(input);
+     * }</pre>
+     */
     private String extractMemorySummary(Map<String, Object> input) {
         if (input == null) {
             return null;
@@ -498,6 +741,16 @@ public class ChainOfThoughtService {
         return null;
     }
 
+    /**
+     * 从输入中提取观测信息。
+     *
+     * <p>输入：上下文输入映射。
+     * <p>输出：观测字符串或 {@code null}。
+     * <p>示例：
+     * <pre>{@code
+     * String observation = extractObservation(input);
+     * }</pre>
+     */
     private String extractObservation(Map<String, Object> input) {
         if (input == null) {
             return null;
@@ -513,6 +766,17 @@ public class ChainOfThoughtService {
         return null;
     }
 
+    /**
+     * 根据模型提示选择调用场景。
+     *
+     * <p>输入：模型提示字符串。
+     * <p>输出：模型场景枚举。
+     * <p>边界：提示为空时使用默认场景。
+     * <p>示例：
+     * <pre>{@code
+     * ModelScene scene = resolveScene("planner");
+     * }</pre>
+     */
     private ModelScene resolveScene(String modelHint) {
         if (!StringUtils.hasText(modelHint)) {
             return ModelScene.REFLECT;
@@ -527,6 +791,17 @@ public class ChainOfThoughtService {
         };
     }
 
+    /**
+     * 发布链式推理事件。
+     *
+     * <p>输入：租户上下文、工作流标识与事件载荷。
+     * <p>输出：无。
+     * <p>边界：上下文或标识为空时不发布。
+     * <p>示例：
+     * <pre>{@code
+     * publishEvent(ctx, wfId, seq, EventType.COT_STEP, payload);
+     * }</pre>
+     */
     private void publishEvent(TenantContext tenantContext,
                               String workflowId,
                               AtomicLong seqCounter,
@@ -551,6 +826,17 @@ public class ChainOfThoughtService {
         eventPublisher.publishEvent(event);
     }
 
+    /**
+     * 应用提示词装配器，将提示词转换为消息结构。
+     *
+     * <p>输入：模型请求、提示词与输入上下文。
+     * <p>输出：无。
+     * <p>边界：装配器为空时直接返回。
+     * <p>示例：
+     * <pre>{@code
+     * applyPromptBundle(request, prompt, input);
+     * }</pre>
+     */
     private void applyPromptBundle(ModelRequest request, String prompt, Map<String, Object> input) {
         if (promptAssembler == null || request == null) {
             return;
@@ -561,6 +847,17 @@ public class ChainOfThoughtService {
         }
     }
 
+    /**
+     * 截断文本长度。
+     *
+     * <p>输入：文本内容与最大长度。
+     * <p>输出：截断后的文本。
+     * <p>边界：最大长度小于等于零时返回原文本。
+     * <p>示例：
+     * <pre>{@code
+     * String value = truncate(text, 100);
+     * }</pre>
+     */
     private String truncate(String text, int maxChars) {
         if (!StringUtils.hasText(text) || maxChars <= 0) {
             return text;
@@ -572,6 +869,12 @@ public class ChainOfThoughtService {
         return trimmed.substring(0, maxChars);
     }
 
+    /**
+     * 链式推理步骤决策对象。
+     *
+     * <p>用途：封装模型输出的步骤决策与答案。
+     * <p>示例：{@code StepDecision.invalid("invalid_response")}。
+     */
     private record StepDecision(boolean shouldContinue,
                                 String stepSummary,
                                 String finalAnswer,
@@ -579,6 +882,19 @@ public class ChainOfThoughtService {
                                 String stopReason,
                                 boolean valid) {
 
+        /**
+         * 构建无效决策对象。
+         *
+         * <p>输入：停止原因。
+         * <p>输出：无效决策对象。
+         * <p>示例：
+         * <pre>{@code
+         * StepDecision decision = StepDecision.invalid("empty_response");
+         * }</pre>
+         *
+         * @param stopReason 停止原因
+         * @return 无效决策
+         */
         private static StepDecision invalid(String stopReason) {
             return new StepDecision(false, null, null, 0.3, stopReason, false);
         }
