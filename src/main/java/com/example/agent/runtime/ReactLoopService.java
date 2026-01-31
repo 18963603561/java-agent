@@ -14,6 +14,9 @@ import com.example.agent.model.ModelScene;
 import com.example.agent.model.ModelToolResolver;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
+import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.repair.JsonOutputSchema;
+import com.example.agent.model.PromptTrace;
 import com.example.agent.observability.TracingPublisher;
 import com.example.agent.streaming.EventStreamService;
 import com.example.agent.tools.hook.HookManager;
@@ -52,6 +55,7 @@ public class ReactLoopService {
     private final EventStreamService eventStreamService;
     private final ReactRuntimeProperties properties;
     private final ObjectMapper objectMapper;
+    private final JsonOutputRepairService jsonOutputRepairService;
     private final ReactStopEvaluator stopEvaluator = new ReactStopEvaluator();
 
     public ReactLoopService(ModelInvocationService modelInvocationService,
@@ -65,7 +69,8 @@ public class ReactLoopService {
                             TracingPublisher tracingPublisher,
                             EventStreamService eventStreamService,
                             ReactRuntimeProperties properties,
-                            ObjectMapper objectMapper) {
+                            ObjectMapper objectMapper,
+                            JsonOutputRepairService jsonOutputRepairService) {
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
         this.promptAssembler = promptAssembler;
@@ -78,6 +83,7 @@ public class ReactLoopService {
         this.eventStreamService = eventStreamService;
         this.properties = properties;
         this.objectMapper = objectMapper;
+        this.jsonOutputRepairService = jsonOutputRepairService;
     }
 
     /**
@@ -171,14 +177,31 @@ public class ReactLoopService {
         modelToolResolver.applyTooling(modelRequest, request, null);
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("iteration", iteration);
+        metadata.put("promptScene", "react");
         ModelResponse response = modelInvocationService.invoke(modelRequest, ModelScene.PLANNER,
                 tenantContext, workflowId, seqCounter, "react_think", metadata);
 
-        ReactDecision decision = parseDecision(response != null ? response.getContent() : null);
+        String rawContent = response != null ? response.getContent() : null;
+        boolean repairAttempted = false;
+        boolean repairSuccess = false;
+        String parseErrorType = null;
+        ReactDecision decision = parseDecision(rawContent);
         if (decision == null) {
+            parseErrorType = resolveParseErrorType(rawContent);
+            repairAttempted = true;
+            decision = tryRepairDecision(rawContent, request, iteration, observations);
+            if (decision != null) {
+                repairSuccess = true;
+            }
+        }
+        if (decision == null) {
+            log.warn("ReAct 决策修复失败, iteration={}", iteration);
             decision = new ReactDecision();
             decision.setAction("none");
         }
+        recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
+                response != null ? response.getModelId() : null, decision != null, parseErrorType,
+                repairAttempted, repairSuccess);
         Map<String, Object> thinkPayload = new HashMap<>();
         thinkPayload.put("iteration", iteration);
         if (decision.getAction() != null) {
@@ -285,7 +308,15 @@ public class ReactLoopService {
         }
         return """
                 你是任务执行决策器，请根据上下文给出下一步行动决策。
-                输出要求：仅输出 JSON，字段包含 action(tool/stop/none)、tool、arguments、shouldStop、stopReason、finalAnswer。
+                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+                字段约束：
+                1) action: string，仅允许 tool/stop/none，必须输出，缺信息填 "none"。
+                2) tool: string，当 action=tool 时必须输出且非空；当 action=none 时输出空串。
+                3) arguments: object，当 action=tool 时必须输出对象；当 action=none 时输出 {}。
+                4) shouldStop: boolean，当 action=stop 时必须为 true；否则输出 false。
+                5) stopReason: string，必须输出，缺信息填空串。
+                6) finalAnswer: string，当 action=stop 时必须输出（可空串），其他情况缺信息填空串。
+                最小示例 JSON：{"action":"none","tool":"","arguments":{},"shouldStop":false,"stopReason":"","finalAnswer":""}
                 REACT_CONTEXT_JSON:%s
                 """.formatted(contextJson);
     }
@@ -300,6 +331,61 @@ public class ReactLoopService {
         } catch (Exception ex) {
             return null;
         }
+    }
+
+    private ReactDecision tryRepairDecision(String rawContent,
+                                            TaskRequest request,
+                                            int iteration,
+                                            List<ReactObservation> observations) {
+        if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
+            return null;
+        }
+        Map<String, Object> context = new HashMap<>();
+        context.put("query", request != null ? request.getQuery() : null);
+        context.put("iteration", iteration);
+        context.put("observations", observations);
+        String contextJson;
+        try {
+            contextJson = objectMapper.writeValueAsString(context);
+        } catch (Exception ex) {
+            contextJson = "{}";
+        }
+        String repaired = jsonOutputRepairService.repair("react", rawContent, JsonOutputSchema.REACT, contextJson, 1);
+        if (!StringUtils.hasText(repaired)) {
+            return null;
+        }
+        return parseDecision(repaired);
+    }
+
+    private void recordPromptTrace(Map<String, Object> metadata,
+                                   String promptText,
+                                   TenantContext tenantContext,
+                                   String workflowId,
+                                   AtomicLong seqCounter,
+                                   String modelId,
+                                   boolean parseSuccess,
+                                   String parseErrorType,
+                                   boolean repairAttempted,
+                                   boolean repairSuccess) {
+        PromptTrace trace = PromptTrace.fromMetadata(metadata);
+        if (trace == null) {
+            trace = PromptTrace.fromPrompt("react", promptText);
+        }
+        if (trace == null) {
+            return;
+        }
+        trace.setParseSuccess(parseSuccess);
+        trace.setParseErrorType(parseErrorType);
+        trace.setRepairAttempted(repairAttempted);
+        trace.setRepairSuccess(repairSuccess);
+        modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "react_think", modelId);
+    }
+
+    private String resolveParseErrorType(String rawContent) {
+        if (!StringUtils.hasText(rawContent)) {
+            return "empty_output";
+        }
+        return "json_parse_error";
     }
 
     private String resolveToolName(TaskRequest request, ReactDecision decision) {

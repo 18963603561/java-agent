@@ -105,7 +105,7 @@ class SecurityValidationTest {
                 .header("X-Roles", "admin")
                 .bodyValue(request)
                 .exchange()
-                .expectStatus().isOk();
+                .expectStatus().isAccepted();
 
         ArgumentCaptor<TenantContext> captor = ArgumentCaptor.forClass(TenantContext.class);
         verify(taskSubmissionService, times(1)).submitTask(any(), captor.capture());
@@ -131,7 +131,7 @@ class SecurityValidationTest {
                 .header("X-Tenant-Id", "tenant-a")
                 .bodyValue(request)
                 .exchange()
-                .expectStatus().isOk();
+                .expectStatus().isAccepted();
 
         ArgumentCaptor<TenantContext> captor = ArgumentCaptor.forClass(TenantContext.class);
         verify(taskSubmissionService, times(1)).submitTask(any(), captor.capture());

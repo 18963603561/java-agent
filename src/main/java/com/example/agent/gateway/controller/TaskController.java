@@ -17,6 +17,7 @@ import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -107,9 +108,10 @@ public class TaskController {
      * @return 任务响应
      */
     @PostMapping("/api/v1/tasks")
-    public ApiResponse<TaskResponse> submitTask(@Valid @RequestBody TaskRequest request,
-                                                @RequestHeader(value = "X-API-Key", required = false) String apiKey,
-                                                ServerWebExchange exchange) {
+    public ResponseEntity<ApiResponse<TaskResponse>> submitTask(@Valid @RequestBody TaskRequest request,
+                                                                @RequestHeader(value = "X-API-Key", required = false)
+                                                                String apiKey,
+                                                                ServerWebExchange exchange) {
         // 鉴权并获取用户上下文，确保后续流程具备身份信息。
         UserContext userContext = authService.authenticate(apiKey, exchange);
         // 解析租户上下文并写入用户信息，保障多租户隔离。
@@ -121,7 +123,27 @@ public class TaskController {
         log.info("任务提交完成, tenantId={}, userId={}, taskId={}, traceId={}",
                 tenantContext.getTenantId(), tenantContext.getUserId(), response.getTaskId(),
                 resolveTraceId(tenantContext));
-        return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
+        HttpStatus status = resolveSubmitStatus(request, response);
+        return ResponseEntity.status(status)
+                .body(ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId()));
+    }
+
+    private HttpStatus resolveSubmitStatus(TaskRequest request, TaskResponse response) {
+        if (request != null && request.getExecutionMode() == TaskRequest.ExecutionMode.SYNC) {
+            if (response != null && isTerminalStatus(response.getStatus())) {
+                return HttpStatus.OK;
+            }
+            return HttpStatus.ACCEPTED;
+        }
+        return HttpStatus.ACCEPTED;
+    }
+
+    private boolean isTerminalStatus(String status) {
+        if (!StringUtils.hasText(status)) {
+            return false;
+        }
+        String upper = status.toUpperCase();
+        return "COMPLETED".equals(upper) || "FAILED".equals(upper);
     }
 
     /**

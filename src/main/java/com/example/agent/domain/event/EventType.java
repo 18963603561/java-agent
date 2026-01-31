@@ -4,6 +4,8 @@ package com.example.agent.domain.event;
  * 事件类型枚举，定义系统内事件语义。
  */
 public enum EventType {
+    // 任务已接受事件
+    TASK_ACCEPTED,
     // 工作流启动事件
     WORKFLOW_STARTED,
     // 工作流完成事件
@@ -26,9 +28,11 @@ public enum EventType {
     LLM_PARTIAL,
     // 大模型输出完成事件
     LLM_OUTPUT,
+    // 大模型输出解析事件
+    LLM_PARSE,
     // 工具调用开始事件
     TOOL_INVOKED,
-    // 工具观测记录事件
+    // 工具观察记录事件
     TOOL_OBSERVATION,
     // 工具调用异常事件
     TOOL_ERROR,

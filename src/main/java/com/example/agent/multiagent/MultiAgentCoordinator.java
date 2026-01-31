@@ -10,6 +10,9 @@ import com.example.agent.model.ModelScene;
 import com.example.agent.model.ModelToolResolver;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
+import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.repair.JsonOutputSchema;
+import com.example.agent.model.PromptTrace;
 import com.example.agent.runtime.StepRequest;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -25,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * 多智能体协调器，负责团队编排与角色分配。
@@ -41,6 +45,7 @@ public class MultiAgentCoordinator {
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
+    private final JsonOutputRepairService jsonOutputRepairService;
 
     public MultiAgentCoordinator(AgentProfileProperties profileProperties,
                                  ModelInvocationService modelInvocationService,
@@ -48,7 +53,8 @@ public class MultiAgentCoordinator {
                                  PromptAssembler promptAssembler,
                                  ObjectMapper objectMapper,
                                  ApplicationEventPublisher eventPublisher,
-                                 EventStreamService eventStreamService) {
+                                 EventStreamService eventStreamService,
+                                 JsonOutputRepairService jsonOutputRepairService) {
         this.profileProperties = profileProperties;
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
@@ -56,6 +62,7 @@ public class MultiAgentCoordinator {
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
+        this.jsonOutputRepairService = jsonOutputRepairService;
     }
 
     /**
@@ -79,6 +86,7 @@ public class MultiAgentCoordinator {
         if (step != null && step.getStepType() != null) {
             metadata.put("stepType", step.getStepType());
         }
+        metadata.put("promptScene", "multiagent");
         ModelResponse response = modelInvocationService.invoke(
                 request,
                 ModelScene.PLANNER,
@@ -88,9 +96,29 @@ public class MultiAgentCoordinator {
                 "multi_agent",
                 metadata
         );
-        List<AgentRole> roles = parseRoles(response != null ? response.getContent() : null);
+        String rawContent = response != null ? response.getContent() : null;
+        boolean repairAttempted = false;
+        boolean repairSuccess = false;
+        String parseErrorType = null;
+        List<AgentRole> roles = parseRoles(rawContent);
         if (roles.isEmpty()) {
+            parseErrorType = resolveParseErrorType(rawContent);
+            repairAttempted = true;
+            List<AgentRole> repaired = tryRepairRoles(rawContent, step);
+            if (!repaired.isEmpty()) {
+                roles = repaired;
+                repairSuccess = true;
+            }
+        }
+        if (roles.isEmpty()) {
+            log.warn("多智能体解析修复失败, stepType={}", step != null ? step.getStepType() : null);
+            recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
+                    response != null ? response.getModelId() : null, false, parseErrorType,
+                    repairAttempted, repairSuccess);
             roles = buildFallbackRoles();
+        } else {
+            recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
+                    response != null ? response.getModelId() : null, true, null, repairAttempted, repairSuccess);
         }
 
         publishTeamEvents(tenantContext, workflowId, seqCounter, roles);
@@ -123,7 +151,13 @@ public class MultiAgentCoordinator {
         }
         return """
                 你是团队协调器，请给出角色与职责列表。
-                输出要求：仅输出 JSON，字段包含 team 列表。
+                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+                字段约束：
+                1) team: array，必须输出，缺信息填 []。
+                2) team[*].role: string，必须输出，缺信息填空串。
+                3) team[*].responsibility: string，必须输出，缺信息填空串。
+                允许额外字段但不要依赖，例如 roleId、name、modelId、description。
+                最小示例 JSON：{"team":[{"role":"","responsibility":""}]}
                 MULTI_AGENT_CONTEXT_JSON:%s
                 """.formatted(contextJson);
     }
@@ -155,6 +189,59 @@ public class MultiAgentCoordinator {
         } catch (Exception ex) {
             return List.of();
         }
+    }
+
+    private List<AgentRole> tryRepairRoles(String rawContent, StepRequest step) {
+        if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
+            return List.of();
+        }
+        Map<String, Object> context = new HashMap<>();
+        if (step != null && step.getInput() != null) {
+            context.putAll(step.getInput());
+        }
+        String contextJson;
+        try {
+            contextJson = objectMapper.writeValueAsString(context);
+        } catch (Exception ex) {
+            contextJson = "{}";
+        }
+        String repaired = jsonOutputRepairService.repair("multiagent", rawContent, JsonOutputSchema.MULTIAGENT,
+                contextJson, 1);
+        if (!StringUtils.hasText(repaired)) {
+            return List.of();
+        }
+        return parseRoles(repaired);
+    }
+
+    private void recordPromptTrace(Map<String, Object> metadata,
+                                   String promptText,
+                                   TenantContext tenantContext,
+                                   String workflowId,
+                                   AtomicLong seqCounter,
+                                   String modelId,
+                                   boolean parseSuccess,
+                                   String parseErrorType,
+                                   boolean repairAttempted,
+                                   boolean repairSuccess) {
+        PromptTrace trace = PromptTrace.fromMetadata(metadata);
+        if (trace == null) {
+            trace = PromptTrace.fromPrompt("multiagent", promptText);
+        }
+        if (trace == null) {
+            return;
+        }
+        trace.setParseSuccess(parseSuccess);
+        trace.setParseErrorType(parseErrorType);
+        trace.setRepairAttempted(repairAttempted);
+        trace.setRepairSuccess(repairSuccess);
+        modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "multi_agent", modelId);
+    }
+
+    private String resolveParseErrorType(String rawContent) {
+        if (!StringUtils.hasText(rawContent)) {
+            return "empty_output";
+        }
+        return "json_parse_error";
     }
 
     private List<AgentRole> buildFallbackRoles() {

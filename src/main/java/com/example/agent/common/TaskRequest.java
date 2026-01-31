@@ -10,6 +10,14 @@ import java.util.Map;
 public class TaskRequest {
 
     /**
+     * 执行模式枚举，当前仅保留字段。
+     */
+    public enum ExecutionMode {
+        ASYNC,
+        SYNC
+    }
+
+    /**
      * 任务查询内容。
      */
     @NotBlank(message = "查询内容不能为空")
@@ -39,6 +47,16 @@ public class TaskRequest {
      * 工具选择策略，可选。
      */
     private ModelToolChoice toolChoice;
+
+    /**
+     * 执行模式，可选，默认按异步处理。
+     */
+    private ExecutionMode executionMode;
+
+    /**
+     * 同步等待超时时间（毫秒），仅在 SYNC 模式生效。
+     */
+    private Long waitTimeoutMs;
 
     public TaskRequest() {
     }
@@ -89,5 +107,21 @@ public class TaskRequest {
 
     public void setToolChoice(ModelToolChoice toolChoice) {
         this.toolChoice = toolChoice;
+    }
+
+    public ExecutionMode getExecutionMode() {
+        return executionMode;
+    }
+
+    public void setExecutionMode(ExecutionMode executionMode) {
+        this.executionMode = executionMode;
+    }
+
+    public Long getWaitTimeoutMs() {
+        return waitTimeoutMs;
+    }
+
+    public void setWaitTimeoutMs(Long waitTimeoutMs) {
+        this.waitTimeoutMs = waitTimeoutMs;
     }
 }

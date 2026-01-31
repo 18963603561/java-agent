@@ -16,14 +16,23 @@ public class DefaultPromptTemplate implements PromptTemplate {
     /**
      * 系统提示默认内容。
      */
-    @Value("${agent.prompt.system:你是智能体运行时执行器，必须遵守安全边界与多租户隔离。}")
-    private String systemMessage;
+    static final String DEFAULT_SYSTEM_MESSAGE = "你是智能体运行时执行器，必须遵守安全边界与多租户隔离。";
 
     /**
      * 开发者提示默认内容。
      */
-    @Value("${agent.prompt.developer:输出必须结构化且可追溯，遇到不确定先检索再回答。}")
+    static final String DEFAULT_DEVELOPER_MESSAGE = "输出必须结构化且可追溯，遇到不确定先检索再回答。";
+
+    @Value("${agent.prompt.system:" + DEFAULT_SYSTEM_MESSAGE + "}")
+    private String systemMessage;
+
+    @Value("${agent.prompt.developer:" + DEFAULT_DEVELOPER_MESSAGE + "}")
     private String developerMessage;
+
+    /**
+     * 提示词默认值解析器，用于处理空白配置。
+     */
+    private final PromptTemplateResolver promptTemplateResolver = new PromptTemplateResolver();
 
     /**
      * 渲染系统与开发者提示消息。
@@ -34,8 +43,9 @@ public class DefaultPromptTemplate implements PromptTemplate {
     @Override
     public List<PromptMessage> render(ContextSnapshot snapshot) {
         List<PromptMessage> messages = new ArrayList<>();
-        if (StringUtils.hasText(systemMessage)) {
-            messages.add(new PromptMessage(PromptRole.SYSTEM, systemMessage));
+        String resolvedSystem = promptTemplateResolver.resolveSystemMessage(systemMessage, DEFAULT_SYSTEM_MESSAGE);
+        if (StringUtils.hasText(resolvedSystem)) {
+            messages.add(new PromptMessage(PromptRole.SYSTEM, resolvedSystem));
         }
         String developer = buildDeveloperMessage(snapshot);
         if (StringUtils.hasText(developer)) {
@@ -56,8 +66,10 @@ public class DefaultPromptTemplate implements PromptTemplate {
 
     private String buildDeveloperMessage(ContextSnapshot snapshot) {
         StringBuilder builder = new StringBuilder();
-        if (StringUtils.hasText(developerMessage)) {
-            builder.append(developerMessage.trim());
+        String resolvedDeveloper = promptTemplateResolver.resolveDeveloperMessage(developerMessage,
+                DEFAULT_DEVELOPER_MESSAGE);
+        if (StringUtils.hasText(resolvedDeveloper)) {
+            builder.append(resolvedDeveloper.trim());
         }
         if (snapshot != null && snapshot.getRoleBoundary() != null
                 && StringUtils.hasText(snapshot.getRoleBoundary().getRiskLevel())) {

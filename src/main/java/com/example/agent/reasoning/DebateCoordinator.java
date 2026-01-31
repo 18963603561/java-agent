@@ -9,6 +9,9 @@ import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
+import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.repair.JsonOutputSchema;
+import com.example.agent.model.PromptTrace;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -21,6 +24,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * 辩论协调器，负责辩论流程控制。
@@ -35,17 +39,20 @@ public class DebateCoordinator {
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
+    private final JsonOutputRepairService jsonOutputRepairService;
 
     public DebateCoordinator(ModelInvocationService modelInvocationService,
                              PromptAssembler promptAssembler,
                              ObjectMapper objectMapper,
                              ApplicationEventPublisher eventPublisher,
-                             EventStreamService eventStreamService) {
+                             EventStreamService eventStreamService,
+                             JsonOutputRepairService jsonOutputRepairService) {
         this.modelInvocationService = modelInvocationService;
         this.promptAssembler = promptAssembler;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
+        this.jsonOutputRepairService = jsonOutputRepairService;
     }
 
     /**
@@ -68,6 +75,7 @@ public class DebateCoordinator {
         if (topic != null) {
             metadata.put("topic", topic);
         }
+        metadata.put("promptScene", "debate");
         ModelResponse response = modelInvocationService.invoke(
                 request,
                 ModelScene.REFLECT,
@@ -77,10 +85,34 @@ public class DebateCoordinator {
                 "debate",
                 metadata
         );
+        String rawContent = response != null ? response.getContent() : null;
+        boolean repairAttempted = false;
+        boolean repairSuccess = false;
+        String parseErrorType = null;
+        String conclusion = parseConclusion(rawContent);
+        String repairedConclusion = null;
+        if (StringUtils.hasText(rawContent)
+                && ("no_conclusion".equals(conclusion) || rawContent.equals(conclusion))) {
+            parseErrorType = resolveParseErrorType(rawContent);
+            repairAttempted = true;
+            repairedConclusion = tryRepairConclusion(rawContent, topic);
+            if (StringUtils.hasText(repairedConclusion)) {
+                repairSuccess = true;
+            }
+        }
+        if (StringUtils.hasText(repairedConclusion)) {
+            conclusion = repairedConclusion;
+        } else if (!StringUtils.hasText(conclusion)) {
+            log.warn("辩论结论修复失败, topic={}", topic);
+        }
+        recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
+                response != null ? response.getModelId() : null,
+                !"no_conclusion".equals(conclusion) && StringUtils.hasText(conclusion),
+                parseErrorType, repairAttempted, repairSuccess);
         DebateRound round = new DebateRound();
         round.setRoundId(UUID.randomUUID().toString());
         round.setTopic(topic);
-        round.setConclusion(parseConclusion(response != null ? response.getContent() : null));
+        round.setConclusion(conclusion);
         publishDebateEvent(tenantContext, workflowId, seqCounter, round);
         log.info("辩论完成, topic={}, conclusion={}", topic, round.getConclusion());
         return round;
@@ -112,9 +144,67 @@ public class DebateCoordinator {
         }
         return """
                 你是辩论主持人，请给出辩论结论。
-                输出要求：仅输出 JSON，字段包含 conclusion。
+                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+                字段约束：
+                1) conclusion: string，必须输出，缺信息填空串。
+                最小示例 JSON：{"conclusion":""}
                 DEBATE_CONTEXT_JSON:%s
                 """.formatted(json);
+    }
+
+    private String tryRepairConclusion(String rawContent, String topic) {
+        if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
+            return null;
+        }
+        String contextJson;
+        try {
+            Map<String, Object> context = new HashMap<>();
+            context.put("topic", topic);
+            contextJson = objectMapper.writeValueAsString(context);
+        } catch (Exception ex) {
+            contextJson = "{}";
+        }
+        String repaired = jsonOutputRepairService.repair("debate", rawContent, JsonOutputSchema.DEBATE,
+                contextJson, 1);
+        if (!StringUtils.hasText(repaired)) {
+            return null;
+        }
+        String parsed = parseConclusion(repaired);
+        if (StringUtils.hasText(parsed)) {
+            return parsed;
+        }
+        return null;
+    }
+
+    private void recordPromptTrace(Map<String, Object> metadata,
+                                   String promptText,
+                                   TenantContext tenantContext,
+                                   String workflowId,
+                                   AtomicLong seqCounter,
+                                   String modelId,
+                                   boolean parseSuccess,
+                                   String parseErrorType,
+                                   boolean repairAttempted,
+                                   boolean repairSuccess) {
+        PromptTrace trace = PromptTrace.fromMetadata(metadata);
+        if (trace == null) {
+            trace = PromptTrace.fromPrompt("debate", promptText);
+        }
+        if (trace == null) {
+            return;
+        }
+        trace.setParseSuccess(parseSuccess);
+        trace.setParseErrorType(parseErrorType);
+        trace.setRepairAttempted(repairAttempted);
+        trace.setRepairSuccess(repairSuccess);
+        modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "debate", modelId);
+    }
+
+    private String resolveParseErrorType(String rawContent) {
+        if (!StringUtils.hasText(rawContent)) {
+            return "empty_output";
+        }
+        return "json_parse_error";
     }
 
     private String parseConclusion(String content) {

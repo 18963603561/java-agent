@@ -100,6 +100,13 @@ public class ModelToolResolver {
         long startNs = System.nanoTime();
         ToolInjectMode injectMode = resolveInjectMode();
         String tenantId = resolveTenantId(taskRequest, stepInput);
+        ModelToolChoice explicitChoice = resolveToolChoice(taskRequest, stepInput);
+        if (isToolsDisabled(taskRequest, stepInput, explicitChoice)) {
+            request.setToolChoice(ModelToolChoice.none());
+            request.setTools(List.of());
+            log.info("工具已禁用, 租户={}", tenantId);
+            return;
+        }
         String skillName = resolveSkillName(taskRequest, stepInput);
         SkillDefinition skillDefinition = resolveSkillDefinition(skillName);
         List<String> allowedTools = resolveAllowedTools(skillDefinition);
@@ -126,7 +133,7 @@ public class ModelToolResolver {
         if (skillChoice != null) {
             request.setToolChoice(skillChoice);
         } else if (request.getToolChoice() == null) {
-            ModelToolChoice choice = resolveToolChoice(taskRequest, stepInput);
+            ModelToolChoice choice = explicitChoice;
             if (choice != null) {
                 request.setToolChoice(choice);
             } else if (request.getTools() != null && !request.getTools().isEmpty()) {
@@ -143,6 +150,36 @@ public class ModelToolResolver {
             }
         }
         logToolInjection(request.getTools(), injectMode, tenantId, startNs);
+    }
+
+    private boolean isToolsDisabled(TaskRequest taskRequest,
+                                    Map<String, Object> stepInput,
+                                    ModelToolChoice explicitChoice) {
+        if (explicitChoice != null && explicitChoice.getMode() == ModelToolChoice.Mode.NONE) {
+            return true;
+        }
+        Object disableFromStep = resolveDisableTools(stepInput);
+        if (isTruthy(disableFromStep)) {
+            return true;
+        }
+        if (taskRequest != null && taskRequest.getContext() != null) {
+            return isTruthy(taskRequest.getContext().get("disableTools"));
+        }
+        return false;
+    }
+
+    private Object resolveDisableTools(Map<String, Object> stepInput) {
+        if (stepInput == null) {
+            return null;
+        }
+        if (stepInput.containsKey("disableTools")) {
+            return stepInput.get("disableTools");
+        }
+        Object context = stepInput.get("context");
+        if (context instanceof Map<?, ?> contextMap) {
+            return contextMap.get("disableTools");
+        }
+        return null;
     }
 
     private String resolveSkillName(TaskRequest taskRequest, Map<String, Object> stepInput) {
@@ -458,10 +495,31 @@ public class ModelToolResolver {
         if (fromStep != null) {
             return fromStep;
         }
+        if (stepInput != null && stepInput.get("context") instanceof Map<?, ?> contextMap) {
+            ModelToolChoice fromContext = parseToolChoice(contextMap.get("toolChoice"));
+            if (fromContext != null) {
+                return fromContext;
+            }
+        }
         if (taskRequest != null) {
-            return taskRequest.getToolChoice();
+            if (taskRequest.getToolChoice() != null) {
+                return taskRequest.getToolChoice();
+            }
+            if (taskRequest.getContext() != null) {
+                return parseToolChoice(taskRequest.getContext().get("toolChoice"));
+            }
         }
         return null;
+    }
+
+    private boolean isTruthy(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String text) {
+            return "true".equalsIgnoreCase(text.trim());
+        }
+        return false;
     }
 
     private ModelToolChoice parseToolChoice(Object raw) {

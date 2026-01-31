@@ -59,6 +59,48 @@ class ModelToolResolverTest {
     }
 
     @Test
+    void applyToolingSkipsWhenToolChoiceNone() {
+        ToolRegistry toolRegistry = Mockito.mock(ToolRegistry.class);
+        SkillRegistry skillRegistry = Mockito.mock(SkillRegistry.class);
+        ToolCatalog toolCatalog = Mockito.mock(ToolCatalog.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        ModelToolResolver resolver = new ModelToolResolver(toolRegistry, skillRegistry, toolCatalog,
+                new ObjectMapper(), metricsPublisher);
+
+        TaskRequest taskRequest = new TaskRequest();
+        taskRequest.setToolChoice(ModelToolChoice.none());
+
+        ModelRequest request = new ModelRequest();
+        resolver.applyTooling(request, taskRequest, null);
+
+        assertNotNull(request.getToolChoice());
+        assertEquals(ModelToolChoice.Mode.NONE, request.getToolChoice().getMode());
+        assertNotNull(request.getTools());
+        assertEquals(0, request.getTools().size());
+    }
+
+    @Test
+    void applyToolingSkipsWhenDisableToolsFlagSet() {
+        ToolRegistry toolRegistry = Mockito.mock(ToolRegistry.class);
+        SkillRegistry skillRegistry = Mockito.mock(SkillRegistry.class);
+        ToolCatalog toolCatalog = Mockito.mock(ToolCatalog.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        ModelToolResolver resolver = new ModelToolResolver(toolRegistry, skillRegistry, toolCatalog,
+                new ObjectMapper(), metricsPublisher);
+
+        TaskRequest taskRequest = new TaskRequest();
+        taskRequest.setContext(Map.of("disableTools", true));
+
+        ModelRequest request = new ModelRequest();
+        resolver.applyTooling(request, taskRequest, null);
+
+        assertNotNull(request.getToolChoice());
+        assertEquals(ModelToolChoice.Mode.NONE, request.getToolChoice().getMode());
+        assertNotNull(request.getTools());
+        assertEquals(0, request.getTools().size());
+    }
+
+    @Test
     void applyToolingFiltersToolsBySkillAllowList() {
         ToolRegistry toolRegistry = Mockito.mock(ToolRegistry.class);
         SkillRegistry skillRegistry = Mockito.mock(SkillRegistry.class);

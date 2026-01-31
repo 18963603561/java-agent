@@ -8,6 +8,9 @@ import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
+import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.repair.JsonOutputSchema;
+import com.example.agent.model.PromptTrace;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
@@ -17,6 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * 最终输出生成服务，负责整合步骤结果并调用模型总结。
@@ -48,6 +52,7 @@ public class FinalOutputService {
      * <p>示例：将提示词转换为消息序列。
      */
     private final PromptAssembler promptAssembler;
+    private final JsonOutputRepairService jsonOutputRepairService;
     /**
      * 序列化工具。
      * <p>示例：将上下文转为 {@code JSON} 字符串。
@@ -70,10 +75,12 @@ public class FinalOutputService {
      */
     public FinalOutputService(ModelInvocationService modelInvocationService,
                               PromptAssembler promptAssembler,
-                              ObjectMapper objectMapper) {
+                              ObjectMapper objectMapper,
+                              JsonOutputRepairService jsonOutputRepairService) {
         this.modelInvocationService = modelInvocationService;
         this.promptAssembler = promptAssembler;
         this.objectMapper = objectMapper;
+        this.jsonOutputRepairService = jsonOutputRepairService;
     }
 
     /**
@@ -112,6 +119,7 @@ public class FinalOutputService {
         if (planSummary != null) {
             metadata.put("planSummary", planSummary);
         }
+        metadata.put("promptScene", "final");
         // 调用模型生成最终输出。
         ModelResponse response = modelInvocationService.invoke(
                 request,
@@ -126,14 +134,36 @@ public class FinalOutputService {
             return Map.of("answer", "no_response");
         }
         // 解析模型输出为结构化映射。
-        Map<String, Object> parsed = parseFinalOutput(response.getContent());
+        String rawContent = response.getContent();
+        boolean repairAttempted = false;
+        boolean repairSuccess = false;
+        String parseErrorType = null;
+        Map<String, Object> parsed = parseFinalOutput(rawContent);
         if (parsed == null || parsed.isEmpty()) {
+            parseErrorType = resolveParseErrorType(rawContent);
+            repairAttempted = true;
+            Map<String, Object> repaired = tryRepairFinalOutput(rawContent, query, planSummary, stepOutputs);
+            if (repaired != null && !repaired.isEmpty()) {
+                parsed = repaired;
+                repairSuccess = true;
+            }
+        }
+        if (parsed == null || parsed.isEmpty()) {
+            log.warn("最终输出修复失败, workflowId={}, modelId={}", workflowId, response.getModelId());
+            recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter, response.getModelId(), false,
+                    parseErrorType, repairAttempted, repairSuccess);
             // 解析失败时回退为原始文本输出。
             Map<String, Object> fallback = new HashMap<>();
             fallback.put("answer", response.getContent());
             fallback.put("modelId", response.getModelId());
             return fallback;
         }
+        if (!parsed.containsKey("answer")) {
+            parseErrorType = "missing_field";
+        }
+        recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter, response.getModelId(), true,
+                parseErrorType,
+                repairAttempted, repairSuccess);
         parsed.putIfAbsent("modelId", response.getModelId());
         return parsed;
     }
@@ -190,9 +220,69 @@ public class FinalOutputService {
         }
         return """
                 你是执行结果总结器，请基于步骤输出给出最终答复。
-                输出要求：仅输出 JSON，字段包含 answer，可选 highlights、confidence。
+                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+                字段约束：
+                1) answer: string，必须输出，缺信息填空串。
+                2) highlights: string，必须输出，缺信息填空串。
+                3) confidence: number，必须输出，缺信息填 0。
+                最小示例 JSON：{"answer":"","highlights":"","confidence":0}
                 FINAL_CONTEXT_JSON:%s
                 """.formatted(contextJson);
+    }
+
+    private Map<String, Object> tryRepairFinalOutput(String rawContent,
+                                                     String query,
+                                                     String planSummary,
+                                                     List<Map<String, Object>> stepOutputs) {
+        if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
+            return Map.of();
+        }
+        Map<String, Object> context = new HashMap<>();
+        context.put("query", query);
+        context.put("planSummary", planSummary);
+        context.put("steps", stepOutputs);
+        String contextJson;
+        try {
+            contextJson = objectMapper.writeValueAsString(context);
+        } catch (Exception ex) {
+            contextJson = "{}";
+        }
+        String repaired = jsonOutputRepairService.repair("final", rawContent, JsonOutputSchema.FINAL, contextJson, 1);
+        if (!StringUtils.hasText(repaired)) {
+            return Map.of();
+        }
+        return parseFinalOutput(repaired);
+    }
+
+    private void recordPromptTrace(Map<String, Object> metadata,
+                                   String promptText,
+                                   TenantContext tenantContext,
+                                   String workflowId,
+                                   AtomicLong seqCounter,
+                                   String modelId,
+                                   boolean parseSuccess,
+                                   String parseErrorType,
+                                   boolean repairAttempted,
+                                   boolean repairSuccess) {
+        PromptTrace trace = PromptTrace.fromMetadata(metadata);
+        if (trace == null) {
+            trace = PromptTrace.fromPrompt("final", promptText);
+        }
+        if (trace == null) {
+            return;
+        }
+        trace.setParseSuccess(parseSuccess);
+        trace.setParseErrorType(parseErrorType);
+        trace.setRepairAttempted(repairAttempted);
+        trace.setRepairSuccess(repairSuccess);
+        modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "final", modelId);
+    }
+
+    private String resolveParseErrorType(String rawContent) {
+        if (!StringUtils.hasText(rawContent)) {
+            return "empty_output";
+        }
+        return "json_parse_error";
     }
 
     /**

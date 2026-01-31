@@ -9,6 +9,9 @@ import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
+import com.example.agent.model.PromptTrace;
+import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.repair.JsonOutputSchema;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -120,6 +123,7 @@ public class ChainOfThoughtService {
      * <p>示例：构建上下文 {@code JSON}。
      */
     private final ObjectMapper objectMapper;
+    private final JsonOutputRepairService jsonOutputRepairService;
     /**
      * 事件发布器。
      * <p>示例：发布链式推理阶段事件。
@@ -158,13 +162,15 @@ public class ChainOfThoughtService {
                                  ObjectMapper objectMapper,
                                  ApplicationEventPublisher eventPublisher,
                                  EventStreamService eventStreamService,
-                                 CotProperties properties) {
+                                 CotProperties properties,
+                                 JsonOutputRepairService jsonOutputRepairService) {
         this.modelInvocationService = modelInvocationService;
         this.promptAssembler = promptAssembler;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
         this.properties = properties;
+        this.jsonOutputRepairService = jsonOutputRepairService;
     }
 
     /**
@@ -225,6 +231,7 @@ public class ChainOfThoughtService {
                 Map<String, Object> metadata = new HashMap<>();
                 metadata.put("stepIndex", stepIndex);
                 metadata.put("maxSteps", maxSteps);
+                metadata.put("promptScene", "cot");
                 ModelResponse response = modelInvocationService.invoke(
                         request,
                         request.getScene(),
@@ -235,7 +242,26 @@ public class ChainOfThoughtService {
                         metadata
                 );
                 // 解析模型输出的决策与摘要。
-                StepDecision decision = parseDecision(response != null ? response.getContent() : null);
+                String rawContent = response != null ? response.getContent() : null;
+                boolean repairAttempted = false;
+                boolean repairSuccess = false;
+                String parseErrorType = null;
+                StepDecision decision = parseDecision(rawContent);
+                if (!decision.valid) {
+                    parseErrorType = resolveParseErrorType(decision.stopReason);
+                    repairAttempted = true;
+                    StepDecision repaired = tryRepairDecision(rawContent, safeQuestion, input, stepSummaries, stepIndex,
+                            maxSteps);
+                    if (repaired.valid) {
+                        decision = repaired;
+                        repairSuccess = true;
+                    } else {
+                        log.warn("链式推理修复失败, stepIndex={}", stepIndex);
+                    }
+                }
+                recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
+                        response != null ? response.getModelId() : null, decision.valid, parseErrorType,
+                        repairAttempted, repairSuccess);
                 if (StringUtils.hasText(decision.stepSummary)) {
                     stepSummaries.add(truncate(decision.stepSummary, MAX_STEP_SUMMARY_CHARS));
                 }
@@ -357,10 +383,80 @@ public class ChainOfThoughtService {
         return """
                 你是链式推理助手，但禁止输出逐字思维链。
                 请基于问题给出下一步的简短摘要或最终答案。
-                输出要求：仅输出 JSON，字段包含 stepSummary、shouldContinue、finalAnswer、confidence、stopReason。
-                约束：stepSummary 必须是简短摘要，不得包含逐字推理，不得包含敏感细节。
+                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+                字段约束：
+                1) stepSummary: string，必须输出，必须简短，不得包含逐字推理或敏感细节，缺信息填空串。
+                2) shouldContinue: boolean，必须输出，缺信息填 false。
+                3) finalAnswer: string，必须输出，缺信息填空串。
+                4) confidence: number，必须输出，缺信息填 0.5。
+                5) stopReason: string，必须输出，缺信息填空串。
+                最小示例 JSON：{"stepSummary":"","shouldContinue":false,"finalAnswer":"","confidence":0.5,"stopReason":""}
                 COT_CONTEXT_JSON:%s
                 """.formatted(contextJson);
+    }
+
+    private StepDecision tryRepairDecision(String rawContent,
+                                           String question,
+                                           Map<String, Object> input,
+                                           List<String> stepSummaries,
+                                           int stepIndex,
+                                           int maxSteps) {
+        if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
+            return StepDecision.invalid("invalid_response");
+        }
+        Map<String, Object> context = new HashMap<>();
+        context.put("question", question);
+        context.put("input", input);
+        if (stepSummaries != null && !stepSummaries.isEmpty()) {
+            context.put("previousSteps", stepSummaries);
+        }
+        context.put("stepIndex", stepIndex);
+        context.put("maxSteps", maxSteps);
+        String contextJson;
+        try {
+            contextJson = objectMapper.writeValueAsString(context);
+        } catch (Exception ex) {
+            contextJson = "{}";
+        }
+        String repaired = jsonOutputRepairService.repair("cot", rawContent, JsonOutputSchema.COT, contextJson, 1);
+        if (!StringUtils.hasText(repaired)) {
+            return StepDecision.invalid("invalid_response");
+        }
+        return parseDecision(repaired);
+    }
+
+    private void recordPromptTrace(Map<String, Object> metadata,
+                                   String promptText,
+                                   TenantContext tenantContext,
+                                   String workflowId,
+                                   AtomicLong seqCounter,
+                                   String modelId,
+                                   boolean parseSuccess,
+                                   String parseErrorType,
+                                   boolean repairAttempted,
+                                   boolean repairSuccess) {
+        PromptTrace trace = PromptTrace.fromMetadata(metadata);
+        if (trace == null) {
+            trace = PromptTrace.fromPrompt("cot", promptText);
+        }
+        if (trace == null) {
+            return;
+        }
+        trace.setParseSuccess(parseSuccess);
+        trace.setParseErrorType(parseErrorType);
+        trace.setRepairAttempted(repairAttempted);
+        trace.setRepairSuccess(repairSuccess);
+        modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "cot", modelId);
+    }
+
+    private String resolveParseErrorType(String stopReason) {
+        if (!StringUtils.hasText(stopReason)) {
+            return "json_parse_error";
+        }
+        if ("empty_response".equals(stopReason)) {
+            return "empty_output";
+        }
+        return "json_parse_error";
     }
 
     /**

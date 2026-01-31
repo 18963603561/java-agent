@@ -6,6 +6,8 @@ import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.PromptAssembler;
+import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.repair.JsonOutputRepairService;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -30,7 +32,7 @@ class ChainOfThoughtServiceTest {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
                 .thenAnswer(invocation -> new ModelResponse("cot-model",
-                        "{\"stepSummary\":\"继续\",\"shouldContinue\":true,\"confidence\":0.5}",
+                        "{\"stepSummary\":\"summary\",\"shouldContinue\":true,\"confidence\":0.5}",
                         1, 1));
 
         CotProperties props = new CotProperties();
@@ -45,11 +47,10 @@ class ChainOfThoughtServiceTest {
                 new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
-                props
-        );
+                props, Mockito.mock(JsonOutputRepairService.class));
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
-        ChainOfThoughtResult result = service.run("测试问题", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
+        ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
 
         assertFalse(result.isCompleted());
         assertEquals("max_steps", result.getStopReason());
@@ -63,10 +64,10 @@ class ChainOfThoughtServiceTest {
         when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(
                         new ModelResponse("cot-model",
-                                "{\"stepSummary\":\"拆解问题\",\"shouldContinue\":true,\"confidence\":0.6}",
+                                "{\"stepSummary\":\"summary-1\",\"shouldContinue\":true,\"confidence\":0.6}",
                                 1, 1),
                         new ModelResponse("cot-model",
-                                "{\"stepSummary\":\"收敛结论\",\"shouldContinue\":false,\"finalAnswer\":\"答案\",\"confidence\":0.8}",
+                                "{\"stepSummary\":\"summary-2\",\"shouldContinue\":false,\"finalAnswer\":\"done\",\"confidence\":0.8}",
                                 1, 1)
                 );
 
@@ -82,15 +83,14 @@ class ChainOfThoughtServiceTest {
                 new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
-                props
-        );
+                props, Mockito.mock(JsonOutputRepairService.class));
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
-        ChainOfThoughtResult result = service.run("测试问题", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
+        ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
 
         assertTrue(result.isCompleted());
         assertEquals("completed", result.getStopReason());
-        assertEquals("答案", result.getFinalAnswer());
+        assertEquals("done", result.getFinalAnswer());
         assertEquals(2, result.getStepsCount());
 
         List<EventType> types = eventPublisher.events.stream().map(StreamEvent::getType).toList();
@@ -117,11 +117,10 @@ class ChainOfThoughtServiceTest {
                 new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
-                props
-        );
+                props, Mockito.mock(JsonOutputRepairService.class));
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
-        ChainOfThoughtResult result = service.run("测试问题", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
+        ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
 
         assertFalse(result.isCompleted());
         assertEquals("invalid_response", result.getStopReason());
@@ -135,9 +134,7 @@ class ChainOfThoughtServiceTest {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new ModelResponse("cot-model",
-                        "{\"stepSummary\":\"推理\",\"shouldContinue\":false,"
-                                + "\"finalAnswer\":\"Let's think step by step. Step 1... Final Answer: 42\","
-                                + "\"confidence\":0.6}",
+                        "{\"stepSummary\":\"summary\",\"shouldContinue\":false,\"finalAnswer\":\"Let's think step by step. Step 1... Final Answer: 42\",\"confidence\":0.6}",
                         1, 1));
 
         CotProperties props = new CotProperties();
@@ -151,11 +148,10 @@ class ChainOfThoughtServiceTest {
                 new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
-                props
-        );
+                props, Mockito.mock(JsonOutputRepairService.class));
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
-        ChainOfThoughtResult result = service.run("测试问题", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
+        ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
 
         assertTrue(result.isCompleted());
         assertEquals("42", result.getFinalAnswer());
@@ -167,10 +163,7 @@ class ChainOfThoughtServiceTest {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(new ModelResponse("cot-model",
-                        "```json\n"
-                                + "{\"stepSummary\":\"summary\",\"shouldContinue\":false,"
-                                + "\"finalAnswer\":\"answer\",\"confidence\":0.9}\n"
-                                + "```",
+                        "```json\n{\"stepSummary\":\"summary\",\"shouldContinue\":false,\"finalAnswer\":\"answer\",\"confidence\":0.9}\n```",
                         1, 1));
 
         CotProperties props = new CotProperties();
@@ -184,8 +177,7 @@ class ChainOfThoughtServiceTest {
                 new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
-                props
-        );
+                props, Mockito.mock(JsonOutputRepairService.class));
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
         ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
@@ -193,6 +185,58 @@ class ChainOfThoughtServiceTest {
         assertTrue(result.isCompleted());
         assertEquals("answer", result.getFinalAnswer());
         assertEquals("completed", result.getStopReason());
+    }
+
+    @Test
+    void chainOfThoughtRepairsOutputWithExtraText() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        String badContent = "prefix {\"shouldContinue\":false,\"stepSummary\":\"ok\",\"finalAnswer\":\"done\",\"confidence\":0.8,\"stopReason\":\"completed\"} suffix";
+        String repaired = "{\"shouldContinue\":false,\"stepSummary\":\"ok\",\"finalAnswer\":\"done\",\"confidence\":0.8,\"stopReason\":\"completed\"}";
+        when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new ModelResponse("cot", badContent, 10, 10),
+                        new ModelResponse("repair", repaired, 10, 10));
+
+        CotProperties props = new CotProperties();
+        props.setMaxSteps(1);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
+                metricsPublisher);
+        ChainOfThoughtService service = new ChainOfThoughtService(modelInvocationService, promptAssembler,
+                new ObjectMapper(), new TestEventPublisher(), Mockito.mock(EventStreamService.class), props,
+                repairService);
+
+        TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
+        ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
+
+        assertTrue(result.isCompleted());
+        assertEquals("done", result.getFinalAnswer());
+    }
+
+    @Test
+    void chainOfThoughtFallsBackWhenRepairFails() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        String badContent = "invalid";
+        when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new ModelResponse("cot", badContent, 10, 10),
+                        new ModelResponse("repair", "", 10, 10));
+
+        CotProperties props = new CotProperties();
+        props.setMaxSteps(1);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
+                metricsPublisher);
+        ChainOfThoughtService service = new ChainOfThoughtService(modelInvocationService, promptAssembler,
+                new ObjectMapper(), new TestEventPublisher(), Mockito.mock(EventStreamService.class), props,
+                repairService);
+
+        TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
+        ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
+
+        assertFalse(result.isCompleted());
+        assertEquals("invalid_response", result.getStopReason());
+        Mockito.verify(metricsPublisher).incrementWithTags("json_repair_failure_total", "scene", "cot");
     }
 
     static class TestEventPublisher implements ApplicationEventPublisher {
@@ -207,7 +251,6 @@ class ChainOfThoughtServiceTest {
 
         @Override
         public void publishEvent(ApplicationEvent event) {
-            // 不处理 ApplicationEvent 分支
         }
     }
 }

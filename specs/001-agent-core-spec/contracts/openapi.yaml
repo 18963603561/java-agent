@@ -19,7 +19,13 @@ paths:
               $ref: '#/components/schemas/TaskRequest'
       responses:
         '200':
-          description: 提交成功
+          description: SYNC 模式在超时内完成时返回最终结果
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiResponse'
+        '202':
+          description: ASYNC 模式接收任务，或 SYNC 等待超时/并发受限后退化为异步
           content:
             application/json:
               schema:
@@ -642,6 +648,14 @@ components:
           type: string
         toolChoice:
           $ref: '#/components/schemas/ModelToolChoice'
+        executionMode:
+          type: string
+          enum: [ASYNC, SYNC]
+          description: SYNC 会在超时时间内等待结果，超时退化为 202
+        waitTimeoutMs:
+          type: integer
+          format: int64
+          description: SYNC 等待超时时间（毫秒），仅 SYNC 生效，超出上限按上限处理
     TaskResponse:
       type: object
       properties:
@@ -651,6 +665,11 @@ components:
           type: string
         status:
           type: string
+        streamUrl:
+          type: string
+        result:
+          type: object
+          description: SYNC 完成时返回的任务结果，与最终事件一致
     TaskStatusResponse:
       type: object
       properties:

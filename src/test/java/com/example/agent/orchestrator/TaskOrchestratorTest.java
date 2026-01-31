@@ -11,6 +11,7 @@ import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.streaming.EventStreamService;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -56,6 +57,9 @@ class TaskOrchestratorTest {
     @Mock
     private EventStreamService eventStreamService;
 
+    @Mock
+    private TaskExecutionService taskExecutionService;
+
     private TaskOrchestrator orchestrator;
     private AtomicLong seqCounter;
     private TaskRepository taskRepository;
@@ -68,8 +72,14 @@ class TaskOrchestratorTest {
         taskRepository = new InMemoryTaskRepository();
         redisProvider = Mockito.mock(ObjectProvider.class);
         when(redisProvider.getIfAvailable()).thenReturn(null);
+        when(taskExecutionService.submit(anyString(), any(Runnable.class)))
+                .thenAnswer(invocation -> {
+                    Runnable task = invocation.getArgument(1);
+                    task.run();
+                    return CompletableFuture.completedFuture(null);
+                });
         orchestrator = new TaskOrchestrator(eventPublisher, workflowRouter, metricsPublisher, tracingPublisher, eventStreamService,
-                taskRepository, redisProvider);
+                taskRepository, taskExecutionService, redisProvider);
     }
 
     @Test
@@ -106,11 +116,13 @@ class TaskOrchestratorTest {
                 .map(TaskResponse::getTaskId)
                 .collect(Collectors.toSet());
         assertEquals(1, taskIds.size());
+        verify(taskExecutionService, times(1))
+                .submit(anyString(), any(Runnable.class));
         verify(workflowRouter, times(1))
                 .route(eq(request), eq(tenantContext), anyString(), anyString(), any(AtomicLong.class));
         verify(eventPublisher, times(1))
                 .publishEvent(argThat((Object event) -> event instanceof StreamEvent
-                        && ((StreamEvent) event).getType() == EventType.WORKFLOW_STARTED
+                        && ((StreamEvent) event).getType() == EventType.TASK_ACCEPTED
                         && "trace-1".equals(((StreamEvent) event).getPayload().get("traceId"))));
         verify(metricsPublisher, times(1)).increment(eq("task.submit.count"), eq("trace-1"));
     }

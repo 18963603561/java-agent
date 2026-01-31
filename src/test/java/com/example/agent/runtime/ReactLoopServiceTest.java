@@ -11,6 +11,8 @@ import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelToolResolver;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.observability.TracingPublisher;
+import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.streaming.EventStreamService;
 import com.example.agent.tools.hook.HookManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -195,6 +197,121 @@ class ReactLoopServiceTest {
         assertEquals(1, completedCount);
     }
 
+    @Test
+    void reactRepairsOutputWithExtraText() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        String badContent = "说明 {\"action\":\"stop\",\"tool\":\"\",\"arguments\":{},\"shouldStop\":true,"
+                + "\"stopReason\":\"completed\",\"finalAnswer\":\"ok\"} 后缀";
+        String repaired = "{\"action\":\"stop\",\"tool\":\"\",\"arguments\":{},\"shouldStop\":true,"
+                + "\"stopReason\":\"completed\",\"finalAnswer\":\"ok\"}";
+        when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new ModelResponse("react", badContent, 10, 10),
+                        new ModelResponse("repair", repaired, 10, 10));
+
+        ReactRuntimeProperties properties = new ReactRuntimeProperties();
+        properties.setMaxIterations(1);
+        properties.setMinIterations(1);
+        properties.setObservationWindow(1);
+
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        EnforcementGateway enforcementGateway = Mockito.mock(EnforcementGateway.class);
+        when(enforcementGateway.execute(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("result", "ok"));
+        MemoryWriteService memoryWriteService = Mockito.mock(MemoryWriteService.class);
+        ExecutionControlService executionControlService = Mockito.mock(ExecutionControlService.class);
+        when(executionControlService.getState(any())).thenReturn(ExecutionControlState.RUNNING);
+        when(executionControlService.awaitIfBlocked(any())).thenReturn(ExecutionControlState.RUNNING);
+
+        HookManager hookManager = Mockito.mock(HookManager.class);
+        TestEventPublisher eventPublisher = new TestEventPublisher();
+        TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
+        when(tracingPublisher.currentTraceId()).thenReturn("trace");
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
+                metricsPublisher);
+
+        ReactLoopService service = new ReactLoopService(modelInvocationService,
+                modelToolResolver,
+                promptAssembler,
+                enforcementGateway,
+                memoryWriteService,
+                executionControlService,
+                hookManager,
+                eventPublisher,
+                tracingPublisher,
+                eventStreamService,
+                properties,
+                new ObjectMapper(),
+                repairService);
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        ReactLoopResult result = service.run(request, new TenantContext("t-1", "u-1", List.of(), "req", "trace"),
+                "wf-1", "task-1", new AtomicLong(0));
+
+        assertTrue(result.isCompleted());
+        assertEquals("ok", result.getFinalAnswer());
+        Mockito.verify(metricsPublisher).incrementWithTags("json_repair_success_total", "scene", "react");
+    }
+
+    @Test
+    void reactFallsBackWhenRepairFails() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        String badContent = "无法解析";
+        when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new ModelResponse("react", badContent, 10, 10),
+                        new ModelResponse("repair", "", 10, 10));
+
+        ReactRuntimeProperties properties = new ReactRuntimeProperties();
+        properties.setMaxIterations(1);
+        properties.setMinIterations(1);
+        properties.setObservationWindow(1);
+
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        EnforcementGateway enforcementGateway = Mockito.mock(EnforcementGateway.class);
+        when(enforcementGateway.execute(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("result", "ok"));
+        MemoryWriteService memoryWriteService = Mockito.mock(MemoryWriteService.class);
+        ExecutionControlService executionControlService = Mockito.mock(ExecutionControlService.class);
+        when(executionControlService.getState(any())).thenReturn(ExecutionControlState.RUNNING);
+        when(executionControlService.awaitIfBlocked(any())).thenReturn(ExecutionControlState.RUNNING);
+
+        HookManager hookManager = Mockito.mock(HookManager.class);
+        TestEventPublisher eventPublisher = new TestEventPublisher();
+        TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
+        when(tracingPublisher.currentTraceId()).thenReturn("trace");
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
+                metricsPublisher);
+
+        ReactLoopService service = new ReactLoopService(modelInvocationService,
+                modelToolResolver,
+                promptAssembler,
+                enforcementGateway,
+                memoryWriteService,
+                executionControlService,
+                hookManager,
+                eventPublisher,
+                tracingPublisher,
+                eventStreamService,
+                properties,
+                new ObjectMapper(),
+                repairService);
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        ReactLoopResult result = service.run(request, new TenantContext("t-1", "u-1", List.of(), "req", "trace"),
+                "wf-1", "task-1", new AtomicLong(0));
+
+        assertFalse(result.isCompleted());
+        assertEquals("max_iterations", result.getStopReason());
+        Mockito.verify(metricsPublisher).incrementWithTags("json_repair_failure_total", "scene", "react");
+    }
+
     private ReactLoopService buildService(ModelInvocationService modelInvocationService,
                                           ReactRuntimeProperties properties,
                                           TestEventPublisher eventPublisher) {
@@ -220,6 +337,9 @@ class ReactLoopServiceTest {
 
         EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
+                metricsPublisher);
 
         return new ReactLoopService(modelInvocationService,
                 modelToolResolver,
@@ -232,7 +352,8 @@ class ReactLoopServiceTest {
                 tracingPublisher,
                 eventStreamService,
                 properties,
-                new ObjectMapper());
+                new ObjectMapper(),
+                repairService);
     }
 
     static class TestEventPublisher implements ApplicationEventPublisher {
@@ -247,7 +368,7 @@ class ReactLoopServiceTest {
 
         @Override
         public void publishEvent(ApplicationEvent event) {
-            // 不处理 ApplicationEvent 分支
+            // 涓嶅鐞?ApplicationEvent 鍒嗘敮
         }
     }
 }

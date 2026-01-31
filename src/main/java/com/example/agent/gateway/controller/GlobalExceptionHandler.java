@@ -1,8 +1,10 @@
 package com.example.agent.gateway.controller;
 
 import com.example.agent.auth.TenantContext;
+import com.example.agent.common.ApiResponse;
 import com.example.agent.common.ErrorCodeProvider;
 import com.example.agent.common.ErrorResponse;
+import com.example.agent.common.SyncWaitTimeoutException;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.ConstraintViolationException;
@@ -52,6 +54,10 @@ public class GlobalExceptionHandler implements WebExceptionHandler {
             return Mono.error(ex);
         }
 
+        if (ex instanceof SyncWaitTimeoutException timeoutException) {
+            return handleSyncTimeout(exchange, timeoutException);
+        }
+
         HttpStatus status = resolveStatus(ex);
         String code = resolveCode(ex, status);
         TenantContext context = exchange.getAttribute(TenantContext.CONTEXT_KEY);
@@ -66,6 +72,20 @@ public class GlobalExceptionHandler implements WebExceptionHandler {
 
         byte[] body = toJsonBytes(errorResponse);
         exchange.getResponse().setStatusCode(status);
+        exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
+        exchange.getResponse().getHeaders().setContentLength(body.length);
+        return exchange.getResponse().writeWith(Mono.just(exchange.getResponse()
+                .bufferFactory().wrap(body)));
+    }
+
+    private Mono<Void> handleSyncTimeout(ServerWebExchange exchange, SyncWaitTimeoutException ex) {
+        TenantContext context = exchange.getAttribute(TenantContext.CONTEXT_KEY);
+        String traceId = context != null ? context.getTraceId() : resolveHeader(exchange, "X-Trace-Id");
+        String requestId = context != null ? context.getRequestId() : resolveHeader(exchange, "X-Request-Id");
+        ApiResponse<?> response = new ApiResponse<>(ex.getErrorCode(), ex.getReason(), ex.getResponse(),
+                traceId, requestId);
+        byte[] body = toJsonBytes(response);
+        exchange.getResponse().setStatusCode(HttpStatus.ACCEPTED);
         exchange.getResponse().getHeaders().setContentType(MediaType.APPLICATION_JSON);
         exchange.getResponse().getHeaders().setContentLength(body.length);
         return exchange.getResponse().writeWith(Mono.just(exchange.getResponse()

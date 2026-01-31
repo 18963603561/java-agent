@@ -14,8 +14,12 @@ import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
+import com.example.agent.model.ModelToolChoice;
 import com.example.agent.model.ModelToolResolver;
 import com.example.agent.model.PromptAssembler;
+import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.repair.JsonOutputSchema;
+import com.example.agent.model.PromptTrace;
 import com.example.agent.model.PromptBundle;
 import com.example.agent.runtime.StepRequest;
 import com.example.agent.streaming.ContextEventPublisher;
@@ -32,6 +36,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * 规划服务，负责基于任务生成可执行步骤。
@@ -68,6 +73,7 @@ public class PlannerService {
      * <p>示例：生成结构化消息列表。
      */
     private final PromptAssembler promptAssembler;
+    private final JsonOutputRepairService jsonOutputRepairService;
     /**
      * 规划相关配置。
      * <p>示例：控制是否启用模型规划。
@@ -120,7 +126,8 @@ public class PlannerService {
                           CapabilityBoundaryEvaluator capabilityBoundaryEvaluator,
                           ObjectMapper objectMapper,
                           ContextAssembler contextAssembler,
-                          ContextEventPublisher contextEventPublisher) {
+                          ContextEventPublisher contextEventPublisher,
+                          JsonOutputRepairService jsonOutputRepairService) {
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
         this.promptAssembler = promptAssembler;
@@ -129,6 +136,7 @@ public class PlannerService {
         this.objectMapper = objectMapper;
         this.contextAssembler = contextAssembler;
         this.contextEventPublisher = contextEventPublisher;
+        this.jsonOutputRepairService = jsonOutputRepairService;
     }
 
     /**
@@ -176,6 +184,9 @@ public class PlannerService {
         Map<String, Object> context = request != null && request.getContext() != null
                 ? new HashMap<>(request.getContext())
                 : new HashMap<>();
+        if (request != null && request.getToolChoice() != null && !context.containsKey("toolChoice")) {
+            context.put("toolChoice", request.getToolChoice());
+        }
         // 评估能力边界，决定是否需要审批或推荐策略。
         CapabilityEvaluationResult evaluation = evaluateCapability(request, context, tenantContext, workflowId,
                 seqCounter);
@@ -558,6 +569,9 @@ public class PlannerService {
             applyPromptBundle(modelRequest, prompt, request, context, tenantContext, workflowId, seqCounter);
             modelToolResolver.applyTooling(modelRequest, request, null);
             // 调用模型生成规划内容。
+            Map<String, Object> metadata = new HashMap<>();
+            metadata.put("planId", planId);
+            metadata.put("promptScene", "planner");
             ModelResponse response = modelInvocationService.invoke(
                     modelRequest,
                     ModelScene.PLANNER,
@@ -565,16 +579,43 @@ public class PlannerService {
                     workflowId,
                     seqCounter,
                     "plan",
-                    Map.of("planId", planId)
+                    metadata
             );
             if (response == null || response.getContent() == null) {
                 return null;
             }
             // 解析模型输出为规划步骤。
-            PlanParsingResult parsed = parsePlan(response.getContent(), request, context);
+            String rawContent = response.getContent();
+            boolean repairAttempted = false;
+            boolean repairSuccess = false;
+            String parseErrorType = null;
+            PlanParsingResult parsed = null;
+            try {
+                parsed = parsePlan(rawContent, request, context);
+            } catch (Exception ex) {
+                log.warn("规划解析失败, tenantId={}, planId={}, reason={}",
+                        tenantContext.getTenantId(), planId, ex.getMessage());
+                parseErrorType = "json_parse_error";
+            }
             if (parsed == null || parsed.steps == null || parsed.steps.isEmpty()) {
+                if (parseErrorType == null) {
+                    parseErrorType = resolveParseErrorType(rawContent);
+                }
+                repairAttempted = true;
+                PlanParsingResult repaired = tryRepairPlan(rawContent, request, context);
+                if (repaired != null && repaired.steps != null && !repaired.steps.isEmpty()) {
+                    parsed = repaired;
+                    repairSuccess = true;
+                }
+            }
+            if (parsed == null || parsed.steps == null || parsed.steps.isEmpty()) {
+                log.warn("规划修复失败, tenantId={}, planId={}", tenantContext.getTenantId(), planId);
+                recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter, response.getModelId(), false,
+                        parseErrorType, repairAttempted, repairSuccess);
                 return null;
             }
+            recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter, response.getModelId(), true, null,
+                    repairAttempted, repairSuccess);
             PlanResult result = new PlanResult(planId, parsed.summary, parsed.steps);
             log.info("规划生成(LLM), tenantId={}, planId={}, steps={}",
                     tenantContext.getTenantId(), planId, parsed.steps.size());
@@ -716,6 +757,35 @@ public class PlannerService {
             return result;
         }
 
+        if (isToolsDisabled(context)) {
+            String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
+            Map<String, Object> input = new HashMap<>();
+            input.put("query", query);
+            input.put("context", context);
+            input.put("stepKey", stepKey);
+            input.put("critical", complexityScore >= 0.6);
+            input.put("strategy", cognitiveStrategy);
+            if (previousStepKey != null) {
+                input.put("dependsOn", List.of(previousStepKey));
+                dependencies.add(Map.of("from", previousStepKey, "to", stepKey));
+            }
+            steps.add(new StepRequest("LLM", input));
+            planSteps.add(Map.of("id", stepKey, "type", "LLM", "name", "llm"));
+
+            String summary = String.format(Locale.ROOT,
+                    "strategy=%s, cognitive=%s, complexity=%.2f, steps=%d",
+                    executionStrategy, cognitiveStrategy, complexityScore, steps.size());
+            PlanResult result = new PlanResult(planId, summary, steps);
+
+            log.info("规划生成(大模型), tenantId={}, planId={}, summary={}",
+                    tenantContext.getTenantId(), planId, summary);
+            context.put("planSteps", planSteps);
+            context.put("planDependencies", dependencies);
+            context.put("executionStrategy", executionStrategy);
+            context.put("cognitiveStrategy", cognitiveStrategy);
+            return result;
+        }
+
         // 默认工具步骤。
         String toolStepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
         Map<String, Object> toolInput = new HashMap<>();
@@ -776,10 +846,75 @@ public class PlannerService {
         }
         return """
                 你是任务规划器，请基于输入生成可执行步骤。
-                输出要求：仅输出 JSON，字段包含 summary 和 steps。
-                steps 每项包含 type、input，可选 tool、dependsOn。
+                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+                字段约束：
+                1) summary: string，缺信息填空串；无法给出有效步骤时用 summary 说明原因。
+                2) steps: array，缺信息填 []。
+                3) steps[*].type: string，缺信息填 "TOOL"。
+                4) steps[*].input: object，必须是 object，缺信息填 {}。
+                5) steps[*].tool: string，可缺省，缺信息填空串。
+                6) steps[*].dependsOn: array，可缺省，缺信息填 []。
+                当无法确定 action/step 时，输出 steps=[]，summary 写明原因。
+                最小示例 JSON：{"summary":"","steps":[]}
                 PLAN_CONTEXT_JSON:%s
                 """.formatted(contextJson);
+    }
+
+    private PlanParsingResult tryRepairPlan(String rawContent, TaskRequest request, Map<String, Object> context) {
+        if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
+            return null;
+        }
+        String contextJson;
+        try {
+            Map<String, Object> promptContext = new HashMap<>();
+            promptContext.put("query", request != null ? request.getQuery() : null);
+            promptContext.put("context", context);
+            contextJson = objectMapper.writeValueAsString(promptContext);
+        } catch (Exception ex) {
+            contextJson = "{}";
+        }
+        String repaired = jsonOutputRepairService.repair("planner", rawContent, JsonOutputSchema.PLANNER,
+                contextJson, 1);
+        if (!StringUtils.hasText(repaired)) {
+            return null;
+        }
+        try {
+            return parsePlan(repaired, request, context);
+        } catch (Exception ex) {
+            log.warn("规划修复解析失败, reason={}", ex.getMessage());
+            return null;
+        }
+    }
+
+    private void recordPromptTrace(Map<String, Object> metadata,
+                                   String promptText,
+                                   TenantContext tenantContext,
+                                   String workflowId,
+                                   AtomicLong seqCounter,
+                                   String modelId,
+                                   boolean parseSuccess,
+                                   String parseErrorType,
+                                   boolean repairAttempted,
+                                   boolean repairSuccess) {
+        PromptTrace trace = PromptTrace.fromMetadata(metadata);
+        if (trace == null) {
+            trace = PromptTrace.fromPrompt("planner", promptText);
+        }
+        if (trace == null) {
+            return;
+        }
+        trace.setParseSuccess(parseSuccess);
+        trace.setParseErrorType(parseErrorType);
+        trace.setRepairAttempted(repairAttempted);
+        trace.setRepairSuccess(repairSuccess);
+        modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "plan", modelId);
+    }
+
+    private String resolveParseErrorType(String rawContent) {
+        if (!StringUtils.hasText(rawContent)) {
+            return "empty_output";
+        }
+        return "missing_field";
     }
 
     /**
@@ -1164,6 +1299,61 @@ public class PlannerService {
             return value;
         }
         if (react instanceof String text && !text.isBlank()) {
+            return "true".equalsIgnoreCase(text.trim());
+        }
+        return false;
+    }
+
+    /**
+     * 判断是否显式禁用工具。
+     *
+     * <p>输入：上下文映射。
+     * <p>输出：是否禁用工具。
+     */
+    private boolean isToolsDisabled(Map<String, Object> context) {
+        if (context == null) {
+            return false;
+        }
+        if (isTruthy(context.get("disableTools"))) {
+            return true;
+        }
+        ModelToolChoice choice = parseToolChoice(context.get("toolChoice"));
+        return choice != null && choice.getMode() == ModelToolChoice.Mode.NONE;
+    }
+
+    private ModelToolChoice parseToolChoice(Object raw) {
+        if (raw instanceof ModelToolChoice choice) {
+            return choice;
+        }
+        if (raw instanceof String value) {
+            return ModelToolChoice.fromString(value);
+        }
+        if (raw instanceof Map<?, ?> map) {
+            String mode = map.get("mode") != null ? map.get("mode").toString() : null;
+            if ((mode == null || mode.isBlank()) && map.get("type") != null) {
+                mode = map.get("type").toString();
+            }
+            String name = map.get("toolName") != null ? map.get("toolName").toString() : null;
+            if ((name == null || name.isBlank()) && map.get("name") != null) {
+                name = map.get("name").toString();
+            }
+            if (mode != null && "specified".equalsIgnoreCase(mode)) {
+                return ModelToolChoice.specified(name);
+            }
+            ModelToolChoice parsed = ModelToolChoice.fromString(mode);
+            if (parsed != null && parsed.getMode() == ModelToolChoice.Mode.SPECIFIED) {
+                parsed.setToolName(name);
+            }
+            return parsed;
+        }
+        return null;
+    }
+
+    private boolean isTruthy(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String text) {
             return "true".equalsIgnoreCase(text.trim());
         }
         return false;

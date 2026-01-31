@@ -5,6 +5,7 @@ import com.example.agent.common.ErrorCodeException;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.streaming.EventStreamService;
+import com.example.agent.model.PromptTrace;
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,11 +17,11 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 /**
- * 模型调用协调器，负责统一调用模型并发布事件。
- * <p>用途：封装模型调用流程，统一日志与事件输出。
- * <p>输入：模型请求、场景、租户上下文与链路信息。
+ * 模型调用服务，负责模型路由、调用与事件发布。
+ * <p>用途：封装模型调用链路，统一记录提示词与输出事件。
+ * <p>输入：模型请求、场景、租户上下文、工作流标识、阶段与元数据。
  * <p>输出：模型响应对象。
- * <p>边界：模型不可用时抛出业务异常并标记错误事件。
+ * <p>边界：调用失败时抛出业务异常或封装为模型不可用。
  * <p>示例：
  * <pre>{@code
  * ModelResponse response = invoke(request, scene, tenantContext, workflowId, seqCounter, "plan", Map.of());
@@ -31,13 +32,13 @@ public class ModelInvocationService {
 
     /**
      * 日志记录器。
-     * <p>示例：记录模型标识、调用阶段与耗时。
+     * <p>示例：记录模型调用开始与完成。
      */
     private static final Logger log = LoggerFactory.getLogger(ModelInvocationService.class);
 
     /**
-     * 模型调用客户端。
-     * <p>示例：调用 {@code LlmClient.generate} 发起模型请求。
+     * 模型客户端。
+     * <p>示例：执行 {@code LlmClient.generate} 获取响应。
      */
     private final LlmClient llmClient;
     /**
@@ -47,7 +48,7 @@ public class ModelInvocationService {
     private final ModelRouter modelRouter;
     /**
      * 事件发布器。
-     * <p>示例：发布 {@code LLM_PROMPT} 与 {@code LLM_OUTPUT} 事件。
+     * <p>示例：发布提示词与输出事件。
      */
     private final ApplicationEventPublisher eventPublisher;
     /**
@@ -57,9 +58,16 @@ public class ModelInvocationService {
     private final EventStreamService eventStreamService;
 
     /**
-     * 构造模型调用协调器。
+     * 构造模型调用服务。
      *
-     * @param llmClient 模型调用客户端
+     * <p>输入：模型客户端、路由器、事件发布器与事件流服务。
+     * <p>输出：初始化后的模型调用服务。
+     * <p>示例：
+     * <pre>{@code
+     * new ModelInvocationService(llmClient, modelRouter, eventPublisher, eventStreamService);
+     * }</pre>
+     *
+     * @param llmClient 模型客户端
      * @param modelRouter 模型路由器
      * @param eventPublisher 事件发布器
      * @param eventStreamService 事件流服务
@@ -75,23 +83,23 @@ public class ModelInvocationService {
     }
 
     /**
-     * 调用模型并发布事件。
+     * 调用模型并发布提示词与输出事件。
      *
-     * <p>输入：模型请求、场景与链路信息。
+     * <p>输入：模型请求、场景、租户上下文、工作流标识、序列计数器、阶段与元数据。
      * <p>输出：模型响应对象。
-     * <p>边界：调用异常会转换为统一错误码。
+     * <p>边界：业务异常透传；其他异常封装为模型不可用。
      * <p>示例：
      * <pre>{@code
      * ModelResponse response = invoke(request, ModelScene.PLANNER, ctx, wfId, seq, "plan", Map.of("planId","p1"));
      * }</pre>
      *
      * @param request 模型请求
-     * @param scene 模型场景
+     * @param scene 场景
      * @param tenantContext 租户上下文
      * @param workflowId 工作流标识
-     * @param seqCounter 事件序列计数器
-     * @param phase 调用阶段
-     * @param metadata 额外上下文
+     * @param seqCounter 序列计数器，可为空
+     * @param phase 阶段标识
+     * @param metadata 运行时元数据
      * @return 模型响应
      */
     public ModelResponse invoke(ModelRequest request,
@@ -105,9 +113,13 @@ public class ModelInvocationService {
         safeRequest.setScene(scene);
         ModelDefinition definition = modelRouter.route(scene);
         String modelId = definition != null ? definition.getModelId() : null;
+        Map<String, Object> runtimeMetadata = metadata != null ? new HashMap<>(metadata) : new HashMap<>();
+        String promptScene = resolvePromptScene(phase, runtimeMetadata);
+        PromptTrace trace = PromptTrace.fromPrompt(promptScene, safeRequest.getPrompt());
+        runtimeMetadata.put("promptTrace", trace);
 
-        // 先发布提示词事件，便于审计与追踪。
-        publishPromptEvent(tenantContext, workflowId, seqCounter, phase, modelId, safeRequest, metadata);
+        // 发布提示词事件，记录请求上下文与追踪信息。
+        publishPromptEvent(tenantContext, workflowId, seqCounter, phase, modelId, safeRequest, runtimeMetadata);
 
         long startNs = System.nanoTime();
         try {
@@ -117,10 +129,10 @@ public class ModelInvocationService {
                     scene,
                     modelId,
                     phase);
-            // 调用模型客户端获取响应。
+            // 调用模型生成结果。
             ModelResponse response = llmClient.generate(safeRequest);
-            // 发布模型输出事件。
-            publishOutputEvent(tenantContext, workflowId, seqCounter, phase, response, metadata);
+            // 发布输出事件，记录模型返回内容与追踪信息。
+            publishOutputEvent(tenantContext, workflowId, seqCounter, phase, response, runtimeMetadata);
             log.info("模型调用完成, tenantId={}, workflowId={}, scene={}, modelId={}, phase={}, latencyMs={}",
                     tenantContext != null ? tenantContext.getTenantId() : null,
                     workflowId,
@@ -130,7 +142,7 @@ public class ModelInvocationService {
                     (System.nanoTime() - startNs) / 1_000_000);
             return response;
         } catch (ErrorCodeException ex) {
-            // 业务异常直接透传，保留错误码。
+            // 业务异常：记录错误码与上下文信息，交由上层处理。
             log.error("模型调用失败, tenantId={}, workflowId={}, scene={}, modelId={}, phase={}, code={}",
                     tenantContext != null ? tenantContext.getTenantId() : null,
                     workflowId,
@@ -141,7 +153,7 @@ public class ModelInvocationService {
                     ex);
             throw ex;
         } catch (Exception ex) {
-            // 未知异常统一转换为模型不可用错误。
+            // 非预期异常：统一包装为模型不可用错误。
             log.error("模型调用异常, tenantId={}, workflowId={}, scene={}, modelId={}, phase={}",
                     tenantContext != null ? tenantContext.getTenantId() : null,
                     workflowId,
@@ -154,11 +166,11 @@ public class ModelInvocationService {
     }
 
     /**
-     * 发布模型请求事件。
+     * 发布提示词事件并补充追踪信息。
      *
-     * <p>输入：租户上下文、工作流标识与模型请求。
+     * <p>输入：租户上下文、工作流标识、序列计数器、阶段、模型标识、请求与元数据。
      * <p>输出：无。
-     * <p>边界：租户上下文或工作流标识为空时不发布。
+     * <p>边界：租户上下文或工作流为空时不发布。
      * <p>示例：
      * <pre>{@code
      * publishPromptEvent(ctx, wfId, seq, "plan", modelId, request, metadata);
@@ -180,6 +192,10 @@ public class ModelInvocationService {
         payload.put("scene", request != null && request.getScene() != null ? request.getScene().name() : null);
         payload.put("modelId", modelId);
         payload.put("prompt", request != null ? request.getPrompt() : null);
+        PromptTrace trace = PromptTrace.fromMetadata(metadata);
+        if (trace != null) {
+            payload.putAll(trace.toPayload());
+        }
         if (request != null && request.getMessages() != null && !request.getMessages().isEmpty()) {
             payload.put("messageCount", request.getMessages().size());
             payload.put("messageRoles", request.getMessages().stream()
@@ -189,16 +205,16 @@ public class ModelInvocationService {
         if (metadata != null) {
             payload.putAll(metadata);
         }
-        // 将提示词信息发布到事件流。
-        publishEvent(tenantContext, workflowId, seq, EventType.LLM_PROMPT, payload);
+        // 发布提示词事件，记录事件流信息。
+        // publishEvent(tenantContext, workflowId, seq, EventType.LLM_PROMPT, payload);
     }
 
     /**
-     * 发布模型响应事件。
+     * 发布输出解析事件。
      *
-     * <p>输入：租户上下文、工作流标识与模型响应。
+     * <p>输入：租户上下文、工作流标识、序列计数器、阶段、响应与元数据。
      * <p>输出：无。
-     * <p>边界：响应为空时不发布。
+     * <p>边界：租户上下文、工作流或响应为空时不发布。
      * <p>示例：
      * <pre>{@code
      * publishOutputEvent(ctx, wfId, seq, "plan", response, metadata);
@@ -220,18 +236,23 @@ public class ModelInvocationService {
         payload.put("content", response.getContent());
         payload.put("inputTokens", response.getInputTokens());
         payload.put("outputTokens", response.getOutputTokens());
+        PromptTrace trace = PromptTrace.fromMetadata(metadata);
+        if (trace != null) {
+            payload.putAll(trace.toPayload());
+        }
         if (metadata != null) {
             payload.putAll(metadata);
         }
-        // 将模型输出发布到事件流。
-        publishEvent(tenantContext, workflowId, seq, EventType.LLM_OUTPUT, payload);
+        // 发布输出解析事件，记录事件流信息。
+        // publishEvent(tenantContext, workflowId, seq, EventType.LLM_PARSE, payload);
     }
 
     /**
-     * 发布事件到事件流。
+     * 发布统一事件记录。
      *
-     * <p>输入：租户上下文、工作流标识、事件类型与载荷。
+     * <p>输入：租户上下文、工作流标识、序列号、事件类型与载荷。
      * <p>输出：无。
+     * <p>边界：调用方需保证必要参数非空。
      * <p>示例：
      * <pre>{@code
      * publishEvent(ctx, wfId, seq, EventType.LLM_OUTPUT, payload);
@@ -256,11 +277,11 @@ public class ModelInvocationService {
     }
 
     /**
-     * 获取事件序号。
+     * 获取下一条事件序列号。
      *
-     * <p>输入：租户上下文与工作流标识。
-     * <p>输出：事件序号。
-     * <p>边界：传入计数器为空时使用事件流服务。
+     * <p>输入：租户上下文、工作流标识与可选计数器。
+     * <p>输出：序列号。
+     * <p>边界：优先使用计数器；为空时调用事件流服务生成。
      * <p>示例：
      * <pre>{@code
      * long seq = nextSeq(ctx, wfId, seqCounter);
@@ -268,10 +289,81 @@ public class ModelInvocationService {
      */
     private long nextSeq(TenantContext tenantContext, String workflowId, AtomicLong seqCounter) {
         if (seqCounter != null) {
-            // 优先使用外部传入的序列计数器。
+            // 优先使用外部序列计数器，便于统一排序。
             return seqCounter.incrementAndGet();
         }
-        // 序列计数器不存在时从事件流服务获取。
+        // 未传入计数器时由事件流服务生成序列号。
         return eventStreamService.nextSequence(tenantContext.getTenantId(), workflowId);
+    }
+
+    /**
+     * 记录提示词追踪信息并发布事件。
+     *
+     * <p>输入：追踪信息、租户上下文、工作流标识、序列计数器、阶段与模型标识。
+     * <p>输出：无。
+     * <p>边界：追踪为空或租户/工作流为空时不发布。
+     */
+    public void recordPromptTrace(PromptTrace trace,
+                                  TenantContext tenantContext,
+                                  String workflowId,
+                                  java.util.concurrent.atomic.AtomicLong seqCounter,
+                                  String phase,
+                                  String modelId) {
+        if (trace == null) {
+            return;
+        }
+        log.info("提示词追踪记录, tenantId={}, workflowId={}, phase={}, modelId={}, promptScene={}, promptId={}, promptChars={}, tokensEstimate={}, parseSuccess={}, parseErrorType={}, repairAttempted={}, repairSuccess={}",
+                tenantContext != null ? tenantContext.getTenantId() : null,
+                workflowId,
+                phase,
+                modelId,
+                trace.getPromptScene(),
+                trace.getPromptId(),
+                trace.getPromptChars(),
+                trace.getPromptTokensEstimate(),
+                trace.getParseSuccess(),
+                trace.getParseErrorType(),
+                trace.getRepairAttempted(),
+                trace.getRepairSuccess());
+        if (tenantContext == null || workflowId == null) {
+            return;
+        }
+        long seq = nextSeq(tenantContext, workflowId, seqCounter);
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("phase", phase);
+        payload.put("modelId", modelId);
+        payload.putAll(trace.toPayload());
+        publishEvent(tenantContext, workflowId, seq, EventType.LLM_OUTPUT, payload);
+    }
+
+    /**
+     * 解析提示词场景名称。
+     *
+     * <p>输入：阶段标识与元数据。
+     * <p>输出：提示词场景字符串。
+     * <p>边界：元数据包含 {@code promptScene} 时优先使用；阶段为空时返回 {@code unknown}。
+     */
+    private String resolvePromptScene(String phase, Map<String, Object> metadata) {
+        if (metadata != null) {
+            Object value = metadata.get("promptScene");
+            if (value instanceof String scene && !scene.isBlank()) {
+                return scene.trim();
+            }
+        }
+        if (phase == null) {
+            return "unknown";
+        }
+        return switch (phase) {
+            case "plan" -> "planner";
+            case "reflect" -> "reflect";
+            case "finalize" -> "final";
+            case "react_think" -> "react";
+            case "cot" -> "cot";
+            case "research" -> "research";
+            case "debate" -> "debate";
+            case "multi_agent" -> "multiagent";
+            case "json_repair" -> "repair";
+            default -> phase;
+        };
     }
 }

@@ -68,7 +68,7 @@ class QuickstartFlowTest {
                 .header("X-Request-Id", REQUEST_ID)
                 .bodyValue(request)
                 .exchange()
-                .expectStatus().isOk()
+                .expectStatus().isAccepted()
                 .expectBody()
                 .jsonPath("$.data.workflowId").value(workflowIdRef::set)
                 .jsonPath("$.data.taskId").value(taskIdRef::set);

@@ -9,6 +9,9 @@ import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
+import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.repair.JsonOutputSchema;
+import com.example.agent.model.PromptTrace;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -22,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * 深度研究流程，负责组织检索与引用输出。
@@ -36,17 +40,20 @@ public class ResearchPipeline {
     private final ObjectMapper objectMapper;
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
+    private final JsonOutputRepairService jsonOutputRepairService;
 
     public ResearchPipeline(ModelInvocationService modelInvocationService,
                             PromptAssembler promptAssembler,
                             ObjectMapper objectMapper,
                             ApplicationEventPublisher eventPublisher,
-                            EventStreamService eventStreamService) {
+                            EventStreamService eventStreamService,
+                            JsonOutputRepairService jsonOutputRepairService) {
         this.modelInvocationService = modelInvocationService;
         this.promptAssembler = promptAssembler;
         this.objectMapper = objectMapper;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
+        this.jsonOutputRepairService = jsonOutputRepairService;
     }
 
     /**
@@ -80,6 +87,7 @@ public class ResearchPipeline {
         if (query != null) {
             metadata.put("query", query);
         }
+        metadata.put("promptScene", "research");
         ModelResponse response = modelInvocationService.invoke(
                 request,
                 ModelScene.RESEARCH,
@@ -89,9 +97,29 @@ public class ResearchPipeline {
                 "research",
                 metadata
         );
-        List<ResearchCitation> citations = parseCitations(response != null ? response.getContent() : null);
+        String rawContent = response != null ? response.getContent() : null;
+        boolean repairAttempted = false;
+        boolean repairSuccess = false;
+        String parseErrorType = null;
+        List<ResearchCitation> citations = parseCitations(rawContent);
         if (citations.isEmpty()) {
+            parseErrorType = resolveParseErrorType(rawContent);
+            repairAttempted = true;
+            List<ResearchCitation> repaired = tryRepairCitations(rawContent, query);
+            if (!repaired.isEmpty()) {
+                citations = repaired;
+                repairSuccess = true;
+            }
+        }
+        if (citations.isEmpty()) {
+            log.warn("研究引用修复失败, queryLength={}", query == null ? 0 : query.length());
+            recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
+                    response != null ? response.getModelId() : null, false, parseErrorType,
+                    repairAttempted, repairSuccess);
             citations = buildFallbackCitations(query);
+        } else {
+            recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
+                    response != null ? response.getModelId() : null, true, null, repairAttempted, repairSuccess);
         }
         publishCitationEvents(tenantContext, workflowId, seqCounter, citations);
         log.info("研究流程完成, citations={}", citations.size());
@@ -109,7 +137,12 @@ public class ResearchPipeline {
         }
         return """
                 你是研究助手，请输出研究引用列表。
-                输出要求：仅输出 JSON，字段包含 citations 列表。
+                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+                字段约束：
+                1) citations: array，必须输出，缺信息填 []。
+                2) citations[*].source: string，可输出空串。
+                3) citations[*].snippet: string，可输出空串。
+                最小示例 JSON：{"citations":[]}
                 RESEARCH_CONTEXT_JSON:%s
                 """.formatted(json);
     }
@@ -140,6 +173,57 @@ public class ResearchPipeline {
         } catch (Exception ex) {
             return List.of();
         }
+    }
+
+    private List<ResearchCitation> tryRepairCitations(String rawContent, String query) {
+        if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
+            return List.of();
+        }
+        String contextJson;
+        try {
+            Map<String, Object> context = new HashMap<>();
+            context.put("query", query);
+            contextJson = objectMapper.writeValueAsString(context);
+        } catch (Exception ex) {
+            contextJson = "{}";
+        }
+        String repaired = jsonOutputRepairService.repair("research", rawContent, JsonOutputSchema.RESEARCH,
+                contextJson, 1);
+        if (!StringUtils.hasText(repaired)) {
+            return List.of();
+        }
+        return parseCitations(repaired);
+    }
+
+    private void recordPromptTrace(Map<String, Object> metadata,
+                                   String promptText,
+                                   TenantContext tenantContext,
+                                   String workflowId,
+                                   AtomicLong seqCounter,
+                                   String modelId,
+                                   boolean parseSuccess,
+                                   String parseErrorType,
+                                   boolean repairAttempted,
+                                   boolean repairSuccess) {
+        PromptTrace trace = PromptTrace.fromMetadata(metadata);
+        if (trace == null) {
+            trace = PromptTrace.fromPrompt("research", promptText);
+        }
+        if (trace == null) {
+            return;
+        }
+        trace.setParseSuccess(parseSuccess);
+        trace.setParseErrorType(parseErrorType);
+        trace.setRepairAttempted(repairAttempted);
+        trace.setRepairSuccess(repairSuccess);
+        modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "research", modelId);
+    }
+
+    private String resolveParseErrorType(String rawContent) {
+        if (!StringUtils.hasText(rawContent)) {
+            return "empty_output";
+        }
+        return "json_parse_error";
     }
 
     private List<ResearchCitation> buildFallbackCitations(String query) {

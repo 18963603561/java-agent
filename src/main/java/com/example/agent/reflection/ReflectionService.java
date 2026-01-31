@@ -10,6 +10,9 @@ import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.runtime.StepRequest;
+import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.repair.JsonOutputSchema;
+import com.example.agent.model.PromptTrace;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -20,6 +23,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * 反思服务，负责评估输出质量并给出重试建议。
@@ -35,19 +39,22 @@ public class ReflectionService {
     private final ModelToolResolver modelToolResolver;
     private final PromptAssembler promptAssembler;
     private final ObjectMapper objectMapper;
+    private final JsonOutputRepairService jsonOutputRepairService;
 
     public ReflectionService(ReflectionProperties properties,
                              MetricsPublisher metricsPublisher,
                              ModelInvocationService modelInvocationService,
                              ModelToolResolver modelToolResolver,
                              PromptAssembler promptAssembler,
-                             ObjectMapper objectMapper) {
+                             ObjectMapper objectMapper,
+                             JsonOutputRepairService jsonOutputRepairService) {
         this.properties = properties;
         this.metricsPublisher = metricsPublisher;
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
         this.promptAssembler = promptAssembler;
         this.objectMapper = objectMapper;
+        this.jsonOutputRepairService = jsonOutputRepairService;
     }
 
     /**
@@ -129,6 +136,7 @@ public class ReflectionService {
                 metadata.put("stepType", step.getStepType());
             }
             metadata.put("attempt", attempt);
+            metadata.put("promptScene", "reflect");
             ModelResponse response = modelInvocationService.invoke(
                     modelRequest,
                     ModelScene.REFLECT,
@@ -141,10 +149,43 @@ public class ReflectionService {
             if (response == null || response.getContent() == null) {
                 return null;
             }
-            ReflectionParsingResult parsed = parseReflection(response.getContent());
+            ReflectionParsingResult parsed;
+            String rawContent = response.getContent();
+            boolean repairAttempted = false;
+            boolean repairSuccess = false;
+            String parseErrorType = null;
+            try {
+                parsed = parseReflection(rawContent);
+            } catch (Exception ex) {
+                log.warn("反思解析失败, tenantId={}, stepType={}, reason={}",
+                        tenantContext.getTenantId(),
+                        step != null ? step.getStepType() : null,
+                        ex.getMessage());
+                parsed = null;
+                parseErrorType = "json_parse_error";
+            }
             if (parsed == null) {
+                if (parseErrorType == null) {
+                    parseErrorType = resolveParseErrorType(rawContent);
+                }
+                repairAttempted = true;
+                parsed = tryRepairReflection(rawContent, step, output, attempt);
+                if (parsed != null) {
+                    repairSuccess = true;
+                }
+            }
+            if (parsed == null) {
+                log.warn("反思修复失败, tenantId={}, stepType={}, attempt={}",
+                        tenantContext.getTenantId(),
+                        step != null ? step.getStepType() : null,
+                        attempt);
+                recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
+                        response != null ? response.getModelId() : null, false, parseErrorType,
+                        repairAttempted, repairSuccess);
                 return null;
             }
+            recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
+                    response != null ? response.getModelId() : null, true, null, repairAttempted, repairSuccess);
             boolean retry = parsed.retry && attempt < properties.getMaxRetries();
             if (retry) {
                 metricsPublisher.increment("reflection.retry.count");
@@ -197,7 +238,12 @@ public class ReflectionService {
         }
         return """
                 你是质量审查员，请对步骤输出进行评分并判断是否需要重试。
-                输出要求：仅输出 JSON，字段包含 score(0-1)、retry、notes。
+                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+                字段约束：
+                1) score: number，必须输出，缺信息填 0.5。
+                2) retry: boolean，必须输出，缺信息填 false。
+                3) notes: string，必须输出，缺信息填空串。
+                最小示例 JSON：{"score":0.5,"retry":false,"notes":""}
                 REFLECTION_CONTEXT_JSON:%s
                 """.formatted(contextJson);
     }
@@ -215,6 +261,67 @@ public class ReflectionService {
         boolean retry = root.get("retry") instanceof Boolean value && value;
         String notes = root.get("notes") instanceof String value ? value : "llm_reflection";
         return new ReflectionParsingResult(score, retry, notes);
+    }
+
+    private ReflectionParsingResult tryRepairReflection(String rawContent,
+                                                        StepRequest step,
+                                                        Map<String, Object> output,
+                                                        int attempt) {
+        if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
+            return null;
+        }
+        Map<String, Object> context = new HashMap<>();
+        context.put("stepType", step != null ? step.getStepType() : null);
+        context.put("attempt", attempt);
+        context.put("output", output);
+        String contextJson;
+        try {
+            contextJson = objectMapper.writeValueAsString(context);
+        } catch (Exception ex) {
+            contextJson = "{}";
+        }
+        String repaired = jsonOutputRepairService.repair("reflection", rawContent, JsonOutputSchema.REFLECTION,
+                contextJson, 1);
+        if (!StringUtils.hasText(repaired)) {
+            return null;
+        }
+        try {
+            return parseReflection(repaired);
+        } catch (Exception ex) {
+            log.warn("反思修复解析失败, reason={}", ex.getMessage());
+            return null;
+        }
+    }
+
+    private void recordPromptTrace(Map<String, Object> metadata,
+                                   String promptText,
+                                   TenantContext tenantContext,
+                                   String workflowId,
+                                   AtomicLong seqCounter,
+                                   String modelId,
+                                   boolean parseSuccess,
+                                   String parseErrorType,
+                                   boolean repairAttempted,
+                                   boolean repairSuccess) {
+        PromptTrace trace = PromptTrace.fromMetadata(metadata);
+        if (trace == null) {
+            trace = PromptTrace.fromPrompt("reflect", promptText);
+        }
+        if (trace == null) {
+            return;
+        }
+        trace.setParseSuccess(parseSuccess);
+        trace.setParseErrorType(parseErrorType);
+        trace.setRepairAttempted(repairAttempted);
+        trace.setRepairSuccess(repairSuccess);
+        modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "reflect", modelId);
+    }
+
+    private String resolveParseErrorType(String rawContent) {
+        if (!StringUtils.hasText(rawContent)) {
+            return "empty_output";
+        }
+        return "missing_field";
     }
 
     private void applyPromptBundle(ModelRequest modelRequest, String prompt, StepRequest step) {

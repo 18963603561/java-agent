@@ -343,16 +343,19 @@ public class AgentRuntime {
                 }
             }
             if (!replan) {
-                // 所有步骤完成后生成最终输出。
-                Map<String, Object> finalOutput = finalOutputService.finalizeOutput(
-                        effectiveRequest,
-                        effectiveRequest != null ? effectiveRequest.getQuery() : null,
-                        plan != null ? plan.getSummary() : null,
-                        stepOutputs,
-                        tenantContext,
-                        workflowId,
-                        seqCounter
-                );
+                Map<String, Object> finalOutput = resolveFinalOutputFromSteps(plan, stepOutputs, workflowId);
+                if (finalOutput == null) {
+                    // 所有步骤完成后生成最终输出。
+                    finalOutput = finalOutputService.finalizeOutput(
+                            effectiveRequest,
+                            effectiveRequest != null ? effectiveRequest.getQuery() : null,
+                            plan != null ? plan.getSummary() : null,
+                            stepOutputs,
+                            tenantContext,
+                            workflowId,
+                            seqCounter
+                    );
+                }
                 RuntimeResult result = buildRuntimeResult(plan, stepOutputs, finalOutput);
                 persistMemorySafely(effectiveRequest, result, tenantContext, taskId);
                 return result;
@@ -402,7 +405,9 @@ public class AgentRuntime {
                 hookManager.preStep(tenantContext, record);
                 Map<String, Object> output;
                 String stepType = step.getStepType();
-                if ("THOUGHT_TREE".equalsIgnoreCase(stepType)) {
+                if ("LLM".equalsIgnoreCase(stepType) || "ANSWER".equalsIgnoreCase(stepType)) {
+                    output = executeLlmStep(request, stepInput, tenantContext, workflowId, seqCounter);
+                } else if ("THOUGHT_TREE".equalsIgnoreCase(stepType)) {
                     output = executeThoughtTree(step, tenantContext, workflowId, seqCounter);
                 } else if ("CHAIN_OF_THOUGHT".equalsIgnoreCase(stepType)
                         || "COT".equalsIgnoreCase(stepType)) {
@@ -429,7 +434,13 @@ public class AgentRuntime {
                 } else {
                     // 默认按工具步骤执行。
                     String toolName = resolveToolName(request, step);
-                    output = executeToolStep(request, tenantContext, workflowId, taskId, seqCounter, record, toolName);
+                    if (toolName == null || toolName.isBlank()) {
+                        log.info("未指定工具, 转为大模型步骤, 工作流={}, 任务={}, 步骤={}",
+                                workflowId, taskId, record.getStepId());
+                        output = executeLlmStep(request, stepInput, tenantContext, workflowId, seqCounter);
+                    } else {
+                        output = executeToolStep(request, tenantContext, workflowId, taskId, seqCounter, record, toolName);
+                    }
                 }
 
                 // 对步骤输出进行反思评估，可能触发重试。
@@ -492,6 +503,44 @@ public class AgentRuntime {
                 hookManager.postStep(tenantContext, record);
             }
         }
+    }
+
+    /**
+     * 执行大模型步骤，直接生成答复。
+     *
+     * <p>输入：任务请求、步骤输入与运行上下文。
+     * <p>输出：包含 {@code answer} 的结构化结果。
+     * <p>边界：模型无响应时返回兜底答复。
+     */
+    private Map<String, Object> executeLlmStep(TaskRequest request,
+                                               Map<String, Object> stepInput,
+                                               TenantContext tenantContext,
+                                               String workflowId,
+                                               AtomicLong seqCounter) {
+        String query = resolveStepQuestion(stepInput, request);
+        int queryLength = query != null ? query.length() : 0;
+        boolean hasContext = stepInput != null && stepInput.get("context") != null;
+        log.info("大模型步骤开始, 工作流={}, 查询长度={}, 含上下文={}",
+                workflowId, queryLength, hasContext);
+        Map<String, Object> raw = finalOutputService.finalizeOutput(
+                request,
+                query,
+                null,
+                List.of(),
+                tenantContext,
+                workflowId,
+                seqCounter
+        );
+        Map<String, Object> output = new HashMap<>();
+        if (raw != null && !raw.isEmpty()) {
+            raw.forEach((key, value) -> output.put(String.valueOf(key), value));
+        } else {
+            output.put("answer", "no_response");
+        }
+        output.putIfAbsent("source", "llm");
+        log.info("大模型步骤完成, 工作流={}, 输出字段={}",
+                workflowId, output.keySet());
+        return output;
     }
 
     /**
@@ -1131,6 +1180,49 @@ public class AgentRuntime {
     }
 
     /**
+     * 从步骤输出中提取最终结果（仅限 {@code LLM}/{@code ANSWER} 步骤）。
+     *
+     * <p>输入：规划与步骤输出列表。
+     * <p>输出：最终答复映射；不满足条件时返回 {@code null}。
+     * <p>边界：无步骤或输出为空时不处理。
+     */
+    private Map<String, Object> resolveFinalOutputFromSteps(PlanResult plan,
+                                                            List<Map<String, Object>> stepOutputs,
+                                                            String workflowId) {
+        if (plan == null || plan.getSteps() == null || plan.getSteps().isEmpty()) {
+            return null;
+        }
+        StepRequest lastStep = plan.getSteps().get(plan.getSteps().size() - 1);
+        if (lastStep == null || lastStep.getStepType() == null) {
+            return null;
+        }
+        String stepType = lastStep.getStepType();
+        if (!"LLM".equalsIgnoreCase(stepType) && !"ANSWER".equalsIgnoreCase(stepType)) {
+            return null;
+        }
+        if (stepOutputs == null || stepOutputs.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> lastOutput = stepOutputs.get(stepOutputs.size() - 1);
+        if (lastOutput == null || lastOutput.get("output") == null) {
+            return null;
+        }
+        Object output = lastOutput.get("output");
+        Map<String, Object> result = new HashMap<>();
+        if (output instanceof Map<?, ?> map) {
+            map.forEach((key, value) -> result.put(String.valueOf(key), value));
+        } else {
+            result.put("answer", output.toString());
+        }
+        if (!result.containsKey("answer") && result.get("finalAnswer") != null) {
+            result.put("answer", result.get("finalAnswer"));
+        }
+        log.info("大模型步骤已产出最终结果, 工作流={}, 步骤类型={}, 输出字段={}",
+                workflowId, stepType, result.keySet());
+        return result;
+    }
+
+    /**
      * 将思维树节点展平为列表。
      *
      * <p>输入：思维树根节点。
@@ -1186,7 +1278,7 @@ public class AgentRuntime {
                 return toolName;
             }
         }
-        return "demo_tool";
+        return null;
     }
 
     /**

@@ -15,6 +15,7 @@ import com.example.agent.memory.MemoryWriteService;
 import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelToolResolver;
 import com.example.agent.model.PromptAssembler;
+import com.example.agent.repair.JsonOutputRepairService;
 import com.example.agent.observability.TracingPublisher;
 import com.example.agent.planning.PlannerProperties;
 import com.example.agent.planning.PlannerService;
@@ -85,8 +86,7 @@ class AgentRuntimeApprovalIntegrationTest {
                 evaluator,
                 new ObjectMapper(),
                 Mockito.mock(ContextAssembler.class),
-                Mockito.mock(ContextEventPublisher.class)
-        );
+                Mockito.mock(ContextEventPublisher.class), Mockito.mock(JsonOutputRepairService.class));
 
         ExecutionControlService executionControlService = new ExecutionControlService();
         StepRuntimeService stepRuntimeService = mock(StepRuntimeService.class);
@@ -169,7 +169,7 @@ class AgentRuntimeApprovalIntegrationTest {
         );
 
         TaskRequest request = new TaskRequest();
-        request.setQuery("需要审批的高风险任务");
+        request.setQuery("test");
         request.setIdempotencyKey("id-1");
         request.setContext(Map.of("tool", "demo_tool"));
 
@@ -214,7 +214,7 @@ class AgentRuntimeApprovalIntegrationTest {
             }
             Thread.sleep(20);
         }
-        fail("审批未触发或未进入等待状态");
+        fail("wait_for_approval_timeout");
     }
 
     static class TestEventPublisher implements ApplicationEventPublisher {
@@ -229,7 +229,7 @@ class AgentRuntimeApprovalIntegrationTest {
 
         @Override
         public void publishEvent(ApplicationEvent event) {
-            // 不处理 ApplicationEvent 分支
+            // 娑撳秴顦╅悶?ApplicationEvent 閸掑棙鏁?
         }
     }
 }

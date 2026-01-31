@@ -1,6 +1,8 @@
 package com.example.agent.orchestrator;
 
 import com.example.agent.auth.TenantContext;
+import com.example.agent.common.ErrorCodeException;
+import com.example.agent.common.SyncWaitTimeoutException;
 import com.example.agent.common.TaskListResponse;
 import com.example.agent.common.TaskQuery;
 import com.example.agent.common.TaskRequest;
@@ -20,6 +22,11 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.RejectedExecutionException;
+import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -31,6 +38,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.server.ResponseStatusException;
+import jakarta.annotation.PostConstruct;
 
 /**
  * 任务编排器，负责任务提交、事件发布与查询。
@@ -83,6 +91,10 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
      */
     private final TaskRepository taskRepository;
     /**
+     * 任务异步执行器，用于后台运行工作流。
+     */
+    private final TaskExecutionService taskExecutionService;
+    /**
      * 缓存模板提供器，用于幂等键缓存。
      * <p>示例：读取或写入幂等键到 {@code Redis}。
      */
@@ -108,6 +120,29 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
     private long idempotencyTtlSeconds;
 
     /**
+     * 同步模式默认等待时长（毫秒）。
+     */
+    @Value("${agent.task.sync.wait-timeout-ms:30000}")
+    private long syncWaitTimeoutMs;
+
+    /**
+     * 同步模式等待最大上限（毫秒）。
+     */
+    @Value("${agent.task.sync.max-wait-timeout-ms:60000}")
+    private long syncMaxWaitTimeoutMs;
+
+    /**
+     * 同步等待并发上限。
+     */
+    @Value("${agent.task.sync.max-concurrency:20}")
+    private int syncMaxConcurrency;
+
+    /**
+     * 同步等待并发控制器。
+     */
+    private Semaphore syncSemaphore;
+
+    /**
      * 构造任务编排器。
      *
      * @param eventPublisher 事件发布器
@@ -124,6 +159,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
                             TracingPublisher tracingPublisher,
                             EventStreamService eventStreamService,
                             TaskRepository taskRepository,
+                            TaskExecutionService taskExecutionService,
                             ObjectProvider<StringRedisTemplate> redisTemplateProvider) {
         this.eventPublisher = eventPublisher;
         this.workflowRouter = workflowRouter;
@@ -131,7 +167,15 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         this.tracingPublisher = tracingPublisher;
         this.eventStreamService = eventStreamService;
         this.taskRepository = taskRepository;
+        this.taskExecutionService = taskExecutionService;
         this.redisTemplateProvider = redisTemplateProvider;
+    }
+
+    @PostConstruct
+    public void initSyncSemaphore() {
+        int permits = Math.max(1, syncMaxConcurrency);
+        this.syncSemaphore = new Semaphore(permits);
+        log.info("同步等待并发初始化, permits={}", permits);
     }
 
     /**
@@ -153,6 +197,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
     public TaskResponse submitTask(TaskRequest request, TenantContext tenantContext) {
         String tenantId = tenantContext.getTenantId();
         String idempotencyKey = normalizeIdempotencyKey(request);
+        TaskRequest.ExecutionMode executionMode = resolveExecutionMode(request);
         if (StringUtils.hasText(idempotencyKey)) {
             String lockKey = buildIdempotencyKey(tenantId, idempotencyKey);
             Object lock = idempotencyLocks.computeIfAbsent(lockKey, key -> new Object());
@@ -162,19 +207,17 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
                     TaskRecord idempotent = findIdempotent(tenantId, idempotencyKey);
                     if (idempotent != null) {
                         log.info("幂等命中, tenantId={}, taskId={}", tenantId, idempotent.getTaskId());
-                        return new TaskResponse(idempotent.getTaskId(), idempotent.getWorkflowId(),
-                                idempotent.getStatus());
+                        return handleExistingTask(request, tenantContext, idempotent, executionMode);
                     }
 
                     // 幂等未命中时创建任务并写入存储。
                     TaskRecord record = createTask(request, tenantContext);
-                    TaskResponse response = new TaskResponse(record.getTaskId(), record.getWorkflowId(),
-                            record.getStatus());
+                    // 提交后台执行，失败则返回 503。
+                    submitAsyncOrThrow(request, tenantContext, record, executionMode);
                     // 记录幂等键，避免重复处理。
                     storeIdempotency(tenantId, idempotencyKey, record.getTaskId());
-                    // 路由任务进入运行时执行。
-                    handleWorkflowRoute(request, tenantContext, response);
-                    return response;
+                    publishTaskAccepted(tenantContext, record);
+                    return waitIfSync(request, tenantContext, record, executionMode);
                 } finally {
                     // 清理本地锁对象，避免内存占用。
                     idempotencyLocks.remove(lockKey, lock);
@@ -184,9 +227,9 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
 
         // 无幂等键时直接创建任务并进入路由。
         TaskRecord record = createTask(request, tenantContext);
-        TaskResponse response = new TaskResponse(record.getTaskId(), record.getWorkflowId(), record.getStatus());
-        handleWorkflowRoute(request, tenantContext, response);
-        return response;
+        submitAsyncOrThrow(request, tenantContext, record, executionMode);
+        publishTaskAccepted(tenantContext, record);
+        return waitIfSync(request, tenantContext, record, executionMode);
     }
 
     /**
@@ -340,13 +383,6 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         // 持久化任务记录。
         taskRepository.save(record);
 
-        // 发布工作流启动事件并记录指标。
-        AtomicLong seqCounter = eventStreamService.sequenceCounter(tenantId, workflowId);
-        long startedSeq = seqCounter.incrementAndGet();
-        publishEvent(buildEvent(tenantContext, workflowId, EventType.WORKFLOW_STARTED, startedSeq,
-                Map.of("message", "workflow started")));
-        metricsPublisher.increment("task.submit.count", resolveTraceId(tenantContext));
-
         log.info("任务提交, tenantId={}, taskId={}, workflowId={}, traceId={}",
                 tenantId, taskId, workflowId, resolveTraceId(tenantContext));
         return record;
@@ -363,37 +399,40 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
      * handleWorkflowRoute(request, tenantContext, response);
      * }</pre>
      */
-    private void handleWorkflowRoute(TaskRequest request, TenantContext tenantContext, TaskResponse response) {
-        String workflowId = response.getWorkflowId();
+    private void handleWorkflowRoute(TaskRequest request, TenantContext tenantContext, TaskRecord record) {
+        String workflowId = record.getWorkflowId();
         AtomicLong seqCounter = eventStreamService.sequenceCounter(tenantContext.getTenantId(), workflowId);
         long startNs = System.nanoTime();
-        TaskRecord record = taskRepository.findById(tenantContext.getTenantId(), response.getTaskId());
+        TaskRecord latest = taskRepository.findById(tenantContext.getTenantId(), record.getTaskId());
         // 进入运行时前将任务状态置为运行中。
-        updateTaskStatus(record, "RUNNING", null);
+        updateTaskStatus(latest, "RUNNING", null);
+        long startedSeq = seqCounter.incrementAndGet();
+        publishEvent(buildEvent(tenantContext, workflowId, EventType.WORKFLOW_STARTED, startedSeq,
+                Map.of("message", "workflow started")));
         try {
             // 路由进入运行时执行。
             RuntimeResult runtimeResult = workflowRouter.route(request, tenantContext, workflowId,
-                    response.getTaskId(), seqCounter);
+                    record.getTaskId(), seqCounter);
             // 执行成功后写入最终结果。
-            updateTaskStatus(record, "COMPLETED", buildResultPayload(runtimeResult));
+            updateTaskStatus(latest, "COMPLETED", buildResultPayload(runtimeResult));
         } catch (RuntimeException ex) {
             // 捕获异常并发布错误事件，标记任务失败。
             log.error("任务路由失败, tenantId={}, taskId={}, workflowId={}, traceId={}",
-                    tenantContext.getTenantId(), response.getTaskId(), workflowId,
+                    tenantContext.getTenantId(), record.getTaskId(), workflowId,
                     resolveTraceId(tenantContext), ex);
             long errorSeq = seqCounter.incrementAndGet();
             publishEvent(buildEvent(tenantContext, workflowId, EventType.ERROR_OCCURRED, errorSeq,
                     Map.of("error", ex.getMessage() == null ? "route_failed" : ex.getMessage())));
             String errorMessage = ex.getMessage() == null ? "route_failed" : ex.getMessage();
-            updateTaskStatus(record, "FAILED", Map.of("error", errorMessage));
+            updateTaskStatus(latest, "FAILED", Map.of("error", errorMessage));
             throw ex;
         } finally {
             // 无论成功或失败都发布完成事件，并记录耗时指标。
             long endSeq = seqCounter.incrementAndGet();
-            TaskRecord latest = taskRepository.findById(tenantContext.getTenantId(), response.getTaskId());
-            String finalStatus = latest != null && latest.getStatus() != null
-                    ? latest.getStatus()
-                    : response.getStatus();
+            TaskRecord statusRecord = taskRepository.findById(tenantContext.getTenantId(), record.getTaskId());
+            String finalStatus = statusRecord != null && statusRecord.getStatus() != null
+                    ? statusRecord.getStatus()
+                    : record.getStatus();
             publishEvent(buildEvent(tenantContext, workflowId, EventType.WORKFLOW_COMPLETED, endSeq,
                     Map.of("status", finalStatus)));
             long costMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
@@ -549,7 +588,158 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         payload.put("context", request.getContext());
         payload.put("idempotencyKey", request.getIdempotencyKey());
         payload.put("toolChoice", request.getToolChoice());
+        payload.put("executionMode", request.getExecutionMode());
+        payload.put("waitTimeoutMs", request.getWaitTimeoutMs());
         return payload;
+    }
+
+    private TaskRequest.ExecutionMode resolveExecutionMode(TaskRequest request) {
+        if (request == null) {
+            return TaskRequest.ExecutionMode.ASYNC;
+        }
+        TaskRequest.ExecutionMode mode = request.getExecutionMode();
+        if (mode == null) {
+            request.setExecutionMode(TaskRequest.ExecutionMode.ASYNC);
+            return TaskRequest.ExecutionMode.ASYNC;
+        }
+        return mode;
+    }
+
+    private TaskResponse handleExistingTask(TaskRequest request,
+                                            TenantContext tenantContext,
+                                            TaskRecord record,
+                                            TaskRequest.ExecutionMode executionMode) {
+        if (record == null) {
+            return new TaskResponse();
+        }
+        if (executionMode != TaskRequest.ExecutionMode.SYNC) {
+            return buildAcceptedResponse(record, false);
+        }
+        if (isTerminalStatus(record.getStatus())) {
+            return buildCompletedResponse(record);
+        }
+        java.util.concurrent.CompletableFuture<Void> future = taskExecutionService.getFuture(record.getTaskId());
+        if (future == null) {
+            log.info("同步等待未命中执行器, taskId={}, status={}", record.getTaskId(), record.getStatus());
+            return buildAcceptedResponse(record, true);
+        }
+        return waitIfSync(request, tenantContext, record, executionMode, future);
+    }
+
+    private TaskResponse waitIfSync(TaskRequest request,
+                                    TenantContext tenantContext,
+                                    TaskRecord record,
+                                    TaskRequest.ExecutionMode executionMode) {
+        java.util.concurrent.CompletableFuture<Void> future = taskExecutionService.getFuture(record.getTaskId());
+        if (future == null || executionMode != TaskRequest.ExecutionMode.SYNC) {
+            return buildAcceptedResponse(record, false);
+        }
+        return waitIfSync(request, tenantContext, record, executionMode, future);
+    }
+
+    private TaskResponse waitIfSync(TaskRequest request,
+                                    TenantContext tenantContext,
+                                    TaskRecord record,
+                                    TaskRequest.ExecutionMode executionMode,
+                                    java.util.concurrent.CompletableFuture<Void> future) {
+        if (executionMode != TaskRequest.ExecutionMode.SYNC) {
+            return buildAcceptedResponse(record, false);
+        }
+        if (syncSemaphore == null || !syncSemaphore.tryAcquire()) {
+            log.warn("同步并发已达上限, taskId={}, workflowId={}", record.getTaskId(), record.getWorkflowId());
+            return buildAcceptedResponse(record, true);
+        }
+        try {
+            long waitTimeout = resolveWaitTimeoutMs(request);
+            try {
+                future.get(waitTimeout, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException ex) {
+                TaskResponse timeoutResponse = buildAcceptedResponse(record, true);
+                throw new SyncWaitTimeoutException(timeoutResponse, "sync_wait_timeout");
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                TaskResponse timeoutResponse = buildAcceptedResponse(record, true);
+                throw new SyncWaitTimeoutException(timeoutResponse, "sync_wait_interrupted");
+            } catch (ExecutionException ex) {
+                log.warn("同步等待任务异常完成, taskId={}, workflowId={}", record.getTaskId(),
+                        record.getWorkflowId(), ex.getCause());
+            }
+            TaskRecord latest = taskRepository.findById(tenantContext.getTenantId(), record.getTaskId());
+            return buildCompletedResponse(latest != null ? latest : record);
+        } finally {
+            syncSemaphore.release();
+        }
+    }
+
+    private long resolveWaitTimeoutMs(TaskRequest request) {
+        long defaultTimeout = Math.max(1000, syncWaitTimeoutMs);
+        long maxTimeout = Math.max(defaultTimeout, syncMaxWaitTimeoutMs);
+        if (request == null || request.getWaitTimeoutMs() == null) {
+            return defaultTimeout;
+        }
+        long configured = request.getWaitTimeoutMs();
+        if (configured <= 0) {
+            return defaultTimeout;
+        }
+        return Math.min(configured, maxTimeout);
+    }
+
+    private boolean isTerminalStatus(String status) {
+        if (!StringUtils.hasText(status)) {
+            return false;
+        }
+        String upper = status.toUpperCase();
+        return "COMPLETED".equals(upper) || "FAILED".equals(upper);
+    }
+
+    private TaskResponse buildAcceptedResponse(TaskRecord record, boolean forceRunning) {
+        TaskResponse response = new TaskResponse(record.getTaskId(), record.getWorkflowId(), record.getStatus());
+        if (forceRunning) {
+            response.setStatus("RUNNING");
+        }
+        response.setStreamUrl(resolveStreamUrl(record.getWorkflowId()));
+        return response;
+    }
+
+    private TaskResponse buildCompletedResponse(TaskRecord record) {
+        TaskResponse response = new TaskResponse(record.getTaskId(), record.getWorkflowId(), record.getStatus());
+        response.setStreamUrl(resolveStreamUrl(record.getWorkflowId()));
+        response.setResult(record.getResult());
+        return response;
+    }
+
+    private String resolveStreamUrl(String workflowId) {
+        if (!StringUtils.hasText(workflowId)) {
+            return null;
+        }
+        return "/api/v1/stream/sse?workflow_id=" + workflowId;
+    }
+
+    private java.util.concurrent.CompletableFuture<Void> submitAsyncOrThrow(TaskRequest request,
+                                                                           TenantContext tenantContext,
+                                                                           TaskRecord record,
+                                                                           TaskRequest.ExecutionMode executionMode) {
+        try {
+            return taskExecutionService.submit(record.getTaskId(),
+                    () -> handleWorkflowRoute(request, tenantContext, record));
+        } catch (RejectedExecutionException ex) {
+            updateTaskStatus(record, "FAILED", Map.of("error", "executor_rejected"));
+            log.warn("任务提交被拒绝, tenantId={}, taskId={}, workflowId={}, mode={}",
+                    tenantContext.getTenantId(), record.getTaskId(), record.getWorkflowId(), executionMode);
+            throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "EXECUTOR_REJECTED",
+                    "executor_rejected");
+        }
+    }
+
+    private void publishTaskAccepted(TenantContext tenantContext, TaskRecord record) {
+        if (record == null) {
+            return;
+        }
+        AtomicLong seqCounter = eventStreamService.sequenceCounter(record.getTenantId(), record.getWorkflowId());
+        long seq = seqCounter.incrementAndGet();
+        publishEvent(buildEvent(tenantContext, record.getWorkflowId(), EventType.TASK_ACCEPTED, seq,
+                Map.of("message", "task accepted", "taskId", record.getTaskId())));
+        metricsPublisher.increment("task.submit.count", resolveTraceId(tenantContext));
     }
 
     /**

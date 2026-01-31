@@ -859,16 +859,13 @@ public class DefaultModelProvider implements ModelProvider {
      * }</pre>
      */
     private String buildLocalPlan(Map<String, Object> context) {
-        String toolName = "demo_tool";
-        if (context.get("context") instanceof Map<?, ?> inner) {
-            Object tool = inner.get("tool");
-            if (tool instanceof String name && !name.isBlank()) {
-                toolName = name;
-            }
-        }
+        boolean disableTools = isToolsDisabled(context);
+        String toolName = resolvePlanToolName(context);
         Map<String, Object> step = new HashMap<>();
-        step.put("type", "TOOL");
-        step.put("tool", toolName);
+        step.put("type", disableTools ? "LLM" : "TOOL");
+        if (!disableTools && StringUtils.hasText(toolName)) {
+            step.put("tool", toolName);
+        }
         Map<String, Object> input = new HashMap<>();
         if (context.containsKey("query")) {
             input.put("query", context.get("query"));
@@ -885,6 +882,86 @@ public class DefaultModelProvider implements ModelProvider {
         } catch (Exception ex) {
             return "{\"summary\":\"local-plan\",\"steps\":[]}";
         }
+    }
+
+    private String resolvePlanToolName(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object tool = context.get("tool");
+        if (tool instanceof String value && StringUtils.hasText(value)) {
+            return value;
+        }
+        Object toolName = context.get("toolName");
+        if (toolName instanceof String value && StringUtils.hasText(value)) {
+            return value;
+        }
+        if (context.get("context") instanceof Map<?, ?> inner) {
+            Object innerTool = inner.get("tool");
+            if (innerTool instanceof String value && StringUtils.hasText(value)) {
+                return value;
+            }
+            Object innerToolName = inner.get("toolName");
+            if (innerToolName instanceof String value && StringUtils.hasText(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    private boolean isToolsDisabled(Map<String, Object> context) {
+        if (context == null) {
+            return false;
+        }
+        if (isTruthy(context.get("disableTools"))) {
+            return true;
+        }
+        if (context.get("context") instanceof Map<?, ?> inner && isTruthy(inner.get("disableTools"))) {
+            return true;
+        }
+        ModelToolChoice choice = parseToolChoice(context.get("toolChoice"));
+        if (choice == null && context.get("context") instanceof Map<?, ?> inner) {
+            choice = parseToolChoice(inner.get("toolChoice"));
+        }
+        return choice != null && choice.getMode() == ModelToolChoice.Mode.NONE;
+    }
+
+    private ModelToolChoice parseToolChoice(Object raw) {
+        if (raw instanceof ModelToolChoice choice) {
+            return choice;
+        }
+        if (raw instanceof String value) {
+            return ModelToolChoice.fromString(value);
+        }
+        if (raw instanceof Map<?, ?> map) {
+            String mode = map.get("mode") != null ? map.get("mode").toString() : null;
+            if (!StringUtils.hasText(mode) && map.get("type") != null) {
+                mode = map.get("type").toString();
+            }
+            String name = map.get("toolName") != null ? map.get("toolName").toString() : null;
+            if (!StringUtils.hasText(name) && map.get("name") != null) {
+                name = map.get("name").toString();
+            }
+            if (StringUtils.hasText(mode) && "specified".equalsIgnoreCase(mode)) {
+                return ModelToolChoice.specified(name);
+            }
+            ModelToolChoice parsed = ModelToolChoice.fromString(mode);
+            if (parsed != null && parsed.getMode() == ModelToolChoice.Mode.SPECIFIED) {
+                parsed.setToolName(name);
+            }
+            return parsed;
+        }
+        return null;
+    }
+
+    private boolean isTruthy(Object value) {
+        if (value instanceof Boolean bool) {
+            return bool;
+        }
+        if (value instanceof String text) {
+            return "true".equalsIgnoreCase(text.trim());
+        }
+        return false;
     }
 
     /**

@@ -10,11 +10,15 @@ import com.example.agent.model.ModelInvocationService;
 import com.example.agent.model.ModelRequest;
 import com.example.agent.model.ModelResponse;
 import com.example.agent.model.ModelScene;
+import com.example.agent.model.ModelToolChoice;
 import com.example.agent.model.ModelToolResolver;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
 import com.example.agent.model.PromptMessage;
 import com.example.agent.model.PromptRole;
+import com.example.agent.model.PromptTrace;
+import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.runtime.StepRequest;
 import com.example.agent.streaming.ContextSnapshotStage;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -49,7 +53,7 @@ class PlannerServiceTest {
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher);
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class));
 
         TaskRequest request = new TaskRequest();
         request.setQuery("ping");
@@ -65,6 +69,32 @@ class PlannerServiceTest {
     }
 
     @Test
+    void planReturnsLlmStepWhenToolsDisabled() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
+        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.ContextEventPublisher.class);
+        PlannerProperties properties = new PlannerProperties();
+        properties.setLlmEnabled(false);
+        properties.setFallbackEnabled(true);
+        CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
+        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class));
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        request.setToolChoice(ModelToolChoice.none());
+        request.setContext(new HashMap<>());
+
+        PlanResult plan = plannerService.plan(request, new TenantContext("t-1", "u-1", List.of(), "req", "trace"));
+        assertNotNull(plan.getPlanId());
+        assertFalse(plan.getSteps().isEmpty());
+        assertEquals("LLM", plan.getSteps().get(0).getStepType());
+    }
+
+    @Test
     void planUsesLlmWhenEnabled() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
@@ -77,7 +107,7 @@ class PlannerServiceTest {
         properties.setFallbackEnabled(false);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher);
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class));
 
         String content = """
                 {
@@ -114,7 +144,7 @@ class PlannerServiceTest {
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher);
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class));
 
         TaskRequest request = new TaskRequest();
         request.setQuery("ping");
@@ -138,7 +168,7 @@ class PlannerServiceTest {
         properties.setFallbackEnabled(false);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher);
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class));
 
         String content = """
                 {
@@ -187,6 +217,93 @@ class PlannerServiceTest {
                 any());
         assertEquals(ContextSnapshotStage.PLAN_ASSEMBLED, stageCaptor.getValue());
         assertEquals(List.of("developer"), sectionsCaptor.getValue());
+    }
+
+    @Test
+    void planRepairsOutputWithExtraText() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
+        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.ContextEventPublisher.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
+                metricsPublisher);
+        PlannerProperties properties = new PlannerProperties();
+        properties.setLlmEnabled(true);
+        properties.setFallbackEnabled(false);
+        CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
+        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, repairService);
+
+        String badContent = "解释: {\"summary\":\"llm-plan\",\"steps\":[{\"type\":\"TOOL\",\"input\":{}}]} 后缀";
+        String repaired = """
+                {"summary":"llm-plan","steps":[{"type":"TOOL","input":{}}]}
+                """;
+        when(modelInvocationService.invoke(any(ModelRequest.class), any(ModelScene.class),
+                any(), any(), any(), any(), any()))
+                .thenReturn(new ModelResponse("planner", badContent, 10, 20),
+                        new ModelResponse("repair", repaired, 10, 20));
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        request.setContext(Map.of("tool", "demo_tool"));
+
+        PlanResult plan = plannerService.plan(request, new TenantContext("t-1", "u-1", List.of(), "req", "trace"),
+                "wf-1", new java.util.concurrent.atomic.AtomicLong(0));
+        assertEquals(1, plan.getSteps().size());
+        assertEquals("TOOL", plan.getSteps().get(0).getStepType());
+        Mockito.verify(metricsPublisher).incrementWithTags("json_repair_success_total", "scene", "planner");
+        ArgumentCaptor<PromptTrace> traceCaptor = ArgumentCaptor.forClass(PromptTrace.class);
+        Mockito.verify(modelInvocationService).recordPromptTrace(traceCaptor.capture(), any(TenantContext.class),
+                eq("wf-1"), any(), eq("plan"), eq("planner"));
+        PromptTrace trace = traceCaptor.getValue();
+        assertTrue(Boolean.TRUE.equals(trace.getRepairAttempted()));
+        assertTrue(Boolean.TRUE.equals(trace.getParseSuccess()));
+    }
+
+    @Test
+    void planFallsBackWhenRepairFails() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
+        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.ContextEventPublisher.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
+                metricsPublisher);
+        PlannerProperties properties = new PlannerProperties();
+        properties.setLlmEnabled(true);
+        properties.setFallbackEnabled(true);
+        CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
+        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, repairService);
+
+        String badContent = "无法解析的输出";
+        when(modelInvocationService.invoke(any(ModelRequest.class), any(ModelScene.class),
+                any(), any(), any(), any(), any()))
+                .thenReturn(new ModelResponse("planner", badContent, 10, 20),
+                        new ModelResponse("repair", "", 10, 20));
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        request.setContext(Map.of("tool", "demo_tool"));
+
+        PlanResult plan = plannerService.plan(request, new TenantContext("t-1", "u-1", List.of(), "req", "trace"),
+                "wf-1", new java.util.concurrent.atomic.AtomicLong(0));
+        assertEquals(1, plan.getSteps().size());
+        assertEquals("TOOL", plan.getSteps().get(0).getStepType());
+        Mockito.verify(metricsPublisher).incrementWithTags("json_repair_failure_total", "scene", "planner");
+        ArgumentCaptor<PromptTrace> traceCaptor = ArgumentCaptor.forClass(PromptTrace.class);
+        Mockito.verify(modelInvocationService).recordPromptTrace(traceCaptor.capture(), any(TenantContext.class),
+                eq("wf-1"), any(), eq("plan"), eq("planner"));
+        PromptTrace trace = traceCaptor.getValue();
+        assertFalse(Boolean.TRUE.equals(trace.getParseSuccess()));
+        assertEquals("json_parse_error", trace.getParseErrorType());
+        assertTrue(Boolean.TRUE.equals(trace.getRepairAttempted()));
+        assertFalse(Boolean.TRUE.equals(trace.getRepairSuccess()));
     }
 
     private CapabilityBoundaryEvaluator buildEvaluator(boolean enabled) {
