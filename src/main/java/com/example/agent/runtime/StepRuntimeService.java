@@ -12,6 +12,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -36,17 +37,20 @@ public class StepRuntimeService {
     private final MetricsPublisher metricsPublisher;
     private final TracingPublisher tracingPublisher;
     private final StepRecordRepository stepRecordRepository;
+    private final StepOutputSummaryBuilder stepOutputSummaryBuilder;
 
     public StepRuntimeService(ApplicationEventPublisher eventPublisher,
                               EventStreamService eventStreamService,
                               MetricsPublisher metricsPublisher,
                               TracingPublisher tracingPublisher,
-                              StepRecordRepository stepRecordRepository) {
+                              StepRecordRepository stepRecordRepository,
+                              StepOutputSummaryBuilder stepOutputSummaryBuilder) {
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
         this.metricsPublisher = metricsPublisher;
         this.tracingPublisher = tracingPublisher;
         this.stepRecordRepository = stepRecordRepository;
+        this.stepOutputSummaryBuilder = stepOutputSummaryBuilder;
     }
 
     /**
@@ -102,7 +106,58 @@ public class StepRuntimeService {
      */
     public StepRecord completeStep(StepRecord record, Map<String, Object> output, AtomicLong seqCounter) {
         record.setStatus(stateMachine.transition(record.getStatus(), StepState.COMPLETED));
-        record.setOutput(output);
+        Map<String, Object> outputWithSummary = output;
+        if (stepOutputSummaryBuilder != null && stepOutputSummaryBuilder.isEnabled()) {
+            long summaryStart = System.nanoTime();
+            Map<String, Object> summary = stepOutputSummaryBuilder.build(
+                    record.getStepId(),
+                    record.getType(),
+                    record.getStatus() != null ? record.getStatus().name() : null,
+                    outputWithSummary,
+                    null,
+                    null,
+                    record.getAttempt()
+            );
+            long summaryMs = (System.nanoTime() - summaryStart) / 1_000_000;
+            if (summary != null && !summary.isEmpty()) {
+                if (outputWithSummary == null) {
+                    outputWithSummary = new java.util.LinkedHashMap<>();
+                }
+                try {
+                    outputWithSummary.putAll(summary);
+                // 异常捕获：记录上下文并按当前策略处理
+                } catch (UnsupportedOperationException ex) {
+                    outputWithSummary = new HashMap<>(outputWithSummary);
+                    outputWithSummary.putAll(summary);
+                }
+                Map<String, Object> digest = summary.get("outputDigest") instanceof Map<?, ?> map
+                        ? new HashMap<>(map.size())
+                        : null;
+                if (summary.get("outputDigest") instanceof Map<?, ?> map) {
+                    map.forEach((key, value) -> digest.put(String.valueOf(key), value));
+                }
+                Integer charCount = digest != null ? resolveInt(digest.get("charCount")) : null;
+                Integer keyCount = digest != null ? resolveInt(digest.get("keyCount")) : null;
+                Boolean truncated = summary.get("truncated") instanceof Boolean value ? value : null;
+                String toolName = null;
+                if (summary.get("stepSummary") instanceof Map<?, ?> stepSummary) {
+                    Object tool = stepSummary.get("tool");
+                    if (tool != null) {
+                        toolName = String.valueOf(tool);
+                    }
+                }
+                log.info("步骤摘要生成完成, tenantId={}, workflowId={}, stepType={}, toolName={}, truncated={}, charCount={}, keyCount={}, durationMs={}",
+                        record.getTenantId(),
+                        record.getWorkflowId(),
+                        record.getType(),
+                        toolName,
+                        truncated,
+                        charCount,
+                        keyCount,
+                        summaryMs);
+            }
+        }
+        record.setOutput(outputWithSummary);
         record.setCompletedAt(Instant.now());
         metricsPublisher.recordTime("step.duration.ms", calcDuration(record), resolveTraceId(null));
 
@@ -259,5 +314,12 @@ public class StepRuntimeService {
             return 0;
         }
         return Duration.between(record.getStartedAt(), record.getCompletedAt()).toMillis();
+    }
+
+    private Integer resolveInt(Object value) {
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        return null;
     }
 }

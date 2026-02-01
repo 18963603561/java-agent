@@ -36,6 +36,11 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
         this.objectMapper = objectMapper;
     }
 
+    /**
+     * 将步骤记录写入数据库，重复主键时执行更新。
+     *
+     * @param record 步骤记录
+     */
     @Override
     public void save(StepRecord record) {
         if (record == null) {
@@ -46,6 +51,7 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
         Timestamp startedAtTs = startedAt != null ? Timestamp.from(startedAt) : null;
         Timestamp completedAtTs = completedAt != null ? Timestamp.from(completedAt) : null;
         try {
+            // 外部数据库调用：写入步骤记录
             jdbcTemplate.update("""
                             INSERT INTO step_records
                             (step_id, workflow_id, step_seq, type, status, attempt, input, output, error_code,
@@ -78,14 +84,24 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
                     completedAtTs
             );
             log.debug("步骤记录入库, tenantId={}, stepId={}", record.getTenantId(), record.getStepId());
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (DataAccessException ex) {
+            // 异常捕获：数据库写入失败，记录上下文信息便于定位
             log.error("步骤记录入库失败, tenantId={}, stepId={}", record.getTenantId(), record.getStepId(), ex);
         }
     }
 
+    /**
+     * 按租户与工作流查询步骤记录列表。
+     *
+     * @param tenantId 租户标识
+     * @param workflowId 工作流标识
+     * @return 步骤记录列表
+     */
     @Override
     public List<StepRecord> findByWorkflow(String tenantId, String workflowId) {
         try {
+            // 外部数据库调用：按工作流读取步骤记录
             return jdbcTemplate.query("""
                             SELECT step_id, workflow_id, step_seq, type, status, attempt, input, output, error_code,
                                    tenant_id, started_at, completed_at
@@ -97,7 +113,9 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
                     tenantId,
                     workflowId
             );
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (DataAccessException ex) {
+            // 异常捕获：数据库查询失败，返回空结果并记录错误
             log.error("步骤记录查询失败, tenantId={}, workflowId={}", tenantId, workflowId, ex);
             return Collections.emptyList();
         }
@@ -112,7 +130,9 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
             pgObject.setType("jsonb");
             pgObject.setValue(objectMapper.writeValueAsString(payload));
             return pgObject;
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (JsonProcessingException | SQLException ex) {
+            // 异常捕获：序列化失败时返回空，避免影响主流程
             log.warn("步骤记录 JSON 序列化失败", ex);
             return null;
         }
@@ -126,6 +146,14 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
             this.objectMapper = objectMapper;
         }
 
+        /**
+         * 将结果集映射为步骤记录对象。
+         *
+         * @param rs 结果集
+         * @param rowNum 行号
+         * @return 步骤记录对象
+         * @throws SQLException 结果集读取异常
+         */
         @Override
         public StepRecord mapRow(ResultSet rs, int rowNum) throws SQLException {
             StepRecord record = new StepRecord();
@@ -159,7 +187,9 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
                 @SuppressWarnings("unchecked")
                 Map<String, Object> map = objectMapper.readValue(json, Map.class);
                 return map;
+            // 异常捕获：记录上下文并按当前策略处理
             } catch (JsonProcessingException ex) {
+                // 异常捕获：读取结构化内容失败时返回空，避免阻断流程
                 return null;
             }
         }

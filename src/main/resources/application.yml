@@ -203,6 +203,39 @@ agent:
     # 默认项:
     # - 3
     observationWindow: 3
+  summary:
+    # 说明: 是否启用步骤输出摘要，默认关闭便于灰度回滚
+    # 可选项:
+    # - true
+    # - false
+    # 默认值:
+    # - false
+    enable: true
+    # 说明: 摘要整体序列化最大字符数
+    # 可选项:
+    # - 非负整数
+    # 默认值:
+    # - 4000
+    max-chars: 4000
+    # 说明: 列表类字段最多保留的元素数量
+    # 可选项:
+    # - 非负整数
+    # 默认值:
+    # - 20
+    max-list-items: 20
+    # 说明: 单个字段字符串的最大字符数
+    # 可选项:
+    # - 非负整数
+    # 默认值:
+    # - 200
+    max-field-chars: 200
+  final-output:
+    # 说明: 最终输出提示词摘要最大字符数
+    # 可选项:
+    # - 非负整数
+    # 默认值:
+    # - 800
+    prompt-summary-max-chars: 800
   cot:
     # 说明: 最大推理步数
     # 可选项:
@@ -210,6 +243,12 @@ agent:
     # 默认项:
     # - 4
     max-steps: 4
+    # 说明: 历史步骤摘要最多保留条数
+    # 可选项:
+    # - 正整数
+    # 默认项:
+    # - 10
+    max-step-summaries: 10
     # 说明: 温度覆盖值
     # 可选项:
     # - 0.0-2.0
@@ -343,6 +382,26 @@ agent:
     # 默认项:
     # - remote-first
     call-strategy: remote-first
+    tool-refresh:
+      # 说明: 是否启用远程工具缓存刷新
+      # 可选项:
+      # - true
+      # - false
+      # 默认值:
+      # - true
+      enabled: true
+      # 说明: 远程工具缓存刷新间隔秒数
+      # 可选项:
+      # - 非负整数
+      # 默认值:
+      # - 300
+      ttl-seconds: 300
+      # 说明: 单次同步最大工具数量
+      # 可选项:
+      # - 非负整数
+      # 默认值:
+      # - 2000
+      max-tools: 2000
     default-server-id: mcp-test
     # 说明: 外部工具服务列表
     # 可选项:
@@ -462,6 +521,7 @@ agent:
         # 默认项:
         # - local
         provider: openai
+        supports-developer-role: false
         # 说明: 调用端点
         # 可选项:
         # - 任意字符串
@@ -506,6 +566,7 @@ agent:
         # 默认项:
         # - local
         provider: openai
+        supports-developer-role: false
         # 说明: 调用端点
         # 可选项:
         # - 任意字符串
@@ -550,6 +611,7 @@ agent:
         # 默认项:
         # - local
         provider: openai
+        supports-developer-role: false
         # 说明: 调用端点
         # 可选项:
         # - 任意字符串
@@ -594,6 +656,7 @@ agent:
         # 默认项:
         # - local
         provider: openai
+        supports-developer-role: false
         # 说明: 调用端点
         # 可选项:
         # - 任意字符串

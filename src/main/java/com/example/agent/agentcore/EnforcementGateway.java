@@ -21,14 +21,26 @@ import org.springframework.stereotype.Service;
 
 /**
  * 执行网关，负责调用工具执行链路并发布事件。
+ *
+ * <p>职责：封装工具调用的审批、事件发布与错误处理。</p>
+ * <p>边界：仅处理执行链路，不负责业务编排。</p>
  */
 @Service
 public class EnforcementGateway {
 
     private static final Logger log = LoggerFactory.getLogger(EnforcementGateway.class);
 
+    /**
+     * 工具执行器。
+     */
     private final ToolExecutor toolExecutor;
+    /**
+     * 事件发布器。
+     */
     private final ApplicationEventPublisher eventPublisher;
+    /**
+     * 审批服务。
+     */
     private final ApprovalService approvalService;
 
     public EnforcementGateway(ToolExecutor toolExecutor,
@@ -56,9 +68,49 @@ public class EnforcementGateway {
                                        String taskId,
                                        AtomicLong seqCounter,
                                        String toolName) {
+        return executeInternal(request, tenantContext, workflowId, taskId, seqCounter, toolName, null);
+    }
+
+    /**
+     * 执行任务请求（带工具参数覆盖）。
+     *
+     * @param request 任务请求
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param taskId 任务标识
+     * @param seqCounter 事件序列计数器
+     * @param toolName 工具名称
+     * @param toolArguments 工具调用参数
+     * @return 工具执行结果
+     */
+    public Map<String, Object> executeWithArguments(TaskRequest request,
+                                                    TenantContext tenantContext,
+                                                    String workflowId,
+                                                    String taskId,
+                                                    AtomicLong seqCounter,
+                                                    String toolName,
+                                                    Map<String, Object> toolArguments) {
+        return executeInternal(request, tenantContext, workflowId, taskId, seqCounter, toolName, toolArguments);
+    }
+
+    /**
+     * 执行内部流程，统一处理审批、事件发布与执行结果回写。
+     */
+    private Map<String, Object> executeInternal(TaskRequest request,
+                                                TenantContext tenantContext,
+                                                String workflowId,
+                                                String taskId,
+                                                AtomicLong seqCounter,
+                                                String toolName,
+                                                Map<String, Object> toolArguments) {
+        // 执行前记录日志，便于跟踪
         log.info("工具执行开始, tenantId={}, workflowId={}, tool={}",
                 tenantContext.getTenantId(), workflowId, toolName);
-        handleApprovalIfNeeded(request, tenantContext, workflowId, toolName, seqCounter);
+        // 审批参数优先使用外部传入参数
+        Map<String, Object> approvalArgs = toolArguments == null
+                ? toolExecutor.buildArguments(request)
+                : toolExecutor.buildMergedArguments(request, toolArguments);
+        handleApprovalIfNeeded(request, tenantContext, workflowId, toolName, seqCounter, approvalArgs);
         long invokedSeq = nextSeq(seqCounter);
         String usageId = buildUsageId(taskId, invokedSeq);
         Map<String, Object> invokedPayload = new HashMap<>();
@@ -70,7 +122,10 @@ public class EnforcementGateway {
         eventPublisher.publishEvent(invoked);
 
         try {
-            Map<String, Object> result = toolExecutor.execute(request, tenantContext, usageId, toolName, taskId);
+            // 根据是否传入参数选择执行分支
+            Map<String, Object> result = toolArguments == null
+                    ? toolExecutor.execute(request, tenantContext, usageId, toolName, taskId)
+                    : toolExecutor.executeWithArguments(request, tenantContext, usageId, toolName, taskId, toolArguments);
             ensureUsageContext(result, tenantContext, taskId, usageId);
             long observationSeq = nextSeq(seqCounter);
             StreamEvent observation = buildEvent(tenantContext, workflowId, EventType.TOOL_OBSERVATION, observationSeq,
@@ -94,10 +149,16 @@ public class EnforcementGateway {
         }
     }
 
+    /**
+     * 生成递增序列号。
+     */
     private long nextSeq(AtomicLong seqCounter) {
         return seqCounter.incrementAndGet();
     }
 
+    /**
+     * 生成使用记录标识。
+     */
     private String buildUsageId(String taskId, long seq) {
         if (taskId == null || taskId.isBlank()) {
             return "usage:" + seq;
@@ -105,6 +166,9 @@ public class EnforcementGateway {
         return taskId + ":" + seq;
     }
 
+    /**
+     * 补全计量上下文字段。
+     */
     private void ensureUsageContext(Map<String, Object> result,
                                     TenantContext tenantContext,
                                     String taskId,
@@ -121,6 +185,9 @@ public class EnforcementGateway {
         }
     }
 
+    /**
+     * 构建事件对象并附加追踪信息。
+     */
     private StreamEvent buildEvent(TenantContext tenantContext, String workflowId, EventType type, long seq,
                                    Map<String, Object> payload) {
         String streamId = workflowId;
@@ -139,6 +206,9 @@ public class EnforcementGateway {
         return event;
     }
 
+    /**
+     * 写入追踪上下文。
+     */
     private void attachTraceContext(Map<String, Object> payload, TenantContext tenantContext) {
         if (payload == null || tenantContext == null) {
             return;
@@ -147,6 +217,9 @@ public class EnforcementGateway {
         payload.putIfAbsent("requestId", tenantContext.getRequestId());
     }
 
+    /**
+     * 解析异常对应的错误码。
+     */
     private String resolveErrorCode(Throwable ex) {
         if (ex instanceof ErrorCodeProvider provider) {
             return provider.getErrorCode();
@@ -154,17 +227,21 @@ public class EnforcementGateway {
         return "INTERNAL_ERROR";
     }
 
+    /**
+     * 根据策略触发审批流程。
+     */
     private void handleApprovalIfNeeded(TaskRequest request,
                                         TenantContext tenantContext,
                                         String workflowId,
                                         String toolName,
-                                        AtomicLong seqCounter) {
+                                        AtomicLong seqCounter,
+                                        Map<String, Object> arguments) {
         if (approvalService == null || !approvalService.isEnabled()
                 || !approvalService.isHighRiskTool(toolName)) {
             return;
         }
-        Map<String, Object> arguments = toolExecutor.buildArguments(request);
-        String argsDigest = approvalService.buildArgsDigest(arguments);
+        Map<String, Object> args = arguments != null ? arguments : toolExecutor.buildArguments(request);
+        String argsDigest = approvalService.buildArgsDigest(args);
         String snapshotId = resolveSnapshotId(request);
         ApprovalHandle handle = approvalService.requestApproval(
                 tenantContext.getTenantId(),
@@ -197,6 +274,9 @@ public class EnforcementGateway {
                 tenantContext.getTenantId(), workflowId, handle.getRequestId(), toolName);
     }
 
+    /**
+     * 发布审批申请事件。
+     */
     private void publishApprovalRequested(TenantContext tenantContext,
                                           String workflowId,
                                           String snapshotId,
@@ -219,6 +299,9 @@ public class EnforcementGateway {
         eventPublisher.publishEvent(event);
     }
 
+    /**
+     * 发布审批决策事件。
+     */
     private void publishApprovalDecision(TenantContext tenantContext,
                                          String workflowId,
                                          String snapshotId,
@@ -250,6 +333,9 @@ public class EnforcementGateway {
         eventPublisher.publishEvent(event);
     }
 
+    /**
+     * 从请求上下文中解析快照标识。
+     */
     private String resolveSnapshotId(TaskRequest request) {
         if (request == null || request.getContext() == null) {
             return null;

@@ -143,13 +143,25 @@ public class DebateCoordinator {
             json = "{}";
         }
         return """
-                你是辩论主持人，请给出辩论结论。
-                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
-                字段约束：
-                1) conclusion: string，必须输出，缺信息填空串。
-                最小示例 JSON：{"conclusion":""}
-                DEBATE_CONTEXT_JSON:%s
-                """.formatted(json);
+            你是辩论主持人（debate moderator）。你的任务是基于 DEBATE_CONTEXT_JSON 中的辩论内容，输出一段可执行、可落地的辩论结论。
+            
+            【结论要求】
+            1) 必须做出明确裁决：给出“推荐方案/最终立场/折中方案”，避免仅说“各有道理”。
+            2) 必须包含关键依据（简短列点即可）：说明为什么选择该结论，提炼 2~4 个最有力的理由。
+            3) 必须指出主要风险/前提：用 1~2 句说明结论成立的条件或需要注意的风险。
+            4) 禁止逐字复述辩论过程与长引用；只允许高度概括。
+            
+            【输出要求】
+            输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+            
+            字段约束：
+            1) conclusion: string，必须输出，缺信息填空串。
+            
+            最小示例 JSON：{"conclusion":""}
+            
+            DEBATE_CONTEXT_JSON:%s
+            """.formatted(json);
+
     }
 
     private String tryRepairConclusion(String rawContent, String topic) {

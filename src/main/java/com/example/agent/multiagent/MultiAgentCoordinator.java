@@ -78,9 +78,10 @@ public class MultiAgentCoordinator {
                                           TenantContext tenantContext,
                                           String workflowId,
                                           AtomicLong seqCounter) {
-        String prompt = buildPrompt(step);
+        Map<String, Object> inputSummary = buildInputSummary(step);
+        String prompt = buildPrompt(inputSummary);
         ModelRequest request = new ModelRequest(prompt, ModelScene.PLANNER);
-        applyPromptBundle(request, prompt, step);
+        applyPromptBundle(request, prompt, inputSummary);
         modelToolResolver.applyTooling(request, null, step != null ? step.getInput() : null);
         Map<String, Object> metadata = new HashMap<>();
         if (step != null && step.getStepType() != null) {
@@ -104,7 +105,7 @@ public class MultiAgentCoordinator {
         if (roles.isEmpty()) {
             parseErrorType = resolveParseErrorType(rawContent);
             repairAttempted = true;
-            List<AgentRole> repaired = tryRepairRoles(rawContent, step);
+            List<AgentRole> repaired = tryRepairRoles(rawContent, inputSummary);
             if (!repaired.isEmpty()) {
                 roles = repaired;
                 repairSuccess = true;
@@ -129,6 +130,76 @@ public class MultiAgentCoordinator {
         return result;
     }
 
+    private Map<String, Object> buildInputSummary(StepRequest step) {
+        Map<String, Object> summary = new HashMap<>();
+        if (step != null && step.getInput() != null) {
+            Map<String, Object> input = step.getInput();
+            putIfNotBlank(summary, "query", input.get("query"));
+            putIfNotBlank(summary, "goal", input.get("goal"));
+            Object constraints = normalizeTextOrList(input.get("constraints"));
+            if (constraints != null) {
+                summary.put("constraints", constraints);
+            }
+            List<String> tools = new ArrayList<>();
+            addToolName(tools, input.get("tool"));
+            addToolName(tools, input.get("toolName"));
+            Object toolsObj = input.get("tools");
+            if (toolsObj instanceof List<?> list) {
+                for (Object item : list) {
+                    addToolName(tools, item);
+                }
+            }
+            if (!tools.isEmpty()) {
+                summary.put("tools", tools);
+            }
+        }
+        if (summary.isEmpty()) {
+            summary.put("constraints", "(summary disabled)");
+        }
+        return summary;
+    }
+
+    private Object normalizeTextOrList(Object value) {
+        if (value instanceof String text) {
+            return StringUtils.hasText(text) ? text : null;
+        }
+        if (value instanceof List<?> list) {
+            List<String> normalized = new ArrayList<>();
+            for (Object item : list) {
+                if (item == null) {
+                    continue;
+                }
+                String text = item.toString();
+                if (StringUtils.hasText(text)) {
+                    normalized.add(text);
+                }
+            }
+            return normalized.isEmpty() ? null : normalized;
+        }
+        return null;
+    }
+
+    private void putIfNotBlank(Map<String, Object> target, String key, Object value) {
+        if (target == null || key == null || value == null) {
+            return;
+        }
+        String text = value.toString();
+        if (StringUtils.hasText(text)) {
+            target.put(key, text);
+        }
+    }
+
+    private void addToolName(List<String> tools, Object value) {
+        if (tools == null || value == null) {
+            return;
+        }
+        String text = value.toString();
+        if (!StringUtils.hasText(text) || tools.contains(text)) {
+            return;
+        }
+        tools.add(text);
+    }
+
     /**
      * 兼容旧入口。
      *
@@ -138,11 +209,10 @@ public class MultiAgentCoordinator {
         log.info("多智能体协调开始, taskId={}", taskId);
     }
 
-    private String buildPrompt(StepRequest step) {
-        Map<String, Object> context = new HashMap<>();
-        if (step != null && step.getInput() != null) {
-            context.putAll(step.getInput());
-        }
+    private String buildPrompt(Map<String, Object> inputSummary) {
+        Map<String, Object> context = inputSummary != null
+                ? new HashMap<>(inputSummary)
+                : new HashMap<>();
         String contextJson;
         try {
             contextJson = objectMapper.writeValueAsString(context);
@@ -150,16 +220,40 @@ public class MultiAgentCoordinator {
             contextJson = "{}";
         }
         return """
-                你是团队协调器，请给出角色与职责列表。
-                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
-                字段约束：
-                1) team: array，必须输出，缺信息填 []。
-                2) team[*].role: string，必须输出，缺信息填空串。
-                3) team[*].responsibility: string，必须输出，缺信息填空串。
-                允许额外字段但不要依赖，例如 roleId、name、modelId、description。
-                最小示例 JSON：{"team":[{"role":"","responsibility":""}]}
-                MULTI_AGENT_CONTEXT_JSON:%s
-                """.formatted(contextJson);
+            你是多智能体团队协调器（team coordinator）。
+            你的任务是根据 MULTI_AGENT_CONTEXT_JSON 中的 query 与任务特征，设计“最小且必要”的角色与职责分工。
+            
+            禁止泛泛列出岗位名称；每个角色必须直接服务于完成当前任务。
+            
+            【组队规则】
+            
+            1) 角色数量必须最小化，通常为 1~4 个；只有在任务明显复杂时才增加角色。
+            2) 每个角色的职责必须不同且互补，禁止职责重复。
+            3) 每个角色必须能解释“为什么这个任务需要它”。
+            4) 如果任务简单（常识问答/单工具查询），只允许 1 个角色。
+            5) 如果涉及：
+               - 规划 → 需要 Planner
+               - 工具调用 → 需要 Executor
+               - 信息整合/总结 → 需要 Summarizer
+               - 研究/资料收集 → 需要 Researcher
+            6) 禁止出现与任务无关的角色（如泛泛的“分析师/管理员”）。
+            
+            【输出要求】
+            输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+            
+            字段约束：
+            1) team: array，必须输出
+            2) team[*].role: string，角色名称
+            3) team[*].responsibility: string，明确该角色在本任务中的职责
+            
+            允许额外字段但不要依赖，例如 roleId、name、modelId、description。
+            
+            最小示例 JSON：
+            {"team":[{"role":"","responsibility":""}]}
+            
+            MULTI_AGENT_CONTEXT_JSON:%s
+            """.formatted(contextJson);
+
     }
 
     private List<AgentRole> parseRoles(String content) {
@@ -191,14 +285,13 @@ public class MultiAgentCoordinator {
         }
     }
 
-    private List<AgentRole> tryRepairRoles(String rawContent, StepRequest step) {
+    private List<AgentRole> tryRepairRoles(String rawContent, Map<String, Object> inputSummary) {
         if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
             return List.of();
         }
-        Map<String, Object> context = new HashMap<>();
-        if (step != null && step.getInput() != null) {
-            context.putAll(step.getInput());
-        }
+        Map<String, Object> context = inputSummary != null
+                ? new HashMap<>(inputSummary)
+                : new HashMap<>();
         String contextJson;
         try {
             contextJson = objectMapper.writeValueAsString(context);
@@ -306,12 +399,11 @@ public class MultiAgentCoordinator {
         eventPublisher.publishEvent(event);
     }
 
-    private void applyPromptBundle(ModelRequest request, String prompt, StepRequest step) {
+    private void applyPromptBundle(ModelRequest request, String prompt, Map<String, Object> inputSummary) {
         if (promptAssembler == null || request == null) {
             return;
         }
-        Map<String, Object> input = step != null ? step.getInput() : null;
-        PromptBundle bundle = promptAssembler.build(prompt, null, input);
+        PromptBundle bundle = promptAssembler.build(prompt, null, inputSummary);
         if (bundle != null && bundle.getMessages() != null) {
             request.setMessages(bundle.getMessages());
         }

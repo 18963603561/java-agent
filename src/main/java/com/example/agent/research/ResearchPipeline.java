@@ -136,15 +136,33 @@ public class ResearchPipeline {
             json = "{}";
         }
         return """
-                你是研究助手，请输出研究引用列表。
-                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
-                字段约束：
-                1) citations: array，必须输出，缺信息填 []。
-                2) citations[*].source: string，可输出空串。
-                3) citations[*].snippet: string，可输出空串。
-                最小示例 JSON：{"citations":[]}
-                RESEARCH_CONTEXT_JSON:%s
-                """.formatted(json);
+            你是研究助手（research citation extractor）。
+            你的任务：从 RESEARCH_CONTEXT_JSON 中提取“可追溯的研究引用（citations）”列表，用于审计与回放。
+            
+            【引用定义】
+            - citation.source：必须是可定位的来源标识，例如 URL、文档标题+站点、论文标题+作者+年份等；如果上下文没有任何来源信息，则 source 允许为空串，但必须在 snippet 中说明“no_source_provided”。
+            - citation.snippet：必须是与 query 相关的证据片段/要点摘要（不是长段原文），控制在 1~2 句，<= 200 字符。
+            
+            【质量规则】
+            1) 只从上下文中“已经出现/已提供”的来源提取，禁止编造来源或杜撰 URL。
+            2) 去重：相同 source 只保留一次；若同一 source 有多段证据，合并为更精炼的 snippet。
+            3) 排序：按与 query 的相关性从高到低；同等相关则按时间新→旧（若上下文提供时间信息）。
+            4) 数量控制：最多输出 10 条；不足则按实际输出。
+            5) 合规：snippet 不得复制大段原文，不得超过 25 个英文词或 200 字符（以更严格者为准）；可用转述/摘要。
+            
+            【输出要求】
+            输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+            
+            字段约束：
+            1) citations: array，必须输出，缺信息填 []。
+            2) citations[*].source: string，可输出空串。
+            3) citations[*].snippet: string，可输出空串。
+            
+            最小示例 JSON：{"citations":[]}
+            
+            RESEARCH_CONTEXT_JSON:%s
+            """.formatted(json);
+
     }
 
     private List<ResearchCitation> parseCitations(String content) {

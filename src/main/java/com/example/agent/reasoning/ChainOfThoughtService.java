@@ -222,7 +222,8 @@ public class ChainOfThoughtService {
             for (int stepIndex = 1; stepIndex <= maxSteps; stepIndex++) {
                 stepsExecuted++;
                 // 构建当前步骤提示词并发起模型调用。
-                String prompt = buildPrompt(safeQuestion, input, stepSummaries, stepIndex, maxSteps);
+                List<String> recentSummaries = resolveRecentStepSummaries(stepSummaries);
+                String prompt = buildPrompt(safeQuestion, input, recentSummaries, stepIndex, maxSteps);
                 ModelRequest request = new ModelRequest(prompt, resolveScene(properties.getModelHint()));
                 applyPromptBundle(request, prompt, input);
                 if (properties.getTemperatureOverride() != null) {
@@ -250,7 +251,7 @@ public class ChainOfThoughtService {
                 if (!decision.valid) {
                     parseErrorType = resolveParseErrorType(decision.stopReason);
                     repairAttempted = true;
-                    StepDecision repaired = tryRepairDecision(rawContent, safeQuestion, input, stepSummaries, stepIndex,
+                    StepDecision repaired = tryRepairDecision(rawContent, safeQuestion, input, recentSummaries, stepIndex,
                             maxSteps);
                     if (repaired.valid) {
                         decision = repaired;
@@ -381,18 +382,49 @@ public class ChainOfThoughtService {
             contextJson = "{}";
         }
         return """
-                你是链式推理助手，但禁止输出逐字思维链。
-                请基于问题给出下一步的简短摘要或最终答案。
-                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
-                字段约束：
-                1) stepSummary: string，必须输出，必须简短，不得包含逐字推理或敏感细节，缺信息填空串。
-                2) shouldContinue: boolean，必须输出，缺信息填 false。
-                3) finalAnswer: string，必须输出，缺信息填空串。
-                4) confidence: number，必须输出，缺信息填 0.5。
-                5) stopReason: string，必须输出，缺信息填空串。
-                最小示例 JSON：{"stepSummary":"","shouldContinue":false,"finalAnswer":"","confidence":0.5,"stopReason":""}
-                COT_CONTEXT_JSON:%s
-                """.formatted(contextJson);
+            你是链式推理助手（COT helper），严格禁止输出逐字思维链/详细推理过程。
+            你只能输出“非常简短的下一步摘要”或“最终答案”。
+            
+            【输入说明】
+            - question 是用户问题。
+            - memorySummary 是已压缩的记忆摘要。
+            - recentObservation 是最近一次观察/工具结果的“受限摘要”。
+            - previousSteps 仅用于判断进展与避免重复；只允许参考每步的 summary/status/errorCode，不得复述或展开其内容。
+            - stepIndex/maxSteps 用于控制是否继续；到达 maxSteps 必须停止。
+            
+            【输出规则】
+            - stepSummary：1~2 句，描述下一步要做什么或为什么停止；不得包含逐字推理、长引用、内部草稿、敏感细节。
+            - shouldContinue：
+              - 若需要更多外部信息/工具或仍未回答问题，则 true（但必须确保 stepIndex < maxSteps）。
+              - 若可直接回答或已达到 maxSteps，则 false。
+            - finalAnswer：仅当 shouldContinue=false 时填写，否则必须为空串。
+            - confidence：依据证据充分度给 0~1，缺信息降低。
+            - stopReason：当 shouldContinue=false 必填（如 question_answered / max_steps_reached / insufficient_info_stop）。
+            
+            【强制限制】
+            - 禁止输出 previousSteps 或 recentObservation 的原文/长文本。
+            - 禁止编造不存在的工具结果或事实。
+            
+            输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+            最小示例 JSON：{"stepSummary":"","shouldContinue":false,"finalAnswer":"","confidence":0.5,"stopReason":""}
+            
+            COT_CONTEXT_JSON:%s
+            """.formatted(contextJson);
+
+    }
+
+    private List<String> resolveRecentStepSummaries(List<String> stepSummaries) {
+        if (stepSummaries == null || stepSummaries.isEmpty()) {
+            return List.of();
+        }
+        int max = properties != null ? properties.getMaxStepSummaries() : 0;
+        if (max <= 0) {
+            max = 10;
+        }
+        if (stepSummaries.size() <= max) {
+            return new ArrayList<>(stepSummaries);
+        }
+        return new ArrayList<>(stepSummaries.subList(stepSummaries.size() - max, stepSummaries.size()));
     }
 
     private StepDecision tryRepairDecision(String rawContent,
@@ -406,7 +438,14 @@ public class ChainOfThoughtService {
         }
         Map<String, Object> context = new HashMap<>();
         context.put("question", question);
-        context.put("input", input);
+        String memorySummary = extractMemorySummary(input);
+        if (StringUtils.hasText(memorySummary)) {
+            context.put("memorySummary", memorySummary);
+        }
+        String observation = extractObservation(input);
+        if (StringUtils.hasText(observation)) {
+            context.put("recentObservation", observation);
+        }
         if (stepSummaries != null && !stepSummaries.isEmpty()) {
             context.put("previousSteps", stepSummaries);
         }
@@ -851,13 +890,72 @@ public class ChainOfThoughtService {
         if (input == null) {
             return null;
         }
-        Object observations = input.get("observations");
-        if (observations != null) {
-            return truncate(observations.toString(), MAX_OBSERVATION_CHARS);
+        Object summary = input.get("observationSummary");
+        if (summary == null) {
+            summary = input.get("observationsSummary");
         }
-        Object lastOutput = input.get("lastStepOutput");
-        if (lastOutput != null) {
-            return truncate(lastOutput.toString(), MAX_OBSERVATION_CHARS);
+        if (summary == null) {
+            summary = input.get("lastStepSummary");
+        }
+        String text = resolveSummaryText(summary);
+        if (!StringUtils.hasText(text)) {
+            return null;
+        }
+        return truncate(text, MAX_OBSERVATION_CHARS);
+    }
+
+    private String resolveSummaryText(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof String text) {
+            return text;
+        }
+        if (value instanceof Map<?, ?> map) {
+            Object summary = map.get("summary");
+            if (summary != null && StringUtils.hasText(summary.toString())) {
+                return summary.toString();
+            }
+            Object sample = map.get("sample");
+            if (sample != null && StringUtils.hasText(sample.toString())) {
+                return sample.toString();
+            }
+            String status = map.get("status") != null ? map.get("status").toString() : null;
+            String errorCode = map.get("errorCode") != null ? map.get("errorCode").toString() : null;
+            String tool = map.get("tool") != null ? map.get("tool").toString() : null;
+            if (StringUtils.hasText(status) || StringUtils.hasText(errorCode) || StringUtils.hasText(tool)) {
+                StringBuilder builder = new StringBuilder();
+                if (StringUtils.hasText(status)) {
+                    builder.append("status=").append(status);
+                }
+                if (StringUtils.hasText(errorCode)) {
+                    if (builder.length() > 0) {
+                        builder.append(", ");
+                    }
+                    builder.append("errorCode=").append(errorCode);
+                }
+                if (StringUtils.hasText(tool)) {
+                    if (builder.length() > 0) {
+                        builder.append(", ");
+                    }
+                    builder.append("tool=").append(tool);
+                }
+                return builder.toString();
+            }
+            return null;
+        }
+        if (value instanceof List<?> list) {
+            List<String> parts = new ArrayList<>();
+            for (Object item : list) {
+                String part = resolveSummaryText(item);
+                if (StringUtils.hasText(part)) {
+                    parts.add(part);
+                }
+            }
+            if (!parts.isEmpty()) {
+                return String.join("; ", parts);
+            }
+            return null;
         }
         return null;
     }

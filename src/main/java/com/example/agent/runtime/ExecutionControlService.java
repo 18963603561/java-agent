@@ -174,6 +174,7 @@ public class ExecutionControlService {
                     || entry.state == ExecutionControlState.WAIT_APPROVAL) {
                 try {
                     entry.monitor.wait();
+                // 异常捕获：记录上下文并按当前策略处理
                 } catch (InterruptedException ex) {
                     Thread.currentThread().interrupt();
                     throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE,

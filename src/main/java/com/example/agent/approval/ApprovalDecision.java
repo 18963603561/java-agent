@@ -38,22 +38,53 @@ public class ApprovalDecision {
         this.decidedAtEpochMs = decidedAtEpochMs;
     }
 
+    /**
+     * 构建审批通过的结果。
+     *
+     * @param requestId 审批请求标识
+     * @param reason 通过原因或备注
+     * @return 审批通过结果
+     */
     public static ApprovalDecision approved(String requestId, String reason) {
         return new ApprovalDecision(true, false, reason, requestId, System.currentTimeMillis());
     }
 
+    /**
+     * 构建审批拒绝的结果。
+     *
+     * @param requestId 审批请求标识
+     * @param reason 拒绝原因或备注
+     * @return 审批拒绝结果
+     */
     public static ApprovalDecision rejected(String requestId, String reason) {
         return new ApprovalDecision(false, false, reason, requestId, System.currentTimeMillis());
     }
 
+    /**
+     * 构建审批超时的结果。
+     *
+     * @param requestId 审批请求标识
+     * @param reason 超时原因或备注
+     * @return 审批超时结果
+     */
     public static ApprovalDecision timeout(String requestId, String reason) {
         return new ApprovalDecision(false, true, reason, requestId, System.currentTimeMillis());
     }
 
+    /**
+     * 获取是否审批通过。
+     *
+     * @return 是否审批通过
+     */
     public boolean isApproved() {
         return approved;
     }
 
+    /**
+     * 获取是否审批超时。
+     *
+     * @return 是否审批超时
+     */
     public boolean isTimeout() {
         return timeout;
     }

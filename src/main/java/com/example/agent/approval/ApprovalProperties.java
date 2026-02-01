@@ -27,6 +27,11 @@ public class ApprovalProperties {
      */
     private int timeoutSeconds = 300;
 
+    /**
+     * 获取是否启用工具审批。
+     *
+     * @return 是否启用工具审批
+     */
     public boolean isEnabled() {
         return enabled;
     }

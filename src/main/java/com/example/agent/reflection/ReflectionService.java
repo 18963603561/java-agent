@@ -32,6 +32,8 @@ import org.springframework.util.StringUtils;
 public class ReflectionService {
 
     private static final Logger log = LoggerFactory.getLogger(ReflectionService.class);
+    private static final int SUMMARY_MAX_CHARS = 200;
+    private static final String SUMMARY_TRUNCATED_SUFFIX = "...(truncated)";
 
     private final ReflectionProperties properties;
     private final MetricsPublisher metricsPublisher;
@@ -229,7 +231,7 @@ public class ReflectionService {
         Map<String, Object> context = new HashMap<>();
         context.put("stepType", step != null ? step.getStepType() : null);
         context.put("attempt", attempt);
-        context.put("output", output);
+        context.putAll(buildOutputSummaryContext(output));
         String contextJson;
         try {
             contextJson = objectMapper.writeValueAsString(context);
@@ -237,16 +239,46 @@ public class ReflectionService {
             contextJson = "{}";
         }
         return """
-                你是质量审查员，请对步骤输出进行评分并判断是否需要重试。
+                你是步骤执行的质量审查员（reflection reviewer）。
+                你的职责不是回答用户问题，而是基于 REFLECTION_CONTEXT_JSON 审查 steps 的执行质量，并判断是否需要重试。
+                
+                评分与重试必须严格依据以下规则：
+                
+                【必须 retry 的情况】
+                - steps 为空
+                - 任意步骤 status=FAILED
+                - 任意步骤没有 output 或 output 为空
+                - 步骤输出与 query 明显无关
+                - 关键工具未被调用（例如应查询却未查询）
+                - 输出只有状态没有结果数据
+                
+                【不应 retry 的情况】
+                - 步骤已成功执行且包含有效结果数据
+                - 输出完整但结果为空（例如查询无匹配数据）
+                - 步骤逻辑合理，工具调用正确，数据充分
+                
+                评分标准（score 0~1）：
+                - 0.0~0.3：严重错误，必须 retry
+                - 0.4~0.6：部分信息缺失，建议 retry
+                - 0.7~0.9：执行良好，无需 retry
+                - 1.0：步骤完整、结果充分、与 query 高度相关
+                
+                严格禁止：
+                - 禁止尝试回答 query
+                - 禁止补充不存在的数据
+                - 只能依据 steps 的客观输出来判断
+                
                 输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
                 字段约束：
-                1) score: number，必须输出，缺信息填 0.5。
-                2) retry: boolean，必须输出，缺信息填 false。
-                3) notes: string，必须输出，缺信息填空串。
+                1) score: number，必须输出。
+                2) retry: boolean，必须输出。
+                3) notes: string，必须输出，说明判定原因。
+                
                 最小示例 JSON：{"score":0.5,"retry":false,"notes":""}
                 REFLECTION_CONTEXT_JSON:%s
                 """.formatted(contextJson);
     }
+
 
     private ReflectionParsingResult parseReflection(String content) throws Exception {
         Map<String, Object> root = objectMapper.readValue(content, new TypeReference<Map<String, Object>>() {
@@ -273,7 +305,7 @@ public class ReflectionService {
         Map<String, Object> context = new HashMap<>();
         context.put("stepType", step != null ? step.getStepType() : null);
         context.put("attempt", attempt);
-        context.put("output", output);
+        context.putAll(buildOutputSummaryContext(output));
         String contextJson;
         try {
             contextJson = objectMapper.writeValueAsString(context);
@@ -291,6 +323,90 @@ public class ReflectionService {
             log.warn("反思修复解析失败, reason={}", ex.getMessage());
             return null;
         }
+    }
+
+    /**
+     * 构建仅包含摘要层的输出上下文，避免注入原始输出。
+     */
+    private Map<String, Object> buildOutputSummaryContext(Map<String, Object> output) {
+        Map<String, Object> context = new HashMap<>();
+        Map<String, Object> outputSummary = extractMap(output, "outputSummary");
+        Map<String, Object> outputDigest = extractMap(output, "outputDigest");
+        if (outputSummary == null) {
+            outputSummary = new HashMap<>();
+        }
+        Object summaryValue = outputSummary.get("summary");
+        String summaryText = summaryValue == null ? null : summaryValue.toString();
+        if (!StringUtils.hasText(summaryText)) {
+            summaryText = buildDigestSummary(outputDigest);
+            if (!StringUtils.hasText(summaryText)) {
+                summaryText = "(summary disabled)";
+            }
+        }
+        if (StringUtils.hasText(summaryText)) {
+            outputSummary.put("summary", truncateSummary(summaryText, SUMMARY_MAX_CHARS));
+        }
+        context.put("outputSummary", outputSummary);
+        if (outputDigest != null && !outputDigest.isEmpty()) {
+            context.put("outputDigest", outputDigest);
+        }
+        return context;
+    }
+
+    private Map<String, Object> extractMap(Map<String, Object> output, String key) {
+        if (output == null || key == null) {
+            return null;
+        }
+        Object value = output.get(key);
+        if (!(value instanceof Map<?, ?> map)) {
+            return null;
+        }
+        Map<String, Object> result = new HashMap<>();
+        map.forEach((k, v) -> result.put(String.valueOf(k), v));
+        return result;
+    }
+
+    private String buildDigestSummary(Map<String, Object> digest) {
+        if (digest == null || digest.isEmpty()) {
+            return null;
+        }
+        StringBuilder builder = new StringBuilder("digest:");
+        appendDigestField(builder, "keyCount", digest.get("keyCount"));
+        appendDigestField(builder, "keys", digest.get("keys"));
+        Object charCount = digest.get("charCount");
+        if (charCount != null) {
+            boolean truncated = Boolean.TRUE.equals(digest.get("truncated"));
+            String field = truncated ? "charCount<=" : "charCount";
+            appendDigestField(builder, field, charCount);
+        }
+        appendDigestField(builder, "truncated", digest.get("truncated"));
+        return builder.toString();
+    }
+
+    private void appendDigestField(StringBuilder builder, String field, Object value) {
+        if (builder == null || value == null) {
+            return;
+        }
+        if (builder.length() > 0 && builder.charAt(builder.length() - 1) != ':') {
+            builder.append(", ");
+        } else {
+            builder.append(' ');
+        }
+        builder.append(field).append('=').append(value);
+    }
+
+    private String truncateSummary(String text, int maxChars) {
+        if (!StringUtils.hasText(text) || maxChars <= 0 || text.length() <= maxChars) {
+            return text;
+        }
+        if (maxChars <= SUMMARY_TRUNCATED_SUFFIX.length()) {
+            return text.substring(0, maxChars);
+        }
+        int endIndex = maxChars - SUMMARY_TRUNCATED_SUFFIX.length();
+        if (endIndex <= 0) {
+            return text.substring(0, maxChars);
+        }
+        return text.substring(0, endIndex) + SUMMARY_TRUNCATED_SUFFIX;
     }
 
     private void recordPromptTrace(Map<String, Object> metadata,

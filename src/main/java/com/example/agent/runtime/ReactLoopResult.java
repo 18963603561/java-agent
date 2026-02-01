@@ -38,6 +38,11 @@ public class ReactLoopResult {
      */
     private List<ReactDecision> decisions = new ArrayList<>();
 
+    /**
+     * 获取是否完成循环。
+     *
+     * @return 是否完成
+     */
     public boolean isCompleted() {
         return completed;
     }

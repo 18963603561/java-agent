@@ -200,7 +200,7 @@ public class DefaultModelProvider implements ModelProvider {
         }
 
         // 构造兼容接口请求体。
-        Map<String, Object> body = buildOpenAiRequestBody(modelId, request);
+        Map<String, Object> body = buildOpenAiRequestBody(modelId, request, definition);
         int toolCount = resolveToolCount(body);
         long startNs = System.nanoTime();
         log.info("兼容接口调用开始, 模型标识={}, 服务地址={}, 工具数={}", modelId, baseUrl, toolCount);
@@ -222,8 +222,10 @@ public class DefaultModelProvider implements ModelProvider {
                     .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
                             result -> result.bodyToMono(String.class)
                                     .defaultIfEmpty("model_call_failed")
-                                    .flatMap(message -> Mono.error(new ErrorCodeException(
-                                            HttpStatus.SERVICE_UNAVAILABLE, "MODEL_UNAVAILABLE", message))))
+                                    .flatMap(message -> {
+                                        HttpStatus status = HttpStatus.resolve(result.statusCode().value());
+                                        return Mono.error(mapModelError(status, message));
+                                    }))
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
                     })
                     .timeout(Duration.ofSeconds(timeoutSeconds))
@@ -293,8 +295,10 @@ public class DefaultModelProvider implements ModelProvider {
                     .onStatus(status -> status.is4xxClientError() || status.is5xxServerError(),
                             result -> result.bodyToMono(String.class)
                                     .defaultIfEmpty("model_call_failed")
-                                    .flatMap(message -> Mono.error(new ErrorCodeException(
-                                            HttpStatus.SERVICE_UNAVAILABLE, "MODEL_UNAVAILABLE", message))))
+                                    .flatMap(message -> {
+                                        HttpStatus status = HttpStatus.resolve(result.statusCode().value());
+                                        return Mono.error(mapModelError(status, message));
+                                    }))
                     .bodyToMono(new ParameterizedTypeReference<Map<String, Object>>() {
                     })
                     .timeout(Duration.ofSeconds(timeoutSeconds))
@@ -330,20 +334,20 @@ public class DefaultModelProvider implements ModelProvider {
      * <p>边界：请求为空时使用空提示内容。
      * <p>示例：
      * <pre>{@code
-     * Map<String, Object> body = buildOpenAiRequestBody("gpt-4", request);
+     * Map<String, Object> body = buildOpenAiRequestBody("gpt-4", request, definition);
      * }</pre>
      *
      * @param modelId 模型标识
      * @param request 模型请求
      * @return 请求体
      */
-    Map<String, Object> buildOpenAiRequestBody(String modelId, ModelRequest request) {
+    Map<String, Object> buildOpenAiRequestBody(String modelId, ModelRequest request, ModelDefinition definition) {
         String prompt = request != null ? request.getPrompt() : "";
         Map<String, Object> body = new HashMap<>();
         body.put("model", modelId);
         Double temperatureOverride = request != null ? request.getTemperature() : null;
         body.put("temperature", temperatureOverride != null ? temperatureOverride : temperature);
-        body.put("messages", buildMessages(request, prompt));
+        body.put("messages", buildMessages(definition, request, prompt));
         if (request != null && request.getTools() != null && !request.getTools().isEmpty()) {
             List<Map<String, Object>> tools = buildOpenAiTools(request.getTools());
             if (!tools.isEmpty()) {
@@ -739,10 +743,14 @@ public class DefaultModelProvider implements ModelProvider {
      * List<Map<String, Object>> messages = buildMessages(request, prompt);
      * }</pre>
      */
-    private List<Map<String, Object>> buildMessages(ModelRequest request, String prompt) {
+    /**
+     * 构建兼容接口消息列表，并在必要时降级 developer 角色。
+     */
+    private List<Map<String, Object>> buildMessages(ModelDefinition definition, ModelRequest request, String prompt) {
         if (request != null && request.getMessages() != null && !request.getMessages().isEmpty()) {
             List<Map<String, Object>> messages = new java.util.ArrayList<>();
-            for (PromptMessage message : request.getMessages()) {
+            List<PromptMessage> normalized = normalizeMessages(definition, request.getMessages());
+            for (PromptMessage message : normalized) {
                 if (message == null) {
                     continue;
                 }
@@ -755,6 +763,85 @@ public class DefaultModelProvider implements ModelProvider {
             return messages;
         }
         return List.of(Map.of("role", "user", "content", prompt));
+    }
+
+    /**
+     * 根据模型能力降级 developer 角色，保证目标接口可识别。
+     */
+    private List<PromptMessage> normalizeMessages(ModelDefinition definition, List<PromptMessage> messages) {
+        if (messages == null || messages.isEmpty()) {
+            return messages == null ? List.of() : messages;
+        }
+        if (supportsDeveloperRole(definition)) {
+            return messages;
+        }
+        StringBuilder systemBuilder = new StringBuilder();
+        List<PromptMessage> normalized = new ArrayList<>();
+        for (PromptMessage message : messages) {
+            if (message == null) {
+                continue;
+            }
+            PromptRole role = message.getRole();
+            String content = message.getContent() == null ? "" : message.getContent();
+            if (role == PromptRole.SYSTEM) {
+                appendSystemText(systemBuilder, content);
+                continue;
+            }
+            if (role == PromptRole.DEVELOPER) {
+                appendDeveloperText(systemBuilder, content);
+                continue;
+            }
+            normalized.add(message);
+        }
+        if (systemBuilder.length() > 0) {
+            normalized.add(0, new PromptMessage(PromptRole.SYSTEM, systemBuilder.toString().trim()));
+        }
+        if (log.isDebugEnabled()) {
+            log.debug("developer角色已降级为system, modelId={}, provider={}, beforeCount={}, afterCount={}",
+                    definition != null ? definition.getModelId() : null,
+                    definition != null ? definition.getProvider() : null,
+                    messages.size(),
+                    normalized.size());
+        }
+        return normalized;
+    }
+
+    /**
+     * 判断模型是否支持 developer 角色。
+     */
+    private boolean supportsDeveloperRole(ModelDefinition definition) {
+        if (definition == null) {
+            return true;
+        }
+        Boolean supports = definition.getSupportsDeveloperRole();
+        return supports == null || supports;
+    }
+
+    /**
+     * 追加系统提示内容。
+     */
+    private void appendSystemText(StringBuilder builder, String content) {
+        if (!StringUtils.hasText(content)) {
+            return;
+        }
+        if (builder.length() > 0) {
+            builder.append("\n");
+        }
+        builder.append(content.trim());
+    }
+
+    /**
+     * 追加开发者提示内容，并标记来源。
+     */
+    private void appendDeveloperText(StringBuilder builder, String content) {
+        if (!StringUtils.hasText(content)) {
+            return;
+        }
+        if (builder.length() > 0) {
+            builder.append("\n");
+        }
+        builder.append("[DEVELOPER]\n");
+        builder.append(content.trim());
     }
 
     /**
@@ -777,6 +864,31 @@ public class DefaultModelProvider implements ModelProvider {
             case DEVELOPER -> "developer";
             case USER -> "user";
         };
+    }
+
+    /**
+     * 映射模型接口的错误状态与错误码。
+     */
+    private ErrorCodeException mapModelError(HttpStatus status, String message) {
+        if (status == null) {
+            return new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MODEL_UNAVAILABLE", message);
+        }
+        if (status == HttpStatus.BAD_REQUEST || status == HttpStatus.UNPROCESSABLE_ENTITY) {
+            return new ErrorCodeException(status, "MODEL_BAD_REQUEST", message);
+        }
+        if (status == HttpStatus.UNAUTHORIZED) {
+            return new ErrorCodeException(status, "MODEL_AUTH_FAILED", message);
+        }
+        if (status == HttpStatus.FORBIDDEN) {
+            return new ErrorCodeException(status, "MODEL_FORBIDDEN", message);
+        }
+        if (status == HttpStatus.TOO_MANY_REQUESTS) {
+            return new ErrorCodeException(status, "MODEL_RATE_LIMITED", message);
+        }
+        if (status.is5xxServerError()) {
+            return new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MODEL_UNAVAILABLE", message);
+        }
+        return new ErrorCodeException(status, "MODEL_BAD_REQUEST", message);
     }
 
     /**

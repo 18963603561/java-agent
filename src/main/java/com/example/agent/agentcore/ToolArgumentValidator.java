@@ -138,6 +138,7 @@ public class ToolArgumentValidator {
         if (value instanceof String text) {
             try {
                 return new BigDecimal(text.trim());
+            // 异常捕获：记录上下文并按当前策略处理
             } catch (NumberFormatException ex) {
                 throw invalid(toolName, path, "类型应为数字");
             }
@@ -160,6 +161,7 @@ public class ToolArgumentValidator {
         if (value instanceof BigDecimal decimal) {
             try {
                 return decimal.longValueExact();
+            // 异常捕获：记录上下文并按当前策略处理
             } catch (ArithmeticException ex) {
                 throw invalid(toolName, path, "类型应为整数");
             }
@@ -174,6 +176,7 @@ public class ToolArgumentValidator {
         if (value instanceof String text) {
             try {
                 return Long.parseLong(text.trim());
+            // 异常捕获：记录上下文并按当前策略处理
             } catch (NumberFormatException ex) {
                 throw invalid(toolName, path, "类型应为整数");
             }

@@ -15,10 +15,20 @@ public class ReactStopDecision {
         this.reason = reason;
     }
 
+    /**
+     * 判断是否需要停止循环。
+     *
+     * @return 是否需要停止
+     */
     public boolean shouldStop() {
         return shouldStop;
     }
 
+    /**
+     * 判断是否已经完成目标。
+     *
+     * @return 是否完成
+     */
     public boolean isCompleted() {
         return completed;
     }

@@ -72,10 +72,12 @@ public class McpController {
         TenantContext tenantContext = getTenantContext(exchange);
         tenantContext.applyUserContext(userContext);
         try {
+            // 外部接口调用：请求工具服务获取工具列表
             McpToolListResponse response = mcpToolClient.listTools(request, tenantContext);
             log.info("工具列表返回, tenantId={}, count={}",
                     tenantContext.getTenantId(), response.getTools().size());
             return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (ErrorCodeException ex) {
             logMcpErrorIfNeeded(ex, tenantContext, request.getServerId(), null);
             throw ex;
@@ -114,6 +116,7 @@ public class McpController {
         }
         publishToolEvent(tenantContext, workflowId, EventType.TOOL_INVOKED, invokedPayload);
         try {
+            // 外部接口调用：请求工具服务执行工具
             McpToolCallResponse response = mcpToolClient.callTool(request, tenantContext);
             Map<String, Object> observationPayload = new java.util.HashMap<>();
             observationPayload.put("tool", request.getToolName());
@@ -132,6 +135,7 @@ public class McpController {
             log.info("工具调用完成, tenantId={}, tool={}, callId={}",
                     tenantContext.getTenantId(), request.getToolName(), request.getCallId());
             return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (ErrorCodeException ex) {
             Map<String, Object> errorPayload = new java.util.HashMap<>();
             errorPayload.put("tool", request.getToolName());

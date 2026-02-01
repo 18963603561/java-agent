@@ -132,6 +132,56 @@ class PlannerServiceTest {
     }
 
     @Test
+    void planPromptUsesContextSummary() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
+        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.ContextEventPublisher.class);
+        PlannerProperties properties = new PlannerProperties();
+        properties.setLlmEnabled(true);
+        properties.setFallbackEnabled(false);
+        CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
+        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher,
+                Mockito.mock(JsonOutputRepairService.class));
+
+        String content = """
+                {
+                  "summary":"llm-plan",
+                  "steps":[
+                    {"type":"TOOL","tool":"demo_tool","input":{"query":"ping","context":{}}}
+                  ]
+                }
+                """;
+        when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.PLANNER),
+                any(TenantContext.class), any(), any(), eq("plan"), any()))
+                .thenReturn(new ModelResponse("planner", content, 10, 20));
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        Map<String, Object> context = new HashMap<>();
+        context.put("contextSnapshot", Map.of("large", "snapshot"));
+        context.put("evidencePack", Map.of("items", List.of("a", "b")));
+        context.put("tokenUsage", Map.of("total", 100));
+        context.put("tool", "demo_tool");
+        request.setContext(context);
+
+        plannerService.plan(request, new TenantContext("t-1", "u-1", List.of(), "req", "trace"),
+                "wf-1", new java.util.concurrent.atomic.AtomicLong(0));
+
+        ArgumentCaptor<ModelRequest> requestCaptor = ArgumentCaptor.forClass(ModelRequest.class);
+        Mockito.verify(modelInvocationService).invoke(requestCaptor.capture(), eq(ModelScene.PLANNER),
+                any(TenantContext.class), eq("wf-1"), any(), eq("plan"), any());
+        String prompt = requestCaptor.getValue().getPrompt();
+        assertTrue(prompt.contains("contextSummary"));
+        assertFalse(prompt.contains("contextSnapshot"));
+        assertFalse(prompt.contains("evidencePack"));
+        assertFalse(prompt.contains("tokenUsage"));
+    }
+
+    @Test
     void disabledEvaluationDoesNotAffectPlanning() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);

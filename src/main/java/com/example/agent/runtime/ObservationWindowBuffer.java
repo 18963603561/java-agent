@@ -41,6 +41,11 @@ public class ObservationWindowBuffer {
         return new ArrayList<>(buffer);
     }
 
+    /**
+     * 获取当前窗口大小。
+     *
+     * @return 当前窗口内的记录数量
+     */
     public int size() {
         return buffer.size();
     }

@@ -16,6 +16,11 @@ public class InMemoryStepRecordRepository implements StepRecordRepository {
 
     private final ConcurrentHashMap<String, List<StepRecord>> stepStore = new ConcurrentHashMap<>();
 
+    /**
+     * 保存步骤记录到内存存储。
+     *
+     * @param record 步骤记录
+     */
     @Override
     public void save(StepRecord record) {
         String indexKey = buildIndexKey(record.getTenantId(), record.getWorkflowId());
@@ -23,6 +28,13 @@ public class InMemoryStepRecordRepository implements StepRecordRepository {
         stepStore.get(indexKey).add(record);
     }
 
+    /**
+     * 按租户与工作流查询步骤记录。
+     *
+     * @param tenantId 租户标识
+     * @param workflowId 工作流标识
+     * @return 步骤记录列表
+     */
     @Override
     public List<StepRecord> findByWorkflow(String tenantId, String workflowId) {
         String indexKey = buildIndexKey(tenantId, workflowId);

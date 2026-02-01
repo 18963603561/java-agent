@@ -16,6 +16,11 @@ public class CotProperties {
     private int maxSteps = 4;
 
     /**
+     * 历史步骤摘要最多保留条数，用于控制提示词体量。
+     */
+    private int maxStepSummaries = 10;
+
+    /**
      * 温度覆盖值，空值表示沿用默认模型温度。
      */
     private Double temperatureOverride;
@@ -41,6 +46,14 @@ public class CotProperties {
 
     public void setMaxSteps(int maxSteps) {
         this.maxSteps = maxSteps;
+    }
+
+    public int getMaxStepSummaries() {
+        return maxStepSummaries;
+    }
+
+    public void setMaxStepSummaries(int maxStepSummaries) {
+        this.maxStepSummaries = maxStepSummaries;
     }
 
     public Double getTemperatureOverride() {

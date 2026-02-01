@@ -127,6 +127,9 @@ class AgentRuntimeApprovalIntegrationTest {
         DebateCoordinator debateCoordinator = mock(DebateCoordinator.class);
         ResearchPipeline researchPipeline = mock(ResearchPipeline.class);
         FinalOutputService finalOutputService = mock(FinalOutputService.class);
+        LlmStepService llmStepService = mock(LlmStepService.class);
+        when(llmStepService.run(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("answer", "ok"));
         when(finalOutputService.finalizeOutput(any(), any(), any(), any(), any(), any(), any()))
                 .thenReturn(Map.of("answer", "ok"));
         ReactLoopService reactLoopService = mock(ReactLoopService.class);
@@ -153,6 +156,7 @@ class AgentRuntimeApprovalIntegrationTest {
                 debateCoordinator,
                 researchPipeline,
                 finalOutputService,
+                llmStepService,
                 reactLoopService,
                 memoryRecallService,
                 memoryWriteService,

@@ -4,6 +4,9 @@ import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.context.ContextAssembler;
 import com.example.agent.context.ContextSnapshot;
+import com.example.agent.context.EvidencePack;
+import com.example.agent.context.EvidencePackService;
+import com.example.agent.context.EvidenceStats;
 import com.example.agent.context.PromptAssemblyInput;
 import com.example.agent.evaluation.CapabilityBoundaryEvaluator;
 import com.example.agent.evaluation.CapabilityEvaluationInput;
@@ -837,7 +840,7 @@ public class PlannerService {
     private String buildPlanPrompt(TaskRequest request, Map<String, Object> context) {
         Map<String, Object> promptContext = new HashMap<>();
         promptContext.put("query", request != null ? request.getQuery() : null);
-        promptContext.put("context", context);
+        promptContext.put("contextSummary", buildContextSummary(context));
         String contextJson;
         try {
             contextJson = objectMapper.writeValueAsString(promptContext);
@@ -845,8 +848,40 @@ public class PlannerService {
             contextJson = "{}";
         }
         return """
-                你是任务规划器，请基于输入生成可执行步骤。
+                你是任务规划器（planner）。你的任务是：根据 PLAN_CONTEXT_JSON 中的 query 与上下文，生成“最小且可执行”的步骤计划。
+                
+                【规划原则】
+                1) 最小化：能 0 步解决就不要出步骤；能 1 步解决就不要拆 3 步。
+                2) 可执行：每个步骤必须能被执行器直接执行（type/tool/input 必须自洽）。
+                3) 不编造：不得编造外部数据结果；若需要查询数据源，必须规划工具步骤。
+                4) 区分两类问题：
+                   - DIRECT：常识解释/概念说明/纯文本生成，不需要工具，可输出 steps=[]
+                   - TOOL：需要外部数据/检索/数据库查询/调用系统接口，必须输出至少 1 个 TOOL 步骤
+                
+                【何时输出 steps=[]】
+                - 问题属于 DIRECT（解释类、定义类、改写/总结类等），且无需任何外部数据。
+                此时 summary 说明“无需工具，直接回答”，并可在允许的情况下输出额外字段 answerMode="DIRECT"。
+                
+                【何时必须输出 TOOL 步骤】
+                - query 明显需要外部数据/系统查询（如“查询用户/订单/日志/实时状态”）。
+                此时 steps 不能为空，且每个 TOOL 步骤必须包含 tool 与 input（input 里包含必要查询参数）。
+                
+                【步骤设计要求】
+                - steps[*].type:
+                  - 缺省为 "TOOL"
+                  - 如需内部处理也可用 "THINK"/"FINAL"（如你们执行器支持），否则不要用
+                - steps[*].tool:
+                  - 当 type="TOOL" 时必须非空，必须是已注册工具名
+                - steps[*].input:
+                  - 必须是 object
+                  - 必须仅包含执行器/工具需要的参数，避免塞入长文本
+                - steps[*].dependsOn:
+                  - 默认 []
+                  - 只有存在先后依赖时才填写（用步骤序号或 id，按你们约定）
+                
+                【输出约束】
                 输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+                
                 字段约束：
                 1) summary: string，缺信息填空串；无法给出有效步骤时用 summary 说明原因。
                 2) steps: array，缺信息填 []。
@@ -854,10 +889,143 @@ public class PlannerService {
                 4) steps[*].input: object，必须是 object，缺信息填 {}。
                 5) steps[*].tool: string，可缺省，缺信息填空串。
                 6) steps[*].dependsOn: array，可缺省，缺信息填 []。
+                
+                允许额外字段但不要依赖（推荐）：
+                - answerMode: "DIRECT" 或 "TOOL"
+                - toolRequired: boolean
+                
                 当无法确定 action/step 时，输出 steps=[]，summary 写明原因。
+                
                 最小示例 JSON：{"summary":"","steps":[]}
                 PLAN_CONTEXT_JSON:%s
                 """.formatted(contextJson);
+    }
+
+    private Map<String, Object> buildContextSummary(Map<String, Object> context) {
+        Map<String, Object> summary = new HashMap<>();
+        String snapshotId = resolveSnapshotId(context);
+        if (StringUtils.hasText(snapshotId)) {
+            summary.put("snapshotId", snapshotId);
+        }
+        Integer tokenBudget = resolveTokenBudget(context);
+        if (tokenBudget != null) {
+            summary.put("tokenBudget", tokenBudget);
+        }
+        Integer memoryItems = resolveMemoryItems(context);
+        if (memoryItems != null) {
+            summary.put("memoryItems", memoryItems);
+        }
+        List<String> tools = resolveTools(context);
+        if (!tools.isEmpty()) {
+            summary.put("tools", tools);
+        }
+        Integer evidenceCount = resolveEvidenceCount(context);
+        if (evidenceCount != null) {
+            summary.put("evidenceCount", evidenceCount);
+        }
+        if (summary.isEmpty()) {
+            summary.put("summary", "(summary disabled)");
+        }
+        return summary;
+    }
+
+    private String resolveSnapshotId(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object value = context.get("snapshotId");
+        if (value instanceof String text && StringUtils.hasText(text)) {
+            return text;
+        }
+        ContextSnapshot snapshot = resolveContextSnapshot(context);
+        if (snapshot != null && StringUtils.hasText(snapshot.getSnapshotId())) {
+            return snapshot.getSnapshotId();
+        }
+        return null;
+    }
+
+    private Integer resolveTokenBudget(Map<String, Object> context) {
+        ContextBudgetAllocation allocation = resolveContextBudget(context);
+        if (allocation != null && allocation.getTotalTokens() != null) {
+            return allocation.getTotalTokens();
+        }
+        return resolveInt(context != null ? context.get("budgetThresholdTokens") : null);
+    }
+
+    private Integer resolveMemoryItems(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object memoryObj = context.get("memory");
+        if (memoryObj instanceof Map<?, ?> memoryMap) {
+            Integer count = resolveInt(memoryMap.get("count"));
+            if (count != null) {
+                return count;
+            }
+        }
+        ContextSnapshot snapshot = resolveContextSnapshot(context);
+        if (snapshot != null && snapshot.getWorkingMemory() != null) {
+            return snapshot.getWorkingMemory().getWorkingMemoryItems();
+        }
+        return null;
+    }
+
+    private List<String> resolveTools(Map<String, Object> context) {
+        if (context == null) {
+            return List.of();
+        }
+        List<String> tools = new ArrayList<>();
+        addToolName(tools, context.get("tool"));
+        addToolName(tools, context.get("toolName"));
+        Object toolsObj = context.get("tools");
+        if (toolsObj instanceof List<?> list) {
+            for (Object item : list) {
+                addToolName(tools, item);
+            }
+        }
+        return tools;
+    }
+
+    private void addToolName(List<String> tools, Object value) {
+        if (tools == null || value == null) {
+            return;
+        }
+        String text = value.toString();
+        if (!StringUtils.hasText(text) || tools.contains(text)) {
+            return;
+        }
+        tools.add(text);
+    }
+
+    private Integer resolveEvidenceCount(Map<String, Object> context) {
+        if (context == null) {
+            return null;
+        }
+        Object evidence = context.get(EvidencePackService.CONTEXT_EVIDENCE_PACK);
+        if (evidence instanceof EvidencePack pack) {
+            EvidenceStats stats = pack.getStats();
+            if (stats != null && stats.getCitationsCount() != null) {
+                return stats.getCitationsCount();
+            }
+            if (pack.getCitations() != null) {
+                return pack.getCitations().size();
+            }
+        }
+        return null;
+    }
+
+    private Integer resolveInt(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof Number number) {
+            return number.intValue();
+        }
+        try {
+            return Integer.parseInt(value.toString());
+        } catch (NumberFormatException ex) {
+            return null;
+        }
     }
 
     private PlanParsingResult tryRepairPlan(String rawContent, TaskRequest request, Map<String, Object> context) {
@@ -868,7 +1036,7 @@ public class PlannerService {
         try {
             Map<String, Object> promptContext = new HashMap<>();
             promptContext.put("query", request != null ? request.getQuery() : null);
-            promptContext.put("context", context);
+            promptContext.put("contextSummary", buildContextSummary(context));
             contextJson = objectMapper.writeValueAsString(promptContext);
         } catch (Exception ex) {
             contextJson = "{}";

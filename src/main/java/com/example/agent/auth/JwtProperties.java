@@ -50,6 +50,11 @@ public class JwtProperties {
      */
     private String audience;
 
+    /**
+     * 获取是否启用令牌鉴权。
+     *
+     * @return 是否启用令牌鉴权
+     */
     public boolean isEnabled() {
         return enabled;
     }
@@ -58,6 +63,11 @@ public class JwtProperties {
         this.enabled = enabled;
     }
 
+    /**
+     * 获取是否校验签名。
+     *
+     * @return 是否校验签名
+     */
     public boolean isVerifySignature() {
         return verifySignature;
     }

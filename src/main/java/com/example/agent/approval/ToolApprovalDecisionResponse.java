@@ -37,6 +37,11 @@ public class ToolApprovalDecisionResponse {
         this.requestId = requestId;
     }
 
+    /**
+     * 获取是否审批通过。
+     *
+     * @return 是否审批通过
+     */
     public boolean isApproved() {
         return approved;
     }

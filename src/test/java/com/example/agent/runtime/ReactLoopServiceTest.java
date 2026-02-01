@@ -22,11 +22,13 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -310,6 +312,77 @@ class ReactLoopServiceTest {
         assertFalse(result.isCompleted());
         assertEquals("max_iterations", result.getStopReason());
         Mockito.verify(metricsPublisher).incrementWithTags("json_repair_failure_total", "scene", "react");
+    }
+
+    @Test
+    void reactPromptUsesObservationSummary() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        String decision1 = "{\"action\":\"tool\",\"tool\":\"demo_tool\",\"arguments\":{},\"shouldStop\":false,"
+                + "\"stopReason\":\"\",\"finalAnswer\":\"\"}";
+        String decision2 = "{\"action\":\"none\",\"tool\":\"\",\"arguments\":{},\"shouldStop\":false,"
+                + "\"stopReason\":\"\",\"finalAnswer\":\"\"}";
+        when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new ModelResponse("planner", decision1, 1, 1),
+                        new ModelResponse("planner", decision2, 1, 1));
+
+        ReactRuntimeProperties properties = new ReactRuntimeProperties();
+        properties.setMaxIterations(2);
+        properties.setMinIterations(1);
+        properties.setObservationWindow(2);
+
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        EnforcementGateway enforcementGateway = Mockito.mock(EnforcementGateway.class);
+        when(enforcementGateway.execute(any(), any(), any(), any(), any(), any()))
+                .thenReturn(Map.of("contextSnapshot", "big",
+                        "contextBudget", "big",
+                        "evidencePack", "big",
+                        "tokenUsage", "big"));
+        MemoryWriteService memoryWriteService = Mockito.mock(MemoryWriteService.class);
+        ExecutionControlService executionControlService = Mockito.mock(ExecutionControlService.class);
+        when(executionControlService.getState(any())).thenReturn(ExecutionControlState.RUNNING);
+        when(executionControlService.awaitIfBlocked(any())).thenReturn(ExecutionControlState.RUNNING);
+        HookManager hookManager = Mockito.mock(HookManager.class);
+        TestEventPublisher eventPublisher = new TestEventPublisher();
+        TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
+        when(tracingPublisher.currentTraceId()).thenReturn("trace");
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
+                metricsPublisher);
+
+        ReactLoopService service = new ReactLoopService(modelInvocationService,
+                modelToolResolver,
+                promptAssembler,
+                enforcementGateway,
+                memoryWriteService,
+                executionControlService,
+                hookManager,
+                eventPublisher,
+                tracingPublisher,
+                eventStreamService,
+                properties,
+                new ObjectMapper(),
+                repairService);
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        service.run(request, new TenantContext("t-1", "u-1", List.of(), "req", "trace"),
+                "wf-1", "task-1", new AtomicLong(0));
+
+        ArgumentCaptor<com.example.agent.model.ModelRequest> captor = ArgumentCaptor.forClass(
+                com.example.agent.model.ModelRequest.class);
+        Mockito.verify(modelInvocationService, Mockito.atLeast(2)).invoke(
+                captor.capture(), eq(com.example.agent.model.ModelScene.PLANNER),
+                any(), any(), any(), any(), any());
+        List<com.example.agent.model.ModelRequest> captured = captor.getAllValues();
+        String prompt = captured.get(captured.size() - 1).getPrompt();
+        assertNotNull(prompt);
+        assertFalse(prompt.contains("contextSnapshot"));
+        assertFalse(prompt.contains("contextBudget"));
+        assertFalse(prompt.contains("evidencePack"));
+        assertFalse(prompt.contains("tokenUsage"));
+        assertFalse(prompt.contains("\"content\""));
     }
 
     private ReactLoopService buildService(ModelInvocationService modelInvocationService,

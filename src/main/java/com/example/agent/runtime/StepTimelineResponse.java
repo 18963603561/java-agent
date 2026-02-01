@@ -46,6 +46,11 @@ public class StepTimelineResponse {
         this.nextCursor = nextCursor;
     }
 
+    /**
+     * 获取是否仍有更多步骤数据。
+     *
+     * @return 是否还有更多数据
+     */
     public boolean isHasMore() {
         return hasMore;
     }

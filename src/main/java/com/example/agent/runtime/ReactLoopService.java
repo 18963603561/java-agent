@@ -133,6 +133,7 @@ public class ReactLoopService {
             Map<String, Object> actOutput;
             try {
                 actOutput = act(request, tenantContext, workflowId, taskId, seqCounter, iteration, decision);
+            // 异常捕获：记录上下文并按当前策略处理
             } catch (RuntimeException ex) {
                 ReactLoopResult failed = new ReactLoopResult();
                 failed.setCompleted(false);
@@ -287,6 +288,7 @@ public class ReactLoopService {
         }
         try {
             memoryWriteService.saveObservationMemory(request, content, tenantContext, taskId);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (Exception ex) {
             log.warn("观察写入记忆失败, tenantId={}, taskId={}, reason={}",
                     tenantContext != null ? tenantContext.getTenantId() : null,
@@ -299,26 +301,59 @@ public class ReactLoopService {
         Map<String, Object> context = new HashMap<>();
         context.put("query", request != null ? request.getQuery() : null);
         context.put("iteration", iteration);
-        context.put("observations", observations);
+        context.put("observations", buildObservationSummaries(observations));
         String contextJson;
         try {
             contextJson = objectMapper.writeValueAsString(context);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (Exception ex) {
             contextJson = "{}";
         }
         return """
-                你是任务执行决策器，请根据上下文给出下一步行动决策。
-                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
-                字段约束：
-                1) action: string，仅允许 tool/stop/none，必须输出，缺信息填 "none"。
-                2) tool: string，当 action=tool 时必须输出且非空；当 action=none 时输出空串。
-                3) arguments: object，当 action=tool 时必须输出对象；当 action=none 时输出 {}。
-                4) shouldStop: boolean，当 action=stop 时必须为 true；否则输出 false。
-                5) stopReason: string，必须输出，缺信息填空串。
-                6) finalAnswer: string，当 action=stop 时必须输出（可空串），其他情况缺信息填空串。
-                最小示例 JSON：{"action":"none","tool":"","arguments":{},"shouldStop":false,"stopReason":"","finalAnswer":""}
-                REACT_CONTEXT_JSON:%s
-                """.formatted(contextJson);
+            你是 ReAct 循环中的任务执行决策器（decision engine）。
+            你的职责不是回答问题，而是根据 REACT_CONTEXT_JSON 的当前状态，严格按照规则决定下一步 action。
+            
+            你只能依据 steps、query、已有输出结果来做决策，禁止自由发挥。
+            
+            【决策规则】
+            
+            1) 必须选择 action="tool" 的情况：
+            - 当前还没有任何有效步骤执行（steps 为空），且 query 需要外部数据/查询
+            - 上一步 tool 执行失败（status=FAILED）
+            - 上一步没有返回有效 output
+            - 现有输出不足以回答 query
+            
+            2) 必须选择 action="stop" 的情况：
+            - 已经获得足够的结果数据，可以直接生成最终答案
+            - query 属于常识/解释类问题，不需要任何工具
+            - 多次执行后仍无法获得新信息（避免死循环）
+            
+            3) 选择 action="none" 的情况：
+            - 当前上下文信息不足，无法判断下一步
+            - 等待外部输入或人工干预
+            
+            【重要约束】
+            - 禁止编造工具参数
+            - 禁止在未获得数据前选择 stop
+            - 禁止重复调用同一个失败的工具而不改变参数
+            - 决策必须可被解释为“基于当前状态的最合理下一步”
+            
+            【字段约束】
+            输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+            
+            1) action: string，仅允许 tool/stop/none
+            2) tool: string，当 action=tool 时必须输出且非空；否则输出空串
+            3) arguments: object，当 action=tool 时必须输出对象；否则输出 {}
+            4) shouldStop: boolean，当 action=stop 时必须为 true；否则 false
+            5) stopReason: string，说明为何 stop 或为何选择当前 action
+            6) finalAnswer: string，仅当 action=stop 时输出（可空串）
+            
+            最小示例 JSON：
+            {"action":"none","tool":"","arguments":{},"shouldStop":false,"stopReason":"","finalAnswer":""}
+            
+            REACT_CONTEXT_JSON:%s
+            """.formatted(contextJson);
+
     }
 
     private ReactDecision parseDecision(String content) {
@@ -328,6 +363,7 @@ public class ReactLoopService {
         try {
             return objectMapper.readValue(content, new TypeReference<ReactDecision>() {
             });
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (Exception ex) {
             return null;
         }
@@ -343,10 +379,11 @@ public class ReactLoopService {
         Map<String, Object> context = new HashMap<>();
         context.put("query", request != null ? request.getQuery() : null);
         context.put("iteration", iteration);
-        context.put("observations", observations);
+        context.put("observations", buildObservationSummaries(observations));
         String contextJson;
         try {
             contextJson = objectMapper.writeValueAsString(context);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (Exception ex) {
             contextJson = "{}";
         }
@@ -355,6 +392,193 @@ public class ReactLoopService {
             return null;
         }
         return parseDecision(repaired);
+    }
+
+    /**
+     * 构建摘要化的观察列表，避免将原始输出注入提示词。
+     */
+    private List<Map<String, Object>> buildObservationSummaries(List<ReactObservation> observations) {
+        if (observations == null || observations.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> summaries = new ArrayList<>();
+        for (ReactObservation observation : observations) {
+            if (observation == null) {
+                continue;
+            }
+            Map<String, Object> summary = new HashMap<>();
+            String tool = observation.getTool();
+            String content = observation.getContent();
+            int contentSize = content != null ? content.length() : 0;
+            summary.put("contentSize", contentSize);
+
+            Map<String, Object> outputMap = parseObservationOutput(content);
+            if (!StringUtils.hasText(tool)) {
+                tool = resolveToolFromOutput(outputMap);
+            }
+            if (StringUtils.hasText(tool)) {
+                summary.put("tool", tool);
+            }
+
+            ObservationSummaryData data = resolveObservationSummary(outputMap);
+            summary.put("summary", data.summary);
+            summary.put("truncated", data.truncated);
+            if (StringUtils.hasText(data.status)) {
+                summary.put("status", data.status);
+            }
+            if (StringUtils.hasText(data.errorCode)) {
+                summary.put("errorCode", data.errorCode);
+            }
+            summaries.add(summary);
+        }
+        return summaries;
+    }
+
+    private Map<String, Object> parseObservationOutput(String content) {
+        if (!StringUtils.hasText(content)) {
+            return Map.of();
+        }
+        try {
+            return objectMapper.readValue(content, new TypeReference<Map<String, Object>>() {
+            });
+        // 异常捕获：记录上下文并按当前策略处理
+        } catch (Exception ex) {
+            return Map.of();
+        }
+    }
+
+    private String resolveToolFromOutput(Map<String, Object> output) {
+        if (output == null) {
+            return null;
+        }
+        String tool = toText(output.get("tool"));
+        if (!StringUtils.hasText(tool)) {
+            tool = toText(output.get("toolName"));
+        }
+        return tool;
+    }
+
+    private ObservationSummaryData resolveObservationSummary(Map<String, Object> output) {
+        ObservationSummaryData data = new ObservationSummaryData();
+        Map<String, Object> toolResultSummary = extractMap(output, "toolResultSummary");
+        Map<String, Object> outputSummary = extractMap(output, "outputSummary");
+        Map<String, Object> stepSummary = extractMap(output, "stepSummary");
+        Map<String, Object> outputDigest = extractMap(output, "outputDigest");
+
+        data.summary = resolveSummaryText(toolResultSummary);
+        if (!StringUtils.hasText(data.summary)) {
+            data.summary = resolveSummaryText(outputSummary);
+        }
+        if (!StringUtils.hasText(data.summary)) {
+            data.summary = resolveSummaryText(stepSummary);
+        }
+        if (!StringUtils.hasText(data.summary)) {
+            data.summary = buildDigestSummary(outputDigest);
+        }
+        if (!StringUtils.hasText(data.summary)) {
+            data.summary = "(summary disabled)";
+        }
+
+        data.status = resolveStatus(outputSummary, stepSummary, output);
+        data.errorCode = resolveErrorCode(outputSummary, output);
+        data.truncated = resolveTruncated(output, outputDigest);
+        return data;
+    }
+
+    private String resolveSummaryText(Map<String, Object> summaryMap) {
+        if (summaryMap == null || summaryMap.isEmpty()) {
+            return null;
+        }
+        Object summary = summaryMap.get("summary");
+        if (summary != null && StringUtils.hasText(summary.toString())) {
+            return summary.toString();
+        }
+        Object sample = summaryMap.get("sample");
+        if (sample != null && StringUtils.hasText(sample.toString())) {
+            return sample.toString();
+        }
+        return toJsonSafe(summaryMap);
+    }
+
+    private String resolveStatus(Map<String, Object> outputSummary,
+                                 Map<String, Object> stepSummary,
+                                 Map<String, Object> output) {
+        String status = toText(outputSummary != null ? outputSummary.get("status") : null);
+        if (!StringUtils.hasText(status)) {
+            status = toText(stepSummary != null ? stepSummary.get("status") : null);
+        }
+        if (!StringUtils.hasText(status)) {
+            status = toText(output != null ? output.get("status") : null);
+        }
+        return status;
+    }
+
+    private String resolveErrorCode(Map<String, Object> outputSummary, Map<String, Object> output) {
+        String errorCode = toText(outputSummary != null ? outputSummary.get("errorCode") : null);
+        if (!StringUtils.hasText(errorCode)) {
+            errorCode = toText(output != null ? output.get("errorCode") : null);
+        }
+        return errorCode;
+    }
+
+    private boolean resolveTruncated(Map<String, Object> output, Map<String, Object> outputDigest) {
+        Object truncated = output != null ? output.get("truncated") : null;
+        if (truncated instanceof Boolean value) {
+            return value;
+        }
+        Object digestValue = outputDigest != null ? outputDigest.get("truncated") : null;
+        return digestValue instanceof Boolean value && value;
+    }
+
+    private String buildDigestSummary(Map<String, Object> digest) {
+        if (digest == null || digest.isEmpty()) {
+            return null;
+        }
+        StringBuilder builder = new StringBuilder("digest");
+        appendDigestField(builder, "keyCount", digest.get("keyCount"));
+        appendDigestField(builder, "charCount", digest.get("charCount"));
+        appendDigestField(builder, "truncated", digest.get("truncated"));
+        return builder.toString();
+    }
+
+    private void appendDigestField(StringBuilder builder, String field, Object value) {
+        if (builder == null || value == null) {
+            return;
+        }
+        builder.append(' ').append(field).append('=').append(value);
+    }
+
+    private Map<String, Object> extractMap(Map<String, Object> output, String key) {
+        if (output == null || key == null) {
+            return null;
+        }
+        Object value = output.get(key);
+        if (!(value instanceof Map<?, ?> map)) {
+            return null;
+        }
+        Map<String, Object> result = new HashMap<>();
+        map.forEach((k, v) -> result.put(String.valueOf(k), v));
+        return result;
+    }
+
+    private String toJsonSafe(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        // 异常捕获：记录上下文并按当前策略处理
+        } catch (Exception ex) {
+            return String.valueOf(value);
+        }
+    }
+
+    private String toText(Object value) {
+        return value == null ? null : String.valueOf(value);
+    }
+
+    private static final class ObservationSummaryData {
+        private String summary;
+        private String status;
+        private String errorCode;
+        private boolean truncated;
     }
 
     private void recordPromptTrace(Map<String, Object> metadata,
@@ -428,6 +652,7 @@ public class ReactLoopService {
         }
         try {
             return objectMapper.writeValueAsString(output);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (Exception ex) {
             return String.valueOf(output);
         }
@@ -446,6 +671,7 @@ public class ReactLoopService {
         }
         try {
             executionControlService.awaitIfBlocked(workflowId);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (ErrorCodeException ex) {
             if ("CANCELLED".equals(ex.getErrorCode())) {
                 publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_CANCELLED,
@@ -479,6 +705,7 @@ public class ReactLoopService {
         }
         try {
             executionControlService.awaitIfBlocked(workflowId);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (ErrorCodeException ex) {
             if ("CANCELLED".equals(ex.getErrorCode())) {
                 publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_CANCELLED,

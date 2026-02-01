@@ -10,11 +10,13 @@ import com.example.agent.model.PromptAssembler;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.runtime.StepRequest;
 import com.example.agent.repair.JsonOutputRepairService;
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -162,5 +164,114 @@ class ReflectionServiceTest {
         assertNotNull(result);
         assertNotNull(result.getReport());
         Mockito.verify(metricsPublisher).incrementWithTags("json_repair_failure_total", "scene", "reflection");
+    }
+
+    @Test
+    void reflectPromptUsesSummaryOnly() {
+        ReflectionProperties properties = new ReflectionProperties();
+        properties.setEnabled(true);
+        properties.setLlmEnabled(true);
+        properties.setFallbackEnabled(false);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        ReflectionService service = new ReflectionService(properties, metricsPublisher,
+                modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper(),
+                Mockito.mock(JsonOutputRepairService.class));
+
+        String content = "{\"score\":0.9,\"retry\":false,\"notes\":\"ok\"}";
+        when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
+                any(TenantContext.class), any(), any(), eq("reflect"), any()))
+                .thenReturn(new ModelResponse("reflect", content, 10, 5));
+
+        StepRequest step = new StepRequest("TOOL", Map.of());
+        Map<String, Object> output = Map.of(
+                "contextSnapshot", "big",
+                "contextBudget", "big",
+                "evidencePack", "big",
+                "tokenUsage", "big"
+        );
+
+        ReflectionResult result = service.reflect(step, output,
+                new TenantContext("t1", "u1", List.of(), "req", "trace"), 1,
+                "wf-1", new java.util.concurrent.atomic.AtomicLong(0));
+
+        assertNotNull(result);
+
+        ArgumentCaptor<ModelRequest> captor = ArgumentCaptor.forClass(ModelRequest.class);
+        Mockito.verify(modelInvocationService).invoke(captor.capture(), eq(ModelScene.REFLECT),
+                any(TenantContext.class), any(), any(), eq("reflect"), any());
+        String prompt = captor.getValue().getPrompt();
+        assertNotNull(prompt);
+        assertFalse(prompt.contains("contextSnapshot"));
+        assertFalse(prompt.contains("contextBudget"));
+        assertFalse(prompt.contains("evidencePack"));
+        assertFalse(prompt.contains("tokenUsage"));
+        assertFalse(prompt.contains("\"output\""));
+        assertTrue(prompt.contains("(summary disabled)"));
+    }
+
+    @Test
+    void reflectPromptFillsDigestSummaryWhenMissing() throws Exception {
+        ReflectionProperties properties = new ReflectionProperties();
+        properties.setEnabled(true);
+        properties.setLlmEnabled(true);
+        properties.setFallbackEnabled(false);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        ReflectionService service = new ReflectionService(properties, metricsPublisher,
+                modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper(),
+                Mockito.mock(JsonOutputRepairService.class));
+
+        String content = "{\"score\":0.9,\"retry\":false,\"notes\":\"ok\"}";
+        when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
+                any(TenantContext.class), any(), any(), eq("reflect"), any()))
+                .thenReturn(new ModelResponse("reflect", content, 10, 5));
+
+        Map<String, Object> output = new java.util.HashMap<>();
+        output.put("outputSummary", new java.util.HashMap<>());
+        output.put("outputDigest", Map.of(
+                "keyCount", 12,
+                "keys", List.of("a", "b", "c"),
+                "charCount", 2048,
+                "truncated", true
+        ));
+        output.put("contextSnapshot", "big");
+        output.put("contextBudget", "big");
+        output.put("evidencePack", "big");
+        output.put("tokenUsage", "big");
+
+        StepRequest step = new StepRequest("TOOL", Map.of());
+        ReflectionResult result = service.reflect(step, output,
+                new TenantContext("t1", "u1", List.of(), "req", "trace"), 1,
+                "wf-1", new java.util.concurrent.atomic.AtomicLong(0));
+
+        assertNotNull(result);
+
+        ArgumentCaptor<ModelRequest> captor = ArgumentCaptor.forClass(ModelRequest.class);
+        Mockito.verify(modelInvocationService).invoke(captor.capture(), eq(ModelScene.REFLECT),
+                any(TenantContext.class), any(), any(), eq("reflect"), any());
+        String prompt = captor.getValue().getPrompt();
+        assertNotNull(prompt);
+        assertFalse(prompt.contains("contextSnapshot"));
+        assertFalse(prompt.contains("contextBudget"));
+        assertFalse(prompt.contains("evidencePack"));
+        assertFalse(prompt.contains("tokenUsage"));
+
+        String marker = "REFLECTION_CONTEXT_JSON:";
+        int index = prompt.indexOf(marker);
+        assertTrue(index > -1);
+        String contextJson = prompt.substring(index + marker.length()).trim();
+        Map<String, Object> context = new ObjectMapper().readValue(contextJson, new TypeReference<Map<String, Object>>() {
+        });
+        Object summaryObj = ((Map<?, ?>) context.get("outputSummary")).get("summary");
+        assertNotNull(summaryObj);
+        String summary = summaryObj.toString();
+        assertTrue(summary.contains("keyCount=12"));
+        assertTrue(summary.contains("keys="));
+        assertTrue(summary.contains("truncated=true"));
     }
 }

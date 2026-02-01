@@ -105,6 +105,11 @@ public class ApiKeyProperties {
          */
         private String tokenHeader = "X-Trusted-Token";
 
+        /**
+         * 获取可信上游模式是否启用。
+         *
+         * @return 是否启用可信上游模式
+         */
         public boolean isEnabled() {
             return enabled;
         }

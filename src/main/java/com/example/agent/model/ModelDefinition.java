@@ -33,6 +33,10 @@ public class ModelDefinition {
      * 最大令牌数。
      */
     private int maxTokens;
+    /**
+     * 是否支持 developer 角色，默认支持，可按模型配置关闭。
+     */
+    private Boolean supportsDeveloperRole;
 
     /**
      * 获取模型标识。
@@ -158,5 +162,23 @@ public class ModelDefinition {
      */
     public void setMaxTokens(int maxTokens) {
         this.maxTokens = maxTokens;
+    }
+
+    /**
+     * 获取是否支持 developer 角色。
+     *
+     * @return 是否支持 developer 角色
+     */
+    public Boolean getSupportsDeveloperRole() {
+        return supportsDeveloperRole;
+    }
+
+    /**
+     * 设置是否支持 developer 角色。
+     *
+     * @param supportsDeveloperRole 是否支持 developer 角色
+     */
+    public void setSupportsDeveloperRole(Boolean supportsDeveloperRole) {
+        this.supportsDeveloperRole = supportsDeveloperRole;
     }
 }

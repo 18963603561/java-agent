@@ -190,6 +190,34 @@ public class McpToolClient {
     }
 
     /**
+     * 仅调用远程 MCP 获取工具列表，不走本地合并与回退。
+     *
+     * @param server MCP 服务器
+     * @param request 列表请求
+     * @param tenantContext 租户上下文（为空时使用系统上下文）
+     * @return 远程工具列表
+     *
+     * <p>注意：server 为空会抛出 MCP_UNAVAILABLE。</p>
+     */
+    public McpToolListResponse listToolsRemoteOnly(McpServerProperties.McpServer server,
+                                                   McpToolListRequest request,
+                                                   TenantContext tenantContext) {
+        if (server == null) {
+            throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE", "MCP 服务不可用");
+        }
+        if (!isRemoteServer(server)) {
+            return new McpToolListResponse(List.of(), null, false);
+        }
+        validateServer(server);
+        TenantContext effectiveContext = tenantContext != null
+                ? tenantContext
+                : new TenantContext("system", "system", List.of("system"), "mcp-sync", null);
+        McpToolListRequest safeRequest = request != null ? request : new McpToolListRequest();
+        return listToolsRemoteWithRetry(server, safeRequest, effectiveContext, server.getId());
+    }
+
+
+    /**
      * 调用工具。
      *
      * @param request 调用请求
@@ -409,7 +437,7 @@ public class McpToolClient {
             Object result = resolveJsonRpcResult(response, error);
             return objectMapper.convertValue(result, McpToolListResponse.class);
         }
-        String url = buildRestUrl(server.getBaseUrl(), "tools/list");
+        String url = buildRestUrl(server, "tools/list");
         Map<String, Object> response = post(server, url, request, timeoutSeconds);
         return convertResponse(response, McpToolListResponse.class);
     }
@@ -428,7 +456,7 @@ public class McpToolClient {
             String callId = resolveJsonRpcCallId(request.getCallId(), response);
             return new McpToolCallResponse(callId, "SUCCESS", resultMap, null);
         }
-        String url = buildRestUrl(server.getBaseUrl(), "tools/call");
+        String url = buildRestUrl(server, "tools/call");
         Map<String, Object> response = post(server, url, request, timeout);
         return convertResponse(response, McpToolCallResponse.class);
     }
@@ -868,16 +896,22 @@ public class McpToolClient {
         return new ErrorCodeException(status, errorCode, message);
     }
 
-    private String buildRestUrl(String baseUrl, String path) {
+    private String buildRestUrl(McpServerProperties.McpServer server, String path) {
+        String baseUrl = server != null ? server.getBaseUrl() : null;
         if (!StringUtils.hasText(baseUrl)) {
-            return baseUrl;
-        }
-        if (!StringUtils.hasText(path)) {
             return baseUrl;
         }
         String normalizedBase = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         String normalizedPath = path.startsWith("/") ? path.substring(1) : path;
-        return normalizedBase + "/" + normalizedPath;
+        String url = normalizedBase + "/" + normalizedPath;
+        if (server != null && StringUtils.hasText(server.getSseUrl())) {
+            String sessionId = ensureSseSession(server);
+            String paramName = StringUtils.hasText(server.getSessionParamName())
+                    ? server.getSessionParamName()
+                    : "sessionId";
+            url = appendQueryParam(url, paramName, sessionId);
+        }
+        return url;
     }
 
     private Map<String, Object> post(McpServerProperties.McpServer server, String url, Object body, long timeoutSec) {

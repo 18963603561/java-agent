@@ -158,6 +158,7 @@ public class GlobalExceptionHandler implements WebExceptionHandler {
     private byte[] toJsonBytes(Object value) {
         try {
             return objectMapper.writeValueAsBytes(value);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (JsonProcessingException e) {
             String fallback = "{\"code\":\"INTERNAL_ERROR\",\"message\":\"serialize_failed\"}";
             return fallback.getBytes(StandardCharsets.UTF_8);

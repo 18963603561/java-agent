@@ -13,7 +13,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEvent;
@@ -237,6 +239,64 @@ class ChainOfThoughtServiceTest {
         assertFalse(result.isCompleted());
         assertEquals("invalid_response", result.getStopReason());
         Mockito.verify(metricsPublisher).incrementWithTags("json_repair_failure_total", "scene", "cot");
+    }
+
+    @Test
+    void chainOfThoughtPromptUsesRecentSummariesAndNoRawFields() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        AtomicInteger callIndex = new AtomicInteger(0);
+        AtomicReference<String> capturedPrompt = new AtomicReference<>();
+        when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
+                .thenAnswer(invocation -> {
+                    int index = callIndex.incrementAndGet();
+                    ModelResponse response;
+                    if (index < 3) {
+                        response = new ModelResponse("cot-model",
+                                "{\"stepSummary\":\"s" + index + "\",\"shouldContinue\":true,\"confidence\":0.5}",
+                                1, 1);
+                    } else {
+                        response = new ModelResponse("cot-model",
+                                "{\"stepSummary\":\"s3\",\"shouldContinue\":false,\"finalAnswer\":\"done\",\"confidence\":0.5}",
+                                1, 1);
+                    }
+                    if (index == 3) {
+                        Object request = invocation.getArgument(0);
+                        if (request instanceof com.example.agent.model.ModelRequest modelRequest) {
+                            capturedPrompt.set(modelRequest.getPrompt());
+                        }
+                    }
+                    return response;
+                });
+
+        CotProperties props = new CotProperties();
+        props.setMaxSteps(3);
+        props.setMaxStepSummaries(1);
+
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        ChainOfThoughtService service = new ChainOfThoughtService(
+                modelInvocationService,
+                promptAssembler,
+                new ObjectMapper(),
+                new TestEventPublisher(),
+                Mockito.mock(EventStreamService.class),
+                props, Mockito.mock(JsonOutputRepairService.class));
+
+        Map<String, Object> input = new java.util.HashMap<>();
+        input.put("lastStepSummary", Map.of("summary", "recent"));
+        input.put("contextSnapshot", Map.of("large", "snapshot"));
+        input.put("evidencePack", Map.of("items", List.of("a")));
+        input.put("tokenUsage", Map.of("total", 100));
+
+        TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
+        ChainOfThoughtResult result = service.run("test", input, tenantContext, "wf-1", new AtomicLong(0));
+
+        assertTrue(result.isCompleted());
+        String prompt = capturedPrompt.get();
+        assertTrue(prompt.contains("s2"));
+        assertFalse(prompt.contains("s1"));
+        assertFalse(prompt.contains("contextSnapshot"));
+        assertFalse(prompt.contains("evidencePack"));
+        assertFalse(prompt.contains("tokenUsage"));
     }
 
     static class TestEventPublisher implements ApplicationEventPublisher {

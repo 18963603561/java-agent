@@ -113,6 +113,7 @@ public class ToolCache {
         if (useRedis()) {
             StringRedisTemplate redisTemplate = redisTemplateProvider.getIfAvailable();
             if (redisTemplate != null) {
+                // 外部接口调用：从缓存服务删除缓存项
                 redisTemplate.delete(buildRedisKey(key));
             }
         }
@@ -128,11 +129,13 @@ public class ToolCache {
             return null;
         }
         try {
+            // 外部接口调用：从缓存服务读取缓存项
             String json = redisTemplate.opsForValue().get(buildRedisKey(key));
             if (json == null) {
                 return null;
             }
             return objectMapper.readValue(json, Object.class);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (JsonProcessingException ex) {
             log.warn("工具缓存反序列化失败, key={}", key, ex);
             return null;
@@ -148,10 +151,13 @@ public class ToolCache {
             String json = objectMapper.writeValueAsString(value);
             Duration effectiveTtl = ttl != null ? ttl : Duration.ofSeconds(Math.max(0, defaultTtlSeconds));
             if (effectiveTtl.isZero() || effectiveTtl.isNegative()) {
+                // 外部接口调用：写入缓存服务缓存项（不设置过期）
                 redisTemplate.opsForValue().set(buildRedisKey(key), json);
             } else {
+                // 外部接口调用：写入缓存服务缓存项（带过期时间）
                 redisTemplate.opsForValue().set(buildRedisKey(key), json, effectiveTtl);
             }
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (JsonProcessingException ex) {
             log.warn("工具缓存序列化失败, key={}", key, ex);
         }

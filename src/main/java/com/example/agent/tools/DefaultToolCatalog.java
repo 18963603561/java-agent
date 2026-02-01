@@ -10,6 +10,7 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -26,6 +27,7 @@ public class DefaultToolCatalog implements ToolCatalog, ToolCatalogService {
     private final ToolCache toolCache;
     private final ObjectMapper objectMapper;
     private final MetricsPublisher metricsPublisher;
+    private final ObjectProvider<McpToolSyncService> toolSyncServiceProvider;
 
     @Value("${agent.tool.definition-cache-ttl-seconds:300}")
     private long definitionCacheTtlSeconds;
@@ -36,15 +38,18 @@ public class DefaultToolCatalog implements ToolCatalog, ToolCatalogService {
     public DefaultToolCatalog(ToolRegistry toolRegistry,
                               ToolCache toolCache,
                               ObjectMapper objectMapper,
-                              MetricsPublisher metricsPublisher) {
+                              MetricsPublisher metricsPublisher,
+                              ObjectProvider<McpToolSyncService> toolSyncServiceProvider) {
         this.toolRegistry = toolRegistry;
         this.toolCache = toolCache;
         this.objectMapper = objectMapper;
         this.metricsPublisher = metricsPublisher;
+        this.toolSyncServiceProvider = toolSyncServiceProvider;
     }
 
     @Override
     public List<ToolSummary> listSummaries(ToolQuery query) {
+        refreshRemoteTools("list_summaries");
         List<McpToolDefinition> definitions = toolRegistry.listDefinitions();
         if (definitions == null || definitions.isEmpty()) {
             return List.of();
@@ -73,6 +78,7 @@ public class DefaultToolCatalog implements ToolCatalog, ToolCatalogService {
 
     @Override
     public McpToolDefinition getDefinition(String toolName) {
+        refreshRemoteTools("get_definition");
         if (!StringUtils.hasText(toolName)) {
             return null;
         }
@@ -91,6 +97,7 @@ public class DefaultToolCatalog implements ToolCatalog, ToolCatalogService {
 
     @Override
     public Map<String, Object> getToolSchema(String toolName) {
+        refreshRemoteTools("get_schema");
         if (!StringUtils.hasText(toolName)) {
             return null;
         }
@@ -117,6 +124,16 @@ public class DefaultToolCatalog implements ToolCatalog, ToolCatalogService {
         }
         log.info("工具输入结构加载完成, tool={}", toolName);
         return schema;
+    }
+
+    private void refreshRemoteTools(String reason) {
+        if (toolSyncServiceProvider == null) {
+            return;
+        }
+        McpToolSyncService syncService = toolSyncServiceProvider.getIfAvailable();
+        if (syncService != null) {
+            syncService.refreshIfNeeded(reason);
+        }
     }
 
     private boolean matchesTags(McpToolDefinition definition, ToolQuery query) {

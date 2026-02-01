@@ -98,8 +98,11 @@ public class PluginLoader {
             }
         }
         if (!tools.isEmpty()) {
-            toolRegistry.registerDefinitions(tools);
-            log.info("插件工具加载完成, plugin={}, tools={}", descriptor.getName(), tools.size());
+            String source = StringUtils.hasText(descriptor.getName())
+                    ? "plugin:" + descriptor.getName()
+                    : "plugin";
+            toolRegistry.registerDefinitions(tools, source, false);
+            log.info("插件工具已注册, plugin={}, tools={}", descriptor.getName(), tools.size());
         }
     }
 

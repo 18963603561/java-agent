@@ -119,6 +119,7 @@ public class ApprovalService {
             ApprovalDecision decision = handle.getFuture().get(effectiveTimeout, TimeUnit.SECONDS);
             recordDecisionMetrics(handle, decision);
             return decision;
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (TimeoutException ex) {
             ApprovalDecision decision = ApprovalDecision.timeout(handle.getRequestId(), "timeout");
             handle.getFuture().complete(decision);
@@ -126,6 +127,7 @@ public class ApprovalService {
             incrementMetric("approval_timeout_total");
             log.warn("审批等待超时, requestId={}, timeoutSeconds={}", handle.getRequestId(), effectiveTimeout);
             return decision;
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
             ApprovalDecision decision = ApprovalDecision.rejected(handle.getRequestId(), "interrupted");
@@ -133,6 +135,7 @@ public class ApprovalService {
             recordDecisionMetrics(handle, decision);
             log.warn("审批等待中断, requestId={}", handle.getRequestId());
             return decision;
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (ExecutionException ex) {
             ApprovalDecision decision = ApprovalDecision.rejected(handle.getRequestId(), "decision_failed");
             handle.getFuture().complete(decision);

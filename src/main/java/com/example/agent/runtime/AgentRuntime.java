@@ -127,6 +127,10 @@ public class AgentRuntime {
      */
     private final FinalOutputService finalOutputService;
     /**
+     * LLM 步骤服务，用于处理带工具注入的步骤执行。
+     */
+    private final LlmStepService llmStepService;
+    /**
      * {@code ReAct} 循环服务。
      * <p>示例：执行多轮观察与行动。
      */
@@ -234,6 +238,7 @@ public class AgentRuntime {
                         DebateCoordinator debateCoordinator,
                         ResearchPipeline researchPipeline,
                         FinalOutputService finalOutputService,
+                        LlmStepService llmStepService,
                         ReactLoopService reactLoopService,
                         MemoryRecallService memoryRecallService,
                         MemoryWriteService memoryWriteService,
@@ -259,6 +264,7 @@ public class AgentRuntime {
         this.debateCoordinator = debateCoordinator;
         this.researchPipeline = researchPipeline;
         this.finalOutputService = finalOutputService;
+        this.llmStepService = llmStepService;
         this.reactLoopService = reactLoopService;
         this.memoryRecallService = memoryRecallService;
         this.memoryWriteService = memoryWriteService;
@@ -406,7 +412,7 @@ public class AgentRuntime {
                 Map<String, Object> output;
                 String stepType = step.getStepType();
                 if ("LLM".equalsIgnoreCase(stepType) || "ANSWER".equalsIgnoreCase(stepType)) {
-                    output = executeLlmStep(request, stepInput, tenantContext, workflowId, seqCounter);
+                    output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
                 } else if ("THOUGHT_TREE".equalsIgnoreCase(stepType)) {
                     output = executeThoughtTree(step, tenantContext, workflowId, seqCounter);
                 } else if ("CHAIN_OF_THOUGHT".equalsIgnoreCase(stepType)
@@ -437,7 +443,7 @@ public class AgentRuntime {
                     if (toolName == null || toolName.isBlank()) {
                         log.info("未指定工具, 转为大模型步骤, 工作流={}, 任务={}, 步骤={}",
                                 workflowId, taskId, record.getStepId());
-                        output = executeLlmStep(request, stepInput, tenantContext, workflowId, seqCounter);
+                        output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
                     } else {
                         output = executeToolStep(request, tenantContext, workflowId, taskId, seqCounter, record, toolName);
                     }
@@ -460,6 +466,7 @@ public class AgentRuntime {
                 updateRuntimeContext(runtimeContext, record, output);
                 recordStepOutput(stepOutputs, record, output);
                 return StepOutcome.SUCCESS;
+            // 异常捕获：记录上下文并按当前策略处理
             } catch (Throwable ex) {
                 String fallbackTool = resolveFallbackTool(request, step);
                 FailureType failureType = failureClassifier.classify(ex);
@@ -477,6 +484,7 @@ public class AgentRuntime {
                         updateRuntimeContext(runtimeContext, record, fallbackOutput);
                         recordStepOutput(stepOutputs, record, fallbackOutput);
                         return StepOutcome.SUCCESS;
+                    // 异常捕获：记录上下文并按当前策略处理
                     } catch (Throwable fallbackEx) {
                         ex = fallbackEx;
                     }
@@ -506,44 +514,37 @@ public class AgentRuntime {
     }
 
     /**
-     * 执行大模型步骤，直接生成答复。
+     * 执行 LLM 步骤，走独立 LLM 分支并支持工具调用。
      *
-     * <p>输入：任务请求、步骤输入与运行上下文。
-     * <p>输出：包含 {@code answer} 的结构化结果。
-     * <p>边界：模型无响应时返回兜底答复。
+     * <p>输入：任务请求、步骤输入与运行上下文。</p>
+     * <p>输出：LLM 步骤输出，可能包含工具调用与二次总结结果。</p>
+     * <p>边界：返回空或解析失败时回退为 no_response。</p>
      */
     private Map<String, Object> executeLlmStep(TaskRequest request,
                                                Map<String, Object> stepInput,
                                                TenantContext tenantContext,
                                                String workflowId,
+                                               String taskId,
                                                AtomicLong seqCounter) {
-        String query = resolveStepQuestion(stepInput, request);
+        String query = request != null ? request.getQuery() : null;
         int queryLength = query != null ? query.length() : 0;
         boolean hasContext = stepInput != null && stepInput.get("context") != null;
-        log.info("大模型步骤开始, 工作流={}, 查询长度={}, 含上下文={}",
+        // 记录步骤入口信息，便于排查上下文缺失问题
+        log.info("LLM 步骤开始, workflowId={}, queryLength={}, hasContext={}",
                 workflowId, queryLength, hasContext);
-        Map<String, Object> raw = finalOutputService.finalizeOutput(
-                request,
-                query,
-                null,
-                List.of(),
-                tenantContext,
-                workflowId,
-                seqCounter
-        );
-        Map<String, Object> output = new HashMap<>();
-        if (raw != null && !raw.isEmpty()) {
-            raw.forEach((key, value) -> output.put(String.valueOf(key), value));
-        } else {
+        Map<String, Object> output = llmStepService.run(request, stepInput, tenantContext,
+                workflowId, taskId, seqCounter);
+        if (output == null || output.isEmpty()) {
+            // 模型输出为空时的兜底处理
+            output = new HashMap<>();
             output.put("answer", "no_response");
+            output.put("source", "llm_step");
         }
-        output.putIfAbsent("source", "llm");
-        log.info("大模型步骤完成, 工作流={}, 输出字段={}",
-                workflowId, output.keySet());
+        log.info("LLM 步骤完成, workflowId={}, outputKeys={}", workflowId, output.keySet());
         return output;
     }
 
-    /**
+/**
      * 执行工具步骤。
      *
      * <p>输入：任务请求、租户上下文与工具名称。
@@ -1043,6 +1044,7 @@ public class AgentRuntime {
                                      String taskId) {
         try {
             memoryWriteService.saveTaskMemory(request, result, tenantContext, taskId);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (Exception ex) {
             log.error("记忆写入异常, tenantId={}, taskId={}",
                     tenantContext != null ? tenantContext.getTenantId() : null, taskId, ex);
@@ -1148,7 +1150,8 @@ public class AgentRuntime {
         }
         runtimeContext.put("lastStepId", record.getStepId());
         runtimeContext.put("lastStepType", record.getType());
-        runtimeContext.put("lastStepOutput", output);
+        runtimeContext.put("lastStepSummary", buildStepOutputSummary(record, output));
+        runtimeContext.remove("lastStepOutput");
         if (output != null) {
             runtimeContext.put("lastOutputSize", output.size());
         }
@@ -1175,12 +1178,66 @@ public class AgentRuntime {
         entry.put("stepId", record.getStepId());
         entry.put("type", record.getType());
         entry.put("attempt", record.getAttempt());
-        entry.put("output", output);
+        entry.put("output", buildStepOutputSummary(record, output));
         stepOutputs.add(entry);
     }
 
+    private Map<String, Object> buildStepOutputSummary(StepRecord record, Map<String, Object> output) {
+        Map<String, Object> summary = new HashMap<>();
+        if (output != null) {
+            copyIfPresent(output, summary, "outputSummary");
+            copyIfPresent(output, summary, "toolResultSummary");
+            copyIfPresent(output, summary, "stepSummary");
+            copyIfPresent(output, summary, "outputDigest");
+            copyIfPresent(output, summary, "truncated");
+        }
+        Map<String, Object> stepSummary = normalizeStepSummary(summary.get("stepSummary"), record);
+        summary.put("stepSummary", stepSummary);
+        if (!summary.containsKey("outputDigest")) {
+            Map<String, Object> digest = new HashMap<>();
+            if (output != null) {
+                digest.put("keyCount", output.size());
+            }
+            summary.put("outputDigest", digest);
+        }
+        if (!summary.containsKey("truncated")) {
+            summary.put("truncated", Boolean.FALSE);
+        }
+        return summary;
+    }
+
+    private Map<String, Object> normalizeStepSummary(Object stepSummaryObj, StepRecord record) {
+        Map<String, Object> stepSummary = new HashMap<>();
+        if (stepSummaryObj instanceof Map<?, ?> map) {
+            map.forEach((key, value) -> stepSummary.put(String.valueOf(key), value));
+        }
+        if (record != null) {
+            putIfAbsent(stepSummary, "stepId", record.getStepId());
+            putIfAbsent(stepSummary, "type", record.getType());
+            putIfAbsent(stepSummary, "status", record.getStatus() != null ? record.getStatus().name() : null);
+            putIfAbsent(stepSummary, "attempt", record.getAttempt());
+        }
+        Object summaryValue = stepSummary.get("summary");
+        if (summaryValue == null || summaryValue.toString().isBlank()) {
+            stepSummary.put("summary", "(summary disabled)");
+        }
+        return stepSummary;
+    }
+
+    private void copyIfPresent(Map<String, Object> source, Map<String, Object> target, String key) {
+        if (source != null && source.containsKey(key)) {
+            target.put(key, source.get(key));
+        }
+    }
+
+    private void putIfAbsent(Map<String, Object> target, String key, Object value) {
+        if (value != null && !target.containsKey(key)) {
+            target.put(key, value);
+        }
+    }
+
     /**
-     * 从步骤输出中提取最终结果（仅限 {@code LLM}/{@code ANSWER} 步骤）。
+     * LLM 步骤服务，用于处理带工具注入的步骤执行。
      *
      * <p>输入：规划与步骤输出列表。
      * <p>输出：最终答复映射；不满足条件时返回 {@code null}。
@@ -1443,6 +1500,7 @@ public class AgentRuntime {
 
         try {
             executionControlService.awaitIfBlocked(workflowId);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (ErrorCodeException ex) {
             if (isCancelled(ex)) {
                 publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_CANCELLED,
@@ -1502,6 +1560,7 @@ public class AgentRuntime {
         }
         try {
             executionControlService.awaitIfBlocked(workflowId);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (ErrorCodeException ex) {
             if (isCancelled(ex)) {
                 publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_CANCELLED,

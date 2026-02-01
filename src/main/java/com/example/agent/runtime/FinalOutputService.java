@@ -13,6 +13,7 @@ import com.example.agent.repair.JsonOutputSchema;
 import com.example.agent.model.PromptTrace;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -41,6 +42,8 @@ public class FinalOutputService {
      * <p>示例：记录上下文序列化失败信息。
      */
     private static final Logger log = LoggerFactory.getLogger(FinalOutputService.class);
+    private static final int DEFAULT_PROMPT_SUMMARY_MAX_CHARS = 800;
+    private static final String SUMMARY_TRUNCATED_SUFFIX = "...(truncated)";
 
     /**
      * 模型调用协调器。
@@ -53,6 +56,10 @@ public class FinalOutputService {
      */
     private final PromptAssembler promptAssembler;
     private final JsonOutputRepairService jsonOutputRepairService;
+    /**
+     * 最终输出提示词摘要限制配置。
+     */
+    private final FinalOutputProperties finalOutputProperties;
     /**
      * 序列化工具。
      * <p>示例：将上下文转为 {@code JSON} 字符串。
@@ -76,11 +83,13 @@ public class FinalOutputService {
     public FinalOutputService(ModelInvocationService modelInvocationService,
                               PromptAssembler promptAssembler,
                               ObjectMapper objectMapper,
-                              JsonOutputRepairService jsonOutputRepairService) {
+                              JsonOutputRepairService jsonOutputRepairService,
+                              FinalOutputProperties finalOutputProperties) {
         this.modelInvocationService = modelInvocationService;
         this.promptAssembler = promptAssembler;
         this.objectMapper = objectMapper;
         this.jsonOutputRepairService = jsonOutputRepairService;
+        this.finalOutputProperties = finalOutputProperties;
     }
 
     /**
@@ -210,24 +219,31 @@ public class FinalOutputService {
         Map<String, Object> context = new HashMap<>();
         context.put("query", query);
         context.put("planSummary", planSummary);
-        context.put("steps", stepOutputs);
+        context.put("steps", buildStepSummaries(stepOutputs));
         String contextJson;
         try {
             contextJson = objectMapper.writeValueAsString(context);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (Exception ex) {
             log.warn("最终输出上下文序列化失败, reason={}", ex.getMessage());
             contextJson = "{}";
         }
         return """
-                你是执行结果总结器，请基于步骤输出给出最终答复。
+                你是执行结果总结器（final answer writer）。
+                你的任务：根据 FINAL_CONTEXT_JSON 中的 query（用户问题）与 steps（执行步骤输出）生成最终答复。
+                
                 输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
                 字段约束：
-                1) answer: string，必须输出，缺信息填空串。
-                2) highlights: string，必须输出，缺信息填空串。
-                3) confidence: number，必须输出，缺信息填 0。
+                1) answer: string，必须输出。必须围绕 query 给出最终结论；如果 steps 没有提供可用结果，明确说明“未执行/无数据/缺少步骤输出”，并指出下一步需要什么。
+                2) highlights: string，必须输出。用一句话概括关键证据（例如：命中数量、关键字段、失败原因、使用了哪些步骤/工具）。
+                3) confidence: number，必须输出。依据 steps 证据充足度：有完整结果集可取 0.7~0.95；只有部分信息 0.3~0.6；steps 为空或无有效输出 0。
+                
+                禁止编造：不得凭空生成查询结果或用户列表；只能基于 steps 中的输出数据。
+                
                 最小示例 JSON：{"answer":"","highlights":"","confidence":0}
                 FINAL_CONTEXT_JSON:%s
                 """.formatted(contextJson);
+
     }
 
     private Map<String, Object> tryRepairFinalOutput(String rawContent,
@@ -240,10 +256,11 @@ public class FinalOutputService {
         Map<String, Object> context = new HashMap<>();
         context.put("query", query);
         context.put("planSummary", planSummary);
-        context.put("steps", stepOutputs);
+        context.put("steps", buildStepSummaries(stepOutputs));
         String contextJson;
         try {
             contextJson = objectMapper.writeValueAsString(context);
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (Exception ex) {
             contextJson = "{}";
         }
@@ -252,6 +269,123 @@ public class FinalOutputService {
             return Map.of();
         }
         return parseFinalOutput(repaired);
+    }
+
+    /**
+     * 生成仅包含摘要的步骤列表，避免提示词注入原始输出。
+     */
+    private List<Map<String, Object>> buildStepSummaries(List<Map<String, Object>> stepOutputs) {
+        if (stepOutputs == null || stepOutputs.isEmpty()) {
+            return List.of();
+        }
+        List<Map<String, Object>> summaries = new ArrayList<>();
+        for (Map<String, Object> step : stepOutputs) {
+            if (step == null) {
+                continue;
+            }
+            Map<String, Object> summary = new HashMap<>();
+            summary.put("stepId", toText(step.get("stepId")));
+            summary.put("type", toText(step.get("type")));
+            StepSummaryData data = resolveStepSummaryData(step.get("output"));
+            summary.put("status", data.status);
+            summary.put("summary", data.summary);
+            summaries.add(summary);
+        }
+        return summaries;
+    }
+
+    /**
+     * 从输出中提取摘要与状态，优先使用 stepSummary.summary。
+     */
+    private StepSummaryData resolveStepSummaryData(Object output) {
+        StepSummaryData data = new StepSummaryData();
+        if (output instanceof Map<?, ?> map) {
+            Map<?, ?> outputMap = map;
+            Object stepSummaryObj = outputMap.get("stepSummary");
+            if (stepSummaryObj instanceof Map<?, ?> stepSummary) {
+                data.status = toText(stepSummary.get("status"));
+                Object summaryValue = stepSummary.get("summary");
+                if (summaryValue != null && StringUtils.hasText(summaryValue.toString())) {
+                    data.summary = summaryValue.toString();
+                } else if (!stepSummary.isEmpty()) {
+                    data.summary = toJsonSafe(stepSummary);
+                }
+            }
+            if (!StringUtils.hasText(data.status)) {
+                Object outputSummaryObj = outputMap.get("outputSummary");
+                if (outputSummaryObj instanceof Map<?, ?> outputSummary) {
+                    data.status = toText(outputSummary.get("status"));
+                }
+            }
+            if (!StringUtils.hasText(data.summary)) {
+                Object digestObj = outputMap.get("outputDigest");
+                if (digestObj instanceof Map<?, ?> digest) {
+                    data.summary = buildDigestSummary(digest);
+                }
+            }
+        }
+        if (!StringUtils.hasText(data.summary)) {
+            data.summary = "(summary disabled)";
+        }
+        data.summary = truncateSummary(data.summary);
+        return data;
+    }
+
+    private String buildDigestSummary(Map<?, ?> digest) {
+        if (digest == null || digest.isEmpty()) {
+            return null;
+        }
+        StringBuilder builder = new StringBuilder("digest");
+        appendDigestField(builder, "keyCount", digest.get("keyCount"));
+        appendDigestField(builder, "charCount", digest.get("charCount"));
+        appendDigestField(builder, "truncated", digest.get("truncated"));
+        return builder.toString();
+    }
+
+    private void appendDigestField(StringBuilder builder, String field, Object value) {
+        if (value == null) {
+            return;
+        }
+        builder.append(' ').append(field).append('=').append(value);
+    }
+
+    private String toJsonSafe(Object value) {
+        try {
+            return objectMapper.writeValueAsString(value);
+        // 异常捕获：记录上下文并按当前策略处理
+        } catch (Exception ex) {
+            return String.valueOf(value);
+        }
+    }
+
+    private String truncateSummary(String text) {
+        if (!StringUtils.hasText(text)) {
+            return text;
+        }
+        int maxChars = resolvePromptSummaryMaxChars();
+        if (maxChars <= 0 || text.length() <= maxChars) {
+            return text;
+        }
+        if (maxChars <= SUMMARY_TRUNCATED_SUFFIX.length()) {
+            return text.substring(0, maxChars);
+        }
+        int endIndex = maxChars - SUMMARY_TRUNCATED_SUFFIX.length();
+        if (endIndex <= 0) {
+            return text.substring(0, maxChars);
+        }
+        return text.substring(0, endIndex) + SUMMARY_TRUNCATED_SUFFIX;
+    }
+
+    private int resolvePromptSummaryMaxChars() {
+        if (finalOutputProperties == null) {
+            return DEFAULT_PROMPT_SUMMARY_MAX_CHARS;
+        }
+        int value = finalOutputProperties.getPromptSummaryMaxChars();
+        return value > 0 ? value : DEFAULT_PROMPT_SUMMARY_MAX_CHARS;
+    }
+
+    private String toText(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private void recordPromptTrace(Map<String, Object> metadata,
@@ -300,6 +434,7 @@ public class FinalOutputService {
         try {
             return objectMapper.readValue(content, new TypeReference<Map<String, Object>>() {
             });
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (Exception ex) {
             return Map.of();
         }
@@ -324,5 +459,10 @@ public class FinalOutputService {
         if (bundle != null && bundle.getMessages() != null) {
             request.setMessages(bundle.getMessages());
         }
+    }
+
+    private static final class StepSummaryData {
+        private String status;
+        private String summary;
     }
 }

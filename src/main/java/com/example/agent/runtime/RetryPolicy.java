@@ -63,6 +63,7 @@ public class RetryPolicy {
         }
         try {
             Thread.sleep(delay.toMillis());
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (InterruptedException ex) {
             Thread.currentThread().interrupt();
         }

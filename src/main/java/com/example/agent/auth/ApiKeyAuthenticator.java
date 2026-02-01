@@ -199,8 +199,10 @@ public class ApiKeyAuthenticator implements AuthService {
             if (!MessageDigest.isEqual(expected, actual)) {
                 throw unauthorized(exchange, "jwt_signature_mismatch");
             }
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (ErrorCodeException ex) {
             throw ex;
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (Exception ex) {
             throw unauthorized(exchange, "jwt_signature_failed");
         }
@@ -211,8 +213,10 @@ public class ApiKeyAuthenticator implements AuthService {
             byte[] decoded = decodeBase64Url(encoded, exchange);
             return objectMapper.readValue(decoded, new TypeReference<Map<String, Object>>() {
             });
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (ErrorCodeException ex) {
             throw ex;
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (Exception ex) {
             throw unauthorized(exchange, "jwt_" + name + "_invalid");
         }
@@ -221,6 +225,7 @@ public class ApiKeyAuthenticator implements AuthService {
     private byte[] decodeBase64Url(String value, ServerWebExchange exchange) {
         try {
             return Base64.getUrlDecoder().decode(padBase64(value));
+        // 异常捕获：记录上下文并按当前策略处理
         } catch (IllegalArgumentException ex) {
             throw unauthorized(exchange, "jwt_base64_invalid");
         }
@@ -343,6 +348,7 @@ public class ApiKeyAuthenticator implements AuthService {
         if (value instanceof String text && StringUtils.hasText(text)) {
             try {
                 return Long.parseLong(text);
+            // 异常捕获：记录上下文并按当前策略处理
             } catch (NumberFormatException ignored) {
                 return null;
             }
