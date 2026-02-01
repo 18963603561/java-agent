@@ -1167,7 +1167,7 @@ agent:
     # - full
     # 默认项:
     # - summary
-    inject-mode: summary
+    inject-mode: full
     # 说明: 最大摘要数量
     # 可选项:
     # - 正整数

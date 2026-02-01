@@ -82,6 +82,10 @@ public class AgentRuntime {
      */
     private final StepRuntimeService stepRuntimeService;
     /**
+     * 步骤摘要构建器，用于在反思前生成临时摘要。
+     */
+    private final StepOutputSummaryBuilder stepOutputSummaryBuilder;
+    /**
      * 执行约束网关。
      * <p>示例：执行工具调用并应用安全策略。
      */
@@ -193,8 +197,9 @@ public class AgentRuntime {
      * <p>输出：初始化后的运行时执行器。
      * <p>示例：
      * <pre>{@code
-     * new AgentRuntime(plannerService, reflectionService, stepRuntimeService, enforcementGateway, hookManager,
-     *     executionControlService, thoughtTreeService, chainOfThoughtService, multiAgentCoordinator,
+     * new AgentRuntime(plannerService, reflectionService, stepRuntimeService, stepOutputSummaryBuilder,
+     *     enforcementGateway, hookManager, executionControlService, thoughtTreeService, chainOfThoughtService,
+     *     multiAgentCoordinator,
      *     debateCoordinator, researchPipeline, finalOutputService, reactLoopService, memoryRecallService,
      *     memoryWriteService, evidencePackService, contextBuilder, contextEventPublisher, eventPublisher,
      *     tracingPublisher, 1, 1, 100L, 1000L, 0.2);
@@ -229,6 +234,7 @@ public class AgentRuntime {
     public AgentRuntime(PlannerService plannerService,
                         ReflectionService reflectionService,
                         StepRuntimeService stepRuntimeService,
+                        StepOutputSummaryBuilder stepOutputSummaryBuilder,
                         EnforcementGateway enforcementGateway,
                         HookManager hookManager,
                         ExecutionControlService executionControlService,
@@ -255,6 +261,7 @@ public class AgentRuntime {
         this.plannerService = plannerService;
         this.reflectionService = reflectionService;
         this.stepRuntimeService = stepRuntimeService;
+        this.stepOutputSummaryBuilder = stepOutputSummaryBuilder;
         this.enforcementGateway = enforcementGateway;
         this.hookManager = hookManager;
         this.executionControlService = executionControlService;
@@ -449,6 +456,8 @@ public class AgentRuntime {
                     }
                 }
 
+                // 反思前补充临时摘要，避免反思阶段摘要为空。
+                output = enrichOutputSummaryForReflection(step, request, record, output, attempt);
                 // 对步骤输出进行反思评估，可能触发重试。
                 ReflectionResult reflection = reflectWithEvents(step, tenantContext, workflowId, seqCounter, output, attempt);
                 if (reflection != null && reflection.isRetryRequested()) {
@@ -511,6 +520,63 @@ public class AgentRuntime {
                 hookManager.postStep(tenantContext, record);
             }
         }
+    }
+
+    /**
+     * 反思前补充步骤摘要，避免反思阶段缺失摘要信息。
+     *
+     * <p>输入：步骤定义、任务请求、步骤记录与原始输出。
+     * <p>输出：合并临时摘要后的输出映射。
+     * <p>边界：摘要构建器未启用或已包含摘要字段时直接返回原始输出。
+     *
+     * @param step 步骤定义
+     * @param request 任务请求
+     * @param record 步骤记录
+     * @param output 原始输出
+     * @param attempt 当前尝试次数
+     * @return 合并摘要后的输出
+     */
+    private Map<String, Object> enrichOutputSummaryForReflection(StepRequest step,
+                                                                 TaskRequest request,
+                                                                 StepRecord record,
+                                                                 Map<String, Object> output,
+                                                                 int attempt) {
+        if (output == null || output.isEmpty()) {
+            return output;
+        }
+        if (stepOutputSummaryBuilder == null || !stepOutputSummaryBuilder.isEnabled()) {
+            return output;
+        }
+        if (hasSummaryFields(output)) {
+            return output;
+        }
+        String stepId = record != null ? record.getStepId() : null;
+        String stepType = record != null ? record.getType() : null;
+        String status = record != null && record.getStatus() != null ? record.getStatus().name() : null;
+        String toolName = step != null ? resolveToolName(request, step) : null;
+        Map<String, Object> summary = stepOutputSummaryBuilder.build(
+                stepId,
+                stepType,
+                status,
+                output,
+                toolName,
+                null,
+                attempt
+        );
+        if (summary == null || summary.isEmpty()) {
+            return output;
+        }
+        Map<String, Object> merged = new HashMap<>();
+        merged.putAll(output);
+        merged.putAll(summary);
+        return merged;
+    }
+
+    private boolean hasSummaryFields(Map<String, Object> output) {
+        return output != null
+                && (output.containsKey("outputSummary")
+                || output.containsKey("outputDigest")
+                || output.containsKey("stepSummary"));
     }
 
     /**
