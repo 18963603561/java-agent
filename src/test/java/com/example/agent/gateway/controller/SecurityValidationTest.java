@@ -38,7 +38,8 @@ import static org.mockito.Mockito.when;
         "auth.jwt.verify-signature=true",
         "auth.jwt.secret=test-secret",
         "auth.trusted-upstream.enabled=false",
-        "tenant.whitelist-paths=/actuator/health,/actuator/info"
+        "tenant.whitelist-paths=/actuator/health,/actuator/info",
+        "agent.memory.vector.enabled=false"
 })
 @AutoConfigureWebTestClient
 class SecurityValidationTest {

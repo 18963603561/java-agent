@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.springframework.beans.factory.ObjectProvider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -34,8 +35,10 @@ class DefaultToolCatalogTest {
         when(cache.getIfFresh(any(), any())).thenReturn(null);
 
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        ObjectProvider<McpToolSyncService> provider = Mockito.mock(ObjectProvider.class);
 
-        DefaultToolCatalog catalog = new DefaultToolCatalog(registry, cache, new ObjectMapper(), metricsPublisher);
+        DefaultToolCatalog catalog = new DefaultToolCatalog(registry, cache, new ObjectMapper(),
+                metricsPublisher, provider);
 
         List<ToolSummary> summaries = catalog.listToolSummaries(new ToolQuery());
         assertTrue(summaries.stream().anyMatch(summary -> "tool_a".equals(summary.getToolName())));
@@ -51,11 +54,13 @@ class DefaultToolCatalogTest {
         ToolRegistry registry = Mockito.mock(ToolRegistry.class);
         ToolCache cache = Mockito.mock(ToolCache.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        ObjectProvider<McpToolSyncService> provider = Mockito.mock(ObjectProvider.class);
 
         Map<String, Object> cachedSchema = Map.of("type", "object");
         when(cache.getIfFresh(eq("tool:schema:tool_a"), any())).thenReturn(cachedSchema);
 
-        DefaultToolCatalog catalog = new DefaultToolCatalog(registry, cache, new ObjectMapper(), metricsPublisher);
+        DefaultToolCatalog catalog = new DefaultToolCatalog(registry, cache, new ObjectMapper(),
+                metricsPublisher, provider);
 
         Map<String, Object> schema = catalog.getToolSchema("tool_a");
         assertEquals(cachedSchema, schema);
@@ -68,11 +73,13 @@ class DefaultToolCatalogTest {
         ToolRegistry registry = Mockito.mock(ToolRegistry.class);
         ToolCache cache = Mockito.mock(ToolCache.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        ObjectProvider<McpToolSyncService> provider = Mockito.mock(ObjectProvider.class);
 
         when(cache.getIfFresh(any(), any())).thenReturn(null);
         when(registry.getDefinition("unknown")).thenReturn(null);
 
-        DefaultToolCatalog catalog = new DefaultToolCatalog(registry, cache, new ObjectMapper(), metricsPublisher);
+        DefaultToolCatalog catalog = new DefaultToolCatalog(registry, cache, new ObjectMapper(),
+                metricsPublisher, provider);
 
         assertNull(catalog.getToolSchema("unknown"));
         verify(metricsPublisher, never()).increment("schema_loaded");

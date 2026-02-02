@@ -327,7 +327,7 @@ public class ReflectionService {
     }
 
     /**
-     * 构建仅包含摘要层的输出上下文，避免注入原始输出。
+     * 构建仅包含摘要层的输出上下文，避免注入原始输出。反思统一根据摘要进行
      */
     private Map<String, Object> buildOutputSummaryContext(Map<String, Object> output) {
         Map<String, Object> context = new HashMap<>();

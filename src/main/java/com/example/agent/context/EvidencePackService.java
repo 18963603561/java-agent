@@ -15,15 +15,35 @@ import org.springframework.stereotype.Service;
 @Service
 public class EvidencePackService {
 
+    /**
+     * 上下文中保存证据包的键名。
+     */
     public static final String CONTEXT_EVIDENCE_PACK = "evidencePack";
 
     private static final Logger log = LoggerFactory.getLogger(EvidencePackService.class);
+    /**
+     * 引用标签的最大长度，避免提示词膨胀。
+     */
     private static final int MAX_CITATION_LABEL_CHARS = 120;
+    /**
+     * 引用标识的最大长度，避免索引过长。
+     */
     private static final int MAX_CITATION_REF_ID_CHARS = 200;
+    /**
+     * 引用来源字段的最大长度。
+     */
     private static final int MAX_CITATION_SOURCE_CHARS = 64;
 
+    /**
+     * 指标发布器，用于记录证据包统计信息。
+     */
     private final MetricsPublisher metricsPublisher;
 
+    /**
+     * 构造证据包服务。
+     *
+     * @param metricsPublisher 指标发布器
+     */
     public EvidencePackService(MetricsPublisher metricsPublisher) {
         this.metricsPublisher = metricsPublisher;
     }
@@ -38,9 +58,11 @@ public class EvidencePackService {
      */
     public EvidencePack createPack(String tenantId, String workflowId, String snapshotId) {
         EvidencePack pack = new EvidencePack();
+        // 写入关联标识，便于回溯
         pack.setTenantId(tenantId);
         pack.setWorkflowId(workflowId);
         pack.setSnapshotId(snapshotId);
+        // 使用当前时间作为创建时间
         pack.setCreatedAt(Instant.now());
         return pack;
     }
@@ -59,6 +81,7 @@ public class EvidencePackService {
                                         String workflowId,
                                         String snapshotId) {
         EvidencePack pack = null;
+        // 先尝试从上下文取已有证据包
         if (context != null) {
             Object value = context.get(CONTEXT_EVIDENCE_PACK);
             if (value instanceof EvidencePack evidencePack) {
@@ -66,8 +89,10 @@ public class EvidencePackService {
             }
         }
         if (pack == null) {
+            // 没有则创建并尝试写回上下文
             pack = createPack(tenantId, workflowId, snapshotId);
             if (context != null) {
+                // 可能是不可变上下文，因此需要捕获写入异常
                 try {
                     context.put(CONTEXT_EVIDENCE_PACK, pack);
                 } catch (UnsupportedOperationException ex) {
@@ -75,6 +100,7 @@ public class EvidencePackService {
                 }
             }
         } else {
+            // 如果已有证据包缺少标识，则补齐
             if (tenantId != null && (pack.getTenantId() == null || pack.getTenantId().isBlank())) {
                 pack.setTenantId(tenantId);
             }
@@ -104,12 +130,14 @@ public class EvidencePackService {
         if (pack == null || evidence == null) {
             return;
         }
+        // 证据包可能被多线程访问，写入时加锁
         synchronized (pack) {
             if (pack.getToolCalls() == null) {
                 pack.setToolCalls(new CopyOnWriteArrayList<>());
             }
             pack.getToolCalls().add(evidence);
         }
+        // 指标与日志仅记录概要，不记录正文
         metricsPublisher.increment("evidence_pack_tool_calls_total");
         log.info("evidence tool append tenantId={}, workflowId={}, toolName={}, status={}, durationMs={}",
                 tenantId,
@@ -134,12 +162,14 @@ public class EvidencePackService {
         if (pack == null || memories == null || memories.isEmpty()) {
             return;
         }
+        // 证据包可能被多线程访问，写入时加锁
         synchronized (pack) {
             if (pack.getMemoriesUsed() == null) {
                 pack.setMemoriesUsed(new CopyOnWriteArrayList<>());
             }
             pack.getMemoriesUsed().addAll(memories);
         }
+        // 按数量累计指标
         for (int i = 0; i < memories.size(); i++) {
             metricsPublisher.increment("evidence_pack_memories_used_total");
         }
@@ -195,6 +225,7 @@ public class EvidencePackService {
         if (pack == null || citations == null || citations.isEmpty()) {
             return;
         }
+        // 写入引用列表并保证线程安全
         synchronized (pack) {
             if (pack.getCitations() == null) {
                 pack.setCitations(new CopyOnWriteArrayList<>());
@@ -202,11 +233,14 @@ public class EvidencePackService {
             pack.getCitations().addAll(citations);
         }
         int addedCount = citations.size();
+        // 累计新增引用数量
         for (int i = 0; i < addedCount; i++) {
             metricsPublisher.increment("evidence_pack_citations_added_total");
         }
+        // 重新计算统计，确保数量一致
         EvidenceStats stats = pack.recomputeStats();
         int totalCount = stats != null && stats.getCitationsCount() != null ? stats.getCitationsCount() : 0;
+        // 阶段信息用于多阶段归因
         String stageTag = stage == null || stage.isBlank() ? "unknown" : stage;
         metricsPublisher.incrementWithTags("evidence_pack_citations_total", totalCount, "stage", stageTag);
         log.info("evidence citations append tenantId={}, workflowId={}, citationsAddedCount={}, citationsTotalCount={}",
@@ -216,14 +250,24 @@ public class EvidencePackService {
                 totalCount);
     }
 
+    /**
+     * 结束聚合并刷新统计数据。
+     *
+     * @param pack 证据包
+     * @param tenantId 租户标识
+     * @param workflowId 工作流标识
+     * @return 刷新后的证据包
+     */
     public EvidencePack finalizePack(EvidencePack pack, String tenantId, String workflowId) {
         if (pack == null) {
             return null;
         }
         EvidenceStats stats;
+        // 统计计算需要在锁内完成，避免并发修改
         synchronized (pack) {
             stats = pack.recomputeStats();
         }
+        // 指标与日志只输出统计摘要
         metricsPublisher.increment("evidence_pack_finalize_total");
         log.info("evidence finalize tenantId={}, workflowId={}, toolCallsCount={}, memoriesCount={}, citationsCount={}, approxChars={}",
                 tenantId,
@@ -244,8 +288,10 @@ public class EvidencePackService {
             if (research == null) {
                 continue;
             }
+            // 统一截断，避免过长字段污染提示词
             String source = trimText(research.getSource(), MAX_CITATION_SOURCE_CHARS);
             String label = trimText(research.getSnippet(), MAX_CITATION_LABEL_CHARS);
+            // 构造稳定引用标识，便于去重
             String refId = buildRefId(source, label);
             Citation citation = new Citation();
             citation.setType("RESEARCH");
@@ -254,6 +300,7 @@ public class EvidencePackService {
             if (label != null && !label.isBlank()) {
                 citation.setLabel(label);
             }
+            // 保留原始抓取时间
             citation.setFetchedAt(research.getFetchedAt());
             mapped.add(citation);
         }
@@ -261,22 +308,27 @@ public class EvidencePackService {
     }
 
     private String buildRefId(String source, String label) {
+        // 优先使用可读网址作为引用标识
         if (source != null && (source.startsWith("http://") || source.startsWith("https://"))) {
             return trimText(source, MAX_CITATION_REF_ID_CHARS);
         }
+        // 不满足网址时用来源加摘要哈希拼接
         String base = source != null && !source.isBlank() ? source : "research";
         String hash = label != null && !label.isBlank() ? Integer.toHexString(label.hashCode()) : "unknown";
         return trimText(base + ":" + hash, MAX_CITATION_REF_ID_CHARS);
     }
 
     private String trimText(String text, int maxChars) {
+        // 统一处理空值与空白
         if (text == null) {
             return null;
         }
         String trimmed = text.trim();
+        // 最大长度小于等于零时不做截断
         if (maxChars <= 0 || trimmed.length() <= maxChars) {
             return trimmed;
         }
+        // 超长直接截断
         return trimmed.substring(0, maxChars);
     }
 }

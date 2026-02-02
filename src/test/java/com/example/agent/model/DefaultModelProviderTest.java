@@ -21,7 +21,7 @@ class DefaultModelProviderTest {
         request.setTools(List.of());
         request.setToolChoice(ModelToolChoice.auto());
 
-        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request);
+        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request, null);
 
         assertFalse(body.containsKey("tools"));
         assertFalse(body.containsKey("tool_choice"));
@@ -42,7 +42,7 @@ class DefaultModelProviderTest {
         ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
         request.setTools(List.of(tool));
 
-        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request);
+        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request, null);
 
         assertTrue(body.containsKey("tools"));
         Object toolsObj = body.get("tools");
@@ -69,7 +69,7 @@ class DefaultModelProviderTest {
         request.setTools(List.of(tool));
         request.setToolChoice(toolChoice);
 
-        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request);
+        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request, null);
 
         assertTrue(body.containsKey("tool_choice"));
         assertTrue(body.containsKey("toolChoice"));
@@ -99,7 +99,7 @@ class DefaultModelProviderTest {
         ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
         request.setTools(List.of(tool));
 
-        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request);
+        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request, null);
 
         assertTrue(body.containsKey("tools"));
         Object toolsObj = body.get("tools");
@@ -128,7 +128,7 @@ class DefaultModelProviderTest {
                 new PromptMessage(PromptRole.USER, "user")
         ));
 
-        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request);
+        Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request, null);
 
         assertTrue(body.containsKey("messages"));
         Object messagesObj = body.get("messages");

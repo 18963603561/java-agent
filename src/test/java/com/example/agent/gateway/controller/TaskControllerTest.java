@@ -29,7 +29,8 @@ import org.springframework.test.web.reactive.server.WebTestClient;
         "agent.task.executor.max-pool-size=1",
         "agent.task.executor.queue-capacity=1",
         "agent.task.executor.keep-alive-seconds=30",
-        "agent.task.sync.max-concurrency=1"
+        "agent.task.sync.max-concurrency=1",
+        "agent.memory.vector.enabled=false"
 })
 @AutoConfigureWebTestClient
 class TaskControllerTest {

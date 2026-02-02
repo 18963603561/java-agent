@@ -35,19 +35,30 @@ public class DefaultPromptTemplate implements PromptTemplate {
     private final PromptTemplateResolver promptTemplateResolver = new PromptTemplateResolver();
 
     /**
-     * 渲染系统与开发者提示消息。
+     * 兼容旧接口：仅映射风险等级后渲染提示词。
      *
      * @param snapshot 上下文快照
-     * @return 提示消息列表
+     * @return 提示词消息列表
      */
     @Override
     public List<PromptMessage> render(ContextSnapshot snapshot) {
+        return render(PromptRenderContext.fromSnapshot(snapshot));
+    }
+
+    /**
+     * 渲染系统与开发者提示消息。
+     *
+     * @param context 渲染上下文
+     * @return 提示词消息列表
+     */
+    @Override
+    public List<PromptMessage> render(PromptRenderContext context) {
         List<PromptMessage> messages = new ArrayList<>();
         String resolvedSystem = promptTemplateResolver.resolveSystemMessage(systemMessage, DEFAULT_SYSTEM_MESSAGE);
         if (StringUtils.hasText(resolvedSystem)) {
             messages.add(new PromptMessage(PromptRole.SYSTEM, resolvedSystem));
         }
-        String developer = buildDeveloperMessage(snapshot);
+        String developer = buildDeveloperMessage(context);
         if (StringUtils.hasText(developer)) {
             messages.add(new PromptMessage(PromptRole.DEVELOPER, developer));
         }
@@ -64,17 +75,22 @@ public class DefaultPromptTemplate implements PromptTemplate {
         return "default";
     }
 
-    private String buildDeveloperMessage(ContextSnapshot snapshot) {
+    /**
+     * 从快照提取最小渲染上下文，仅保留白名单字段。
+     *
+     * @param snapshot 上下文快照
+     * @return 渲染上下文
+     */
+    private String buildDeveloperMessage(PromptRenderContext context) {
         StringBuilder builder = new StringBuilder();
         String resolvedDeveloper = promptTemplateResolver.resolveDeveloperMessage(developerMessage,
                 DEFAULT_DEVELOPER_MESSAGE);
         if (StringUtils.hasText(resolvedDeveloper)) {
             builder.append(resolvedDeveloper.trim());
         }
-        if (snapshot != null && snapshot.getRoleBoundary() != null
-                && StringUtils.hasText(snapshot.getRoleBoundary().getRiskLevel())) {
+        if (context != null && StringUtils.hasText(context.getRiskLevel())) {
             builder.append("\n");
-            builder.append("风险等级:").append(snapshot.getRoleBoundary().getRiskLevel());
+            builder.append("风险等级:").append(context.getRiskLevel());
         }
         return builder.toString().trim();
     }

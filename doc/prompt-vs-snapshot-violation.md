@@ -114,3 +114,15 @@
 
 ## 5. 备注
 - 当前模板仅使用 `riskLevel` 与 `inputText`，但快照对象在装配链路中全量透传，后续模板扩展容易引入运行层字段；建议将模板入参收敛为“决策层上下文”。
+
+## 6. 已落地改造
+### 6.1 代码路径
+- `PromptTemplate` 新增最小渲染入参 `PromptRenderContext`，模板渲染仅接收白名单字段（当前仅 riskLevel）。
+- `DefaultPromptTemplate` 的 `render(ContextSnapshot)` 仅做 riskLevel 映射后转发，模板内部不再读取快照复杂结构。
+- `DefaultContextAssembler.fillSystemDeveloper(...)` 与 `DefaultPromptAssembler.fillSystemDeveloper(...)` 均改为 `render(PromptRenderContext)`。
+- `DefaultPromptAssembler.buildLegacy(...)` 不再使用 `render(snapshot)`，统一走最小渲染上下文。
+
+### 6.2 新增测试
+- `PromptTemplateSnapshotLeakTest`：验证模板渲染不泄露 runtimeMeta/budget/audit/snapshotId 等字段。
+- `ContextAssemblerDoesNotPassSnapshotToTemplateTest`：验证上下文装配不透传运行层字段到模板。
+- `DefaultPromptAssemblerLegacyPathNoLeakTest`：验证 legacy 分支渲染不泄露运行层字段。

@@ -171,6 +171,8 @@ tenant:
     - /actuator/info
 
 agent:
+  reflection:
+    enabled: false
   openapi:
     # 说明: 接口合约文件路径
     # 可选项:
@@ -331,7 +333,7 @@ agent:
     # - false
     # 默认项:
     # - true
-    enabled: true
+    enabled: false
     # 说明: 风险阈值
     # 可选项:
     # - 0.0-1.0
@@ -443,14 +445,14 @@ agent:
       # - 非负整数
       # 默认值:
       # - 300
-      ttl-seconds: 300
+      ttl-seconds: 600
       # 说明: 单次同步最大工具数量
       # 可选项:
       # - 非负整数
       # 默认值:
       # - 2000
       max-tools: 2000
-    default-server-id: mcp-test
+    default-server-id: mcp-default
     # 说明: 外部工具服务列表
     # 可选项:
     # - 列表
@@ -474,24 +476,6 @@ agent:
         allowed-hosts:
           - localhost
           - 127.0.0.1
-        # 说明: SSE 会话地址
-        # 可选项:
-        # - 任意地址
-        # 默认项:
-        # - ""
-        sse-url: http://localhost:8088/mcp/sse
-        # 说明: SSE 会话参数名称
-        # 可选项:
-        # - 任意字符串
-        # 默认项:
-        # - sessionId
-        session-param-name: sessionId
-        # 说明: SSE 会话刷新间隔秒数，0 表示不主动刷新
-        # 可选项:
-        # - 非负整数
-        # 默认项:
-        # - 300
-        session-refresh-seconds: 300
         # 说明: 远程调用协议
         # 可选项:
         # - rest
@@ -505,17 +489,6 @@ agent:
         # - 任意地址
         # 默认项:
         # - http://localhost:9999
-        base-url: http://localhost:8088/mcp
-      -
-        id: mcp-test
-        available: true
-        allowed-hosts:
-          - localhost
-          - 127.0.0.1
-        sse-url: http://localhost:8088/mcp/sse
-        session-param-name: sessionId
-        session-refresh-seconds: 300
-        protocol: jsonrpc
         base-url: http://localhost:8088/mcp/test
   hook:
     # 说明: 启用钩子
@@ -767,7 +740,7 @@ agent:
     # - false
     # 默认项:
     # - true
-    fallback-enabled: true
+    fallback-enabled: false
     # 说明: 回退模型标识
     # 可选项:
     # - 已配置模型标识
@@ -1081,7 +1054,7 @@ agent:
       # - false
       # 默认项:
       # - true
-      enabled: true
+      enabled: false
       # 说明: 召回条数上限
       # 可选项:
       # - 正整数
@@ -1181,7 +1154,7 @@ agent:
     # - false
     # 默认项:
     # - true
-    enabled: true
+    enabled: false
     # 说明: 预算阈值令牌数
     # 可选项:
     # - 非负整数

@@ -15,7 +15,7 @@ class DefaultPromptTemplateTest {
         ReflectionTestUtils.setField(template, "systemMessage", "系统提示");
         ReflectionTestUtils.setField(template, "developerMessage", "   ");
 
-        List<PromptMessage> messages = template.render(null);
+        List<PromptMessage> messages = template.render(new PromptRenderContext());
 
         assertNotNull(messages);
         assertEquals(2, messages.size());

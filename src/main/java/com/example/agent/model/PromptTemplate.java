@@ -9,12 +9,22 @@ import java.util.List;
 public interface PromptTemplate {
 
     /**
-     * 基于上下文渲染系统与开发者消息。
+     * 基于最小渲染上下文生成提示词消息。
+     *
+     * @param context 渲染上下文
+     * @return 消息列表
+     */
+    List<PromptMessage> render(PromptRenderContext context);
+
+    /**
+     * 兼容旧接口：将快照映射为最小渲染上下文后再渲染。
      *
      * @param snapshot 上下文快照
      * @return 消息列表
      */
-    List<PromptMessage> render(ContextSnapshot snapshot);
+    default List<PromptMessage> render(ContextSnapshot snapshot) {
+        return render(PromptRenderContext.fromSnapshot(snapshot));
+    }
 
     /**
      * 获取模板标识。

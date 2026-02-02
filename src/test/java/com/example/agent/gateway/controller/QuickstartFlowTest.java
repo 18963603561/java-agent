@@ -32,6 +32,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         "auth.trusted-upstream.enabled=false",
         "tenant.whitelist-paths=/actuator/health,/actuator/info",
         "agent.sse.timeoutSeconds=1",
+        "agent.memory.vector.enabled=false",
         "agent.mcp.remote-enabled=false",
         "agent.mcp.servers[0].id=mcp-default",
         "agent.mcp.servers[0].available=true",
