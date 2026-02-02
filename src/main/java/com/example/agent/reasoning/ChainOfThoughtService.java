@@ -897,6 +897,9 @@ public class ChainOfThoughtService {
         if (summary == null) {
             summary = input.get("lastStepSummary");
         }
+        if (summary == null) {
+            summary = input.get("lastStepOutput");
+        }
         String text = resolveSummaryText(summary);
         if (!StringUtils.hasText(text)) {
             return null;
@@ -915,6 +918,10 @@ public class ChainOfThoughtService {
             Object summary = map.get("summary");
             if (summary != null && StringUtils.hasText(summary.toString())) {
                 return summary.toString();
+            }
+            Object text = map.get("text");
+            if (text != null && StringUtils.hasText(text.toString())) {
+                return text.toString();
             }
             Object sample = map.get("sample");
             if (sample != null && StringUtils.hasText(sample.toString())) {

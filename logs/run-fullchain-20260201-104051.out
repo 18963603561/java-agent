@@ -1,0 +1,73 @@
+[ERROR] COMPILATION ERROR : 
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/tools/DefaultToolCatalogTest.java:[38,38] 无法将类 com.example.agent.tools.DefaultToolCatalog中的构造器 DefaultToolCatalog应用到给定类型;
+  需要: com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher,org.springframework.beans.factory.ObjectProvider<com.example.agent.tools.McpToolSyncService>
+  找到:    com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher
+  原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/tools/DefaultToolCatalogTest.java:[58,38] 无法将类 com.example.agent.tools.DefaultToolCatalog中的构造器 DefaultToolCatalog应用到给定类型;
+  需要: com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher,org.springframework.beans.factory.ObjectProvider<com.example.agent.tools.McpToolSyncService>
+  找到:    com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher
+  原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/tools/DefaultToolCatalogTest.java:[75,38] 无法将类 com.example.agent.tools.DefaultToolCatalog中的构造器 DefaultToolCatalog应用到给定类型;
+  需要: com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher,org.springframework.beans.factory.ObjectProvider<com.example.agent.tools.McpToolSyncService>
+  找到:    com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher
+  原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/model/DefaultModelProviderTest.java:[24,44] 无法将类 com.example.agent.model.DefaultModelProvider中的方法 buildOpenAiRequestBody应用到给定类型;
+  需要: java.lang.String,com.example.agent.model.ModelRequest,com.example.agent.model.ModelDefinition
+  找到:    java.lang.String,com.example.agent.model.ModelRequest
+  原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/model/DefaultModelProviderTest.java:[45,44] 无法将类 com.example.agent.model.DefaultModelProvider中的方法 buildOpenAiRequestBody应用到给定类型;
+  需要: java.lang.String,com.example.agent.model.ModelRequest,com.example.agent.model.ModelDefinition
+  找到:    java.lang.String,com.example.agent.model.ModelRequest
+  原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/model/DefaultModelProviderTest.java:[72,44] 无法将类 com.example.agent.model.DefaultModelProvider中的方法 buildOpenAiRequestBody应用到给定类型;
+  需要: java.lang.String,com.example.agent.model.ModelRequest,com.example.agent.model.ModelDefinition
+  找到:    java.lang.String,com.example.agent.model.ModelRequest
+  原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/model/DefaultModelProviderTest.java:[102,44] 无法将类 com.example.agent.model.DefaultModelProvider中的方法 buildOpenAiRequestBody应用到给定类型;
+  需要: java.lang.String,com.example.agent.model.ModelRequest,com.example.agent.model.ModelDefinition
+  找到:    java.lang.String,com.example.agent.model.ModelRequest
+  原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/model/DefaultModelProviderTest.java:[131,44] 无法将类 com.example.agent.model.DefaultModelProvider中的方法 buildOpenAiRequestBody应用到给定类型;
+  需要: java.lang.String,com.example.agent.model.ModelRequest,com.example.agent.model.ModelDefinition
+  找到:    java.lang.String,com.example.agent.model.ModelRequest
+  原因: 实际参数列表和形式参数列表长度不同
+[ERROR] Failed to execute goal org.apache.maven.plugins:maven-compiler-plugin:3.11.0:testCompile (default-testCompile) on project java-agent: Compilation failure: Compilation failure: 
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/tools/DefaultToolCatalogTest.java:[38,38] 无法将类 com.example.agent.tools.DefaultToolCatalog中的构造器 DefaultToolCatalog应用到给定类型;
+[ERROR]   需要: com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher,org.springframework.beans.factory.ObjectProvider<com.example.agent.tools.McpToolSyncService>
+[ERROR]   找到:    com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher
+[ERROR]   原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/tools/DefaultToolCatalogTest.java:[58,38] 无法将类 com.example.agent.tools.DefaultToolCatalog中的构造器 DefaultToolCatalog应用到给定类型;
+[ERROR]   需要: com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher,org.springframework.beans.factory.ObjectProvider<com.example.agent.tools.McpToolSyncService>
+[ERROR]   找到:    com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher
+[ERROR]   原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/tools/DefaultToolCatalogTest.java:[75,38] 无法将类 com.example.agent.tools.DefaultToolCatalog中的构造器 DefaultToolCatalog应用到给定类型;
+[ERROR]   需要: com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher,org.springframework.beans.factory.ObjectProvider<com.example.agent.tools.McpToolSyncService>
+[ERROR]   找到:    com.example.agent.agentcore.ToolRegistry,com.example.agent.agentcore.ToolCache,com.fasterxml.jackson.databind.ObjectMapper,com.example.agent.observability.MetricsPublisher
+[ERROR]   原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/model/DefaultModelProviderTest.java:[24,44] 无法将类 com.example.agent.model.DefaultModelProvider中的方法 buildOpenAiRequestBody应用到给定类型;
+[ERROR]   需要: java.lang.String,com.example.agent.model.ModelRequest,com.example.agent.model.ModelDefinition
+[ERROR]   找到:    java.lang.String,com.example.agent.model.ModelRequest
+[ERROR]   原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/model/DefaultModelProviderTest.java:[45,44] 无法将类 com.example.agent.model.DefaultModelProvider中的方法 buildOpenAiRequestBody应用到给定类型;
+[ERROR]   需要: java.lang.String,com.example.agent.model.ModelRequest,com.example.agent.model.ModelDefinition
+[ERROR]   找到:    java.lang.String,com.example.agent.model.ModelRequest
+[ERROR]   原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/model/DefaultModelProviderTest.java:[72,44] 无法将类 com.example.agent.model.DefaultModelProvider中的方法 buildOpenAiRequestBody应用到给定类型;
+[ERROR]   需要: java.lang.String,com.example.agent.model.ModelRequest,com.example.agent.model.ModelDefinition
+[ERROR]   找到:    java.lang.String,com.example.agent.model.ModelRequest
+[ERROR]   原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/model/DefaultModelProviderTest.java:[102,44] 无法将类 com.example.agent.model.DefaultModelProvider中的方法 buildOpenAiRequestBody应用到给定类型;
+[ERROR]   需要: java.lang.String,com.example.agent.model.ModelRequest,com.example.agent.model.ModelDefinition
+[ERROR]   找到:    java.lang.String,com.example.agent.model.ModelRequest
+[ERROR]   原因: 实际参数列表和形式参数列表长度不同
+[ERROR] /F:/ai-code/java-agent/src/test/java/com/example/agent/model/DefaultModelProviderTest.java:[131,44] 无法将类 com.example.agent.model.DefaultModelProvider中的方法 buildOpenAiRequestBody应用到给定类型;
+[ERROR]   需要: java.lang.String,com.example.agent.model.ModelRequest,com.example.agent.model.ModelDefinition
+[ERROR]   找到:    java.lang.String,com.example.agent.model.ModelRequest
+[ERROR]   原因: 实际参数列表和形式参数列表长度不同
+[ERROR] -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoFailureException

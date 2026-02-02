@@ -852,33 +852,83 @@ public class PlannerService {
                 
                 【规划原则】
                 1) 最小化：能 0 步解决就不要出步骤；能 1 步解决就不要拆 3 步。
-                2) 可执行：每个步骤必须能被执行器直接执行（type/tool/input 必须自洽）。
+                2) 可执行：每个步骤必须能被执行器直接执行（step.type 与 step.input 必须自洽）。
                 3) 不编造：不得编造外部数据结果；若需要查询数据源，必须规划工具步骤。
                 4) 区分两类问题：
                    - DIRECT：常识解释/概念说明/纯文本生成，不需要工具，可输出 steps=[]
-                   - TOOL：需要外部数据/检索/数据库查询/调用系统接口，必须输出至少 1 个 TOOL 步骤
+                   - TOOL：需要外部数据/检索/数据库查询/调用系统接口，必须输出至少 1 个步骤
                 
                 【何时输出 steps=[]】
                 - 问题属于 DIRECT（解释类、定义类、改写/总结类等），且无需任何外部数据。
-                此时 summary 说明“无需工具，直接回答”，并可在允许的情况下输出额外字段 answerMode="DIRECT"。
+                  summary 写明“无需工具，直接回答”，并可输出 answerMode="DIRECT"。
                 
-                【何时必须输出 TOOL 步骤】
-                - query 明显需要外部数据/系统查询（如“查询用户/订单/日志/实时状态”）。
-                此时 steps 不能为空，且每个 TOOL 步骤必须包含 tool 与 input（input 里包含必要查询参数）。
+                --------------------------------------------------
+                【关键协议（与运行时严格对齐）】
                 
-                【步骤设计要求】
-                - steps[*].type:
+                只要输出 steps（即产生任意 step），必须遵守：
+                
+                1) steps[*].input：
+                   - 必须是 object
+                   - 必须包含 input.question（字符串，不能为空）
+                   - input.question 表示“该步骤正在做什么 / 该步骤要处理的子问题是什么”
+                   - 运行时将优先使用 input.question 作为该步骤的问题文本
+                
+                2) steps[*].tool：
+                   - 不是必填，可省略或为空串
+                   - 但当 step.type="TOOL" 时，必须保证执行器能定位到具体工具：
+                     - 优先使用 steps[*].tool（若填写）
+                     - 若 steps[*].tool 为空，则 steps[*].input 必须包含 toolName（字符串，不能为空）
+                     - 否则该 TOOL 步骤不可执行（严禁输出）
+                
+                3) TOOL 步骤 input 规范：
+                   - 必须包含：
+                     - question: 描述本次工具调用意图（必填）
+                     - 工具参数：仅包含该工具需要的字段（避免复制整段 query）
+                     - toolName：当 steps[*].tool 为空时必填
+                   - 不允许只有工具参数而没有 question
+                
+                4) 非 TOOL 步骤（FINAL/THINK/LLM） input 规范：
+                   - 必须包含：
+                     - question: 该步骤要生成/总结/解释的子问题（必填）
+                   - 可包含少量内部处理参数（如去重字段 distinctKey），但禁止塞入长文本或重复上下文。
+                
+                --------------------------------------------------
+                【典型模式：查询 + 汇总 / 统计 / 去重】
+                
+                当 query 同时包含：
+                “多次查询” + “最后汇总/统计/对比/去重/总结”
+                
+                必须规划为：
+                
+                Step1..N：多个 TOOL 查询步骤（每个都要有 input.question）  
+                StepN+1：一个汇总步骤（FINAL 或 THINK，必须有 input.question）
+                
+                汇总步骤要求：
+                - type 使用 "FINAL"（若执行器不支持可用 "THINK"）
+                - tool 可省略或为空串
+                - dependsOn 指向所有 TOOL 步骤
+                - input.question 清晰描述汇总要求（如：合并结果、按 userId 去重、统计数量并输出摘要）
+                
+                --------------------------------------------------
+                【步骤字段要求】
+                - steps[*].type：
                   - 缺省为 "TOOL"
-                  - 如需内部处理也可用 "THINK"/"FINAL"（如你们执行器支持），否则不要用
-                - steps[*].tool:
-                  - 当 type="TOOL" 时必须非空，必须是已注册工具名
-                - steps[*].input:
-                  - 必须是 object
-                  - 必须仅包含执行器/工具需要的参数，避免塞入长文本
-                - steps[*].dependsOn:
-                  - 默认 []
-                  - 只有存在先后依赖时才填写（用步骤序号或 id，按你们约定）
+                  - 仅在需要文本生成/汇总/内部处理时使用 "FINAL"/"THINK"/"LLM"（以执行器支持为准）
                 
+                - steps[*].tool：
+                  - 可缺省或为空串
+                  - 若 type="TOOL" 且 tool 为空，则 input.toolName 必须非空
+                
+                - steps[*].input：
+                  - 必须是 object
+                  - 必须包含 question（必填）
+                  - TOOL 步骤还需包含工具参数；必要时包含 toolName
+                
+                - steps[*].dependsOn：
+                  - 默认 []
+                  - 有依赖时才填写
+                
+                --------------------------------------------------
                 【输出约束】
                 输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
                 
@@ -886,7 +936,7 @@ public class PlannerService {
                 1) summary: string，缺信息填空串；无法给出有效步骤时用 summary 说明原因。
                 2) steps: array，缺信息填 []。
                 3) steps[*].type: string，缺信息填 "TOOL"。
-                4) steps[*].input: object，必须是 object，缺信息填 {}。
+                4) steps[*].input: object，必须是 object，且必须包含 question。
                 5) steps[*].tool: string，可缺省，缺信息填空串。
                 6) steps[*].dependsOn: array，可缺省，缺信息填 []。
                 
@@ -896,9 +946,13 @@ public class PlannerService {
                 
                 当无法确定 action/step 时，输出 steps=[]，summary 写明原因。
                 
-                最小示例 JSON：{"summary":"","steps":[]}
+                最小示例 JSON：
+                {"summary":"","steps":[]}
+                
                 PLAN_CONTEXT_JSON:%s
                 """.formatted(contextJson);
+
+
     }
 
     private Map<String, Object> buildContextSummary(Map<String, Object> context) {

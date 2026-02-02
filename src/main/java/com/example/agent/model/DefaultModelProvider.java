@@ -95,7 +95,7 @@ public class DefaultModelProvider implements ModelProvider {
      * 请求超时时间秒数。
      * <p>示例：{@code 30}。
      */
-    @Value("${agent.model.http.timeout-seconds:30}")
+    @Value("${agent.model.http.timeout-seconds:120}")
     private long timeoutSeconds;
 
     /**

@@ -38,6 +38,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -65,6 +66,25 @@ public class AgentRuntime {
      * <p>示例：记录规划为空或执行异常。
      */
     private static final Logger log = LoggerFactory.getLogger(AgentRuntime.class);
+    /**
+     * 工具参数中需要过滤的保留字段。
+     *
+     * <p>用途：避免将步骤控制字段误传给工具参数。</p>
+     */
+    private static final Set<String> TOOL_ARGUMENT_RESERVED_KEYS = Set.of(
+            "tool",
+            "toolName",
+            "context",
+            "query",
+            "dependsOn",
+            "requiresApproval",
+            "approvalSource",
+            "fallbackTool",
+            EvidencePackService.CONTEXT_EVIDENCE_PACK,
+            "EvidencePack",
+            "_internalEvidencePack",
+            "arguments"
+    );
 
     /**
      * 规划服务。
@@ -85,6 +105,10 @@ public class AgentRuntime {
      * 步骤摘要构建器，用于在反思前生成临时摘要。
      */
     private final StepOutputSummaryBuilder stepOutputSummaryBuilder;
+    /**
+     * 受控原始输出构建器，用于摘要禁用时保留关键结果。
+     */
+    private final RawOutputSnapshotBuilder rawOutputSnapshotBuilder;
     /**
      * 执行约束网关。
      * <p>示例：执行工具调用并应用安全策略。
@@ -198,7 +222,7 @@ public class AgentRuntime {
      * <p>示例：
      * <pre>{@code
      * new AgentRuntime(plannerService, reflectionService, stepRuntimeService, stepOutputSummaryBuilder,
-     *     enforcementGateway, hookManager, executionControlService, thoughtTreeService, chainOfThoughtService,
+     *     rawOutputSnapshotBuilder, enforcementGateway, hookManager, executionControlService, thoughtTreeService, chainOfThoughtService,
      *     multiAgentCoordinator,
      *     debateCoordinator, researchPipeline, finalOutputService, reactLoopService, memoryRecallService,
      *     memoryWriteService, evidencePackService, contextBuilder, contextEventPublisher, eventPublisher,
@@ -235,6 +259,7 @@ public class AgentRuntime {
                         ReflectionService reflectionService,
                         StepRuntimeService stepRuntimeService,
                         StepOutputSummaryBuilder stepOutputSummaryBuilder,
+                        RawOutputSnapshotBuilder rawOutputSnapshotBuilder,
                         EnforcementGateway enforcementGateway,
                         HookManager hookManager,
                         ExecutionControlService executionControlService,
@@ -262,6 +287,7 @@ public class AgentRuntime {
         this.reflectionService = reflectionService;
         this.stepRuntimeService = stepRuntimeService;
         this.stepOutputSummaryBuilder = stepOutputSummaryBuilder;
+        this.rawOutputSnapshotBuilder = rawOutputSnapshotBuilder;
         this.enforcementGateway = enforcementGateway;
         this.hookManager = hookManager;
         this.executionControlService = executionControlService;
@@ -445,15 +471,30 @@ public class AgentRuntime {
                     output.put("citations", citations);
                     output.put("count", citations.size());
                 } else {
-                    // 默认按工具步骤执行。
+                    log.info("未指定工具, 转为大模型步骤, 工作流={}, 任务={}, 步骤={}",
+                            workflowId, taskId, record.getStepId());
+                    output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
+/*                    // 默认按工具步骤执行。
                     String toolName = resolveToolName(request, step);
                     if (toolName == null || toolName.isBlank()) {
                         log.info("未指定工具, 转为大模型步骤, 工作流={}, 任务={}, 步骤={}",
                                 workflowId, taskId, record.getStepId());
                         output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
                     } else {
-                        output = executeToolStep(request, tenantContext, workflowId, taskId, seqCounter, record, toolName);
-                    }
+                        Map<String, Object> toolArguments = resolveToolArguments(step);
+                        if (toolArguments != null && !toolArguments.isEmpty()) {
+                            log.info("工具步骤使用步骤参数, workflowId={}, stepId={}, tool={}, argKeys={}, argSize={}",
+                                    workflowId, record.getStepId(), toolName, toolArguments.keySet(), toolArguments.size());
+                            output = executeToolStep(request, tenantContext, workflowId, taskId, seqCounter, record,
+                                    toolName, toolArguments);
+                        } else {
+                            if (toolArguments != null) {
+                                log.debug("工具步骤未提供可用参数, workflowId={}, stepId={}, tool={}",
+                                        workflowId, record.getStepId(), toolName);
+                            }
+                            output = executeToolStep(request, tenantContext, workflowId, taskId, seqCounter, record, toolName);
+                        }
+                    }*/
                 }
 
                 // 反思前补充临时摘要，避免反思阶段摘要为空。
@@ -544,32 +585,46 @@ public class AgentRuntime {
         if (output == null || output.isEmpty()) {
             return output;
         }
-        if (stepOutputSummaryBuilder == null || !stepOutputSummaryBuilder.isEnabled()) {
-            return output;
+        boolean summaryEnabled = stepOutputSummaryBuilder != null && stepOutputSummaryBuilder.isEnabled();
+        if (summaryEnabled) {
+            if (hasSummaryFields(output)) {
+                return output;
+            }
+            String stepId = record != null ? record.getStepId() : null;
+            String stepType = record != null ? record.getType() : null;
+            String status = record != null && record.getStatus() != null ? record.getStatus().name() : null;
+            String toolName = step != null ? resolveToolName(request, step) : null;
+            Map<String, Object> summary = stepOutputSummaryBuilder.build(
+                    stepId,
+                    stepType,
+                    status,
+                    output,
+                    toolName,
+                    null,
+                    attempt
+            );
+            if (summary == null || summary.isEmpty()) {
+                return output;
+            }
+            Map<String, Object> merged = new HashMap<>();
+            merged.putAll(output);
+            merged.putAll(summary);
+            return merged;
         }
-        if (hasSummaryFields(output)) {
-            return output;
+        if (shouldUseRawOutputSnapshot()) {
+            if (hasRawOutputField(output)) {
+                return output;
+            }
+            Map<String, Object> rawOutput = rawOutputSnapshotBuilder.build(output);
+            if (rawOutput == null || rawOutput.isEmpty()) {
+                return output;
+            }
+            Map<String, Object> merged = new HashMap<>();
+            merged.putAll(output);
+            merged.put(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY, rawOutput);
+            return merged;
         }
-        String stepId = record != null ? record.getStepId() : null;
-        String stepType = record != null ? record.getType() : null;
-        String status = record != null && record.getStatus() != null ? record.getStatus().name() : null;
-        String toolName = step != null ? resolveToolName(request, step) : null;
-        Map<String, Object> summary = stepOutputSummaryBuilder.build(
-                stepId,
-                stepType,
-                status,
-                output,
-                toolName,
-                null,
-                attempt
-        );
-        if (summary == null || summary.isEmpty()) {
-            return output;
-        }
-        Map<String, Object> merged = new HashMap<>();
-        merged.putAll(output);
-        merged.putAll(summary);
-        return merged;
+        return output;
     }
 
     private boolean hasSummaryFields(Map<String, Object> output) {
@@ -577,6 +632,16 @@ public class AgentRuntime {
                 && (output.containsKey("outputSummary")
                 || output.containsKey("outputDigest")
                 || output.containsKey("stepSummary"));
+    }
+
+    private boolean hasRawOutputField(Map<String, Object> output) {
+        return output != null && output.containsKey(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY);
+    }
+
+    private boolean shouldUseRawOutputSnapshot() {
+        return (stepOutputSummaryBuilder == null || !stepOutputSummaryBuilder.isEnabled())
+                && rawOutputSnapshotBuilder != null
+                && rawOutputSnapshotBuilder.isEnabled();
     }
 
     /**
@@ -628,12 +693,36 @@ public class AgentRuntime {
                                                 AtomicLong seqCounter,
                                                 StepRecord record,
                                                 String toolName) {
+        return executeToolStep(request, tenantContext, workflowId, taskId, seqCounter, record, toolName, null);
+    }
+
+    /**
+     * 执行工具步骤（支持外部传入参数覆盖）。
+     *
+     * <p>输入：任务请求、租户上下文、工具名称与工具参数。
+     * <p>输出：工具执行输出。
+     * <p>边界：参数为空时回退为默认执行路径。
+     * <p>示例：
+     * <pre>{@code
+     * Map<String, Object> output = executeToolStep(request, ctx, wfId, taskId, seq, record, "demo_tool", args);
+     * }</pre>
+     */
+    private Map<String, Object> executeToolStep(TaskRequest request,
+                                                TenantContext tenantContext,
+                                                String workflowId,
+                                                String taskId,
+                                                AtomicLong seqCounter,
+                                                StepRecord record,
+                                                String toolName,
+                                                Map<String, Object> toolArguments) {
         // 工具执行前先检查执行控制状态。
         applyExecutionControl(workflowId, tenantContext, seqCounter);
         // 执行工具前置钩子。
         hookManager.preTool(tenantContext, record, toolName);
-        Map<String, Object> output = enforcementGateway.execute(
-                request, tenantContext, workflowId, taskId, seqCounter, toolName);
+        Map<String, Object> output = (toolArguments == null || toolArguments.isEmpty())
+                ? enforcementGateway.execute(request, tenantContext, workflowId, taskId, seqCounter, toolName)
+                : enforcementGateway.executeWithArguments(request, tenantContext, workflowId, taskId, seqCounter,
+                toolName, toolArguments);
         // 执行工具后置钩子。
         hookManager.postTool(tenantContext, record, toolName, output);
         return output;
@@ -1216,8 +1305,15 @@ public class AgentRuntime {
         }
         runtimeContext.put("lastStepId", record.getStepId());
         runtimeContext.put("lastStepType", record.getType());
-        runtimeContext.put("lastStepSummary", buildStepOutputSummary(record, output));
+        Map<String, Object> stepSummary = buildStepOutputSummary(record, output);
+        runtimeContext.put("lastStepSummary", stepSummary);
         runtimeContext.remove("lastStepOutput");
+        if (stepSummary != null) {
+            Object rawOutput = stepSummary.get(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY);
+            if (rawOutput instanceof Map<?, ?> map && !map.isEmpty()) {
+                runtimeContext.put("lastStepOutput", rawOutput);
+            }
+        }
         if (output != null) {
             runtimeContext.put("lastOutputSize", output.size());
         }
@@ -1256,8 +1352,18 @@ public class AgentRuntime {
             copyIfPresent(output, summary, "stepSummary");
             copyIfPresent(output, summary, "outputDigest");
             copyIfPresent(output, summary, "truncated");
+            copyIfPresent(output, summary, RawOutputSnapshotBuilder.RAW_OUTPUT_KEY);
         }
-        Map<String, Object> stepSummary = normalizeStepSummary(summary.get("stepSummary"), record);
+        Object rawOutputObj = summary.get(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY);
+        if (rawOutputObj == null && shouldUseRawOutputSnapshot() && output != null && !output.isEmpty()) {
+            Map<String, Object> rawOutput = rawOutputSnapshotBuilder.build(output);
+            if (rawOutput != null && !rawOutput.isEmpty()) {
+                summary.put(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY, rawOutput);
+                rawOutputObj = rawOutput;
+            }
+        }
+        String rawText = RawOutputSnapshotBuilder.resolveText(rawOutputObj);
+        Map<String, Object> stepSummary = normalizeStepSummary(summary.get("stepSummary"), record, rawText);
         summary.put("stepSummary", stepSummary);
         if (!summary.containsKey("outputDigest")) {
             Map<String, Object> digest = new HashMap<>();
@@ -1272,7 +1378,7 @@ public class AgentRuntime {
         return summary;
     }
 
-    private Map<String, Object> normalizeStepSummary(Object stepSummaryObj, StepRecord record) {
+    private Map<String, Object> normalizeStepSummary(Object stepSummaryObj, StepRecord record, String fallbackSummary) {
         Map<String, Object> stepSummary = new HashMap<>();
         if (stepSummaryObj instanceof Map<?, ?> map) {
             map.forEach((key, value) -> stepSummary.put(String.valueOf(key), value));
@@ -1284,8 +1390,13 @@ public class AgentRuntime {
             putIfAbsent(stepSummary, "attempt", record.getAttempt());
         }
         Object summaryValue = stepSummary.get("summary");
-        if (summaryValue == null || summaryValue.toString().isBlank()) {
-            stepSummary.put("summary", "(summary disabled)");
+        String summaryText = summaryValue == null ? null : summaryValue.toString();
+        if (summaryText == null || summaryText.isBlank() || "(summary disabled)".equals(summaryText)) {
+            if (fallbackSummary != null && !fallbackSummary.isBlank()) {
+                stepSummary.put("summary", fallbackSummary);
+            } else {
+                stepSummary.put("summary", "(summary disabled)");
+            }
         }
         return stepSummary;
     }
@@ -1402,6 +1513,69 @@ public class AgentRuntime {
             }
         }
         return null;
+    }
+
+    /**
+     * 解析工具步骤参数。
+     *
+     * <p>输入：步骤定义。
+     * <p>输出：工具参数映射；未提供时返回 {@code null}。
+     * <p>边界：参数非对象时记录告警并忽略。
+     */
+    private Map<String, Object> resolveToolArguments(StepRequest step) {
+        if (step == null || step.getInput() == null) {
+            return null;
+        }
+        Object raw = step.getInput().get("arguments");
+        if (raw == null) {
+            return resolveFlatToolArguments(step);
+        }
+        if (raw instanceof Map<?, ?> rawMap) {
+            Map<String, Object> arguments = new HashMap<>();
+            rawMap.forEach((key, value) -> arguments.put(String.valueOf(key), value));
+            filterReservedToolArguments(arguments);
+            return arguments;
+        }
+        log.warn("步骤工具参数格式非法, stepType={}, valueType={}",
+                step.getStepType(), raw.getClass().getSimpleName());
+        return resolveFlatToolArguments(step);
+    }
+
+    /**
+     * 过滤步骤控制类字段，避免污染工具参数。
+     *
+     * @param arguments 工具参数映射
+     */
+    private void filterReservedToolArguments(Map<String, Object> arguments) {
+        if (arguments == null || arguments.isEmpty()) {
+            return;
+        }
+        for (String key : TOOL_ARGUMENT_RESERVED_KEYS) {
+            arguments.remove(key);
+        }
+    }
+
+    /**
+     * 从步骤输入平铺字段中提取工具参数。
+     *
+     * <p>用途：兼容规划结果未包裹 arguments 的场景。</p>
+     *
+     * @param step 步骤定义
+     * @return 工具参数映射；为空时返回 {@code null}
+     */
+    private Map<String, Object> resolveFlatToolArguments(StepRequest step) {
+        Map<String, Object> input = step.getInput();
+        if (input == null || input.isEmpty()) {
+            return null;
+        }
+        Map<String, Object> arguments = new HashMap<>();
+        input.forEach((key, value) -> arguments.put(String.valueOf(key), value));
+        filterReservedToolArguments(arguments);
+        if (arguments.isEmpty()) {
+            return null;
+        }
+        log.debug("工具步骤使用平铺参数, stepType={}, argKeys={}", step.getStepType(), arguments.keySet());
+        return arguments;
     }
 
     /**

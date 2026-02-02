@@ -1,0 +1,7 @@
+﻿{
+  "query": "帮我查询一下包含h的用户信息",
+  "executionMode": "SYNC",
+  "waitTimeoutMs": 30000,
+  "idempotencyKey": "",
+  "sessionId": "session-demo-0131"
+}

@@ -668,7 +668,8 @@ components:
         streamUrl:
           type: string
         result:
-          type: object
+          allOf:
+            - $ref: '#/components/schemas/RuntimeResult'
           description: SYNC 完成时返回的任务结果，与最终事件一致
     TaskStatusResponse:
       type: object
@@ -865,6 +866,7 @@ components:
           type: object
         output:
           type: object
+          description: 包含原始输出及摘要字段(outputSummary/toolResultSummary/stepSummary/outputDigest/truncated)
         errorCode:
           type: string
         tenantId:
@@ -885,6 +887,48 @@ components:
         nextCursor:
           type: string
         hasMore:
+          type: boolean
+    RuntimeResult:
+      type: object
+      properties:
+        planId:
+          type: string
+        planSummary:
+          type: string
+        steps:
+          type: array
+          items:
+            $ref: '#/components/schemas/RuntimeStep'
+        finalOutput:
+          type: object
+    RuntimeStep:
+      type: object
+      properties:
+        stepId:
+          type: string
+        type:
+          type: string
+        attempt:
+          type: integer
+        output:
+          $ref: '#/components/schemas/StepOutputSummary'
+    StepOutputSummary:
+      type: object
+      description: 任务结果 steps 使用的摘要化输出结构
+      properties:
+        outputSummary:
+          type: object
+          additionalProperties: true
+        toolResultSummary:
+          type: object
+          additionalProperties: true
+        stepSummary:
+          type: object
+          additionalProperties: true
+        outputDigest:
+          type: object
+          additionalProperties: true
+        truncated:
           type: boolean
     McpToolDefinition:
       type: object

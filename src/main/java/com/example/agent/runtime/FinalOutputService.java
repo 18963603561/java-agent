@@ -318,6 +318,10 @@ public class FinalOutputService {
                 }
             }
             if (!StringUtils.hasText(data.summary)) {
+                Object rawOutputObj = outputMap.get(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY);
+                data.summary = RawOutputSnapshotBuilder.resolveText(rawOutputObj);
+            }
+            if (!StringUtils.hasText(data.summary)) {
                 Object digestObj = outputMap.get("outputDigest");
                 if (digestObj instanceof Map<?, ?> digest) {
                     data.summary = buildDigestSummary(digest);

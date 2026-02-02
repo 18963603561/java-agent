@@ -90,6 +90,10 @@ class AgentRuntimeApprovalIntegrationTest {
 
         ExecutionControlService executionControlService = new ExecutionControlService();
         StepRuntimeService stepRuntimeService = mock(StepRuntimeService.class);
+        StepOutputSummaryBuilder reflectionSummaryBuilder = mock(StepOutputSummaryBuilder.class);
+        when(reflectionSummaryBuilder.isEnabled()).thenReturn(false);
+        RawOutputSnapshotBuilder rawOutputSnapshotBuilder = mock(RawOutputSnapshotBuilder.class);
+        when(rawOutputSnapshotBuilder.isEnabled()).thenReturn(false);
         StepRecord record = new StepRecord();
         record.setStepId("step-1");
         record.setWorkflowId("wf-1");
@@ -147,6 +151,8 @@ class AgentRuntimeApprovalIntegrationTest {
                 plannerService,
                 reflectionService,
                 stepRuntimeService,
+                reflectionSummaryBuilder,
+                rawOutputSnapshotBuilder,
                 enforcementGateway,
                 hookManager,
                 executionControlService,

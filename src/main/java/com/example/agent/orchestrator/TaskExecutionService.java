@@ -48,7 +48,7 @@ public class TaskExecutionService {
     @Value("${agent.task.executor.queue-capacity:200}")
     private int queueCapacity;
 
-    @Value("${agent.task.executor.keep-alive-seconds:60}")
+    @Value("${agent.task.executor.keep-alive-seconds:180}")
     private long keepAliveSeconds;
 
     @Value("${agent.task.executor.thread-name-prefix:task-exec-}")

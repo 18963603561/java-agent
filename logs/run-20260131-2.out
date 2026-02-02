@@ -1,0 +1,246 @@
+
+  .   ____          _            __ _ _
+ /\\ / ___'_ __ _ _(_)_ __  __ _ \ \ \ \
+( ( )\___ | '_ | '_| | '_ \/ _` | \ \ \ \
+ \\/  ___)| |_)| | | | | || (_| |  ) ) ) )
+  '  |____| .__|_| |_|_| |_\__, | / / / /
+ =========|_|==============|___/=/_/_/_/
+ :: Spring Boot ::                (v3.2.2)
+
+2026-01-31 21:15:14.294 INFO  [background-preinit] o.h.validator.internal.util.Version:21 - HV000001: Hibernate Validator 8.0.1.Final
+2026-01-31 21:15:14.342 INFO  [main] com.example.agent.AgentApplication:50 - Starting AgentApplication using Java 17.0.0.1 with PID 8556 (F:\ai-code\java-agent\target\classes started by Administrator in F:\ai-code\java-agent)
+2026-01-31 21:15:14.343 DEBUG [main] com.example.agent.AgentApplication:51 - Running with Spring Boot v3.2.2, Spring v6.1.3
+2026-01-31 21:15:14.344 INFO  [main] com.example.agent.AgentApplication:654 - No active profile set, falling back to 1 default profile: "default"
+2026-01-31 21:15:15.531 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate:292 - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-01-31 21:15:15.533 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate:139 - Bootstrapping Spring Data JDBC repositories in DEFAULT mode.
+2026-01-31 21:15:15.588 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate:208 - Finished Spring Data repository scanning in 49 ms. Found 0 JDBC repository interfaces.
+2026-01-31 21:15:15.606 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate:292 - Multiple Spring Data modules found, entering strict repository configuration mode
+2026-01-31 21:15:15.608 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate:139 - Bootstrapping Spring Data Redis repositories in DEFAULT mode.
+2026-01-31 21:15:15.626 INFO  [main] o.s.d.r.c.RepositoryConfigurationDelegate:208 - Finished Spring Data repository scanning in 10 ms. Found 0 Redis repository interfaces.
+2026-01-31 21:15:17.125 INFO  [main] c.e.agent.contracts.OpenApiConfig:60 - OpenAPI contract loaded, path=F:\ai-code\java-agent\specs\001-agent-core-spec\contracts\openapi.yaml
+2026-01-31 21:15:17.297 INFO  [main] c.e.a.o.TaskExecutionService:68 - 任务执行器初始化, core=4, max=8, queueCapacity=200, keepAliveSeconds=60
+2026-01-31 21:15:17.301 INFO  [main] c.e.a.orchestrator.TaskOrchestrator:178 - 同步等待并发初始化, permits=20
+2026-01-31 21:15:17.822 INFO  [main] c.e.agent.tools.plugin.PluginLoader:59 - 插件目录不存在, dir=plugins
+2026-01-31 21:15:18.157 INFO  [main] o.s.b.a.e.web.EndpointLinksResolver:58 - Exposing 3 endpoint(s) beneath base path '/actuator'
+2026-01-31 21:15:18.448 INFO  [main] com.zaxxer.hikari.HikariDataSource:110 - HikariPool-1 - Starting...
+2026-01-31 21:15:18.632 INFO  [main] com.zaxxer.hikari.pool.HikariPool:565 - HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@7a600e21
+2026-01-31 21:15:18.634 INFO  [main] com.zaxxer.hikari.HikariDataSource:123 - HikariPool-1 - Start completed.
+2026-01-31 21:15:18.843 INFO  [main] o.s.b.w.e.netty.NettyWebServer:141 - Netty started on port 8080
+2026-01-31 21:15:18.861 INFO  [main] com.example.agent.AgentApplication:56 - Started AgentApplication in 5.227 seconds (process running for 5.694)
+2026-01-31 21:15:18.865 INFO  [main] com.example.agent.AgentApplication:23 - FDMB AgentApplication started
+2026-01-31 21:16:23.278 ERROR [reactor-http-nio-5] c.e.a.g.c.GlobalExceptionHandler:67 - Unhandled error, status=400 BAD_REQUEST, code=INVALID_REQUEST, path=/api/v1/tasks
+org.springframework.web.server.ServerWebInputException: 400 BAD_REQUEST "Failed to read HTTP message"
+	at org.springframework.web.reactive.result.method.annotation.AbstractMessageReaderArgumentResolver.handleReadError(AbstractMessageReaderArgumentResolver.java:237)
+	Suppressed: reactor.core.publisher.FluxOnAssembly$OnAssemblyException: 
+Error has been observed at the following site(s):
+	*__checkpoint ? com.example.agent.auth.TenantContextFilter [DefaultWebFilterChain]
+	*__checkpoint ? HTTP POST "/api/v1/tasks" [ExceptionHandlingWebHandler]
+Original Stack Trace:
+		at org.springframework.web.reactive.result.method.annotation.AbstractMessageReaderArgumentResolver.handleReadError(AbstractMessageReaderArgumentResolver.java:237)
+		at org.springframework.web.reactive.result.method.annotation.AbstractMessageReaderArgumentResolver.lambda$readBody$3(AbstractMessageReaderArgumentResolver.java:202)
+		at reactor.core.publisher.Mono.lambda$onErrorMap$28(Mono.java:3799)
+		at reactor.core.publisher.FluxOnErrorResume$ResumeSubscriber.onError(FluxOnErrorResume.java:94)
+		at reactor.core.publisher.MonoFlatMap$FlatMapMain.onNext(MonoFlatMap.java:136)
+		at reactor.core.publisher.FluxContextWrite$ContextWriteSubscriber.onNext(FluxContextWrite.java:107)
+		at reactor.core.publisher.FluxMapFuseable$MapFuseableConditionalSubscriber.onNext(FluxMapFuseable.java:299)
+		at reactor.core.publisher.FluxFilterFuseable$FilterFuseableConditionalSubscriber.onNext(FluxFilterFuseable.java:337)
+		at reactor.core.publisher.Operators$BaseFluxToMonoOperator.completePossiblyEmpty(Operators.java:2097)
+		at reactor.core.publisher.MonoCollect$CollectSubscriber.onComplete(MonoCollect.java:145)
+		at reactor.core.publisher.FluxMap$MapSubscriber.onComplete(FluxMap.java:144)
+		at reactor.core.publisher.FluxPeek$PeekSubscriber.onComplete(FluxPeek.java:260)
+		at reactor.core.publisher.FluxMap$MapSubscriber.onComplete(FluxMap.java:144)
+		at reactor.netty.channel.FluxReceive.terminateReceiver(FluxReceive.java:483)
+		at reactor.netty.channel.FluxReceive.drainReceiver(FluxReceive.java:275)
+		at reactor.netty.channel.FluxReceive.request(FluxReceive.java:133)
+		at reactor.core.publisher.FluxMap$MapSubscriber.request(FluxMap.java:164)
+		at reactor.core.publisher.FluxPeek$PeekSubscriber.request(FluxPeek.java:138)
+		at reactor.core.publisher.FluxMap$MapSubscriber.request(FluxMap.java:164)
+		at reactor.core.publisher.Operators$BaseFluxToMonoOperator.request(Operators.java:2067)
+		at reactor.core.publisher.FluxFilterFuseable$FilterFuseableConditionalSubscriber.request(FluxFilterFuseable.java:411)
+		at reactor.core.publisher.FluxMapFuseable$MapFuseableConditionalSubscriber.request(FluxMapFuseable.java:360)
+		at reactor.core.publisher.FluxContextWrite$ContextWriteSubscriber.request(FluxContextWrite.java:136)
+		at reactor.core.publisher.MonoFlatMap$FlatMapMain.request(MonoFlatMap.java:194)
+		at reactor.core.publisher.Operators$MultiSubscriptionSubscriber.set(Operators.java:2367)
+		at reactor.core.publisher.FluxOnErrorResume$ResumeSubscriber.onSubscribe(FluxOnErrorResume.java:74)
+		at reactor.core.publisher.MonoFlatMap$FlatMapMain.onSubscribe(MonoFlatMap.java:117)
+		at reactor.core.publisher.FluxContextWrite$ContextWriteSubscriber.onSubscribe(FluxContextWrite.java:101)
+		at reactor.core.publisher.FluxMapFuseable$MapFuseableConditionalSubscriber.onSubscribe(FluxMapFuseable.java:265)
+		at reactor.core.publisher.FluxFilterFuseable$FilterFuseableConditionalSubscriber.onSubscribe(FluxFilterFuseable.java:305)
+		at reactor.core.publisher.Operators$BaseFluxToMonoOperator.onSubscribe(Operators.java:2051)
+		at reactor.core.publisher.FluxMap$MapSubscriber.onSubscribe(FluxMap.java:92)
+		at reactor.core.publisher.FluxPeek$PeekSubscriber.onSubscribe(FluxPeek.java:171)
+		at reactor.core.publisher.FluxMap$MapSubscriber.onSubscribe(FluxMap.java:92)
+		at reactor.netty.channel.FluxReceive.startReceiver(FluxReceive.java:172)
+		at reactor.netty.channel.FluxReceive.lambda$subscribe$2(FluxReceive.java:150)
+		at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173)
+		at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166)
+		at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470)
+		at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569)
+		at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997)
+		at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+		at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+		at java.base/java.lang.Thread.run(Thread.java:833)
+Caused by: org.springframework.core.codec.DecodingException: JSON decoding error: Unexpected character ('q' (code 113)): was expecting double-quote to start field name
+	at org.springframework.http.codec.json.AbstractJackson2Decoder.processException(AbstractJackson2Decoder.java:275)
+	at org.springframework.http.codec.json.AbstractJackson2Decoder.decode(AbstractJackson2Decoder.java:211)
+	at org.springframework.http.codec.json.AbstractJackson2Decoder.lambda$decodeToMono$2(AbstractJackson2Decoder.java:191)
+	at reactor.core.publisher.MonoFlatMap$FlatMapMain.onNext(MonoFlatMap.java:132)
+	at reactor.core.publisher.FluxContextWrite$ContextWriteSubscriber.onNext(FluxContextWrite.java:107)
+	at reactor.core.publisher.FluxMapFuseable$MapFuseableConditionalSubscriber.onNext(FluxMapFuseable.java:299)
+	at reactor.core.publisher.FluxFilterFuseable$FilterFuseableConditionalSubscriber.onNext(FluxFilterFuseable.java:337)
+	at reactor.core.publisher.Operators$BaseFluxToMonoOperator.completePossiblyEmpty(Operators.java:2097)
+	at reactor.core.publisher.MonoCollect$CollectSubscriber.onComplete(MonoCollect.java:145)
+	at reactor.core.publisher.FluxMap$MapSubscriber.onComplete(FluxMap.java:144)
+	at reactor.core.publisher.FluxPeek$PeekSubscriber.onComplete(FluxPeek.java:260)
+	at reactor.core.publisher.FluxMap$MapSubscriber.onComplete(FluxMap.java:144)
+	at reactor.netty.channel.FluxReceive.terminateReceiver(FluxReceive.java:483)
+	at reactor.netty.channel.FluxReceive.drainReceiver(FluxReceive.java:275)
+	at reactor.netty.channel.FluxReceive.request(FluxReceive.java:133)
+	at reactor.core.publisher.FluxMap$MapSubscriber.request(FluxMap.java:164)
+	at reactor.core.publisher.FluxPeek$PeekSubscriber.request(FluxPeek.java:138)
+	at reactor.core.publisher.FluxMap$MapSubscriber.request(FluxMap.java:164)
+	at reactor.core.publisher.Operators$BaseFluxToMonoOperator.request(Operators.java:2067)
+	at reactor.core.publisher.FluxFilterFuseable$FilterFuseableConditionalSubscriber.request(FluxFilterFuseable.java:411)
+	at reactor.core.publisher.FluxMapFuseable$MapFuseableConditionalSubscriber.request(FluxMapFuseable.java:360)
+	at reactor.core.publisher.FluxContextWrite$ContextWriteSubscriber.request(FluxContextWrite.java:136)
+	at reactor.core.publisher.MonoFlatMap$FlatMapMain.request(MonoFlatMap.java:194)
+	at reactor.core.publisher.Operators$MultiSubscriptionSubscriber.set(Operators.java:2367)
+	at reactor.core.publisher.FluxOnErrorResume$ResumeSubscriber.onSubscribe(FluxOnErrorResume.java:74)
+	at reactor.core.publisher.MonoFlatMap$FlatMapMain.onSubscribe(MonoFlatMap.java:117)
+	at reactor.core.publisher.FluxContextWrite$ContextWriteSubscriber.onSubscribe(FluxContextWrite.java:101)
+	at reactor.core.publisher.FluxMapFuseable$MapFuseableConditionalSubscriber.onSubscribe(FluxMapFuseable.java:265)
+	at reactor.core.publisher.FluxFilterFuseable$FilterFuseableConditionalSubscriber.onSubscribe(FluxFilterFuseable.java:305)
+	at reactor.core.publisher.Operators$BaseFluxToMonoOperator.onSubscribe(Operators.java:2051)
+	at reactor.core.publisher.FluxMap$MapSubscriber.onSubscribe(FluxMap.java:92)
+	at reactor.core.publisher.FluxPeek$PeekSubscriber.onSubscribe(FluxPeek.java:171)
+	at reactor.core.publisher.FluxMap$MapSubscriber.onSubscribe(FluxMap.java:92)
+	at reactor.netty.channel.FluxReceive.startReceiver(FluxReceive.java:172)
+	at reactor.netty.channel.FluxReceive.lambda$subscribe$2(FluxReceive.java:150)
+	at io.netty.util.concurrent.AbstractEventExecutor.runTask(AbstractEventExecutor.java:173)
+	at io.netty.util.concurrent.AbstractEventExecutor.safeExecute(AbstractEventExecutor.java:166)
+	at io.netty.util.concurrent.SingleThreadEventExecutor.runAllTasks(SingleThreadEventExecutor.java:470)
+	at io.netty.channel.nio.NioEventLoop.run(NioEventLoop.java:569)
+	at io.netty.util.concurrent.SingleThreadEventExecutor$4.run(SingleThreadEventExecutor.java:997)
+	at io.netty.util.internal.ThreadExecutorMap$2.run(ThreadExecutorMap.java:74)
+	at io.netty.util.concurrent.FastThreadLocalRunnable.run(FastThreadLocalRunnable.java:30)
+	at java.base/java.lang.Thread.run(Thread.java:833)
+Caused by: com.fasterxml.jackson.core.JsonParseException: Unexpected character ('q' (code 113)): was expecting double-quote to start field name
+ at [Source: (org.springframework.core.io.buffer.DataBufferInputStream); line: 1, column: 3]
+	at com.fasterxml.jackson.core.JsonParser._constructError(JsonParser.java:2477)
+	at com.fasterxml.jackson.core.base.ParserMinimalBase._reportError(ParserMinimalBase.java:750)
+	at com.fasterxml.jackson.core.base.ParserMinimalBase._reportUnexpectedChar(ParserMinimalBase.java:674)
+	at com.fasterxml.jackson.core.json.UTF8StreamJsonParser._handleOddName(UTF8StreamJsonParser.java:2144)
+	at com.fasterxml.jackson.core.json.UTF8StreamJsonParser._parseName(UTF8StreamJsonParser.java:1794)
+	at com.fasterxml.jackson.core.json.UTF8StreamJsonParser.nextToken(UTF8StreamJsonParser.java:798)
+	at com.fasterxml.jackson.databind.deser.BeanDeserializer.deserialize(BeanDeserializer.java:181)
+	at com.fasterxml.jackson.databind.deser.DefaultDeserializationContext.readRootValue(DefaultDeserializationContext.java:323)
+	at com.fasterxml.jackson.databind.ObjectReader._bindAndClose(ObjectReader.java:2105)
+	at com.fasterxml.jackson.databind.ObjectReader.readValue(ObjectReader.java:1481)
+	at org.springframework.http.codec.json.AbstractJackson2Decoder.decode(AbstractJackson2Decoder.java:206)
+	... 41 common frames omitted
+2026-01-31 21:17:06.543 DEBUG [reactor-http-nio-6] c.e.a.o.JdbcTaskRepository:72 - 任务入库, tenantId=tenant-demo-1, taskId=416da695-a945-4134-a03c-94e9844a57ed
+2026-01-31 21:17:06.544 INFO  [reactor-http-nio-6] c.e.a.orchestrator.TaskOrchestrator:386 - 任务提交, tenantId=tenant-demo-1, taskId=416da695-a945-4134-a03c-94e9844a57ed, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, traceId=null
+2026-01-31 21:17:06.549 INFO  [reactor-http-nio-6] c.e.a.o.TaskExecutionService:206 - 任务已提交, taskId=416da695-a945-4134-a03c-94e9844a57ed, activeCount=1, queueSize=0, rejectedCount=0
+2026-01-31 21:17:06.595 DEBUG [task-exec-1] c.e.a.o.JdbcTaskRepository:72 - 任务入库, tenantId=tenant-demo-1, taskId=416da695-a945-4134-a03c-94e9844a57ed
+2026-01-31 21:17:06.615 DEBUG [reactor-http-nio-6] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:1, updated=1
+2026-01-31 21:17:06.636 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:2, updated=1
+2026-01-31 21:17:06.638 INFO  [task-exec-1] c.e.agent.memory.MemoryRecallService:134 - 记忆召回开始, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, sessionId=session-demo-0131, queryLength=14, limit=10, retrievalPriority=[SEMANTIC, RECENT, SUMMARY], enableSensitiveMask=true
+2026-01-31 21:17:06.645 DEBUG [task-exec-1] c.example.agent.memory.MemoryStore:280 - 过期记忆清理无数据, tenantId=tenant-demo-1, reason=search
+2026-01-31 21:17:06.690 DEBUG [task-exec-1] c.e.a.memory.JdbcMemoryRepository:69 - 记忆入库, tenantId=tenant-demo-1, memoryId=6018cae6-ccaa-4afe-a18a-e80d712450a2
+2026-01-31 21:17:06.691 INFO  [task-exec-1] c.e.a.memory.CompressedMemoryStore:261 - 压缩摘要产出, tenantId=tenant-demo-1, workflowId=null, version=v1, summaryChars=543, workingMemoryItems=4
+2026-01-31 21:17:06.691 INFO  [task-exec-1] c.e.a.memory.CompressedMemoryStore:82 - 记忆压缩生成, tenantId=tenant-demo-1, sessionId=session-demo-0131, memoryId=6018cae6-ccaa-4afe-a18a-e80d712450a2
+2026-01-31 21:17:06.692 INFO  [task-exec-1] c.example.agent.memory.MemoryStore:248 - 自动压缩触发, tenantId=tenant-demo-1, sessionId=session-demo-0131, memoryId=6018cae6-ccaa-4afe-a18a-e80d712450a2
+2026-01-31 21:17:06.852 INFO  [task-exec-1] c.e.a.context.EvidencePackService:146 - evidence memory append tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, memoriesAddedCount=10
+2026-01-31 21:17:06.853 INFO  [task-exec-1] c.e.a.context.EvidencePackService:228 - evidence finalize tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, toolCallsCount=0, memoriesCount=10, citationsCount=0, approxChars=360
+2026-01-31 21:17:06.854 INFO  [task-exec-1] c.e.agent.memory.MemoryRecallService:158 - 记忆召回完成, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, sessionId=session-demo-0131, count=10, summaryLength=800, redactionsAppliedCount=0, enabled=true, rejectOnSecrets=true, redactOnPii=true
+2026-01-31 21:17:06.854 DEBUG [task-exec-1] c.e.a.context.DefaultContextBuilder:101 - 上下文构建开始, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5
+2026-01-31 21:17:06.855 INFO  [task-exec-1] c.e.a.context.DefaultContextBuilder:609 - 上下文策略应用, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, hasPolicy=false, retrievalPriority=null, pruneOrder=null, enableSensitiveMask=null
+2026-01-31 21:17:06.864 INFO  [task-exec-1] c.e.a.b.DefaultContextBudgetAllocator:65 - 上下文预算分配完成, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, totalTokens=8192, policyVersion=v1, sectionTokens={SYSTEM_POLICY=409, DEVELOPER_POLICY=409, USER_INPUT=3276, WORKING_MEMORY=1638, DOMAIN_KNOWLEDGE=819, LONG_TERM_MEMORY=819, TOOL_SUMMARY=409, TOOL_SCHEMA=245, EVIDENCE_PACK=163, SLACK=5}
+2026-01-31 21:17:06.865 INFO  [task-exec-1] c.e.a.budget.DefaultContextPruner:133 - 上下文裁剪顺序, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, hasPolicy=false, pruneOrder=[LONG_TERM_MEMORY, EVIDENCE_PACK, DOMAIN_KNOWLEDGE, WORKING_MEMORY]
+2026-01-31 21:17:06.867 INFO  [task-exec-1] c.e.a.s.ContextEventPublisher:573 - 上下文事件统计, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, snapshotId=7b42e62c-eb24-42dd-a04c-3ce2bbb99872, eventType=CONTEXT_SNAPSHOT_STAGE, usedStructuredSummary=false, summaryVersion=null, summaryChars=0, workingMemoryItems=0, evidenceToolCallsCount=0, evidenceMemoriesCount=10, evidenceApproxChars=360
+2026-01-31 21:17:06.914 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:3, updated=1
+2026-01-31 21:17:06.916 DEBUG [task-exec-1] c.e.a.s.ContextEventPublisher:589 - 上下文事件发布, type=CONTEXT_SNAPSHOT_STAGE, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, seq=3
+2026-01-31 21:17:06.916 INFO  [task-exec-1] c.e.a.s.ContextEventPublisher:151 - 上下文快照阶段事件, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, stage=CONTEXT_TRIMMED, snapshotId=7b42e62c-eb24-42dd-a04c-3ce2bbb99872, beforeTokens=1278, afterTokens=1278, truncatedSectionsCount=0
+2026-01-31 21:17:06.917 INFO  [task-exec-1] c.e.a.context.DefaultContextBuilder:171 - 上下文构建完成, tenantId=tenant-demo-1, snapshotId=7b42e62c-eb24-42dd-a04c-3ce2bbb99872, buildMillis=62
+2026-01-31 21:17:06.919 INFO  [task-exec-1] c.e.a.s.ContextEventPublisher:573 - 上下文事件统计, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, snapshotId=7b42e62c-eb24-42dd-a04c-3ce2bbb99872, eventType=CONTEXT_SNAPSHOT_CREATED, usedStructuredSummary=false, summaryVersion=null, summaryChars=512, workingMemoryItems=10, evidenceToolCallsCount=0, evidenceMemoriesCount=10, evidenceApproxChars=360
+2026-01-31 21:17:06.953 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:4, updated=1
+2026-01-31 21:17:06.955 DEBUG [task-exec-1] c.e.a.s.ContextEventPublisher:589 - 上下文事件发布, type=CONTEXT_SNAPSHOT_CREATED, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, seq=4
+2026-01-31 21:17:06.973 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:5, updated=1
+2026-01-31 21:17:07.004 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:6, updated=1
+2026-01-31 21:17:07.005 DEBUG [boundedElastic-4] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865426987-0
+2026-01-31 21:17:07.005 DEBUG [boundedElastic-5] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865426989-3
+2026-01-31 21:17:07.005 INFO  [task-exec-1] c.e.a.e.CapabilityBoundaryEvaluator:112 - 能力边界评估完成, riskLevel=LOW, complexityScore=0.17, recommendedStrategy=tool
+2026-01-31 21:17:07.005 DEBUG [boundedElastic-1] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865426989-2
+2026-01-31 21:17:07.005 DEBUG [boundedElastic-3] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865426989-1
+2026-01-31 21:17:07.006 DEBUG [boundedElastic-2] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865426989-0
+2026-01-31 21:17:07.008 INFO  [task-exec-1] c.e.agent.planning.PlannerService:783 - 规划生成(大模型), tenantId=tenant-demo-1, planId=c379617b-1743-4580-9783-f8266f1ce0c7, summary=strategy=sequential, cognitive=simple, complexity=0.17, steps=1
+2026-01-31 21:17:07.011 DEBUG [boundedElastic-6] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865427008-0
+2026-01-31 21:17:07.031 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:7, updated=1
+2026-01-31 21:17:07.038 DEBUG [boundedElastic-6] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865427035-0
+2026-01-31 21:17:07.087 DEBUG [task-exec-1] c.e.a.r.JdbcStepRecordRepository:86 - 步骤记录入库, tenantId=tenant-demo-1, stepId=7b62d6fd-4f62-4474-adb5-d7f3b5c38012
+2026-01-31 21:17:07.115 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:8, updated=1
+2026-01-31 21:17:07.116 INFO  [task-exec-1] c.e.agent.runtime.StepRuntimeService:94 - 步骤开始, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, stepId=7b62d6fd-4f62-4474-adb5-d7f3b5c38012, seq=8
+2026-01-31 21:17:07.118 INFO  [task-exec-1] c.e.agent.tools.hook.HookManager:317 - Hook 执行, tenantId=tenant-demo-1, hookId=blocked_tool, type=PRE_STEP, tool=null, allowed=true, timeout=false, durationMs=0
+2026-01-31 21:17:07.122 DEBUG [boundedElastic-6] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865427118-0
+2026-01-31 21:17:07.145 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:9, updated=1
+2026-01-31 21:17:07.147 INFO  [task-exec-1] c.example.agent.runtime.AgentRuntime:525 - 大模型步骤开始, 工作流=e398868d-806d-47ad-97a5-6f8b7c4650e5, 查询长度=14, 含上下文=true
+2026-01-31 21:17:07.149 DEBUG [task-exec-1] c.e.a.model.DefaultPromptAssembler:127 - 提示词组装完成, templateId=default, messageCount=3
+2026-01-31 21:17:07.149 DEBUG [task-exec-1] com.example.agent.model.ModelRouter:56 - 模型路由, scene=REFLECT, modelId=deepseek-chat
+2026-01-31 21:17:07.150 INFO  [task-exec-1] c.e.a.model.ModelInvocationService:126 - 模型调用开始, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, scene=REFLECT, modelId=deepseek-chat, phase=finalize
+2026-01-31 21:17:07.151 DEBUG [task-exec-1] com.example.agent.model.ModelRouter:56 - 模型路由, scene=REFLECT, modelId=deepseek-chat
+2026-01-31 21:17:07.152 INFO  [task-exec-1] c.e.agent.model.DefaultLlmClient:77 - 模型调用, scene=REFLECT, modelId=deepseek-chat
+2026-01-31 21:17:07.153 DEBUG [boundedElastic-6] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865427149-0
+2026-01-31 21:17:07.153 DEBUG [task-exec-1] c.e.agent.model.DefaultModelProvider:800 - developer角色已降级为system, modelId=deepseek-chat, provider=openai, beforeCount=3, afterCount=2
+2026-01-31 21:17:07.154 INFO  [task-exec-1] c.e.agent.model.DefaultModelProvider:206 - 兼容接口调用开始, 模型标识=deepseek-chat, 服务地址=https://api.deepseek.com/v1, 工具数=0
+2026-01-31 21:17:10.182 INFO  [task-exec-1] c.e.agent.model.DefaultModelProvider:251 - 兼容接口调用完成, 模型标识=deepseek-chat, 服务地址=https://api.deepseek.com/v1, 延迟毫秒=3028, 输入令牌=291, 输出令牌=44
+2026-01-31 21:17:10.183 INFO  [task-exec-1] c.e.a.model.ModelInvocationService:136 - 模型调用完成, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, scene=REFLECT, modelId=deepseek-chat, phase=finalize, latencyMs=3033
+2026-01-31 21:17:10.184 INFO  [task-exec-1] c.e.a.model.ModelInvocationService:315 - 提示词追踪记录, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, phase=final, modelId=deepseek-chat, promptScene=final, promptId=252f231d, promptChars=574, tokensEstimate=144, parseSuccess=true, parseErrorType=null, repairAttempted=false, repairSuccess=false
+2026-01-31 21:17:10.220 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:12, updated=1
+2026-01-31 21:17:10.222 INFO  [task-exec-1] c.example.agent.runtime.AgentRuntime:543 - 大模型步骤完成, 工作流=e398868d-806d-47ad-97a5-6f8b7c4650e5, 输出字段=[highlights, answer, modelId, confidence, source]
+2026-01-31 21:17:10.228 DEBUG [boundedElastic-6] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865430222-0
+2026-01-31 21:17:10.239 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:13, updated=1
+2026-01-31 21:17:10.241 DEBUG [task-exec-1] c.e.a.model.DefaultPromptAssembler:127 - 提示词组装完成, templateId=default, messageCount=3
+2026-01-31 21:17:10.242 INFO  [task-exec-1] c.e.agent.model.ModelToolResolver:107 - 工具已禁用, 租户=null
+2026-01-31 21:17:10.243 DEBUG [task-exec-1] com.example.agent.model.ModelRouter:56 - 模型路由, scene=REFLECT, modelId=deepseek-chat
+2026-01-31 21:17:10.243 INFO  [task-exec-1] c.e.a.model.ModelInvocationService:126 - 模型调用开始, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, scene=REFLECT, modelId=deepseek-chat, phase=reflect
+2026-01-31 21:17:10.243 DEBUG [task-exec-1] com.example.agent.model.ModelRouter:56 - 模型路由, scene=REFLECT, modelId=deepseek-chat
+2026-01-31 21:17:10.244 INFO  [task-exec-1] c.e.agent.model.DefaultLlmClient:77 - 模型调用, scene=REFLECT, modelId=deepseek-chat
+2026-01-31 21:17:10.244 DEBUG [task-exec-1] c.e.agent.model.DefaultModelProvider:800 - developer角色已降级为system, modelId=deepseek-chat, provider=openai, beforeCount=3, afterCount=2
+2026-01-31 21:17:10.245 INFO  [task-exec-1] c.e.agent.model.DefaultModelProvider:206 - 兼容接口调用开始, 模型标识=deepseek-chat, 服务地址=https://api.deepseek.com/v1, 工具数=0
+2026-01-31 21:17:10.246 DEBUG [boundedElastic-6] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865430241-0
+2026-01-31 21:17:12.642 INFO  [task-exec-1] c.e.agent.model.DefaultModelProvider:251 - 兼容接口调用完成, 模型标识=deepseek-chat, 服务地址=https://api.deepseek.com/v1, 延迟毫秒=2397, 输入令牌=175, 输出令牌=36
+2026-01-31 21:17:12.643 INFO  [task-exec-1] c.e.a.model.ModelInvocationService:136 - 模型调用完成, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, scene=REFLECT, modelId=deepseek-chat, phase=reflect, latencyMs=2400
+2026-01-31 21:17:12.644 INFO  [task-exec-1] c.e.a.model.ModelInvocationService:315 - 提示词追踪记录, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, phase=reflect, modelId=deepseek-chat, promptScene=reflect, promptId=747cbe0f, promptChars=329, tokensEstimate=83, parseSuccess=true, parseErrorType=null, repairAttempted=false, repairSuccess=false
+2026-01-31 21:17:12.673 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:16, updated=1
+2026-01-31 21:17:12.675 INFO  [task-exec-1] c.e.a.reflection.ReflectionService:195 - 反思完成(LLM), tenantId=tenant-demo-1, stepType=LLM, score=0.5, retry=false, attempt=1
+2026-01-31 21:17:12.681 DEBUG [boundedElastic-6] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865432676-0
+2026-01-31 21:17:12.695 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:17, updated=1
+2026-01-31 21:17:12.703 DEBUG [boundedElastic-6] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865432698-0
+2026-01-31 21:17:12.715 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:18, updated=1
+2026-01-31 21:17:12.722 DEBUG [boundedElastic-6] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865432717-0
+2026-01-31 21:17:12.746 DEBUG [task-exec-1] c.e.a.r.JdbcStepRecordRepository:86 - 步骤记录入库, tenantId=tenant-demo-1, stepId=7b62d6fd-4f62-4474-adb5-d7f3b5c38012
+2026-01-31 21:17:12.746 INFO  [task-exec-1] c.e.agent.runtime.StepRuntimeService:172 - 步骤完成, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, stepId=7b62d6fd-4f62-4474-adb5-d7f3b5c38012, seq=8
+2026-01-31 21:17:12.747 INFO  [task-exec-1] c.e.agent.tools.hook.HookManager:317 - Hook 执行, tenantId=tenant-demo-1, hookId=blocked_tool, type=POST_STEP, tool=null, allowed=true, timeout=false, durationMs=0
+2026-01-31 21:17:12.765 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:19, updated=1
+2026-01-31 21:17:12.767 INFO  [task-exec-1] c.example.agent.runtime.AgentRuntime:1278 - 大模型步骤已产出最终结果, 工作流=e398868d-806d-47ad-97a5-6f8b7c4650e5, 步骤类型=LLM, 输出字段=[outputDigest, truncated, stepSummary]
+2026-01-31 21:17:12.767 INFO  [task-exec-1] c.e.agent.memory.MemoryWriteService:88 - 记忆写入开始, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, sessionId=session-demo-0131, taskId=416da695-a945-4134-a03c-94e9844a57ed
+2026-01-31 21:17:12.771 DEBUG [boundedElastic-6] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865432767-0
+2026-01-31 21:17:12.787 DEBUG [task-exec-1] c.e.a.memory.JdbcMemoryRepository:69 - 记忆入库, tenantId=tenant-demo-1, memoryId=fa4bcdb1-3698-4fa9-a83e-1a9ac9b64528
+2026-01-31 21:17:12.788 WARN  [task-exec-1] c.example.agent.memory.MemoryStore:87 - 嵌入服务不可用，跳过向量写入, tenantId=tenant-demo-1, memoryId=fa4bcdb1-3698-4fa9-a83e-1a9ac9b64528
+2026-01-31 21:17:12.788 INFO  [task-exec-1] c.example.agent.memory.MemoryStore:95 - 记忆保存, tenantId=tenant-demo-1, sessionId=session-demo-0131, memoryId=fa4bcdb1-3698-4fa9-a83e-1a9ac9b64528
+2026-01-31 21:17:12.840 DEBUG [task-exec-1] c.e.a.memory.JdbcMemoryRepository:69 - 记忆入库, tenantId=tenant-demo-1, memoryId=8154e903-4968-4a1a-aedf-44ed231b065e
+2026-01-31 21:17:12.841 WARN  [task-exec-1] c.example.agent.memory.MemoryStore:87 - 嵌入服务不可用，跳过向量写入, tenantId=tenant-demo-1, memoryId=8154e903-4968-4a1a-aedf-44ed231b065e
+2026-01-31 21:17:12.841 INFO  [task-exec-1] c.example.agent.memory.MemoryStore:95 - 记忆保存, tenantId=tenant-demo-1, sessionId=session-demo-0131, memoryId=8154e903-4968-4a1a-aedf-44ed231b065e
+2026-01-31 21:17:12.845 INFO  [task-exec-1] c.e.agent.memory.MemoryWriteService:132 - 记忆写入完成, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, sessionId=session-demo-0131, taskId=416da695-a945-4134-a03c-94e9844a57ed, count=2, writesRejectedCount=0, redactionsAppliedCount=0, enabledFlags=true, rejectOnSecrets=true, redactOnPii=true
+2026-01-31 21:17:12.870 DEBUG [task-exec-1] c.e.a.o.JdbcTaskRepository:72 - 任务入库, tenantId=tenant-demo-1, taskId=416da695-a945-4134-a03c-94e9844a57ed
+2026-01-31 21:17:12.890 DEBUG [task-exec-1] c.e.a.history.JdbcEventLogRepository:66 - 事件日志入库, tenantId=tenant-demo-1, workflowId=e398868d-806d-47ad-97a5-6f8b7c4650e5, eventId=e398868d-806d-47ad-97a5-6f8b7c4650e5:20, updated=1
+2026-01-31 21:17:12.891 INFO  [task-exec-1] c.e.a.o.TaskExecutionService:206 - 任务执行结束, taskId=416da695-a945-4134-a03c-94e9844a57ed, activeCount=1, queueSize=0, rejectedCount=0
+2026-01-31 21:17:12.899 DEBUG [boundedElastic-6] c.e.a.streaming.EventStreamService:359 - Redis stream append, streamKey=stream:e398868d-806d-47ad-97a5-6f8b7c4650e5, recordId=1769865432894-0
+2026-01-31 21:17:12.900 INFO  [reactor-http-nio-6] c.e.a.g.controller.TaskController:123 - 任务提交完成, tenantId=tenant-demo-1, userId=demo-user, taskId=416da695-a945-4134-a03c-94e9844a57ed, traceId=null
+[ERROR] Failed to execute goal org.springframework.boot:spring-boot-maven-plugin:3.2.2:run (default-cli) on project java-agent: Process terminated with exit code: -1 -> [Help 1]
+[ERROR] 
+[ERROR] To see the full stack trace of the errors, re-run Maven with the -e switch.
+[ERROR] Re-run Maven using the -X switch to enable full debug logging.
+[ERROR] 
+[ERROR] For more information about the errors and possible solutions, please read the following articles:
+[ERROR] [Help 1] http://cwiki.apache.org/confluence/display/MAVEN/MojoExecutionException
