@@ -473,10 +473,6 @@ public class ReactLoopService {
             data.summary = resolveSummaryText(stepSummary);
         }
         if (!StringUtils.hasText(data.summary)) {
-            data.summary = RawOutputSnapshotBuilder.resolveText(
-                    output != null ? output.get(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY) : null);
-        }
-        if (!StringUtils.hasText(data.summary)) {
             data.summary = buildDigestSummary(outputDigest);
         }
         if (!StringUtils.hasText(data.summary)) {

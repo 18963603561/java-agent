@@ -9,7 +9,6 @@ import com.example.agent.model.ModelToolResolver;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
 import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.runtime.RawOutputSnapshotBuilder;
 import com.example.agent.runtime.StepRequest;
 import com.example.agent.repair.JsonOutputRepairService;
 import com.example.agent.repair.JsonOutputSchema;
@@ -338,11 +337,6 @@ public class ReflectionService {
         }
         Object summaryValue = outputSummary.get("summary");
         String summaryText = summaryValue == null ? null : summaryValue.toString();
-        if (!StringUtils.hasText(summaryText)) {
-            String rawText = RawOutputSnapshotBuilder.resolveText(
-                    output != null ? output.get(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY) : null);
-            summaryText = rawText;
-        }
         if (!StringUtils.hasText(summaryText)) {
             summaryText = buildDigestSummary(outputDigest);
             if (!StringUtils.hasText(summaryText)) {

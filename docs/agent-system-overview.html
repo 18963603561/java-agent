@@ -1,0 +1,390 @@
+<!DOCTYPE html><html><head>
+      <title>agent-system-overview</title>
+      <meta charset="utf-8">
+      <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      
+      <link rel="stylesheet" href="file:///c:\Users\Administrator\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.8.20\crossnote\dependencies\katex\katex.min.css">
+      
+      
+      <script type="text/javascript" src="file:///c:\Users\Administrator\.vscode\extensions\shd101wyy.markdown-preview-enhanced-0.8.20\crossnote\dependencies\mermaid\mermaid.min.js" charset="UTF-8"></script>
+      
+      
+      <style>
+      code[class*=language-],pre[class*=language-]{color:#333;background:0 0;font-family:Consolas,"Liberation Mono",Menlo,Courier,monospace;text-align:left;white-space:pre;word-spacing:normal;word-break:normal;word-wrap:normal;line-height:1.4;-moz-tab-size:8;-o-tab-size:8;tab-size:8;-webkit-hyphens:none;-moz-hyphens:none;-ms-hyphens:none;hyphens:none}pre[class*=language-]{padding:.8em;overflow:auto;border-radius:3px;background:#f5f5f5}:not(pre)>code[class*=language-]{padding:.1em;border-radius:.3em;white-space:normal;background:#f5f5f5}.token.blockquote,.token.comment{color:#969896}.token.cdata{color:#183691}.token.doctype,.token.macro.property,.token.punctuation,.token.variable{color:#333}.token.builtin,.token.important,.token.keyword,.token.operator,.token.rule{color:#a71d5d}.token.attr-value,.token.regex,.token.string,.token.url{color:#183691}.token.atrule,.token.boolean,.token.code,.token.command,.token.constant,.token.entity,.token.number,.token.property,.token.symbol{color:#0086b3}.token.prolog,.token.selector,.token.tag{color:#63a35c}.token.attr-name,.token.class,.token.class-name,.token.function,.token.id,.token.namespace,.token.pseudo-class,.token.pseudo-element,.token.url-reference .token.variable{color:#795da3}.token.entity{cursor:help}.token.title,.token.title .token.punctuation{font-weight:700;color:#1d3e81}.token.list{color:#ed6a43}.token.inserted{background-color:#eaffea;color:#55a532}.token.deleted{background-color:#ffecec;color:#bd2c00}.token.bold{font-weight:700}.token.italic{font-style:italic}.language-json .token.property{color:#183691}.language-markup .token.tag .token.punctuation{color:#333}.language-css .token.function,code.language-css{color:#0086b3}.language-yaml .token.atrule{color:#63a35c}code.language-yaml{color:#183691}.language-ruby .token.function{color:#333}.language-markdown .token.url{color:#795da3}.language-makefile .token.symbol{color:#795da3}.language-makefile .token.variable{color:#183691}.language-makefile .token.builtin{color:#0086b3}.language-bash .token.keyword{color:#0086b3}pre[data-line]{position:relative;padding:1em 0 1em 3em}pre[data-line] .line-highlight-wrapper{position:absolute;top:0;left:0;background-color:transparent;display:block;width:100%}pre[data-line] .line-highlight{position:absolute;left:0;right:0;padding:inherit 0;margin-top:1em;background:hsla(24,20%,50%,.08);background:linear-gradient(to right,hsla(24,20%,50%,.1) 70%,hsla(24,20%,50%,0));pointer-events:none;line-height:inherit;white-space:pre}pre[data-line] .line-highlight:before,pre[data-line] .line-highlight[data-end]:after{content:attr(data-start);position:absolute;top:.4em;left:.6em;min-width:1em;padding:0 .5em;background-color:hsla(24,20%,50%,.4);color:#f4f1ef;font:bold 65%/1.5 sans-serif;text-align:center;vertical-align:.3em;border-radius:999px;text-shadow:none;box-shadow:0 1px #fff}pre[data-line] .line-highlight[data-end]:after{content:attr(data-end);top:auto;bottom:.4em}html body{font-family:'Helvetica Neue',Helvetica,'Segoe UI',Arial,freesans,sans-serif;font-size:16px;line-height:1.6;color:#333;background-color:#fff;overflow:initial;box-sizing:border-box;word-wrap:break-word}html body>:first-child{margin-top:0}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{line-height:1.2;margin-top:1em;margin-bottom:16px;color:#000}html body h1{font-size:2.25em;font-weight:300;padding-bottom:.3em}html body h2{font-size:1.75em;font-weight:400;padding-bottom:.3em}html body h3{font-size:1.5em;font-weight:500}html body h4{font-size:1.25em;font-weight:600}html body h5{font-size:1.1em;font-weight:600}html body h6{font-size:1em;font-weight:600}html body h1,html body h2,html body h3,html body h4,html body h5{font-weight:600}html body h5{font-size:1em}html body h6{color:#5c5c5c}html body strong{color:#000}html body del{color:#5c5c5c}html body a:not([href]){color:inherit;text-decoration:none}html body a{color:#08c;text-decoration:none}html body a:hover{color:#00a3f5;text-decoration:none}html body img{max-width:100%}html body>p{margin-top:0;margin-bottom:16px;word-wrap:break-word}html body>ol,html body>ul{margin-bottom:16px}html body ol,html body ul{padding-left:2em}html body ol.no-list,html body ul.no-list{padding:0;list-style-type:none}html body ol ol,html body ol ul,html body ul ol,html body ul ul{margin-top:0;margin-bottom:0}html body li{margin-bottom:0}html body li.task-list-item{list-style:none}html body li>p{margin-top:0;margin-bottom:0}html body .task-list-item-checkbox{margin:0 .2em .25em -1.8em;vertical-align:middle}html body .task-list-item-checkbox:hover{cursor:pointer}html body blockquote{margin:16px 0;font-size:inherit;padding:0 15px;color:#5c5c5c;background-color:#f0f0f0;border-left:4px solid #d6d6d6}html body blockquote>:first-child{margin-top:0}html body blockquote>:last-child{margin-bottom:0}html body hr{height:4px;margin:32px 0;background-color:#d6d6d6;border:0 none}html body table{margin:10px 0 15px 0;border-collapse:collapse;border-spacing:0;display:block;width:100%;overflow:auto;word-break:normal;word-break:keep-all}html body table th{font-weight:700;color:#000}html body table td,html body table th{border:1px solid #d6d6d6;padding:6px 13px}html body dl{padding:0}html body dl dt{padding:0;margin-top:16px;font-size:1em;font-style:italic;font-weight:700}html body dl dd{padding:0 16px;margin-bottom:16px}html body code{font-family:Menlo,Monaco,Consolas,'Courier New',monospace;font-size:.85em;color:#000;background-color:#f0f0f0;border-radius:3px;padding:.2em 0}html body code::after,html body code::before{letter-spacing:-.2em;content:'\00a0'}html body pre>code{padding:0;margin:0;word-break:normal;white-space:pre;background:0 0;border:0}html body .highlight{margin-bottom:16px}html body .highlight pre,html body pre{padding:1em;overflow:auto;line-height:1.45;border:#d6d6d6;border-radius:3px}html body .highlight pre{margin-bottom:0;word-break:normal}html body pre code,html body pre tt{display:inline;max-width:initial;padding:0;margin:0;overflow:initial;line-height:inherit;word-wrap:normal;background-color:transparent;border:0}html body pre code:after,html body pre code:before,html body pre tt:after,html body pre tt:before{content:normal}html body blockquote,html body dl,html body ol,html body p,html body pre,html body ul{margin-top:0;margin-bottom:16px}html body kbd{color:#000;border:1px solid #d6d6d6;border-bottom:2px solid #c7c7c7;padding:2px 4px;background-color:#f0f0f0;border-radius:3px}@media print{html body{background-color:#fff}html body h1,html body h2,html body h3,html body h4,html body h5,html body h6{color:#000;page-break-after:avoid}html body blockquote{color:#5c5c5c}html body pre{page-break-inside:avoid}html body table{display:table}html body img{display:block;max-width:100%;max-height:100%}html body code,html body pre{word-wrap:break-word;white-space:pre}}.markdown-preview{width:100%;height:100%;box-sizing:border-box}.markdown-preview ul{list-style:disc}.markdown-preview ul ul{list-style:circle}.markdown-preview ul ul ul{list-style:square}.markdown-preview ol{list-style:decimal}.markdown-preview ol ol,.markdown-preview ul ol{list-style-type:lower-roman}.markdown-preview ol ol ol,.markdown-preview ol ul ol,.markdown-preview ul ol ol,.markdown-preview ul ul ol{list-style-type:lower-alpha}.markdown-preview .newpage,.markdown-preview .pagebreak{page-break-before:always}.markdown-preview pre.line-numbers{position:relative;padding-left:3.8em;counter-reset:linenumber}.markdown-preview pre.line-numbers>code{position:relative}.markdown-preview pre.line-numbers .line-numbers-rows{position:absolute;pointer-events:none;top:1em;font-size:100%;left:0;width:3em;letter-spacing:-1px;border-right:1px solid #999;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}.markdown-preview pre.line-numbers .line-numbers-rows>span{pointer-events:none;display:block;counter-increment:linenumber}.markdown-preview pre.line-numbers .line-numbers-rows>span:before{content:counter(linenumber);color:#999;display:block;padding-right:.8em;text-align:right}.markdown-preview .mathjax-exps .MathJax_Display{text-align:center!important}.markdown-preview:not([data-for=preview]) .code-chunk .code-chunk-btn-group{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .status{display:none}.markdown-preview:not([data-for=preview]) .code-chunk .output-div{margin-bottom:16px}.markdown-preview .md-toc{padding:0}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link div,.markdown-preview .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}.markdown-preview .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}.scrollbar-style::-webkit-scrollbar{width:8px}.scrollbar-style::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}.scrollbar-style::-webkit-scrollbar-thumb{border-radius:5px;background-color:rgba(150,150,150,.66);border:4px solid rgba(150,150,150,.66);background-clip:content-box}html body[for=html-export]:not([data-presentation-mode]){position:relative;width:100%;height:100%;top:0;left:0;margin:0;padding:0;overflow:auto}html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{position:relative;top:0;min-height:100vh}@media screen and (min-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em calc(50% - 457px + 2em)}}@media screen and (max-width:914px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode]) .markdown-preview{font-size:14px!important;padding:1em}}@media print{html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{display:none}}html body[for=html-export]:not([data-presentation-mode]) #sidebar-toc-btn{position:fixed;bottom:8px;left:8px;font-size:28px;cursor:pointer;color:inherit;z-index:99;width:32px;text-align:center;opacity:.4}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] #sidebar-toc-btn{opacity:1}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc{position:fixed;top:0;left:0;width:300px;height:100%;padding:32px 0 48px 0;font-size:14px;box-shadow:0 0 4px rgba(150,150,150,.33);box-sizing:border-box;overflow:auto;background-color:inherit}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar{width:8px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-track{border-radius:10px;background-color:transparent}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc::-webkit-scrollbar-thumb{border-radius:5px;background-color:rgba(150,150,150,.66);border:4px solid rgba(150,150,150,.66);background-clip:content-box}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc a{text-decoration:none}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc{padding:0 16px}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link{display:inline;padding:.25rem 0}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link div,html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper .md-toc-link p{display:inline}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .md-sidebar-toc .md-toc .md-toc-link-wrapper.highlighted .md-toc-link{font-weight:800}html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{left:300px;width:calc(100% - 300px);padding:2em calc(50% - 457px - 300px / 2);margin:0;box-sizing:border-box}@media screen and (max-width:1274px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{padding:2em}}@media screen and (max-width:450px){html body[for=html-export]:not([data-presentation-mode])[html-show-sidebar-toc] .markdown-preview{width:100%}}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .markdown-preview{left:50%;transform:translateX(-50%)}html body[for=html-export]:not([data-presentation-mode]):not([html-show-sidebar-toc]) .md-sidebar-toc{display:none}
+/* Please visit the URL below for more information: */
+/*   https://shd101wyy.github.io/markdown-preview-enhanced/#/customize-css */
+
+      </style>
+      <!-- The content below will be included at the end of the <head> element. --><script type="text/javascript">
+  document.addEventListener("DOMContentLoaded", function () {
+    // your code here
+  });
+</script></head><body for="html-export">
+    
+    
+      <div class="crossnote markdown-preview  ">
+      
+<h1 id="fagent-系统总览">fagent 系统总览 </h1>
+<blockquote>
+<p>说明：本文覆盖入口、编排、规划、运行时、工具、模型、记忆/证据、预算裁剪、持久化、事件流与治理等链路。（<code>TaskController#submitTask</code>，<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>；<code>TaskOrchestrator#submitTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>PlannerService#plan</code>，<code>src/main/java/com/example/agent/planning/PlannerService.java</code>；<code>AgentRuntime#run</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>ToolExecutor#execute</code>，<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>；<code>ModelInvocationService#invoke</code>，<code>src/main/java/com/example/agent/model/ModelInvocationService.java</code>；<code>MemoryStore#save</code>，<code>src/main/java/com/example/agent/memory/MemoryStore.java</code>；<code>DefaultContextBuilder#build</code>，<code>src/main/java/com/example/agent/context/DefaultContextBuilder.java</code>；<code>EventStreamService#stream</code>，<code>src/main/java/com/example/agent/streaming/EventStreamService.java</code>；<code>PolicyEngine#evaluate</code>，<code>src/main/java/com/example/agent/policy/PolicyEngine.java</code>）</p>
+</blockquote>
+<h2 id="1-架构分层说明">1) 架构分层说明 </h2>
+<h3 id="11-入口与协议层">1.1 入口与协议层 </h3>
+<ul>
+<li>职责：接收 <code>HTTP</code> 请求与 <code>SSE</code> 订阅、解析参数并统一响应。（<code>TaskController#submitTask</code>，<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>；<code>SseStreamController#stream</code>，<code>src/main/java/com/example/agent/streaming/SseStreamController.java</code>）</li>
+<li>关键类/接口：任务与治理接口集中在 <code>TaskController</code>、<code>PolicyController</code>、<code>ApprovalController</code>，工具与记忆接口集中在 <code>McpController</code>、<code>MemoryController</code>，历史与订阅接口集中在 <code>TimelineController</code>、<code>SseStreamController</code>。（<code>TaskController#submitTask</code>，<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>；<code>PolicyController#evaluate</code>，<code>src/main/java/com/example/agent/gateway/controller/PolicyController.java</code>；<code>McpController#callTool</code>，<code>src/main/java/com/example/agent/gateway/controller/McpController.java</code>；<code>MemoryController#search</code>，<code>src/main/java/com/example/agent/gateway/controller/MemoryController.java</code>；<code>TimelineController#listEvents</code>，<code>src/main/java/com/example/agent/gateway/controller/TimelineController.java</code>）</li>
+<li>上下游关系：上游为外部客户端；下游依赖鉴权、编排、工具、记忆与预算服务。（<code>AuthService#authenticate</code>，<code>src/main/java/com/example/agent/auth/AuthService.java</code>；<code>TaskOrchestrator#submitTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>McpToolClient#callTool</code>，<code>src/main/java/com/example/agent/tools/McpToolClient.java</code>；<code>MemoryStore#save</code>，<code>src/main/java/com/example/agent/memory/MemoryStore.java</code>；<code>TokenBudgetManager#recordUsage</code>，<code>src/main/java/com/example/agent/budget/TokenBudgetManager.java</code>）</li>
+</ul>
+<h3 id="12-鉴权与租户上下文层">1.2 鉴权与租户上下文层 </h3>
+<ul>
+<li>职责：执行 <code>API</code> Key 鉴权并产出用户/租户上下文。（<code>AuthService#authenticate</code>，<code>src/main/java/com/example/agent/auth/AuthService.java</code>）</li>
+<li>上下游关系：入口控制器调用鉴权并把 <code>UserContext</code> 写入 <code>TenantContext</code>，后续链路以此作为日志与事件归属依据。（<code>TaskController#submitTask</code>，<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>；<code>SseStreamController#stream</code>，<code>src/main/java/com/example/agent/streaming/SseStreamController.java</code>）</li>
+</ul>
+<h3 id="13-编排层">1.3 编排层 </h3>
+<ul>
+<li>职责：创建任务记录、路由执行、处理同步/异步等待与任务查询。（<code>TaskOrchestrator#submitTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>TaskOrchestrator#waitIfSync</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>TaskOrchestrator#getTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>WorkflowRouter#route</code>，<code>src/main/java/com/example/agent/orchestrator/WorkflowRouter.java</code>）</li>
+<li>关键类/接口：<code>TaskOrchestrator</code> 作为编排实现，依赖 <code>TaskExecutionService</code> 进行异步投递并调用任务仓储。（<code>TaskOrchestrator#submitTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>TaskExecutionService#submit</code>，<code>src/main/java/com/example/agent/orchestrator/TaskExecutionService.java</code>；<code>TaskRepository#save</code>，<code>src/main/java/com/example/agent/orchestrator/TaskRepository.java</code>）</li>
+<li>上下游关系：上游来自入口层提交；下游进入运行时执行并把状态落库。（<code>TaskController#submitTask</code>，<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>；<code>AgentRuntime#run</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>TaskRepository#save</code>，<code>src/main/java/com/example/agent/orchestrator/TaskRepository.java</code>）</li>
+</ul>
+<h3 id="14-规划层">1.4 规划层 </h3>
+<ul>
+<li>职责：根据输入与上下文生成计划与步骤，必要时调用模型并注入工具配置。（<code>PlannerService#plan</code>，<code>src/main/java/com/example/agent/planning/PlannerService.java</code>；<code>ModelInvocationService#invoke</code>，<code>src/main/java/com/example/agent/model/ModelInvocationService.java</code>；<code>ModelToolResolver#applyTooling</code>，<code>src/main/java/com/example/agent/model/ModelToolResolver.java</code>）</li>
+<li>关键类/接口：规划阶段使用上下文装配与提示词组装。（<code>ContextAssembler#assemble</code>，<code>src/main/java/com/example/agent/context/ContextAssembler.java</code>；<code>PromptAssembler#build</code>，<code>src/main/java/com/example/agent/model/PromptAssembler.java</code>）</li>
+<li>上下游关系：上游由编排或运行时触发；下游交由运行时执行计划步骤。（<code>TaskOrchestrator#submitTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>AgentRuntime#run</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>）</li>
+</ul>
+<h3 id="15-运行时执行层">1.5 运行时执行层 </h3>
+<ul>
+<li>职责：执行计划步骤、驱动 <code>LLM</code> 与 <code>REACT</code> 分支、记录步骤状态并产出最终结果。（<code>AgentRuntime#run</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>LlmStepService#run</code>，<code>src/main/java/com/example/agent/runtime/LlmStepService.java</code>；<code>ReactLoopService#run</code>，<code>src/main/java/com/example/agent/runtime/ReactLoopService.java</code>；<code>StepRuntimeService#startStep</code>，<code>src/main/java/com/example/agent/runtime/StepRuntimeService.java</code>；<code>FinalOutputService#finalizeOutput</code>，<code>src/main/java/com/example/agent/runtime/FinalOutputService.java</code>）</li>
+<li>关键类/接口：运行时负责审批控制与暂停/恢复/取消。（<code>ExecutionControlService#requestApproval</code>，<code>src/main/java/com/example/agent/runtime/ExecutionControlService.java</code>；<code>ExecutionControlService#pause</code>，<code>src/main/java/com/example/agent/runtime/ExecutionControlService.java</code>）</li>
+<li>上下游关系：上游接收编排层的任务；下游调用工具、模型、记忆、持久化与事件层。（<code>TaskOrchestrator#submitTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>ToolExecutor#execute</code>，<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>；<code>ModelInvocationService#invoke</code>，<code>src/main/java/com/example/agent/model/ModelInvocationService.java</code>；<code>MemoryRecallService#recall</code>，<code>src/main/java/com/example/agent/memory/MemoryRecallService.java</code>；<code>StepRecordRepository#save</code>，<code>src/main/java/com/example/agent/runtime/StepRecordRepository.java</code>；<code>ContextEventPublisher#publishSnapshot</code>，<code>src/main/java/com/example/agent/streaming/ContextEventPublisher.java</code>）</li>
+</ul>
+<h3 id="16-上下文构建与预算裁剪层">1.6 上下文构建与预算裁剪层 </h3>
+<ul>
+<li>职责：构建 <code>ContextSnapshot</code>，进行预算分配、剪枝、裁剪与压缩，并发布阶段事件。（<code>DefaultContextBuilder#build</code>，<code>src/main/java/com/example/agent/context/DefaultContextBuilder.java</code>；<code>ContextBudgetAllocator#allocate</code>，<code>src/main/java/com/example/agent/budget/ContextBudgetAllocator.java</code>；<code>ContextPruner#prune</code>，<code>src/main/java/com/example/agent/budget/ContextPruner.java</code>；<code>ContextTrimmer#trim</code>，<code>src/main/java/com/example/agent/budget/ContextTrimmer.java</code>；<code>ContextCompressionController#compressIfNeeded</code>，<code>src/main/java/com/example/agent/budget/ContextCompressionController.java</code>；<code>ContextEventPublisher#publishSnapshotStage</code>，<code>src/main/java/com/example/agent/streaming/ContextEventPublisher.java</code>）</li>
+<li>上下游关系：上游由运行时触发构建；下游提供给提示词组装与事件流。（<code>AgentRuntime#run</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>PromptAssembler#build</code>，<code>src/main/java/com/example/agent/model/PromptAssembler.java</code>；<code>ContextEventPublisher#publishSnapshot</code>，<code>src/main/java/com/example/agent/streaming/ContextEventPublisher.java</code>）</li>
+</ul>
+<h3 id="17-工具执行层">1.7 工具执行层 </h3>
+<ul>
+<li>职责：执行工具调用、维护工具定义与路由、对接 <code>MCP</code> 并产出证据。（<code>ToolExecutor#execute</code>，<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>；<code>ToolRegistry#registerDefinitions</code>，<code>src/main/java/com/example/agent/agentcore/ToolRegistry.java</code>；<code>McpToolClient#callTool</code>，<code>src/main/java/com/example/agent/tools/McpToolClient.java</code>；<code>EvidencePackService#addToolCall</code>，<code>src/main/java/com/example/agent/context/EvidencePackService.java</code>）</li>
+<li>上下游关系：上游来自运行时的步骤执行；下游对接远端 <code>MCP</code> 服务并回写证据包。（<code>LlmStepService#run</code>，<code>src/main/java/com/example/agent/runtime/LlmStepService.java</code>；<code>McpToolClient#callTool</code>，<code>src/main/java/com/example/agent/tools/McpToolClient.java</code>；<code>ToolExecutor#syncSnapshotEvidence</code>，<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>）</li>
+</ul>
+<h3 id="18-模型调用层">1.8 模型调用层 </h3>
+<ul>
+<li>职责：路由模型配置并执行模型调用。（<code>ModelRouter#route</code>，<code>src/main/java/com/example/agent/model/ModelRouter.java</code>；<code>ModelInvocationService#invoke</code>，<code>src/main/java/com/example/agent/model/ModelInvocationService.java</code>；<code>DefaultModelProvider#invoke</code>，<code>src/main/java/com/example/agent/model/DefaultModelProvider.java</code>；<code>LlmClient#generate</code>，<code>src/main/java/com/example/agent/model/LlmClient.java</code>）</li>
+<li>上下游关系：上游来自规划与运行时步骤；下游对接外部模型服务。（<code>PlannerService#plan</code>，<code>src/main/java/com/example/agent/planning/PlannerService.java</code>；<code>LlmStepService#run</code>，<code>src/main/java/com/example/agent/runtime/LlmStepService.java</code>；<code>DefaultModelProvider#invoke</code>，<code>src/main/java/com/example/agent/model/DefaultModelProvider.java</code>）</li>
+</ul>
+<h3 id="19-记忆证据层">1.9 记忆/证据层 </h3>
+<ul>
+<li>职责：记忆写入/检索/压缩与召回，并维护证据包。（<code>MemoryStore#save</code>，<code>src/main/java/com/example/agent/memory/MemoryStore.java</code>；<code>MemoryStore#search</code>，<code>src/main/java/com/example/agent/memory/MemoryStore.java</code>；<code>MemoryStore#compress</code>，<code>src/main/java/com/example/agent/memory/MemoryStore.java</code>；<code>MemoryRecallService#recall</code>，<code>src/main/java/com/example/agent/memory/MemoryRecallService.java</code>；<code>EvidencePackService#getOrCreatePack</code>，<code>src/main/java/com/example/agent/context/EvidencePackService.java</code>）</li>
+<li>上下游关系：上游来自运行时与工具执行；下游落入记忆持久化与上下文快照。（<code>AgentRuntime#run</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>ToolExecutor#execute</code>，<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>；<code>MemoryRepository#save</code>，<code>src/main/java/com/example/agent/memory/MemoryRepository.java</code>；<code>ContextSnapshot#setWorkingMemory</code>，<code>src/main/java/com/example/agent/context/ContextSnapshot.java</code>）</li>
+</ul>
+<h3 id="110-持久化层">1.10 持久化层 </h3>
+<ul>
+<li>职责：任务、步骤、记忆、事件与预算等数据持久化与查询。（<code>TaskRepository#save</code>，<code>src/main/java/com/example/agent/orchestrator/TaskRepository.java</code>；<code>StepRecordRepository#save</code>，<code>src/main/java/com/example/agent/runtime/StepRecordRepository.java</code>；<code>MemoryRepository#save</code>，<code>src/main/java/com/example/agent/memory/MemoryRepository.java</code>；<code>EventLogRepository#saveIfAbsent</code>，<code>src/main/java/com/example/agent/history/EventLogRepository.java</code>；<code>TokenUsageRepository#saveIfAbsent</code>，<code>src/main/java/com/example/agent/budget/TokenUsageRepository.java</code>）</li>
+<li>上下游关系：上游来自编排、运行时与事件监听；下游为具体持久化实现。（<code>TaskOrchestrator#submitTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>StepRuntimeService#completeStep</code>，<code>src/main/java/com/example/agent/runtime/StepRuntimeService.java</code>；<code>EventLogService#onStreamEvent</code>，<code>src/main/java/com/example/agent/history/EventLogService.java</code>；<code>JdbcTaskRepository#save</code>，<code>src/main/java/com/example/agent/orchestrator/JdbcTaskRepository.java</code>）</li>
+</ul>
+<h3 id="111-事件与流式层">1.11 事件与流式层 </h3>
+<ul>
+<li>职责：发布上下文与工具/审批事件、维护序列并输出 <code>SSE</code>，同时落盘事件日志。（<code>ContextEventPublisher#publishSnapshot</code>，<code>src/main/java/com/example/agent/streaming/ContextEventPublisher.java</code>；<code>McpController#callTool</code>，<code>src/main/java/com/example/agent/gateway/controller/McpController.java</code>；<code>ApprovalController#decide</code>，<code>src/main/java/com/example/agent/gateway/controller/ApprovalController.java</code>；<code>EventStreamService#onStreamEvent</code>，<code>src/main/java/com/example/agent/streaming/EventStreamService.java</code>；<code>SseStreamController#stream</code>，<code>src/main/java/com/example/agent/streaming/SseStreamController.java</code>；<code>EventLogService#onStreamEvent</code>，<code>src/main/java/com/example/agent/history/EventLogService.java</code>）</li>
+<li>上下游关系：上游来自运行时与治理事件；下游为 <code>SSE</code> 客户端与事件日志查询。（<code>AgentRuntime#run</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>ApprovalController#decide</code>，<code>src/main/java/com/example/agent/gateway/controller/ApprovalController.java</code>；<code>TimelineController#listEvents</code>，<code>src/main/java/com/example/agent/gateway/controller/TimelineController.java</code>；<code>SseStreamController#stream</code>，<code>src/main/java/com/example/agent/streaming/SseStreamController.java</code>）</li>
+</ul>
+<h3 id="112-治理与策略层">1.12 治理与策略层 </h3>
+<ul>
+<li>职责：策略评估、审批与执行控制，并向外暴露决策接口。（<code>PolicyEngine#evaluate</code>，<code>src/main/java/com/example/agent/policy/PolicyEngine.java</code>；<code>ApprovalService#requestApproval</code>，<code>src/main/java/com/example/agent/approval/ApprovalService.java</code>；<code>ExecutionControlService#requestApproval</code>，<code>src/main/java/com/example/agent/runtime/ExecutionControlService.java</code>；<code>ApprovalController#decide</code>，<code>src/main/java/com/example/agent/gateway/controller/ApprovalController.java</code>；<code>ToolApprovalController#decide</code>，<code>src/main/java/com/example/agent/gateway/controller/ToolApprovalController.java</code>；<code>EnforcementGateway#execute</code>，<code>src/main/java/com/example/agent/agentcore/EnforcementGateway.java</code>）</li>
+<li>上下游关系：上游来自入口与运行时；下游影响运行时执行与事件流。（<code>PolicyController#evaluate</code>，<code>src/main/java/com/example/agent/gateway/controller/PolicyController.java</code>；<code>AgentRuntime#requestApprovalIfNeeded</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>ReactLoopService#requestApprovalIfNeeded</code>，<code>src/main/java/com/example/agent/runtime/ReactLoopService.java</code>；<code>ExecutionControlService#decideApproval</code>，<code>src/main/java/com/example/agent/runtime/ExecutionControlService.java</code>）</li>
+</ul>
+<h2 id="2-端到端数据流">2) 端到端数据流 </h2>
+<div class="mermaid">flowchart LR
+    Client[外部客户端] --&gt; TC[TaskController.submitTask]
+    TC --&gt; Auth[AuthService.authenticate]
+    Auth --&gt; TO[TaskOrchestrator.submitTask]
+    TO --&gt; WR[WorkflowRouter.route]
+    WR --&gt; AR[AgentRuntime.run]
+    AR --&gt; MR[MemoryRecallService.recall]
+    AR --&gt; CB[ContextBuilder.build]
+    CB --&gt; CEP[ContextEventPublisher.publishSnapshot]
+    AR --&gt; PS[PlannerService.plan]
+    PS --&gt; MI[ModelInvocationService.invoke]
+    AR --&gt; LS[LlmStepService.run]
+    LS --&gt; TE[ToolExecutor.execute]
+    TE --&gt; MC[McpToolClient.callTool]
+    TE --&gt; EP[EvidencePackService.addToolCall]
+    AR --&gt; SR[StepRuntimeService.start/complete/fail]
+    AR --&gt; FO[FinalOutputService.finalizeOutput]
+    CEP --&gt; ES[EventStreamService.onStreamEvent]
+    ES --&gt; SSE[SseStreamController.stream]
+    FO --&gt; TO --&gt; TC --&gt; Client
+</div><p>数据流从入口层接收请求开始，经鉴权后进入编排与路由，再由运行时完成记忆召回、上下文构建、规划与步骤执行。（<code>TaskController#submitTask</code>，<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>；<code>AuthService#authenticate</code>，<code>src/main/java/com/example/agent/auth/AuthService.java</code>；<code>TaskOrchestrator#submitTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>WorkflowRouter#route</code>，<code>src/main/java/com/example/agent/orchestrator/WorkflowRouter.java</code>；<code>AgentRuntime#run</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>MemoryRecallService#recall</code>，<code>src/main/java/com/example/agent/memory/MemoryRecallService.java</code>；<code>ContextBuilder#build</code>，<code>src/main/java/com/example/agent/context/ContextBuilder.java</code>；<code>PlannerService#plan</code>，<code>src/main/java/com/example/agent/planning/PlannerService.java</code>）</p>
+<p>工具调用路径由运行时进入工具执行并通过 <code>McpToolClient</code> 调远端，同时写入证据包；模型调用路径由规划或步骤调用模型服务。（<code>LlmStepService#run</code>，<code>src/main/java/com/example/agent/runtime/LlmStepService.java</code>；<code>ToolExecutor#execute</code>，<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>；<code>McpToolClient#callTool</code>，<code>src/main/java/com/example/agent/tools/McpToolClient.java</code>；<code>EvidencePackService#addToolCall</code>，<code>src/main/java/com/example/agent/context/EvidencePackService.java</code>；<code>ModelInvocationService#invoke</code>，<code>src/main/java/com/example/agent/model/ModelInvocationService.java</code>）</p>
+<p>上下文与工具事件通过事件流发布并进入 <code>SSE</code> 订阅与事件日志。（<code>ContextEventPublisher#publishSnapshot</code>，<code>src/main/java/com/example/agent/streaming/ContextEventPublisher.java</code>；<code>EventStreamService#onStreamEvent</code>，<code>src/main/java/com/example/agent/streaming/EventStreamService.java</code>；<code>SseStreamController#stream</code>，<code>src/main/java/com/example/agent/streaming/SseStreamController.java</code>；<code>EventLogService#onStreamEvent</code>，<code>src/main/java/com/example/agent/history/EventLogService.java</code>）</p>
+<h2 id="3-调用时序">3) 调用时序 </h2>
+<div class="mermaid">sequenceDiagram
+    participant Client as Client
+    participant TC as TaskController
+    participant Auth as AuthService
+    participant TO as TaskOrchestrator
+    participant WR as WorkflowRouter
+    participant AR as AgentRuntime
+    participant MR as MemoryRecallService
+    participant CB as ContextBuilder
+    participant PS as PlannerService
+    participant MI as ModelInvocationService
+    participant LS as LlmStepService
+    participant TE as ToolExecutor
+    participant MC as McpToolClient
+    participant SR as StepRuntimeService
+    participant CEP as ContextEventPublisher
+    participant ES as EventStreamService
+
+    Client-&gt;&gt;TC: submitTask
+    TC-&gt;&gt;Auth: authenticate
+    TC-&gt;&gt;TO: submitTask
+    TO-&gt;&gt;WR: route
+    WR-&gt;&gt;AR: run
+    AR-&gt;&gt;MR: recall
+    AR-&gt;&gt;CB: build
+    CB-&gt;&gt;CEP: publishSnapshot
+    AR-&gt;&gt;PS: plan
+    PS-&gt;&gt;MI: invoke
+    AR-&gt;&gt;LS: run
+    LS-&gt;&gt;TE: execute
+    TE-&gt;&gt;MC: callTool
+    AR-&gt;&gt;SR: startStep/completeStep
+    CEP-&gt;&gt;ES: onStreamEvent
+    AR--&gt;&gt;TO: RuntimeResult
+    TO--&gt;&gt;TC: TaskResponse
+    TC--&gt;&gt;Client: ApiResponse
+</div><p>时序上，入口调用 <code>TaskController#submitTask</code> 完成鉴权与编排提交，编排层路由到 <code>AgentRuntime#run</code>，运行时先召回记忆与构建上下文，再规划并执行步骤，必要时通过工具或模型调用外部能力。（<code>TaskController#submitTask</code>，<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>；<code>AuthService#authenticate</code>，<code>src/main/java/com/example/agent/auth/AuthService.java</code>；<code>TaskOrchestrator#submitTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>WorkflowRouter#route</code>，<code>src/main/java/com/example/agent/orchestrator/WorkflowRouter.java</code>；<code>AgentRuntime#run</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>MemoryRecallService#recall</code>，<code>src/main/java/com/example/agent/memory/MemoryRecallService.java</code>；<code>ContextBuilder#build</code>，<code>src/main/java/com/example/agent/context/ContextBuilder.java</code>；<code>PlannerService#plan</code>，<code>src/main/java/com/example/agent/planning/PlannerService.java</code>；<code>LlmStepService#run</code>，<code>src/main/java/com/example/agent/runtime/LlmStepService.java</code>；<code>ToolExecutor#execute</code>，<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>；<code>ModelInvocationService#invoke</code>，<code>src/main/java/com/example/agent/model/ModelInvocationService.java</code>）</p>
+<p>上下文事件在构建阶段发布并进入事件流，供 <code>SSE</code> 订阅消费。（<code>ContextEventPublisher#publishSnapshot</code>，<code>src/main/java/com/example/agent/streaming/ContextEventPublisher.java</code>；<code>EventStreamService#onStreamEvent</code>，<code>src/main/java/com/example/agent/streaming/EventStreamService.java</code>；<code>SseStreamController#stream</code>，<code>src/main/java/com/example/agent/streaming/SseStreamController.java</code>）</p>
+<h2 id="4-接口职责关系">4) 接口职责关系 </h2>
+<div class="mermaid">classDiagram
+    class TaskSubmissionService
+    class TaskQueryService
+    class TaskOrchestrator
+    TaskSubmissionService &lt;|.. TaskOrchestrator
+    TaskQueryService &lt;|.. TaskOrchestrator
+
+    class ContextBuilder
+    class DefaultContextBuilder
+    ContextBuilder &lt;|.. DefaultContextBuilder
+
+    class ContextAssembler
+    class DefaultContextAssembler
+    ContextAssembler &lt;|.. DefaultContextAssembler
+
+    class PromptAssembler
+    class DefaultPromptAssembler
+    PromptAssembler &lt;|.. DefaultPromptAssembler
+
+    class ContextTrimmer
+    class DefaultContextTrimmer
+    ContextTrimmer &lt;|.. DefaultContextTrimmer
+
+    class ContextPruner
+    class DefaultContextPruner
+    ContextPruner &lt;|.. DefaultContextPruner
+
+    class ContextBudgetAllocator
+    class DefaultContextBudgetAllocator
+    ContextBudgetAllocator &lt;|.. DefaultContextBudgetAllocator
+
+    class ToolCatalog
+    class DefaultToolCatalog
+    ToolCatalog &lt;|.. DefaultToolCatalog
+
+    class ModelProvider
+    class DefaultModelProvider
+    ModelProvider &lt;|.. DefaultModelProvider
+
+    class LlmClient
+    class DefaultLlmClient
+    LlmClient &lt;|.. DefaultLlmClient
+
+    class TaskRepository
+    class JdbcTaskRepository
+    class InMemoryTaskRepository
+    TaskRepository &lt;|.. JdbcTaskRepository
+    TaskRepository &lt;|.. InMemoryTaskRepository
+
+    class StepRecordRepository
+    class JdbcStepRecordRepository
+    class InMemoryStepRecordRepository
+    StepRecordRepository &lt;|.. JdbcStepRecordRepository
+    StepRecordRepository &lt;|.. InMemoryStepRecordRepository
+
+    class MemoryRepository
+    class JdbcMemoryRepository
+    class InMemoryMemoryRepository
+    MemoryRepository &lt;|.. JdbcMemoryRepository
+    MemoryRepository &lt;|.. InMemoryMemoryRepository
+</div><p>接口关系以编排、上下文、模型与持久化为核心：<code>TaskOrchestrator</code> 实现提交与查询接口，<code>DefaultContextBuilder</code>/<code>DefaultContextAssembler</code>/<code>DefaultPromptAssembler</code> 作为上下文与提示词实现，<code>DefaultModelProvider</code> 与 <code>DefaultLlmClient</code> 分别实现模型提供与调用接口。（<code>TaskOrchestrator#submitTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>DefaultContextBuilder#build</code>，<code>src/main/java/com/example/agent/context/DefaultContextBuilder.java</code>；<code>DefaultContextAssembler#assemble</code>，<code>src/main/java/com/example/agent/context/DefaultContextAssembler.java</code>；<code>DefaultPromptAssembler#build</code>，<code>src/main/java/com/example/agent/model/DefaultPromptAssembler.java</code>；<code>DefaultModelProvider#invoke</code>，<code>src/main/java/com/example/agent/model/DefaultModelProvider.java</code>；<code>DefaultLlmClient#generate</code>，<code>src/main/java/com/example/agent/model/DefaultLlmClient.java</code>）</p>
+<p>持久化相关接口均有 <code>JDBC</code> 与内存实现，方便运行模式切换。（<code>TaskRepository#save</code>，<code>src/main/java/com/example/agent/orchestrator/TaskRepository.java</code>；<code>JdbcTaskRepository#save</code>，<code>src/main/java/com/example/agent/orchestrator/JdbcTaskRepository.java</code>；<code>InMemoryTaskRepository#save</code>，<code>src/main/java/com/example/agent/orchestrator/InMemoryTaskRepository.java</code>；<code>StepRecordRepository#save</code>，<code>src/main/java/com/example/agent/runtime/StepRecordRepository.java</code>；<code>JdbcStepRecordRepository#save</code>，<code>src/main/java/com/example/agent/runtime/JdbcStepRecordRepository.java</code>；<code>InMemoryStepRecordRepository#save</code>，<code>src/main/java/com/example/agent/runtime/InMemoryStepRecordRepository.java</code>）</p>
+<h2 id="5-对象参数流转">5) 对象/参数流转 </h2>
+<table>
+<thead>
+<tr>
+<th>对象</th>
+<th>创建点</th>
+<th>填充点</th>
+<th>裁剪点</th>
+<th>持久化/事件输出点</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>TaskRequest</code></td>
+<td><code>TaskController#submitTask</code> 解析请求体创建（<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>）</td>
+<td><code>TaskOrchestrator#resolveExecutionMode</code> 归一化执行模式（<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>）</td>
+<td><code>TaskOrchestrator#normalizeIdempotencyKey</code> 去空白与非法值（<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>）</td>
+<td>转换为 <code>TaskRecord</code> 并通过 <code>TaskRepository#save</code> 持久化（<code>TaskOrchestrator#createTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>TaskRepository#save</code>，<code>src/main/java/com/example/agent/orchestrator/TaskRepository.java</code>）</td>
+</tr>
+<tr>
+<td><code>TaskResponse</code></td>
+<td><code>TaskOrchestrator#submitTask</code> 创建并返回（<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>）</td>
+<td><code>TaskOrchestrator#waitIfSync</code> 填充同步结果（<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>）</td>
+<td>无</td>
+<td>由 <code>TaskController#submitTask</code> 封装并返回客户端（<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>）</td>
+</tr>
+<tr>
+<td><code>PlanResult</code> / <code>StepRequest</code></td>
+<td><code>PlannerService#plan</code> 生成计划与步骤（<code>src/main/java/com/example/agent/planning/PlannerService.java</code>）</td>
+<td><code>PlannerService#plan</code> 内部应用审批标记（<code>src/main/java/com/example/agent/planning/PlannerService.java</code>）</td>
+<td>无</td>
+<td>步骤执行由 <code>StepRuntimeService#startStep</code> 生成记录并进入运行时（<code>src/main/java/com/example/agent/runtime/StepRuntimeService.java</code>）</td>
+</tr>
+<tr>
+<td><code>ContextSnapshot</code></td>
+<td><code>DefaultContextBuilder#build</code> 创建并填充基础结构（<code>src/main/java/com/example/agent/context/DefaultContextBuilder.java</code>）</td>
+<td><code>DefaultContextBuilder#build</code> 填充运行时信息与工作记忆（<code>src/main/java/com/example/agent/context/DefaultContextBuilder.java</code>）</td>
+<td><code>ContextPruner#prune</code>、<code>ContextTrimmer#trim</code>、<code>ContextCompressionController#compressIfNeeded</code> 依预算裁剪（<code>src/main/java/com/example/agent/budget/ContextPruner.java</code>；<code>src/main/java/com/example/agent/budget/ContextTrimmer.java</code>；<code>src/main/java/com/example/agent/budget/ContextCompressionController.java</code>）</td>
+<td><code>ContextEventPublisher#publishSnapshot</code> 与阶段事件输出（<code>src/main/java/com/example/agent/streaming/ContextEventPublisher.java</code>）</td>
+</tr>
+<tr>
+<td><code>EvidencePack</code></td>
+<td><code>EvidencePackService#getOrCreatePack</code> 创建或复用（<code>src/main/java/com/example/agent/context/EvidencePackService.java</code>）</td>
+<td><code>EvidencePackService#addToolCall</code>/<code>addMemoriesUsed</code> 填充证据（<code>src/main/java/com/example/agent/context/EvidencePackService.java</code>）</td>
+<td>证据包在 <code>DefaultContextPruner#prune</code> 与 <code>DefaultContextTrimmer#trim</code> 内被裁剪（<code>src/main/java/com/example/agent/budget/DefaultContextPruner.java</code>；<code>src/main/java/com/example/agent/budget/DefaultContextTrimmer.java</code>）</td>
+<td><code>ToolExecutor#syncSnapshotEvidence</code> 写入工作记忆，事件中输出统计字段（<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>；<code>src/main/java/com/example/agent/streaming/ContextEventPayload.java</code>）</td>
+</tr>
+<tr>
+<td><code>ToolCallEvidence</code></td>
+<td><code>ToolExecutor#execute</code> 构建单次工具证据（<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>）</td>
+<td><code>EvidencePackService#addToolCall</code> 写入证据包（<code>src/main/java/com/example/agent/context/EvidencePackService.java</code>）</td>
+<td>作为证据包的一部分被 <code>DefaultContextTrimmer#trim</code> 裁剪（<code>src/main/java/com/example/agent/budget/DefaultContextTrimmer.java</code>）</td>
+<td>通过证据包统计字段进入事件载荷（<code>src/main/java/com/example/agent/streaming/ContextEventPayload.java</code>）</td>
+</tr>
+<tr>
+<td><code>McpToolCallRequest</code> / <code>McpToolCallResponse</code></td>
+<td><code>ToolExecutor#buildCallRequest</code> 构建调用请求（<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>）</td>
+<td><code>McpToolClient#callTool</code> 返回调用结果（<code>src/main/java/com/example/agent/tools/McpToolClient.java</code>）</td>
+<td>无</td>
+<td><code>McpController#callTool</code> 触发工具事件输出（<code>src/main/java/com/example/agent/gateway/controller/McpController.java</code>）</td>
+</tr>
+<tr>
+<td><code>StepRecord</code></td>
+<td><code>StepRuntimeService#startStep</code> 创建并记录开始状态（<code>src/main/java/com/example/agent/runtime/StepRuntimeService.java</code>）</td>
+<td><code>StepRuntimeService#completeStep</code>/<code>failStep</code> 写入结束状态（<code>src/main/java/com/example/agent/runtime/StepRuntimeService.java</code>）</td>
+<td>无</td>
+<td><code>StepRecordRepository#save</code> 持久化，<code>StepRuntimeService#listSteps</code> 输出时间线（<code>src/main/java/com/example/agent/runtime/StepRecordRepository.java</code>；<code>src/main/java/com/example/agent/runtime/StepRuntimeService.java</code>）</td>
+</tr>
+<tr>
+<td><code>StreamEvent</code> / <code>ContextSnapshotEventPayload</code></td>
+<td><code>ContextEventPublisher#publishSnapshot</code>/<code>publishSnapshotStage</code> 生成上下文事件载荷（<code>src/main/java/com/example/agent/streaming/ContextEventPublisher.java</code>；<code>src/main/java/com/example/agent/streaming/ContextSnapshotEventPayload.java</code>）</td>
+<td><code>EventStreamService#nextSequence</code> 生成序列号（<code>src/main/java/com/example/agent/streaming/EventStreamService.java</code>）</td>
+<td>无</td>
+<td><code>EventLogService#onStreamEvent</code> 落盘，<code>SseStreamController#stream</code> 输出订阅（<code>src/main/java/com/example/agent/history/EventLogService.java</code>；<code>src/main/java/com/example/agent/streaming/SseStreamController.java</code>）</td>
+</tr>
+<tr>
+<td><code>TokenUsageRecord</code> / <code>TokenUsageSummary</code></td>
+<td><code>BudgetController#recordUsage</code>/<code>summary</code> 创建输入与响应（<code>src/main/java/com/example/agent/gateway/controller/BudgetController.java</code>）</td>
+<td><code>TokenBudgetManager#recordUsage</code> 填充租户与任务信息（<code>src/main/java/com/example/agent/budget/TokenBudgetManager.java</code>）</td>
+<td>无</td>
+<td><code>TokenUsageRepository#saveIfAbsent</code> 持久化预算使用（<code>src/main/java/com/example/agent/budget/TokenUsageRepository.java</code>）</td>
+</tr>
+</tbody>
+</table>
+<p>说明：当前代码范围内未发现 <code>PlanContext</code> 与 <code>StepInput</code> 类定义，计划与步骤输入由 <code>PlanResult</code> 与 <code>StepRequest</code> 表达。（<code>PlanResult</code>，<code>src/main/java/com/example/agent/planning/PlanResult.java</code>；<code>StepRequest</code>，<code>src/main/java/com/example/agent/runtime/StepRequest.java</code>）</p>
+<h2 id="6-常见变体">6) 常见变体 </h2>
+<div class="mermaid">flowchart TB
+    subgraph SyncAsync[同步/异步]
+        SA1[提交任务] --&gt; SA2{executionMode}
+        SA2 --&gt;|SYNC| SA3[waitIfSync 等待结果]
+        SA2 --&gt;|ASYNC| SA4[立即返回 taskId]
+    end
+
+    subgraph Approval[需要审批/不需要审批]
+        AP1[步骤需要审批] --&gt; AP2[ExecutionControlService.requestApproval]
+        AP2 --&gt; AP3[ApprovalController.decide]
+        AP3 --&gt; AP4[继续执行]
+    end
+
+    subgraph Failure[工具失败/模型失败]
+        F1[工具调用] --&gt; F2{tool 成功?}
+        F2 --&gt;|否| F3[LlmStepService.ToolCallResult.failure]
+        F3 --&gt; F4[StepRuntimeService.failStep]
+        F2 --&gt;|是| F5[进入后续步骤]
+        F6[模型调用] --&gt; F7{model 成功?}
+        F7 --&gt;|否| F8[AgentRuntime 捕获异常并分类]
+        F8 --&gt; F4
+        F7 --&gt;|是| F5
+    end
+</div><p>同步/异步分支由编排层解析执行模式并决定是否等待结果，入口控制器据此选择返回状态。（<code>TaskOrchestrator#resolveExecutionMode</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>TaskOrchestrator#waitIfSync</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>TaskController#submitTask</code>，<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>）</p>
+<p>审批分支由运行时或 <code>REACT</code> 循环判断并请求审批，审批接口写回决定后继续执行。（<code>AgentRuntime#requestApprovalIfNeeded</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>ReactLoopService#requestApprovalIfNeeded</code>，<code>src/main/java/com/example/agent/runtime/ReactLoopService.java</code>；<code>ExecutionControlService#requestApproval</code>，<code>src/main/java/com/example/agent/runtime/ExecutionControlService.java</code>；<code>ApprovalController#decide</code>，<code>src/main/java/com/example/agent/gateway/controller/ApprovalController.java</code>）</p>
+<p>工具失败与模型失败分别在工具执行与模型调用处产生失败结果或异常，运行时统一进入失败步骤记录。（<code>LlmStepService#run</code>，<code>src/main/java/com/example/agent/runtime/LlmStepService.java</code>；<code>ToolExecutor#execute</code>，<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>；<code>ModelInvocationService#invoke</code>，<code>src/main/java/com/example/agent/model/ModelInvocationService.java</code>；<code>AgentRuntime#run</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>StepRuntimeService#failStep</code>，<code>src/main/java/com/example/agent/runtime/StepRuntimeService.java</code>；<code>FailureClassifier#classify</code>，<code>src/main/java/com/example/agent/runtime/FailureClassifier.java</code>）</p>
+<h2 id="7-可观测性与治理">7) 可观测性与治理 </h2>
+<ul>
+<li>日志：入口、编排、运行时、工具执行与上下文构建均记录关键日志，覆盖开始、分支与结束。（<code>TaskController#submitTask</code>，<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>；<code>TaskOrchestrator#submitTask</code>，<code>src/main/java/com/example/agent/orchestrator/TaskOrchestrator.java</code>；<code>AgentRuntime#run</code>，<code>src/main/java/com/example/agent/runtime/AgentRuntime.java</code>；<code>ToolExecutor#execute</code>，<code>src/main/java/com/example/agent/agentcore/ToolExecutor.java</code>；<code>McpToolClient#callTool</code>，<code>src/main/java/com/example/agent/tools/McpToolClient.java</code>；<code>DefaultContextBuilder#build</code>，<code>src/main/java/com/example/agent/context/DefaultContextBuilder.java</code>）</li>
+<li>traceId：由 <code>TracingPublisher#currentTraceId</code> 提供，在控制器响应与 <code>SSE</code> 流中使用并写入事件载荷。（<code>TracingPublisher#currentTraceId</code>，<code>src/main/java/com/example/agent/observability/TracingPublisher.java</code>；<code>TaskController#submitTask</code>，<code>src/main/java/com/example/agent/gateway/controller/TaskController.java</code>；<code>SseStreamController#stream</code>，<code>src/main/java/com/example/agent/streaming/SseStreamController.java</code>；<code>ContextEventPayload#getTraceId</code>，<code>src/main/java/com/example/agent/streaming/ContextEventPayload.java</code>）</li>
+<li>事件：工具调用与审批决策会发布 <code>StreamEvent</code>，上下文构建与裁剪会发布快照事件，事件流维护序列并支持查询。（<code>McpController#callTool</code>，<code>src/main/java/com/example/agent/gateway/controller/McpController.java</code>；<code>ApprovalController#decide</code>，<code>src/main/java/com/example/agent/gateway/controller/ApprovalController.java</code>；<code>ContextEventPublisher#publishSnapshot</code>，<code>src/main/java/com/example/agent/streaming/ContextEventPublisher.java</code>；<code>EventStreamService#nextSequence</code>，<code>src/main/java/com/example/agent/streaming/EventStreamService.java</code>；<code>EventLogService#listEvents</code>，<code>src/main/java/com/example/agent/history/EventLogService.java</code>）</li>
+<li>EvidencePack：证据包由 <code>EvidencePackService</code> 创建与汇总，工具与记忆证据写入后在事件载荷中输出统计字段。（<code>EvidencePackService#getOrCreatePack</code>，<code>src/main/java/com/example/agent/context/EvidencePackService.java</code>；<code>EvidencePackService#addToolCall</code>，<code>src/main/java/com/example/agent/context/EvidencePackService.java</code>；<code>EvidencePackService#addMemoriesUsed</code>，<code>src/main/java/com/example/agent/context/EvidencePackService.java</code>；<code>ContextEventPayload#getEvidenceToolCallsCount</code>，<code>src/main/java/com/example/agent/streaming/ContextEventPayload.java</code>；<code>ContextSnapshotEventPayload#getEvidenceApproxChars</code>，<code>src/main/java/com/example/agent/streaming/ContextSnapshotEventPayload.java</code>）</li>
+<li>预算与裁剪：上下文预算在构建时分配，剪枝/裁剪/压缩会产生统计字段并随事件输出。（<code>DefaultContextBuilder#build</code>，<code>src/main/java/com/example/agent/context/DefaultContextBuilder.java</code>；<code>ContextBudgetSummary</code>，<code>src/main/java/com/example/agent/streaming/ContextBudgetSummary.java</code>；<code>ContextTrimSummary</code>，<code>src/main/java/com/example/agent/streaming/ContextTrimSummary.java</code>；<code>ContextCompressionSummary</code>，<code>src/main/java/com/example/agent/streaming/ContextCompressionSummary.java</code>）</li>
+<li>指标：关键路径通过 <code>MetricsPublisher</code> 写入计数与耗时指标，例如审批与事件持久化指标。（<code>MetricsPublisher#increment</code>，<code>src/main/java/com/example/agent/observability/MetricsPublisher.java</code>；<code>ApprovalService#requestApproval</code>，<code>src/main/java/com/example/agent/approval/ApprovalService.java</code>；<code>EventLogService#onStreamEvent</code>，<code>src/main/java/com/example/agent/history/EventLogService.java</code>）</li>
+</ul>
+
+      </div>
+      
+      
+    
+    
+    <script type="module">
+// TODO: If ZenUML gets integrated into mermaid in the future,
+//      we can remove the following lines.
+
+
+var MERMAID_CONFIG = ({"startOnLoad":false});
+if (typeof MERMAID_CONFIG !== 'undefined') {
+  MERMAID_CONFIG.startOnLoad = false
+  MERMAID_CONFIG.cloneCssStyles = false
+  MERMAID_CONFIG.theme = "default"
+}
+
+mermaid.initialize(MERMAID_CONFIG || {})
+if (typeof(window['Reveal']) !== 'undefined') {
+  function mermaidRevealHelper(event) {
+    var currentSlide = event.currentSlide
+    var diagrams = currentSlide.querySelectorAll('.mermaid')
+    for (var i = 0; i < diagrams.length; i++) {
+      var diagram = diagrams[i]
+      if (!diagram.hasAttribute('data-processed')) {
+        mermaid.init(null, diagram, ()=> {
+          Reveal.slide(event.indexh, event.indexv)
+        })
+      }
+    }
+  }
+  Reveal.addEventListener('slidetransitionend', mermaidRevealHelper)
+  Reveal.addEventListener('ready', mermaidRevealHelper)
+  await mermaid.run({
+    nodes: document.querySelectorAll('.mermaid')
+  })
+} else {
+  await mermaid.run({
+    nodes: document.querySelectorAll('.mermaid')
+  })
+}
+</script>
+    
+    
+    
+  
+    </body></html>

@@ -897,9 +897,6 @@ public class ChainOfThoughtService {
         if (summary == null) {
             summary = input.get("lastStepSummary");
         }
-        if (summary == null) {
-            summary = input.get("lastStepOutput");
-        }
         String text = resolveSummaryText(summary);
         if (!StringUtils.hasText(text)) {
             return null;

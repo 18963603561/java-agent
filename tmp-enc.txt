@@ -1,0 +1,2 @@
+s1_repr=\xe8\xaf\xb4\xe6\x98\x8e
+s2_repr=\u732b\u7089\u9e93\u5fd9\u8075\u8068

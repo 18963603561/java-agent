@@ -212,7 +212,7 @@ agent:
     # - false
     # 默认值:
     # - false
-    enable: false
+    enable: true
     # 说明: 摘要整体序列化最大字符数
     # 可选项:
     # - 非负整数
@@ -231,54 +231,6 @@ agent:
     # 默认值:
     # - 200
     max-field-chars: 500
-    raw-output:
-      # 说明: 摘要禁用时是否写入受控原始输出
-      # 可选项:
-      # - true
-      # - false
-      # 默认值:
-      # - false
-      enable: true
-      # 说明: 原始输出最大字符数
-      # 可选项:
-      # - 非负整数
-      # 默认值:
-      # - 2000
-      max-chars: 5000
-      # 说明: 列表或映射允许采样的最大条目数
-      # 可选项:
-      # - 非负整数
-      # 默认值:
-      # - 20
-      max-list-items: 20
-      # 说明: 单字段最大字符数
-      # 可选项:
-      # - 非负整数
-      # 默认值:
-      # - 200
-      max-field-chars: 1000
-      # 说明: 允许输出的字段白名单（大小写不敏感）
-      allow-keys:
-        - answer
-        - result
-        - data
-        - error
-        - message
-        - code
-        - status
-        - tool
-        - toolName
-        - highlights
-      # 说明: 需要脱敏的字段列表（大小写不敏感）
-      mask-keys:
-        - password
-        - token
-        - secret
-        - authorization
-        - apiKey
-        - accessKey
-        - refreshToken
-        - credential
   final-output:
     # 说明: 最终输出提示词摘要最大字符数
     # 可选项:

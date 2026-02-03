@@ -106,10 +106,6 @@ public class AgentRuntime {
      */
     private final StepOutputSummaryBuilder stepOutputSummaryBuilder;
     /**
-     * 受控原始输出构建器，用于摘要禁用时保留关键结果。
-     */
-    private final RawOutputSnapshotBuilder rawOutputSnapshotBuilder;
-    /**
      * 执行约束网关。
      * <p>示例：执行工具调用并应用安全策略。
      */
@@ -222,7 +218,7 @@ public class AgentRuntime {
      * <p>示例：
      * <pre>{@code
      * new AgentRuntime(plannerService, reflectionService, stepRuntimeService, stepOutputSummaryBuilder,
-     *     rawOutputSnapshotBuilder, enforcementGateway, hookManager, executionControlService, thoughtTreeService, chainOfThoughtService,
+     *     enforcementGateway, hookManager, executionControlService, thoughtTreeService, chainOfThoughtService,
      *     multiAgentCoordinator,
      *     debateCoordinator, researchPipeline, finalOutputService, reactLoopService, memoryRecallService,
      *     memoryWriteService, evidencePackService, contextBuilder, contextEventPublisher, eventPublisher,
@@ -259,7 +255,6 @@ public class AgentRuntime {
                         ReflectionService reflectionService,
                         StepRuntimeService stepRuntimeService,
                         StepOutputSummaryBuilder stepOutputSummaryBuilder,
-                        RawOutputSnapshotBuilder rawOutputSnapshotBuilder,
                         EnforcementGateway enforcementGateway,
                         HookManager hookManager,
                         ExecutionControlService executionControlService,
@@ -287,7 +282,6 @@ public class AgentRuntime {
         this.reflectionService = reflectionService;
         this.stepRuntimeService = stepRuntimeService;
         this.stepOutputSummaryBuilder = stepOutputSummaryBuilder;
-        this.rawOutputSnapshotBuilder = rawOutputSnapshotBuilder;
         this.enforcementGateway = enforcementGateway;
         this.hookManager = hookManager;
         this.executionControlService = executionControlService;
@@ -444,7 +438,9 @@ public class AgentRuntime {
                 hookManager.preStep(tenantContext, record);
                 Map<String, Object> output;
                 String stepType = step.getStepType();
-                if ("LLM".equalsIgnoreCase(stepType) || "ANSWER".equalsIgnoreCase(stepType)) {
+                if ("LLM".equalsIgnoreCase(stepType)
+                        || "ANSWER".equalsIgnoreCase(stepType)
+                        || "TOOL".equalsIgnoreCase(stepType)) {
                     output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
                 } else if ("THOUGHT_TREE".equalsIgnoreCase(stepType)) {
                     output = executeThoughtTree(step, tenantContext, workflowId, seqCounter);
@@ -611,19 +607,6 @@ public class AgentRuntime {
             merged.putAll(summary);
             return merged;
         }
-        if (shouldUseRawOutputSnapshot()) {
-            if (hasRawOutputField(output)) {
-                return output;
-            }
-            Map<String, Object> rawOutput = rawOutputSnapshotBuilder.build(output);
-            if (rawOutput == null || rawOutput.isEmpty()) {
-                return output;
-            }
-            Map<String, Object> merged = new HashMap<>();
-            merged.putAll(output);
-            merged.put(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY, rawOutput);
-            return merged;
-        }
         return output;
     }
 
@@ -632,16 +615,6 @@ public class AgentRuntime {
                 && (output.containsKey("outputSummary")
                 || output.containsKey("outputDigest")
                 || output.containsKey("stepSummary"));
-    }
-
-    private boolean hasRawOutputField(Map<String, Object> output) {
-        return output != null && output.containsKey(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY);
-    }
-
-    private boolean shouldUseRawOutputSnapshot() {
-        return (stepOutputSummaryBuilder == null || !stepOutputSummaryBuilder.isEnabled())
-                && rawOutputSnapshotBuilder != null
-                && rawOutputSnapshotBuilder.isEnabled();
     }
 
     /**
@@ -1308,12 +1281,6 @@ public class AgentRuntime {
         Map<String, Object> stepSummary = buildStepOutputSummary(record, output);
         runtimeContext.put("lastStepSummary", stepSummary);
         runtimeContext.remove("lastStepOutput");
-        if (stepSummary != null) {
-            Object rawOutput = stepSummary.get(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY);
-            if (rawOutput instanceof Map<?, ?> map && !map.isEmpty()) {
-                runtimeContext.put("lastStepOutput", rawOutput);
-            }
-        }
         if (output != null) {
             runtimeContext.put("lastOutputSize", output.size());
         }
@@ -1352,18 +1319,8 @@ public class AgentRuntime {
             copyIfPresent(output, summary, "stepSummary");
             copyIfPresent(output, summary, "outputDigest");
             copyIfPresent(output, summary, "truncated");
-            copyIfPresent(output, summary, RawOutputSnapshotBuilder.RAW_OUTPUT_KEY);
         }
-        Object rawOutputObj = summary.get(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY);
-        if (rawOutputObj == null && shouldUseRawOutputSnapshot() && output != null && !output.isEmpty()) {
-            Map<String, Object> rawOutput = rawOutputSnapshotBuilder.build(output);
-            if (rawOutput != null && !rawOutput.isEmpty()) {
-                summary.put(RawOutputSnapshotBuilder.RAW_OUTPUT_KEY, rawOutput);
-                rawOutputObj = rawOutput;
-            }
-        }
-        String rawText = RawOutputSnapshotBuilder.resolveText(rawOutputObj);
-        Map<String, Object> stepSummary = normalizeStepSummary(summary.get("stepSummary"), record, rawText);
+        Map<String, Object> stepSummary = normalizeStepSummary(summary.get("stepSummary"), record, null);
         summary.put("stepSummary", stepSummary);
         if (!summary.containsKey("outputDigest")) {
             Map<String, Object> digest = new HashMap<>();
