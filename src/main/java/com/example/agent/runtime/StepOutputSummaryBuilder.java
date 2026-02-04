@@ -52,30 +52,32 @@ public class StepOutputSummaryBuilder {
     }
 
     /**
-     * 生成摘要字段，返回包含输出摘要、工具结果摘要、步骤摘要与指纹摘要的结构。
+     * 生成摘要字段，返回包含输出摘要、工具结果摘要、步骤摘要、输入摘要与指纹摘要的结构。
      * 当摘要开关关闭时直接返回空结构。
      * 当输出为空或内容过大时会使用占位与截断策略。
      *
-     * @param stepId 步骤标识
-     * @param stepType 步骤类型
-     * @param status 步骤状态
+     * @param record 步骤记录
+     * @param stepInput 步骤输入（可选，用于覆盖 record 中的输入）
      * @param output 输出内容
      * @param toolName 工具名称（可选）
      * @param error 异常信息（可选）
-     * @param attempt 尝试次数（可选）
      * @return 摘要结构
      */
-    public Map<String, Object> build(String stepId,
-                                     String stepType,
-                                     String status,
+    public Map<String, Object> build(StepRecord record,
+                                     Map<String, Object> stepInput,
                                      Object output,
                                      String toolName,
-                                     Object error,
-                                     Integer attempt) {
+                                     Object error) {
         if (!isEnabled()) {
             // 未启用摘要时直接返回空结果。
             return Collections.emptyMap();
         }
+
+        String stepId = record != null ? record.getStepId() : null;
+        String stepType = record != null ? record.getType() : null;
+        String status = record != null && record.getStatus() != null ? record.getStatus().name() : null;
+        Integer attempt = record != null ? record.getAttempt() : null;
+        Map<String, Object> effectiveInput = stepInput != null ? stepInput : record != null ? record.getInput() : null;
 
         // 计算摘要限制与截断状态。
         SummaryLimits limits = SummaryLimits.from(properties);
@@ -138,6 +140,17 @@ public class StepOutputSummaryBuilder {
             stepSummary.put("summary", summaryText);
         }
 
+        // 构建输入摘要层。
+        TruncationState inputTruncation = new TruncationState();
+        Map<String, Object> inputSummary = buildInputSummary(effectiveInput, resolvedToolName, limits, inputTruncation,
+                stepInput != null ? "stepInput" : "record");
+        OutputSnapshot inputSnapshot = buildSnapshot(effectiveInput, limits, inputTruncation);
+        Map<String, Object> inputDigest = new LinkedHashMap<>();
+        inputDigest.put("keyCount", inputSnapshot.keyCount);
+        inputDigest.put("keys", inputSnapshot.keys);
+        inputDigest.put("charCount", inputSnapshot.charCount);
+        inputDigest.put("truncated", inputTruncation.truncated);
+
         // 构建指纹摘要层。
         Map<String, Object> outputDigest = new LinkedHashMap<>();
         outputDigest.put("keyCount", snapshot.keyCount);
@@ -150,6 +163,12 @@ public class StepOutputSummaryBuilder {
         result.put("outputSummary", outputSummary);
         result.put("toolResultSummary", toolResultSummary);
         result.put("stepSummary", stepSummary);
+        if (inputSummary != null && !inputSummary.isEmpty()) {
+            result.put("inputSummary", inputSummary);
+        }
+        if (inputSnapshot.keyCount > 0 || inputSnapshot.charCount > 0) {
+            result.put("inputDigest", inputDigest);
+        }
         result.put("outputDigest", outputDigest);
         result.put("truncated", truncation.truncated);
         return result;
@@ -307,6 +326,258 @@ public class StepOutputSummaryBuilder {
         // 生成拼接后的摘要并截断至单字段长度。
         return trimText(String.join(", ", parts), limits.maxFieldChars, truncation);
     }
+
+    /**
+     * 构建输入摘要，提取查询条件与工具参数等关键字段。
+     *
+     * @param input 步骤输入
+     * @param toolName 工具名称
+     * @param limits 摘要限制
+     * @param truncation 截断状态
+     * @param source 输入来源标记
+     * @return 输入摘要
+     */
+    private Map<String, Object> buildInputSummary(Map<String, Object> input,
+                                                  String toolName,
+                                                  SummaryLimits limits,
+                                                  TruncationState truncation,
+                                                  String source) {
+        if ((input == null || input.isEmpty()) && !StringUtils.hasText(toolName)) {
+            return Collections.emptyMap();
+        }
+        Map<String, Object> summary = new LinkedHashMap<>();
+        String resolvedToolName = resolveToolName(toolName, input);
+        if (StringUtils.hasText(resolvedToolName)) {
+            summary.put("tool", resolvedToolName);
+        }
+        if (input != null && !input.isEmpty()) {
+            putTextSummary(summary, "query", input.get("query"), limits, truncation);
+            putTextSummary(summary, "question", input.get("question"), limits, truncation);
+            putTextSummary(summary, "topic", input.get("topic"), limits, truncation);
+
+            Object arguments = input.get("arguments");
+            putStructuredSummary(summary, "arguments", arguments, limits, truncation);
+
+            Object filters = input.containsKey("filters") ? input.get("filters")
+                    : input.containsKey("filter") ? input.get("filter")
+                    : input.get("conditions");
+            putStructuredSummary(summary, "filters", filters, limits, truncation);
+
+            Object timeRange = input.containsKey("timeRange") ? input.get("timeRange")
+                    : input.containsKey("dateRange") ? input.get("dateRange")
+                    : input.get("range");
+            putStructuredSummary(summary, "timeRange", timeRange, limits, truncation);
+
+            putTextSummary(summary, "from", input.get("from"), limits, truncation);
+            putTextSummary(summary, "to", input.get("to"), limits, truncation);
+            putTextSummary(summary, "startTime", input.get("startTime"), limits, truncation);
+            putTextSummary(summary, "endTime", input.get("endTime"), limits, truncation);
+        }
+        if (summary.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        if (StringUtils.hasText(source)) {
+            summary.put("source", source);
+        }
+        return summary;
+    }
+
+    /**
+     * 追加文本类摘要字段，并控制最大长度。
+     *
+     * @param target 目标摘要
+     * @param key 字段名
+     * @param value 原始值
+     * @param limits 摘要限制
+     * @param truncation 截断状态
+     */
+    private void putTextSummary(Map<String, Object> target,
+                                String key,
+                                Object value,
+                                SummaryLimits limits,
+                                TruncationState truncation) {
+        if (value == null) {
+            return;
+        }
+        String text = value instanceof String textValue ? textValue : safeToString(value);
+        if (!StringUtils.hasText(text)) {
+            return;
+        }
+        target.put(key, trimText(text, limits.maxFieldChars, truncation));
+    }
+
+    /**
+     * 追加结构化摘要字段，并控制嵌套深度与条目数量。
+     *
+     * @param target 目标摘要
+     * @param key 字段名
+     * @param value 原始值
+     * @param limits 摘要限制
+     * @param truncation 截断状态
+     */
+    private void putStructuredSummary(Map<String, Object> target,
+                                      String key,
+                                      Object value,
+                                      SummaryLimits limits,
+                                      TruncationState truncation) {
+        if (value == null) {
+            return;
+        }
+        Object sanitized = sanitizeInputValue(value, limits, truncation, 2,
+                new java.util.IdentityHashMap<>());
+        if (sanitized instanceof Map<?, ?> map && map.isEmpty()) {
+            return;
+        }
+        if (sanitized instanceof List<?> list && list.isEmpty()) {
+            return;
+        }
+        target.put(key, sanitized);
+    }
+
+    /**
+     * 清理输入值，避免过深嵌套或过大集合进入摘要。
+     *
+     * @param value 原始值
+     * @param limits 摘要限制
+     * @param truncation 截断状态
+     * @param depth 剩余深度
+     * @param visited 访问记录
+     * @return 清理后的值
+     */
+    private Object sanitizeInputValue(Object value,
+                                      SummaryLimits limits,
+                                      TruncationState truncation,
+                                      int depth,
+                                      java.util.IdentityHashMap<Object, Boolean> visited) {
+        if (value == null) {
+            return null;
+        }
+        if (depth <= 0) {
+            return trimText(safeToString(value), limits.maxFieldChars, truncation);
+        }
+        if (value instanceof String text) {
+            return trimText(text, limits.maxFieldChars, truncation);
+        }
+        if (value instanceof Number || value instanceof Boolean) {
+            return value;
+        }
+        if (value instanceof Map<?, ?> map) {
+            return sanitizeInputMap(map, limits, truncation, depth, visited);
+        }
+        if (value instanceof List<?> list) {
+            return sanitizeInputList(list, limits, truncation, depth, visited);
+        }
+        if (value.getClass().isArray()) {
+            return sanitizeInputArray(value, limits, truncation, depth, visited);
+        }
+        return trimText(safeToString(value), limits.maxFieldChars, truncation);
+    }
+
+    /**
+     * 清理映射结构，限制条目数量并控制深度。
+     *
+     * @param map 映射对象
+     * @param limits 摘要限制
+     * @param truncation 截断状态
+     * @param depth 剩余深度
+     * @param visited 访问记录
+     * @return 清理后的映射
+     */
+    private Map<String, Object> sanitizeInputMap(Map<?, ?> map,
+                                                 SummaryLimits limits,
+                                                 TruncationState truncation,
+                                                 int depth,
+                                                 java.util.IdentityHashMap<Object, Boolean> visited) {
+        if (visited.put(map, Boolean.TRUE) != null) {
+            truncation.markTruncated();
+            return Map.of("value", "<circular>");
+        }
+        Map<String, Object> sanitized = new LinkedHashMap<>();
+        int index = 0;
+        int maxItems = limits.maxListItems;
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            if (maxItems > 0 && index >= maxItems) {
+                truncation.markTruncated();
+                break;
+            }
+            String keyText = entry.getKey() == null ? "null" : safeToString(entry.getKey());
+            keyText = trimText(keyText, limits.maxFieldChars, truncation);
+            Object cleaned = sanitizeInputValue(entry.getValue(), limits, truncation, depth - 1, visited);
+            sanitized.put(keyText, cleaned);
+            index++;
+        }
+        visited.remove(map);
+        return sanitized;
+    }
+
+    /**
+     * 清理列表结构，限制条目数量并控制深度。
+     *
+     * @param list 列表对象
+     * @param limits 摘要限制
+     * @param truncation 截断状态
+     * @param depth 剩余深度
+     * @param visited 访问记录
+     * @return 清理后的列表
+     */
+    private List<Object> sanitizeInputList(List<?> list,
+                                           SummaryLimits limits,
+                                           TruncationState truncation,
+                                           int depth,
+                                           java.util.IdentityHashMap<Object, Boolean> visited) {
+        if (visited.put(list, Boolean.TRUE) != null) {
+            truncation.markTruncated();
+            return List.of("<circular>");
+        }
+        List<Object> sanitized = new ArrayList<>();
+        int index = 0;
+        int maxItems = limits.maxListItems;
+        for (Object item : list) {
+            if (maxItems > 0 && index >= maxItems) {
+                truncation.markTruncated();
+                break;
+            }
+            sanitized.add(sanitizeInputValue(item, limits, truncation, depth - 1, visited));
+            index++;
+        }
+        visited.remove(list);
+        return sanitized;
+    }
+
+    /**
+     * 清理数组结构，限制条目数量并控制深度。
+     *
+     * @param array 数组对象
+     * @param limits 摘要限制
+     * @param truncation 截断状态
+     * @param depth 剩余深度
+     * @param visited 访问记录
+     * @return 清理后的列表
+     */
+    private List<Object> sanitizeInputArray(Object array,
+                                            SummaryLimits limits,
+                                            TruncationState truncation,
+                                            int depth,
+                                            java.util.IdentityHashMap<Object, Boolean> visited) {
+        if (visited.put(array, Boolean.TRUE) != null) {
+            truncation.markTruncated();
+            return List.of("<circular>");
+        }
+        int length = java.lang.reflect.Array.getLength(array);
+        int maxItems = limits.maxListItems;
+        List<Object> sanitized = new ArrayList<>();
+        for (int i = 0; i < length; i++) {
+            if (maxItems > 0 && i >= maxItems) {
+                truncation.markTruncated();
+                break;
+            }
+            Object item = java.lang.reflect.Array.get(array, i);
+            sanitized.add(sanitizeInputValue(item, limits, truncation, depth - 1, visited));
+        }
+        visited.remove(array);
+        return sanitized;
+    }
+
 
     /**
      * 构建受限长度的样本文本快照。

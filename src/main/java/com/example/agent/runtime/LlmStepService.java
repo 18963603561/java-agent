@@ -51,6 +51,32 @@ public class LlmStepService {
     private static final String TOOL_RATE_LIMITED = "TOOL_RATE_LIMITED";
     private static final String TOOL_UNAVAILABLE = "TOOL_UNAVAILABLE";
     private static final String TOOL_EXECUTION_FAILED = "TOOL_EXECUTION_FAILED";
+    /**
+     * 工具摘要默认置信度（成功）。
+     */
+    private static final double TOOL_SUMMARY_CONFIDENCE_SUCCESS = 0.6;
+    /**
+     * 工具摘要默认置信度（失败）。
+     */
+    private static final double TOOL_SUMMARY_CONFIDENCE_FAILED = 0.2;
+
+    /**
+     * 工具结果摘要模式。
+     */
+    public enum ToolSummaryMode {
+        /**
+         * 直接返回工具原始结果。
+         */
+        RAW,
+        /**
+         * 使用确定性模板生成摘要。
+         */
+        TEMPLATE,
+        /**
+         * 交由大模型生成摘要。
+         */
+        LLM_SUMMARY
+    }
 
     private final ModelInvocationService modelInvocationService;
     private final PromptAssembler promptAssembler;
@@ -97,6 +123,48 @@ public class LlmStepService {
         this.objectMapper = objectMapper;
     }
 
+
+    /**
+     * 解析工具摘要模式，优先级：步骤输入 > 步骤上下文 > 请求上下文。
+     *
+     * @param request 任务请求
+     * @param stepInput 步骤输入
+     * @return 工具摘要模式
+     */
+    public ToolSummaryMode resolveToolSummaryMode(TaskRequest request, Map<String, Object> stepInput) {
+        ToolSummaryMode mode = resolveToolSummaryModeFromStepInput(stepInput);
+        if (mode != null) {
+            return mode;
+        }
+        mode = resolveToolSummaryModeFromContext(stepInput != null ? stepInput.get("context") : null);
+        if (mode != null) {
+            return mode;
+        }
+        mode = resolveToolSummaryModeFromContext(request != null ? request.getContext() : null);
+        return mode != null ? mode : ToolSummaryMode.LLM_SUMMARY;
+    }
+
+    /**
+     * 构建直达工具输出，避免模型改写。
+     *
+     * @param summaryMode 摘要模式
+     * @param toolName 工具名称
+     * @param toolArguments 工具参数
+     * @param toolResult 工具原始结果
+     * @return 工具输出
+     */
+    public Map<String, Object> buildDirectToolOutput(ToolSummaryMode summaryMode,
+                                                     String toolName,
+                                                     Map<String, Object> toolArguments,
+                                                     Map<String, Object> toolResult) {
+        ToolSummaryMode resolvedMode = summaryMode == null || summaryMode == ToolSummaryMode.LLM_SUMMARY
+                ? ToolSummaryMode.RAW
+                : summaryMode;
+        ToolCallResult toolCallResult = ToolCallResult.success(toolResult == null ? Map.of() : toolResult);
+        String source = resolvedMode == ToolSummaryMode.TEMPLATE ? "direct_tool_template" : "direct_tool_raw";
+        return buildToolOutput(resolvedMode, toolName, toolArguments, toolCallResult, source);
+    }
+
     /**
      * 执行 LLM 步骤，支持工具调用与二次总结输出。
      *
@@ -114,12 +182,37 @@ public class LlmStepService {
                                    String workflowId,
                                    String taskId,
                                    AtomicLong seqCounter) {
+        ToolSummaryMode summaryMode = resolveToolSummaryMode(request, stepInput);
+        return run(request, stepInput, tenantContext, workflowId, taskId, seqCounter, summaryMode);
+    }
+
+    /**
+     * 执行 LLM 步骤（可显式指定工具摘要模式）。
+     *
+     * @param request 任务请求
+     * @param stepInput 步骤输入
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param taskId 任务标识
+     * @param seqCounter 事件序列计数器
+     * @param summaryMode 工具摘要模式
+     * @return LLM 步骤输出
+     */
+    public Map<String, Object> run(TaskRequest request,
+                                   Map<String, Object> stepInput,
+                                   TenantContext tenantContext,
+                                   String workflowId,
+                                   String taskId,
+                                   AtomicLong seqCounter,
+                                   ToolSummaryMode summaryMode) {
         String query = resolveStepQuestion(stepInput, request);
         int queryLength = query != null ? query.length() : 0;
         boolean hasContext = stepInput != null && stepInput.get("context") != null;
+        ToolSummaryMode resolvedSummaryMode = summaryMode != null ? summaryMode
+            : resolveToolSummaryMode(request, stepInput);
         // 记录 LLM 步骤入口，便于排查上下文与查询长度
-        log.info("LLM 步骤开始, workflowId={}, queryLength={}, hasContext={}",
-                workflowId, queryLength, hasContext);
+        log.info("LLM 步骤开始, workflowId={}, queryLength={}, hasContext={}, summaryMode={}",
+                workflowId, queryLength, hasContext, resolvedSummaryMode);
 
         // 决策阶段：生成工具调用或直接回答的指令
         ModelRequest decisionRequest = new ModelRequest();
@@ -181,22 +274,17 @@ public class LlmStepService {
         ToolCallResult toolResult = executeToolCall(request, tenantContext, workflowId, taskId,
                 seqCounter, toolName, toolArguments);
         updateToolContext(request, stepInput, toolName, toolResult);
+        if (resolvedSummaryMode != ToolSummaryMode.LLM_SUMMARY) {
+            Map<String, Object> output = buildToolOutput(resolvedSummaryMode, toolName, toolArguments,
+                    toolResult, "llm_step");
+            log.info("LLM 步骤工具调用完成, workflowId={}, summaryMode={}, toolStatus={}, outputKeys={}",
+                    workflowId, resolvedSummaryMode, toolResult.status, output.keySet());
+            return output;
+        }
         Map<String, Object> summaryOutput = summarizeToolResult(query, decision, toolResult,
                 toolName, toolArguments, request, stepInput, tenantContext, workflowId, seqCounter);
 
-        summaryOutput.put("mode", MODE_TOOL_CALL);
-        Map<String, Object> toolPayload = new HashMap<>();
-        toolPayload.put("name", toolName);
-        toolPayload.put("arguments", toolArguments == null ? Map.of() : toolArguments);
-        summaryOutput.put("tool", toolPayload);
-        summaryOutput.put("toolStatus", toolResult.status);
-        if (toolResult.errorCode != null) {
-            summaryOutput.put("toolErrorCode", toolResult.errorCode);
-        }
-        if (toolResult.errorMessage != null) {
-            summaryOutput.put("toolErrorMessage", toolResult.errorMessage);
-        }
-        summaryOutput.putIfAbsent("source", "llm_step");
+        applyToolOutputDefaults(summaryOutput, toolName, toolArguments, toolResult, "llm_step");
         log.info("LLM 步骤完成, workflowId={}, toolStatus={}, outputKeys={}",
                 workflowId, toolResult.status, summaryOutput.keySet());
         return summaryOutput;
@@ -221,13 +309,7 @@ public class LlmStepService {
         updateToolContext(request, stepInput, toolName, toolCallResult);
         Map<String, Object> summaryOutput = summarizeToolResult(query, null, toolCallResult,
                 toolName, toolArguments, request, stepInput, tenantContext, workflowId, seqCounter);
-        summaryOutput.put("mode", MODE_TOOL_CALL);
-        Map<String, Object> toolPayload = new HashMap<>();
-        toolPayload.put("name", toolName);
-        toolPayload.put("arguments", toolArguments == null ? Map.of() : toolArguments);
-        summaryOutput.put("tool", toolPayload);
-        summaryOutput.put("toolStatus", toolCallResult.status);
-        summaryOutput.putIfAbsent("source", "direct_tool");
+        applyToolOutputDefaults(summaryOutput, toolName, toolArguments, toolCallResult, "direct_tool");
         log.info("直达工具总结完成, workflowId={}, tool={}, outputKeys={}",
                 workflowId, toolName, summaryOutput.keySet());
         return summaryOutput;
@@ -651,7 +733,242 @@ public class LlmStepService {
      * @param request 任务请求
      * @return 问题文本
      */
-    private String resolveStepQuestion(Map<String, Object> stepInput, TaskRequest request) {
+    
+    /**
+     * 解析步骤输入中的摘要模式配置。
+     */
+    private ToolSummaryMode resolveToolSummaryModeFromStepInput(Map<String, Object> stepInput) {
+        if (stepInput == null) {
+            return null;
+        }
+        if (isTruthy(stepInput.get("rawOnly"))) {
+            return ToolSummaryMode.RAW;
+        }
+        ToolSummaryMode mode = parseToolSummaryMode(stepInput.get("summaryMode"));
+        if (mode != null) {
+            return mode;
+        }
+        return null;
+    }
+
+    /**
+     * 解析上下文中的摘要模式配置。
+     */
+    private ToolSummaryMode resolveToolSummaryModeFromContext(Object context) {
+        if (!(context instanceof Map<?, ?> contextMap)) {
+            return null;
+        }
+        if (isTruthy(contextMap.get("rawOnly"))) {
+            return ToolSummaryMode.RAW;
+        }
+        return parseToolSummaryMode(contextMap.get("toolSummaryMode"));
+    }
+
+    /**
+     * 将摘要模式字段解析为枚举。
+     */
+    private ToolSummaryMode parseToolSummaryMode(Object value) {
+        if (value == null) {
+            return null;
+        }
+        if (value instanceof ToolSummaryMode mode) {
+            return mode;
+        }
+        if (value instanceof String text) {
+            String normalized = text.trim().toLowerCase(Locale.ROOT);
+            return switch (normalized) {
+                case "raw", "raw_only", "rawonly" -> ToolSummaryMode.RAW;
+                case "template", "tpl" -> ToolSummaryMode.TEMPLATE;
+                case "llm", "llm_summary", "summary", "model" -> ToolSummaryMode.LLM_SUMMARY;
+                default -> null;
+            };
+        }
+        return null;
+    }
+
+    /**
+     * 构建工具结果输出（用于 RAW/TEMPLATE 模式）。
+     */
+    private Map<String, Object> buildToolOutput(ToolSummaryMode summaryMode,
+                                                String toolName,
+                                                Map<String, Object> toolArguments,
+                                                ToolCallResult toolResult,
+                                                String source) {
+        Map<String, Object> result = toolResult != null && toolResult.result != null ? toolResult.result : Map.of();
+        String status = toolResult != null ? toolResult.status : TOOL_STATUS_FAILED;
+        String errorCode = toolResult != null ? toolResult.errorCode : null;
+        String errorMessage = toolResult != null ? toolResult.errorMessage : null;
+        return buildToolOutput(summaryMode, toolName, toolArguments, status, errorCode, errorMessage, result, source);
+    }
+
+    /**
+     * 构建工具结果输出（带状态与错误信息）。
+     */
+    private Map<String, Object> buildToolOutput(ToolSummaryMode summaryMode,
+                                                String toolName,
+                                                Map<String, Object> toolArguments,
+                                                String toolStatus,
+                                                String errorCode,
+                                                String errorMessage,
+                                                Map<String, Object> toolResult,
+                                                String source) {
+        Map<String, Object> output = new HashMap<>();
+        Map<String, Object> safeResult = toolResult == null ? Map.of() : toolResult;
+        boolean success = TOOL_STATUS_SUCCESS.equals(toolStatus);
+        String answer = resolveAnswerFromResult(safeResult);
+        if (!StringUtils.hasText(answer)) {
+            answer = summaryMode == ToolSummaryMode.TEMPLATE
+                    ? buildTemplateAnswer(success, safeResult)
+                    : buildDefaultAnswer(success, safeResult);
+        }
+        String highlights = summaryMode == ToolSummaryMode.TEMPLATE
+                ? buildTemplateHighlights(safeResult)
+                : buildDefaultHighlights(success, safeResult, errorCode);
+        double confidence = success ? TOOL_SUMMARY_CONFIDENCE_SUCCESS : TOOL_SUMMARY_CONFIDENCE_FAILED;
+
+        output.put("mode", MODE_TOOL_CALL);
+        output.put("answer", answer);
+        output.put("highlights", highlights);
+        output.put("confidence", confidence);
+        output.put("toolStatus", toolStatus);
+        if (errorCode != null) {
+            output.put("toolErrorCode", errorCode);
+        }
+        if (errorMessage != null) {
+            output.put("toolErrorMessage", errorMessage);
+        }
+        Map<String, Object> toolPayload = new HashMap<>();
+        toolPayload.put("name", toolName);
+        toolPayload.put("arguments", toolArguments == null ? Map.of() : toolArguments);
+        output.put("tool", toolPayload);
+        output.put("rawResult", safeResult);
+        output.put("source", source);
+        output.put("evidence", List.of());
+        return output;
+    }
+
+    /**
+     * 补齐工具摘要缺失字段，避免输出结构不一致。
+     */
+    private void applyToolOutputDefaults(Map<String, Object> output,
+                                         String toolName,
+                                         Map<String, Object> toolArguments,
+                                         ToolCallResult toolResult,
+                                         String source) {
+        if (output == null) {
+            return;
+        }
+        Map<String, Object> safeResult = toolResult != null && toolResult.result != null ? toolResult.result : Map.of();
+        String status = toolResult != null ? toolResult.status : TOOL_STATUS_FAILED;
+        boolean success = TOOL_STATUS_SUCCESS.equals(status);
+
+        output.putIfAbsent("mode", MODE_TOOL_CALL);
+        output.putIfAbsent("toolStatus", status);
+        if (!output.containsKey("tool")) {
+            Map<String, Object> toolPayload = new HashMap<>();
+            toolPayload.put("name", toolName);
+            toolPayload.put("arguments", toolArguments == null ? Map.of() : toolArguments);
+            output.put("tool", toolPayload);
+        }
+        output.putIfAbsent("rawResult", safeResult);
+        if (!output.containsKey("answer")) {
+            output.put("answer", buildDefaultAnswer(success, safeResult));
+        }
+        if (!output.containsKey("highlights")) {
+            output.put("highlights", buildDefaultHighlights(success, safeResult,
+                    toolResult != null ? toolResult.errorCode : null));
+        }
+        if (!output.containsKey("confidence")) {
+            output.put("confidence", success ? TOOL_SUMMARY_CONFIDENCE_SUCCESS : TOOL_SUMMARY_CONFIDENCE_FAILED);
+        }
+        if (toolResult != null && toolResult.errorCode != null) {
+            output.putIfAbsent("toolErrorCode", toolResult.errorCode);
+        }
+        if (toolResult != null && toolResult.errorMessage != null) {
+            output.putIfAbsent("toolErrorMessage", toolResult.errorMessage);
+        }
+        output.putIfAbsent("source", source);
+        output.putIfAbsent("evidence", List.of());
+    }
+
+    /**
+     * 从工具原始结果中提取可读答案。
+     */
+    private String resolveAnswerFromResult(Map<String, Object> toolResult) {
+        if (toolResult == null || toolResult.isEmpty()) {
+            return null;
+        }
+        Object answer = toolResult.get("answer");
+        if (answer instanceof String text && StringUtils.hasText(text)) {
+            return text;
+        }
+        Object finalAnswer = toolResult.get("finalAnswer");
+        if (finalAnswer != null && StringUtils.hasText(finalAnswer.toString())) {
+            return finalAnswer.toString();
+        }
+        Object message = toolResult.get("message");
+        if (message != null && StringUtils.hasText(message.toString())) {
+            return message.toString();
+        }
+        return null;
+    }
+
+    /**
+     * 生成模板答案。
+     */
+    private String buildTemplateAnswer(boolean success, Map<String, Object> toolResult) {
+        if (!success) {
+            return "工具执行失败，请查看 rawResult";
+        }
+        if (toolResult == null || toolResult.isEmpty()) {
+            return "工具结果为空";
+        }
+        List<String> keys = new ArrayList<>(toolResult.keySet());
+        int limit = Math.min(keys.size(), 5);
+        String joined = String.join(",", keys.subList(0, limit));
+        return "工具执行完成，返回字段：" + joined;
+    }
+
+    /**
+     * 生成默认答案。
+     */
+    private String buildDefaultAnswer(boolean success, Map<String, Object> toolResult) {
+        if (!success) {
+            return "工具执行失败，请查看 rawResult";
+        }
+        if (toolResult == null || toolResult.isEmpty()) {
+            return "工具结果为空";
+        }
+        return "已返回工具结果，请查看 rawResult";
+    }
+
+    /**
+     * 生成模板 highlights。
+     */
+    private String buildTemplateHighlights(Map<String, Object> toolResult) {
+        if (toolResult == null || toolResult.isEmpty()) {
+            return "结果为空";
+        }
+        List<String> keys = new ArrayList<>(toolResult.keySet());
+        int limit = Math.min(keys.size(), 5);
+        String joined = String.join(",", keys.subList(0, limit));
+        return "返回字段：" + joined;
+    }
+
+    /**
+     * 生成默认 highlights。
+     */
+    private String buildDefaultHighlights(boolean success, Map<String, Object> toolResult, String errorCode) {
+        if (success) {
+            return "工具原始结果";
+        }
+        if (StringUtils.hasText(errorCode)) {
+            return "工具执行失败：" + errorCode;
+        }
+        return "工具执行失败";
+    }
+
+private String resolveStepQuestion(Map<String, Object> stepInput, TaskRequest request) {
         if (stepInput != null) {
             Object question = stepInput.get("question");
             if (question instanceof String value && StringUtils.hasText(value)) {

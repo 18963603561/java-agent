@@ -93,11 +93,11 @@ agent:
     # 说明: 是否启用步骤输出摘要，默认关闭便于灰度回滚 可选项: - true - false 默认值: - false
     enable: true
     # 说明: 摘要整体序列化最大字符数 可选项: - 非负整数 默认值: - 4000
-    max-chars: 0
+    max-chars: 4000
     # 说明: 列表类字段最多保留的元素数量 可选项: - 非负整数 默认值: - 20
     max-list-items: 20
     # 说明: 单个字段字符串的最大字符数 可选项: - 非负整数 默认值: - 200
-    max-field-chars: 0
+    max-field-chars: 500
   final-output:
     # 说明: 最终输出提示词摘要最大字符数 可选项: - 非负整数 默认值: - 800
     prompt-summary-max-chars: 800
@@ -423,7 +423,7 @@ agent:
     max-per-minute: 100
   circuit:
     # 说明: 失败阈值 可选项: - 正整数 默认项: - 3
-    failure-threshold: 10
+    failure-threshold: 3
     # 说明: 熔断打开秒数 可选项: - 正整数 默认项: - 30
     open-seconds: 120
   tool:

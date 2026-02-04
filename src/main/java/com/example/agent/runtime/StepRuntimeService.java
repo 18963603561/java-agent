@@ -110,13 +110,11 @@ public class StepRuntimeService {
         if (stepOutputSummaryBuilder != null && stepOutputSummaryBuilder.isEnabled()) {
             long summaryStart = System.nanoTime();
             Map<String, Object> summary = stepOutputSummaryBuilder.build(
-                    record.getStepId(),
-                    record.getType(),
-                    record.getStatus() != null ? record.getStatus().name() : null,
+                    record,
+                    null,
                     outputWithSummary,
                     null,
-                    null,
-                    record.getAttempt()
+                    null
             );
             long summaryMs = (System.nanoTime() - summaryStart) / 1_000_000;
             if (summary != null && !summary.isEmpty()) {

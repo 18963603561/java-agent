@@ -494,31 +494,10 @@ public class AgentRuntime {
                     log.info("转为大模型步骤, 工作流={}, 任务={}, 步骤={}",
                             workflowId, taskId, record.getStepId());
                     output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
-/*                    // 默认按工具步骤执行。
-                    String toolName = resolveToolName(request, step);
-                    if (toolName == null || toolName.isBlank()) {
-                        log.info("未指定工具, 转为大模型步骤, 工作流={}, 任务={}, 步骤={}",
-                                workflowId, taskId, record.getStepId());
-                        output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
-                    } else {
-                        Map<String, Object> toolArguments = resolveToolArguments(step);
-                        if (toolArguments != null && !toolArguments.isEmpty()) {
-                            log.info("工具步骤使用步骤参数, workflowId={}, stepId={}, tool={}, argKeys={}, argSize={}",
-                                    workflowId, record.getStepId(), toolName, toolArguments.keySet(), toolArguments.size());
-                            output = executeToolStep(request, tenantContext, workflowId, taskId, seqCounter, record,
-                                    toolName, toolArguments);
-                        } else {
-                            if (toolArguments != null) {
-                                log.debug("工具步骤未提供可用参数, workflowId={}, stepId={}, tool={}",
-                                        workflowId, record.getStepId(), toolName);
-                            }
-                            output = executeToolStep(request, tenantContext, workflowId, taskId, seqCounter, record, toolName);
-                        }
-                    }*/
                 }
 
                 // 反思前补充临时摘要，避免反思阶段摘要为空。
-                output = enrichOutputSummaryForReflection(step, request, record, output, attempt);
+                output = enrichOutputSummaryForReflection(step, request, record, stepInput, output);
                 // 对步骤输出进行反思评估，可能触发重试。
                 ReflectionResult reflection = reflectWithEvents(step, tenantContext, workflowId, seqCounter, output, attempt);
                 if (reflection != null && reflection.isRetryRequested()) {
@@ -594,14 +573,13 @@ public class AgentRuntime {
      * @param request 任务请求
      * @param record 步骤记录
      * @param output 原始输出
-     * @param attempt 当前尝试次数
      * @return 合并摘要后的输出
      */
     private Map<String, Object> enrichOutputSummaryForReflection(StepRequest step,
                                                                  TaskRequest request,
                                                                  StepRecord record,
-                                                                 Map<String, Object> output,
-                                                                 int attempt) {
+                                                                 Map<String, Object> stepInput,
+                                                                 Map<String, Object> output) {
         if (output == null || output.isEmpty()) {
             return output;
         }
@@ -610,18 +588,13 @@ public class AgentRuntime {
             if (hasSummaryFields(output)) {
                 return output;
             }
-            String stepId = record != null ? record.getStepId() : null;
-            String stepType = record != null ? record.getType() : null;
-            String status = record != null && record.getStatus() != null ? record.getStatus().name() : null;
             String toolName = step != null ? resolveToolName(request, step) : null;
             Map<String, Object> summary = stepOutputSummaryBuilder.build(
-                    stepId,
-                    stepType,
-                    status,
+                    record,
+                    stepInput,
                     output,
                     toolName,
-                    null,
-                    attempt
+                    null
             );
             if (summary == null || summary.isEmpty()) {
                 return output;
@@ -657,11 +630,12 @@ public class AgentRuntime {
         String query = request != null ? request.getQuery() : null;
         int queryLength = query != null ? query.length() : 0;
         boolean hasContext = stepInput != null && stepInput.get("context") != null;
+        LlmStepService.ToolSummaryMode summaryMode = llmStepService.resolveToolSummaryMode(request, stepInput);
         // 记录步骤入口信息，便于排查上下文缺失问题
-        log.info("LLM 步骤开始, workflowId={}, queryLength={}, hasContext={}",
-                workflowId, queryLength, hasContext);
+        log.info("LLM 步骤开始, workflowId={}, queryLength={}, hasContext={}, summaryMode={}",
+                workflowId, queryLength, hasContext, summaryMode);
         Map<String, Object> output = llmStepService.run(request, stepInput, tenantContext,
-                workflowId, taskId, seqCounter);
+                workflowId, taskId, seqCounter, summaryMode);
         if (output == null || output.isEmpty()) {
             // 模型输出为空时的兜底处理
             output = new HashMap<>();
@@ -672,18 +646,7 @@ public class AgentRuntime {
         return output;
     }
 
-/**
-     * 执行工具步骤。
-     *
-     * <p>输入：任务请求、租户上下文与工具名称。
-     * <p>输出：工具执行输出。
-     * <p>边界：工具执行异常由上层处理。
-     * <p>示例：
-     * <pre>{@code
-     * Map<String, Object> output = executeToolStep(request, ctx, wfId, taskId, seq, record, "demo_tool");
-     * }</pre>
-     */
-    private Map<String, Object> executeToolStep(TaskRequest request,
+private Map<String, Object> executeToolStep(TaskRequest request,
                                                 TenantContext tenantContext,
                                                 String workflowId,
                                                 String taskId,
@@ -1473,13 +1436,13 @@ public class AgentRuntime {
      * <p>输出：直达工具路径的输出；不满足条件时返回 {@code null}。
      */
     private Map<String, Object> tryExecuteDirectToolStep(StepRequest step,
-                                                         TaskRequest request,
-                                                         Map<String, Object> stepInput,
-                                                         TenantContext tenantContext,
-                                                         String workflowId,
-                                                         String taskId,
-                                                         AtomicLong seqCounter,
-                                                         StepRecord record) {
+                                                 TaskRequest request,
+                                                 Map<String, Object> stepInput,
+                                                 TenantContext tenantContext,
+                                                 String workflowId,
+                                                 String taskId,
+                                                 AtomicLong seqCounter,
+                                                 StepRecord record) {
         if (!directToolEnabled) {
             return null;
         }
@@ -1512,8 +1475,19 @@ public class AgentRuntime {
                     workflowId, record != null ? record.getStepId() : null, toolName, toolArguments.keySet());
             Map<String, Object> toolResult = executeToolStep(request, tenantContext, workflowId, taskId,
                     seqCounter, record, toolName, toolArguments);
-            return llmStepService.summarizeDirectToolResult(request, stepInput, tenantContext, workflowId,
-                    seqCounter, toolName, toolArguments, toolResult);
+            LlmStepService.ToolSummaryMode summaryMode = llmStepService.resolveToolSummaryMode(request, stepInput);
+            if (summaryMode != LlmStepService.ToolSummaryMode.LLM_SUMMARY) {
+                Map<String, Object> output = llmStepService.buildDirectToolOutput(summaryMode, toolName,
+                        toolArguments, toolResult);
+                log.info("直达工具执行完成, workflowId={}, stepId={}, summaryMode={}, outputKeys={}",
+                        workflowId, record != null ? record.getStepId() : null, summaryMode, output.keySet());
+                return output;
+            }
+            Map<String, Object> summaryOutput = llmStepService.summarizeDirectToolResult(request, stepInput,
+                    tenantContext, workflowId, seqCounter, toolName, toolArguments, toolResult);
+            log.info("直达工具总结完成, workflowId={}, stepId={}, outputKeys={}",
+                    workflowId, record != null ? record.getStepId() : null, summaryOutput.keySet());
+            return summaryOutput;
         } catch (Throwable ex) {
             log.warn("直达工具执行失败, 回退 LLM 决策, workflowId={}, stepId={}, tool={}",
                     workflowId, record != null ? record.getStepId() : null, toolName, ex);
@@ -1521,12 +1495,7 @@ public class AgentRuntime {
         }
     }
 
-    /**
-     * 从步骤输入中解析直达工具的参数。
-     *
-     * <p>仅接受 arguments 对象，避免将问题字段误当作参数。
-     */
-    private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepInput) {
+private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepInput) {
         if (stepInput == null) {
             return null;
         }
@@ -1705,7 +1674,7 @@ public class AgentRuntime {
         if (arguments.isEmpty()) {
             return null;
         }
-        log.debug("工具步骤使用平铺参数, stepType={}, argKeys={}", step.getStepType(), arguments.keySet());
+        log.debug("工具步骤使用扁平参数, stepType={}, argKeys={}", step.getStepType(), arguments.keySet());
         return arguments;
     }
 
