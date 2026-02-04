@@ -203,6 +203,37 @@ public class LlmStepService {
     }
 
     /**
+     * 直达工具路径的结果总结与上下文回写。
+     *
+     * <p>输入：工具执行结果、工具名称与参数。
+     * <p>输出：统一格式的工具总结输出。
+     */
+    public Map<String, Object> summarizeDirectToolResult(TaskRequest request,
+                                                         Map<String, Object> stepInput,
+                                                         TenantContext tenantContext,
+                                                         String workflowId,
+                                                         AtomicLong seqCounter,
+                                                         String toolName,
+                                                         Map<String, Object> toolArguments,
+                                                         Map<String, Object> toolResult) {
+        String query = resolveStepQuestion(stepInput, request);
+        ToolCallResult toolCallResult = ToolCallResult.success(toolResult == null ? Map.of() : toolResult);
+        updateToolContext(request, stepInput, toolName, toolCallResult);
+        Map<String, Object> summaryOutput = summarizeToolResult(query, null, toolCallResult,
+                toolName, toolArguments, request, stepInput, tenantContext, workflowId, seqCounter);
+        summaryOutput.put("mode", MODE_TOOL_CALL);
+        Map<String, Object> toolPayload = new HashMap<>();
+        toolPayload.put("name", toolName);
+        toolPayload.put("arguments", toolArguments == null ? Map.of() : toolArguments);
+        summaryOutput.put("tool", toolPayload);
+        summaryOutput.put("toolStatus", toolCallResult.status);
+        summaryOutput.putIfAbsent("source", "direct_tool");
+        log.info("直达工具总结完成, workflowId={}, tool={}, outputKeys={}",
+                workflowId, toolName, summaryOutput.keySet());
+        return summaryOutput;
+    }
+
+    /**
      * 执行工具调用，统一处理重试与错误码映射。
      *
      * @param request 任务请求

@@ -363,7 +363,10 @@ public class FinalOutputService {
             return text;
         }
         int maxChars = resolvePromptSummaryMaxChars();
-        if (maxChars <= 0 || text.length() <= maxChars) {
+        if (maxChars <= 0) {
+            return text;
+        }
+        if (text.length() <= maxChars) {
             return text;
         }
         if (maxChars <= SUMMARY_TRUNCATED_SUFFIX.length()) {
@@ -380,8 +383,7 @@ public class FinalOutputService {
         if (finalOutputProperties == null) {
             return DEFAULT_PROMPT_SUMMARY_MAX_CHARS;
         }
-        int value = finalOutputProperties.getPromptSummaryMaxChars();
-        return value > 0 ? value : DEFAULT_PROMPT_SUMMARY_MAX_CHARS;
+        return finalOutputProperties.getPromptSummaryMaxChars();
     }
 
     private String toText(Object value) {

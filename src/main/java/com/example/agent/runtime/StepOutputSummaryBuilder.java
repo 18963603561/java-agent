@@ -782,7 +782,7 @@ public class StepOutputSummaryBuilder {
         /**
          * 追加文本到缓冲区，必要时触发截断停止。
          *
-         * @param text 待追加文本
+         * @param text 待追加文本fv
          */
         private void append(String text) {
             if (stopped || text == null) {

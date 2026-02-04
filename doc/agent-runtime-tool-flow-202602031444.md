@@ -35,3 +35,4 @@
 
 ## 5. 本次代码调整点
 - `executeStep` 对 `stepType=TOOL` 明确走 `executeLlmStep` 分支，避免落入默认分支的“未指定工具”路径。
+- `executeStep` 在 `stepType=TOOL` 且步骤输入存在 `tool`/`toolName` 时自动补齐 `toolChoice`，让 `ModelToolResolver` 在 LLM 决策阶段识别规划指定的工具。

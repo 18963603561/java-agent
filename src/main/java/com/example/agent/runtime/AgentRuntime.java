@@ -155,6 +155,10 @@ public class AgentRuntime {
      */
     private final LlmStepService llmStepService;
     /**
+     * 工具参数校验器，用于直达工具路径。
+     */
+    private final ToolArgumentValidator toolArgumentValidator;
+    /**
      * {@code ReAct} 循环服务。
      * <p>示例：执行多轮观察与行动。
      */
@@ -211,6 +215,11 @@ public class AgentRuntime {
     private final RetryPolicy retryPolicy;
 
     /**
+     * 是否启用直达工具路径。
+     */
+    private final boolean directToolEnabled;
+
+    /**
      * 构造运行时执行器。
      *
      * <p>输入：各类服务依赖与重试配置。
@@ -265,6 +274,7 @@ public class AgentRuntime {
                         ResearchPipeline researchPipeline,
                         FinalOutputService finalOutputService,
                         LlmStepService llmStepService,
+                        ToolArgumentValidator toolArgumentValidator,
                         ReactLoopService reactLoopService,
                         MemoryRecallService memoryRecallService,
                         MemoryWriteService memoryWriteService,
@@ -277,7 +287,8 @@ public class AgentRuntime {
                         @Value("${agent.runtime.max-decompose:1}") int maxDecompose,
                         @Value("${agent.retry.base-delay-ms:100}") long baseDelayMs,
                         @Value("${agent.retry.max-delay-ms:1000}") long maxDelayMs,
-                        @Value("${agent.retry.jitter-ratio:0.2}") double jitterRatio) {
+                        @Value("${agent.retry.jitter-ratio:0.2}") double jitterRatio,
+                        @Value("${agent.runtime.direct-tool.enabled:true}") boolean directToolEnabled) {
         this.plannerService = plannerService;
         this.reflectionService = reflectionService;
         this.stepRuntimeService = stepRuntimeService;
@@ -292,6 +303,7 @@ public class AgentRuntime {
         this.researchPipeline = researchPipeline;
         this.finalOutputService = finalOutputService;
         this.llmStepService = llmStepService;
+        this.toolArgumentValidator = toolArgumentValidator;
         this.reactLoopService = reactLoopService;
         this.memoryRecallService = memoryRecallService;
         this.memoryWriteService = memoryWriteService;
@@ -302,6 +314,7 @@ public class AgentRuntime {
         this.tracingPublisher = tracingPublisher;
         this.recoveryStrategyManager = new RecoveryStrategyManager(maxRetries, maxDecompose);
         this.retryPolicy = new RetryPolicy(baseDelayMs, maxDelayMs, jitterRatio);
+        this.directToolEnabled = directToolEnabled;
     }
 
     /**
@@ -441,7 +454,18 @@ public class AgentRuntime {
                 if ("LLM".equalsIgnoreCase(stepType)
                         || "ANSWER".equalsIgnoreCase(stepType)
                         || "TOOL".equalsIgnoreCase(stepType)) {
-                    output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
+                    if ("TOOL".equalsIgnoreCase(stepType)) {
+                        applyToolChoiceForToolStep(step, request, stepInput, workflowId, record);
+                        Map<String, Object> directOutput = tryExecuteDirectToolStep(step, request, stepInput,
+                                tenantContext, workflowId, taskId, seqCounter, record);
+                        if (directOutput != null) {
+                            output = directOutput;
+                        } else {
+                            output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
+                        }
+                    } else {
+                        output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
+                    }
                 } else if ("THOUGHT_TREE".equalsIgnoreCase(stepType)) {
                     output = executeThoughtTree(step, tenantContext, workflowId, seqCounter);
                 } else if ("CHAIN_OF_THOUGHT".equalsIgnoreCase(stepType)
@@ -467,7 +491,7 @@ public class AgentRuntime {
                     output.put("citations", citations);
                     output.put("count", citations.size());
                 } else {
-                    log.info("未指定工具, 转为大模型步骤, 工作流={}, 任务={}, 步骤={}",
+                    log.info("转为大模型步骤, 工作流={}, 任务={}, 步骤={}",
                             workflowId, taskId, record.getStepId());
                     output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
 /*                    // 默认按工具步骤执行。
@@ -1411,6 +1435,156 @@ public class AgentRuntime {
         log.info("大模型步骤已产出最终结果, 工作流={}, 步骤类型={}, 输出字段={}",
                 workflowId, stepType, result.keySet());
         return result;
+    }
+
+    /**
+     * TOOL 步骤补齐 toolChoice，保证规划工具能被模型决策流程识别。
+     *
+     * <p>输入：步骤定义、任务请求与合并后的步骤输入。
+     * <p>输出：在 stepInput 中注入 toolChoice（若缺失）。
+     * <p>边界：未提供 tool/toolName 时不做注入，仅记录告警。
+     */
+    private void applyToolChoiceForToolStep(StepRequest step,
+                                            TaskRequest request,
+                                            Map<String, Object> stepInput,
+                                            String workflowId,
+                                            StepRecord record) {
+        if (stepInput == null || hasToolChoice(stepInput)) {
+            return;
+        }
+        String toolName = resolveToolNameForToolStep(request, step, stepInput);
+        if (toolName == null || toolName.isBlank()) {
+            log.warn("TOOL 步骤缺少 toolName, 无法补齐 toolChoice, workflowId={}, stepId={}",
+                    workflowId, record != null ? record.getStepId() : null);
+            return;
+        }
+        Map<String, Object> toolChoice = new HashMap<>();
+        toolChoice.put("mode", "specified");
+        toolChoice.put("toolName", toolName);
+        stepInput.put("toolChoice", toolChoice);
+        log.info("TOOL 步骤补齐 toolChoice, workflowId={}, stepId={}, tool={}",
+                workflowId, record != null ? record.getStepId() : null, toolName);
+    }
+
+    /**
+     * 尝试走直达工具路径，满足条件时跳过 LLM 决策。
+     *
+     * <p>输入：步骤定义、任务请求与步骤输入。
+     * <p>输出：直达工具路径的输出；不满足条件时返回 {@code null}。
+     */
+    private Map<String, Object> tryExecuteDirectToolStep(StepRequest step,
+                                                         TaskRequest request,
+                                                         Map<String, Object> stepInput,
+                                                         TenantContext tenantContext,
+                                                         String workflowId,
+                                                         String taskId,
+                                                         AtomicLong seqCounter,
+                                                         StepRecord record) {
+        if (!directToolEnabled) {
+            return null;
+        }
+        String toolName = resolveToolNameForToolStep(request, step, stepInput);
+        if (toolName == null || toolName.isBlank()) {
+            log.info("直达工具跳过, toolName 缺失, workflowId={}, stepId={}",
+                    workflowId, record != null ? record.getStepId() : null);
+            return null;
+        }
+        Map<String, Object> toolArguments = resolveDirectToolArguments(stepInput);
+        if (toolArguments == null || toolArguments.isEmpty()) {
+            log.info("直达工具跳过, 参数缺失, workflowId={}, stepId={}, tool={}",
+                    workflowId, record != null ? record.getStepId() : null, toolName);
+            return null;
+        }
+        if (toolArgumentValidator != null) {
+            ToolArgumentValidator.ValidationResult validation = toolArgumentValidator.validate(toolName, toolArguments);
+            if (!validation.isValid()) {
+                log.info("直达工具跳过, 参数校验失败, workflowId={}, stepId={}, tool={}, reason={}, missing={}",
+                        workflowId,
+                        record != null ? record.getStepId() : null,
+                        toolName,
+                        validation.getReason(),
+                        validation.getMissingFields());
+                return null;
+            }
+        }
+        try {
+            log.info("直达工具执行, workflowId={}, stepId={}, tool={}, argKeys={}",
+                    workflowId, record != null ? record.getStepId() : null, toolName, toolArguments.keySet());
+            Map<String, Object> toolResult = executeToolStep(request, tenantContext, workflowId, taskId,
+                    seqCounter, record, toolName, toolArguments);
+            return llmStepService.summarizeDirectToolResult(request, stepInput, tenantContext, workflowId,
+                    seqCounter, toolName, toolArguments, toolResult);
+        } catch (Throwable ex) {
+            log.warn("直达工具执行失败, 回退 LLM 决策, workflowId={}, stepId={}, tool={}",
+                    workflowId, record != null ? record.getStepId() : null, toolName, ex);
+            return null;
+        }
+    }
+
+    /**
+     * 从步骤输入中解析直达工具的参数。
+     *
+     * <p>仅接受 arguments 对象，避免将问题字段误当作参数。
+     */
+    private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepInput) {
+        if (stepInput == null) {
+            return null;
+        }
+        Object raw = stepInput.get("arguments");
+        if (!(raw instanceof Map<?, ?> rawMap)) {
+            return null;
+        }
+        Map<String, Object> arguments = new HashMap<>();
+        rawMap.forEach((key, value) -> arguments.put(String.valueOf(key), value));
+        return arguments;
+    }
+
+    /**
+     * 判断步骤输入是否已携带 toolChoice。
+     *
+     * <p>输入：合并后的步骤输入。
+     * <p>输出：是否存在 toolChoice（含 context 内）。
+     */
+    private boolean hasToolChoice(Map<String, Object> stepInput) {
+        if (stepInput == null) {
+            return false;
+        }
+        if (stepInput.get("toolChoice") != null) {
+            return true;
+        }
+        Object context = stepInput.get("context");
+        if (context instanceof Map<?, ?> contextMap) {
+            return contextMap.get("toolChoice") != null;
+        }
+        return false;
+    }
+
+    /**
+     * 解析 TOOL 步骤使用的工具名称，优先使用步骤显式配置。
+     *
+     * <p>输入：任务请求、步骤定义与步骤输入。
+     * <p>输出：工具名称；不存在时返回 {@code null}。
+     * <p>边界：仅做字符串化处理，不校验可用性。
+     */
+    private String resolveToolNameForToolStep(TaskRequest request,
+                                              StepRequest step,
+                                              Map<String, Object> stepInput) {
+        String toolName = resolveToolName(request, step);
+        if (toolName != null && !toolName.isBlank()) {
+            return toolName;
+        }
+        if (stepInput == null) {
+            return null;
+        }
+        Object tool = stepInput.get("tool");
+        if (tool != null && !tool.toString().isBlank()) {
+            return tool.toString();
+        }
+        Object toolNameObj = stepInput.get("toolName");
+        if (toolNameObj != null && !toolNameObj.toString().isBlank()) {
+            return toolNameObj.toString();
+        }
+        return null;
     }
 
     /**

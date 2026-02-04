@@ -94,11 +94,28 @@ public class ModelToolResolver {
      * @param stepInput 步骤输入
      */
     public void applyTooling(ModelRequest request, TaskRequest taskRequest, Map<String, Object> stepInput) {
+        applyTooling(request, taskRequest, stepInput, false);
+    }
+
+    /**
+     * 将工具定义与选择策略注入模型请求，支持强制注入完整 schema。
+     *
+     * <p>用途：规划场景需要完整工具参数定义时使用。</p>
+     *
+     * @param request 模型请求
+     * @param taskRequest 任务请求
+     * @param stepInput 步骤输入
+     * @param forceFullSchema 是否强制使用完整 schema
+     */
+    public void applyTooling(ModelRequest request,
+                             TaskRequest taskRequest,
+                             Map<String, Object> stepInput,
+                             boolean forceFullSchema) {
         if (request == null) {
             return;
         }
         long startNs = System.nanoTime();
-        ToolInjectMode injectMode = resolveInjectMode();
+        ToolInjectMode injectMode = forceFullSchema ? ToolInjectMode.FULL : resolveInjectMode();
         String tenantId = resolveTenantId(taskRequest, stepInput);
         ModelToolChoice explicitChoice = resolveToolChoice(taskRequest, stepInput);
         if (isToolsDisabled(taskRequest, stepInput, explicitChoice)) {

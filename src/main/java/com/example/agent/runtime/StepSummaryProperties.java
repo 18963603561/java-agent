@@ -13,7 +13,7 @@ public class StepSummaryProperties {
     /**
      * 是否启用步骤输出摘要，默认关闭以便灰度与回滚。
      */
-    private boolean enable = false;
+    private boolean enable = true;
 
     /**
      * 摘要整体序列化最大字符数，超过后标记为截断。
@@ -28,7 +28,7 @@ public class StepSummaryProperties {
     /**
      * 单个字段字符串的最大字符数。
      */
-    private int maxFieldChars = 200;
+    private int maxFieldChars = 1000;
 
     /**
      * 获取是否启用步骤输出摘要。

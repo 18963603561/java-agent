@@ -130,6 +130,7 @@ class AgentRuntimeApprovalIntegrationTest {
         ResearchPipeline researchPipeline = mock(ResearchPipeline.class);
         FinalOutputService finalOutputService = mock(FinalOutputService.class);
         LlmStepService llmStepService = mock(LlmStepService.class);
+        ToolArgumentValidator toolArgumentValidator = mock(ToolArgumentValidator.class);
         when(llmStepService.run(any(), any(), any(), any(), any(), any()))
                 .thenReturn(Map.of("answer", "ok"));
         when(finalOutputService.finalizeOutput(any(), any(), any(), any(), any(), any(), any()))
@@ -160,6 +161,7 @@ class AgentRuntimeApprovalIntegrationTest {
                 researchPipeline,
                 finalOutputService,
                 llmStepService,
+                toolArgumentValidator,
                 reactLoopService,
                 memoryRecallService,
                 memoryWriteService,
@@ -170,9 +172,10 @@ class AgentRuntimeApprovalIntegrationTest {
                 tracingPublisher,
                 1,
                 1,
-                50,
-                200,
-                0.1
+                50L,
+                200L,
+                0.1,
+                true
         );
 
         TaskRequest request = new TaskRequest();

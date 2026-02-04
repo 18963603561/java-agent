@@ -39,6 +39,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StringUtils;
 
 /**
@@ -60,6 +61,13 @@ public class PlannerService {
      * <p>示例：记录规划生成结果与摘要。
      */
     private static final Logger log = LoggerFactory.getLogger(PlannerService.class);
+
+    /**
+     * TOOL 步骤参数校验开关，开启后缺参会触发回退。
+     */
+    @Value("${agent.planner.strict-tool-arguments:false}")
+    private boolean strictToolArguments;
+
 
     /**
      * 模型调用服务。
@@ -570,7 +578,8 @@ public class PlannerService {
             String prompt = buildPlanPrompt(request, context);
             ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.PLANNER);
             applyPromptBundle(modelRequest, prompt, request, context, tenantContext, workflowId, seqCounter);
-            modelToolResolver.applyTooling(modelRequest, request, null);
+            // 规划阶段强制注入完整工具 schema，提升参数生成可靠性
+            modelToolResolver.applyTooling(modelRequest, request, null, true);
             // 调用模型生成规划内容。
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("planId", planId);
@@ -883,9 +892,10 @@ public class PlannerService {
                 3) TOOL 步骤 input 规范：
                    - 必须包含：
                      - question: 描述本次工具调用意图（必填）
-                     - 工具参数：仅包含该工具需要的字段（避免复制整段 query）
+                     - arguments: object，仅包含该工具需要的字段（避免复制整段 query）
                      - toolName：当 steps[*].tool 为空时必填
                    - 不允许只有工具参数而没有 question
+                   - arguments 缺失或为空时，禁止输出 TOOL 步骤
                 
                 4) 非 TOOL 步骤（FINAL/THINK/LLM） input 规范：
                    - 必须包含：
@@ -922,7 +932,7 @@ public class PlannerService {
                 - steps[*].input：
                   - 必须是 object
                   - 必须包含 question（必填）
-                  - TOOL 步骤还需包含工具参数；必要时包含 toolName
+                  - TOOL 步骤必须包含 arguments（object）；必要时包含 toolName
                 
                 - steps[*].dependsOn：
                   - 默认 []
@@ -1375,7 +1385,9 @@ public class PlannerService {
             return null;
         }
         List<StepRequest> steps = new ArrayList<>();
+        int index = 0;
         for (Object item : stepList) {
+            index++;
             if (!(item instanceof Map<?, ?> stepMap)) {
                 continue;
             }
@@ -1397,10 +1409,52 @@ public class PlannerService {
             if (stepMap.get("dependsOn") instanceof List<?> deps) {
                 input.putIfAbsent("dependsOn", deps);
             }
+            if (isToolStep(type) && strictToolArguments) {
+                String reason = validateToolStepInput(input);
+                if (reason != null) {
+                    log.warn("规划 TOOL 步骤缺少必要参数, stepIndex={}, reason={}", index, reason);
+                    return null;
+                }
+            }
             steps.add(new StepRequest(type, input));
         }
         String summary = root.get("summary") instanceof String value ? value : "llm-plan";
         return new PlanParsingResult(summary, steps);
+    }
+
+    /**
+     * 判断是否为 TOOL 步骤类型。
+     *
+     * @param type 步骤类型
+     * @return 是否为 TOOL
+     */
+    private boolean isToolStep(String type) {
+        return type != null && "TOOL".equalsIgnoreCase(type);
+    }
+
+    /**
+     * 校验 TOOL 步骤的必要字段是否完整。
+     *
+     * <p>输入：步骤输入映射。
+     * <p>输出：缺失原因，返回 {@code null} 表示校验通过。
+     */
+    private String validateToolStepInput(Map<String, Object> input) {
+        if (input == null) {
+            return "input_empty";
+        }
+        Object tool = input.get("tool");
+        Object toolName = input.get("toolName");
+        String resolvedTool = tool instanceof String value && StringUtils.hasText(value)
+                ? value
+                : toolName != null ? toolName.toString() : null;
+        if (!StringUtils.hasText(resolvedTool)) {
+            return "missing_tool_name";
+        }
+        Object arguments = input.get("arguments");
+        if (!(arguments instanceof Map<?, ?> map) || map.isEmpty()) {
+            return "missing_arguments";
+        }
+        return null;
     }
 
     /**
