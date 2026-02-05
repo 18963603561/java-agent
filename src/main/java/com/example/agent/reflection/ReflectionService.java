@@ -9,7 +9,7 @@ import com.example.agent.model.ModelToolResolver;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
 import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.runtime.StepRequest;
+import com.example.agent.runtime.model.plan.StepSpec;
 import com.example.agent.repair.JsonOutputRepairService;
 import com.example.agent.repair.JsonOutputSchema;
 import com.example.agent.model.PromptTrace;
@@ -67,7 +67,7 @@ public class ReflectionService {
      * @param tenantContext 租户上下文
      * @return 反思结果
      */
-    public ReflectionResult reflect(StepRequest step, Map<String, Object> output, TenantContext tenantContext) {
+    public ReflectionResult reflect(StepSpec step, Map<String, Object> output, TenantContext tenantContext) {
         return reflect(step, output, tenantContext, 1, null, null);
     }
 
@@ -80,7 +80,7 @@ public class ReflectionService {
      * @param attempt 当前尝试次数
      * @return 反思结果
      */
-    public ReflectionResult reflect(StepRequest step,
+    public ReflectionResult reflect(StepSpec step,
                                     Map<String, Object> output,
                                     TenantContext tenantContext,
                                     int attempt) {
@@ -98,7 +98,7 @@ public class ReflectionService {
      * @param seqCounter 事件序列计数器
      * @return 反思结果
      */
-    public ReflectionResult reflect(StepRequest step,
+    public ReflectionResult reflect(StepSpec step,
                                     Map<String, Object> output,
                                     TenantContext tenantContext,
                                     int attempt,
@@ -122,7 +122,7 @@ public class ReflectionService {
         return heuristicReflection(step, output, tenantContext, attempt);
     }
 
-    private ReflectionResult tryLlmReflection(StepRequest step,
+    private ReflectionResult tryLlmReflection(StepSpec step,
                                               Map<String, Object> output,
                                               TenantContext tenantContext,
                                               int attempt,
@@ -208,7 +208,7 @@ public class ReflectionService {
         }
     }
 
-    private ReflectionResult heuristicReflection(StepRequest step,
+    private ReflectionResult heuristicReflection(StepSpec step,
                                                  Map<String, Object> output,
                                                  TenantContext tenantContext,
                                                  int attempt) {
@@ -227,7 +227,7 @@ public class ReflectionService {
         return new ReflectionResult(retry, new ReflectionReport(eval.score, eval.notes));
     }
 
-    private String buildReflectionPrompt(StepRequest step, Map<String, Object> output, int attempt) {
+    private String buildReflectionPrompt(StepSpec step, Map<String, Object> output, int attempt) {
         Map<String, Object> context = new HashMap<>();
         context.put("stepType", step != null ? step.getStepType() : null);
         context.put("attempt", attempt);
@@ -296,7 +296,7 @@ public class ReflectionService {
     }
 
     private ReflectionParsingResult tryRepairReflection(String rawContent,
-                                                        StepRequest step,
+                                                        StepSpec step,
                                                         Map<String, Object> output,
                                                         int attempt) {
         if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
@@ -440,7 +440,7 @@ public class ReflectionService {
         return "missing_field";
     }
 
-    private void applyPromptBundle(ModelRequest modelRequest, String prompt, StepRequest step) {
+    private void applyPromptBundle(ModelRequest modelRequest, String prompt, StepSpec step) {
         if (promptAssembler == null || modelRequest == null) {
             return;
         }
@@ -451,7 +451,7 @@ public class ReflectionService {
         }
     }
 
-    private EvaluationResult evaluate(StepRequest step, Map<String, Object> output) {
+    private EvaluationResult evaluate(StepSpec step, Map<String, Object> output) {
         List<String> notes = new ArrayList<>();
         double score = 1.0;
 

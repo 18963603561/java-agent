@@ -1,5 +1,6 @@
 package com.example.agent.runtime;
 
+import com.example.agent.runtime.model.result.StepResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
@@ -103,7 +104,7 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
         try {
             // 外部数据库调用：按工作流读取步骤记录
             return jdbcTemplate.query("""
-                            SELECT step_id, workflow_id, step_seq, type, status, attempt, input, output, error_code,
+                    SELECT step_id, workflow_id, step_seq, type, status, attempt, input, output, error_code,
                                    tenant_id, started_at, completed_at
                             FROM step_records
                             WHERE tenant_id = ? AND workflow_id = ?
@@ -121,7 +122,7 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
         }
     }
 
-    private PGobject toJson(Map<String, Object> payload) {
+    private PGobject toJson(Object payload) {
         if (payload == null) {
             return null;
         }
@@ -174,12 +175,12 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
             if (rs.getTimestamp("completed_at") != null) {
                 record.setCompletedAt(rs.getTimestamp("completed_at").toInstant());
             }
-            record.setInput(readJson(rs.getString("input")));
-            record.setOutput(readJson(rs.getString("output")));
+            record.setInput(readInput(rs.getString("input")));
+            record.setOutput(readOutput(rs.getString("output")));
             return record;
         }
 
-        private Map<String, Object> readJson(String json) {
+        private Map<String, Object> readInput(String json) {
             if (!StringUtils.hasText(json)) {
                 return null;
             }
@@ -190,6 +191,18 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
             // 异常捕获：记录上下文并按当前策略处理
             } catch (JsonProcessingException ex) {
                 // 异常捕获：读取结构化内容失败时返回空，避免阻断流程
+                return null;
+            }
+        }
+
+        private StepResult readOutput(String json) {
+            if (!StringUtils.hasText(json)) {
+                return null;
+            }
+            try {
+                return objectMapper.readValue(json, StepResult.class);
+            // 异常捕获：记录上下文并按当前策略处理
+            } catch (JsonProcessingException ex) {
                 return null;
             }
         }

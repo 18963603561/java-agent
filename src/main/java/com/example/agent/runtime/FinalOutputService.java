@@ -10,6 +10,9 @@ import com.example.agent.model.PromptAssembler;
 import com.example.agent.model.PromptBundle;
 import com.example.agent.repair.JsonOutputRepairService;
 import com.example.agent.repair.JsonOutputSchema;
+import com.example.agent.runtime.model.result.StepResult;
+import com.example.agent.runtime.model.result.StepResultDigest;
+import com.example.agent.runtime.model.result.StepResultSummary;
 import com.example.agent.model.PromptTrace;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -115,7 +118,7 @@ public class FinalOutputService {
     public Map<String, Object> finalizeOutput(TaskRequest taskRequest,
                                               String query,
                                               String planSummary,
-                                              List<Map<String, Object>> stepOutputs,
+                                              List<StepResult> stepOutputs,
                                               TenantContext tenantContext,
                                               String workflowId,
                                               AtomicLong seqCounter) {
@@ -140,7 +143,12 @@ public class FinalOutputService {
                 metadata
         );
         if (response == null || response.getContent() == null) {
-            return Map.of("answer", "no_response");
+            Map<String, Object> fallback = new HashMap<>();
+            fallback.put("answer", "no_response");
+            if (response != null && StringUtils.hasText(response.getRawRef())) {
+                fallback.put("rawRef", response.getRawRef());
+            }
+            return fallback;
         }
         // 解析模型输出为结构化映射。
         String rawContent = response.getContent();
@@ -165,6 +173,9 @@ public class FinalOutputService {
             Map<String, Object> fallback = new HashMap<>();
             fallback.put("answer", response.getContent());
             fallback.put("modelId", response.getModelId());
+            if (StringUtils.hasText(response.getRawRef())) {
+                fallback.put("rawRef", response.getRawRef());
+            }
             return fallback;
         }
         if (!parsed.containsKey("answer")) {
@@ -174,6 +185,9 @@ public class FinalOutputService {
                 parseErrorType,
                 repairAttempted, repairSuccess);
         parsed.putIfAbsent("modelId", response.getModelId());
+        if (StringUtils.hasText(response.getRawRef())) {
+            parsed.putIfAbsent("rawRef", response.getRawRef());
+        }
         return parsed;
     }
 
@@ -197,7 +211,7 @@ public class FinalOutputService {
      */
     public Map<String, Object> finalizeOutput(String query,
                                               String planSummary,
-                                              List<Map<String, Object>> stepOutputs,
+                                              List<StepResult> stepOutputs,
                                               TenantContext tenantContext,
                                               String workflowId,
                                               AtomicLong seqCounter) {
@@ -215,7 +229,7 @@ public class FinalOutputService {
      * String prompt = buildFinalPrompt(query, summary, steps);
      * }</pre>
      */
-    private String buildFinalPrompt(String query, String planSummary, List<Map<String, Object>> stepOutputs) {
+    private String buildFinalPrompt(String query, String planSummary, List<StepResult> stepOutputs) {
         Map<String, Object> context = new HashMap<>();
         context.put("query", query);
         context.put("planSummary", planSummary);
@@ -249,7 +263,7 @@ public class FinalOutputService {
     private Map<String, Object> tryRepairFinalOutput(String rawContent,
                                                      String query,
                                                      String planSummary,
-                                                     List<Map<String, Object>> stepOutputs) {
+                                                     List<StepResult> stepOutputs) {
         if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
             return Map.of();
         }
@@ -274,19 +288,21 @@ public class FinalOutputService {
     /**
      * 生成仅包含摘要的步骤列表，避免提示词注入原始输出。
      */
-    private List<Map<String, Object>> buildStepSummaries(List<Map<String, Object>> stepOutputs) {
+    private List<Map<String, Object>> buildStepSummaries(List<StepResult> stepOutputs) {
         if (stepOutputs == null || stepOutputs.isEmpty()) {
             return List.of();
         }
         List<Map<String, Object>> summaries = new ArrayList<>();
-        for (Map<String, Object> step : stepOutputs) {
+        for (StepResult step : stepOutputs) {
             if (step == null) {
                 continue;
             }
             Map<String, Object> summary = new HashMap<>();
-            summary.put("stepId", toText(step.get("stepId")));
-            summary.put("type", toText(step.get("type")));
-            StepSummaryData data = resolveStepSummaryData(step.get("output"));
+            if (step.getMeta() != null) {
+                summary.put("stepId", toText(step.getMeta().getStepId()));
+                summary.put("type", toText(step.getMeta().getType()));
+            }
+            StepSummaryData data = resolveStepSummaryData(step.getSummary());
             summary.put("status", data.status);
             summary.put("summary", data.summary);
             summaries.add(summary);
@@ -297,12 +313,11 @@ public class FinalOutputService {
     /**
      * 从输出中提取摘要与状态，优先使用 stepSummary.summary。
      */
-    private StepSummaryData resolveStepSummaryData(Object output) {
+    private StepSummaryData resolveStepSummaryData(StepResultSummary summaryModel) {
         StepSummaryData data = new StepSummaryData();
-        if (output instanceof Map<?, ?> map) {
-            Map<?, ?> outputMap = map;
-            Object stepSummaryObj = outputMap.get("stepSummary");
-            if (stepSummaryObj instanceof Map<?, ?> stepSummary) {
+        if (summaryModel != null) {
+            Map<String, Object> stepSummary = summaryModel.getStepSummary();
+            if (stepSummary != null) {
                 data.status = toText(stepSummary.get("status"));
                 Object summaryValue = stepSummary.get("summary");
                 if (summaryValue != null && StringUtils.hasText(summaryValue.toString())) {
@@ -311,17 +326,11 @@ public class FinalOutputService {
                     data.summary = toJsonSafe(stepSummary);
                 }
             }
-            if (!StringUtils.hasText(data.status)) {
-                Object outputSummaryObj = outputMap.get("outputSummary");
-                if (outputSummaryObj instanceof Map<?, ?> outputSummary) {
-                    data.status = toText(outputSummary.get("status"));
-                }
+            if (!StringUtils.hasText(data.status) && summaryModel.getOutputSummary() != null) {
+                data.status = toText(summaryModel.getOutputSummary().get("status"));
             }
             if (!StringUtils.hasText(data.summary)) {
-                Object digestObj = outputMap.get("outputDigest");
-                if (digestObj instanceof Map<?, ?> digest) {
-                    data.summary = buildDigestSummary(digest);
-                }
+                data.summary = buildDigestSummary(summaryModel.getOutputDigest());
             }
         }
         if (!StringUtils.hasText(data.summary)) {
@@ -331,14 +340,14 @@ public class FinalOutputService {
         return data;
     }
 
-    private String buildDigestSummary(Map<?, ?> digest) {
-        if (digest == null || digest.isEmpty()) {
+    private String buildDigestSummary(StepResultDigest digest) {
+        if (digest == null) {
             return null;
         }
         StringBuilder builder = new StringBuilder("digest");
-        appendDigestField(builder, "keyCount", digest.get("keyCount"));
-        appendDigestField(builder, "charCount", digest.get("charCount"));
-        appendDigestField(builder, "truncated", digest.get("truncated"));
+        appendDigestField(builder, "keyCount", digest.getKeyCount());
+        appendDigestField(builder, "charCount", digest.getCharCount());
+        appendDigestField(builder, "truncated", digest.getTruncated());
         return builder.toString();
     }
 

@@ -13,7 +13,7 @@ import com.example.agent.model.PromptBundle;
 import com.example.agent.repair.JsonOutputRepairService;
 import com.example.agent.repair.JsonOutputSchema;
 import com.example.agent.model.PromptTrace;
-import com.example.agent.runtime.StepRequest;
+import com.example.agent.runtime.model.plan.StepSpec;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -74,7 +74,7 @@ public class MultiAgentCoordinator {
      * @param seqCounter 事件序列计数器
      * @return 协调结果
      */
-    public Map<String, Object> coordinate(StepRequest step,
+    public Map<String, Object> coordinate(StepSpec step,
                                           TenantContext tenantContext,
                                           String workflowId,
                                           AtomicLong seqCounter) {
@@ -98,6 +98,7 @@ public class MultiAgentCoordinator {
                 metadata
         );
         String rawContent = response != null ? response.getContent() : null;
+        String rawRef = response != null ? response.getRawRef() : null;
         boolean repairAttempted = false;
         boolean repairSuccess = false;
         String parseErrorType = null;
@@ -127,10 +128,15 @@ public class MultiAgentCoordinator {
         Map<String, Object> result = new HashMap<>();
         result.put("team", roles);
         result.put("summary", "team_size=" + roles.size());
+        if (StringUtils.hasText(rawRef)) {
+            result.put("rawRef", rawRef);
+            result.put("modelRawRef", rawRef);
+            result.put("refs", Map.of("modelRawRef", rawRef));
+        }
         return result;
     }
 
-    private Map<String, Object> buildInputSummary(StepRequest step) {
+    private Map<String, Object> buildInputSummary(StepSpec step) {
         Map<String, Object> summary = new HashMap<>();
         if (step != null && step.getInput() != null) {
             Map<String, Object> input = step.getInput();

@@ -4,6 +4,7 @@ import com.example.agent.agentcore.EnforcementGateway;
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.ErrorCodeProvider;
 import com.example.agent.common.TaskRequest;
+import com.example.agent.budget.ContextTrimReport;
 import com.example.agent.context.ContextBuildRequest;
 import com.example.agent.context.ContextBuildResult;
 import com.example.agent.context.ContextBuilder;
@@ -29,7 +30,12 @@ import com.example.agent.reflection.ReflectionResult;
 import com.example.agent.reflection.ReflectionService;
 import com.example.agent.research.ResearchCitation;
 import com.example.agent.research.ResearchPipeline;
+import com.example.agent.research.ResearchRunResult;
 import com.example.agent.multiagent.MultiAgentCoordinator;
+import com.example.agent.runtime.model.plan.StepSpec;
+import com.example.agent.runtime.model.result.StepResult;
+import com.example.agent.runtime.model.result.StepResultDigest;
+import com.example.agent.runtime.model.result.StepResultSummary;
 import com.example.agent.tools.hook.HookManager;
 import com.example.agent.observability.TracingPublisher;
 import com.example.agent.common.ErrorCodeException;
@@ -80,7 +86,7 @@ public class AgentRuntime {
             "requiresApproval",
             "approvalSource",
             "fallbackTool",
-            EvidencePackService.CONTEXT_EVIDENCE_PACK,
+            "evidencePack",
             "EvidencePack",
             "_internalEvidencePack",
             "arguments"
@@ -105,6 +111,10 @@ public class AgentRuntime {
      * 步骤摘要构建器，用于在反思前生成临时摘要。
      */
     private final StepOutputSummaryBuilder stepOutputSummaryBuilder;
+    /**
+     * 原始输出封装构建器，用于生成受控原始层结构。
+     */
+    private final RawOutputEnvelopeBuilder rawOutputEnvelopeBuilder;
     /**
      * 执行约束网关。
      * <p>示例：执行工具调用并应用安全策略。
@@ -174,8 +184,7 @@ public class AgentRuntime {
      */
     private final MemoryWriteService memoryWriteService;
     /**
-     * 证据包聚合器。
-     * <p>示例：为研究引用生成可追溯证据包。
+     * 证据包服务，用于读取当前工作流证据索引。
      */
     private final EvidencePackService evidencePackService;
     /**
@@ -249,7 +258,6 @@ public class AgentRuntime {
      * @param reactLoopService {@code ReAct} 循环服务
      * @param memoryRecallService 记忆召回服务
      * @param memoryWriteService 记忆写入服务
-     * @param evidencePackService 证据包服务
      * @param contextBuilder 上下文构建器
      * @param contextEventPublisher 上下文事件发布器
      * @param eventPublisher 应用事件发布器
@@ -264,6 +272,7 @@ public class AgentRuntime {
                         ReflectionService reflectionService,
                         StepRuntimeService stepRuntimeService,
                         StepOutputSummaryBuilder stepOutputSummaryBuilder,
+                        RawOutputEnvelopeBuilder rawOutputEnvelopeBuilder,
                         EnforcementGateway enforcementGateway,
                         HookManager hookManager,
                         ExecutionControlService executionControlService,
@@ -293,6 +302,7 @@ public class AgentRuntime {
         this.reflectionService = reflectionService;
         this.stepRuntimeService = stepRuntimeService;
         this.stepOutputSummaryBuilder = stepOutputSummaryBuilder;
+        this.rawOutputEnvelopeBuilder = rawOutputEnvelopeBuilder;
         this.enforcementGateway = enforcementGateway;
         this.hookManager = hookManager;
         this.executionControlService = executionControlService;
@@ -353,14 +363,17 @@ public class AgentRuntime {
         // 召回记忆并注入运行上下文。
         MemoryRecallResult recallResult = memoryRecallService.recall(request, runtimeContext, tenantContext);
         applyMemoryContext(runtimeContext, recallResult);
+        hookManager.postRecall(tenantContext, workflowId, buildRecallHookPayload(workflowId, recallResult));
+        syncEvidencePackFromStore(runtimeContext, tenantContext, workflowId);
         // 构建上下文快照并写入运行上下文。
         ContextBuildResult buildResult = buildContextSnapshot(request, tenantContext, workflowId, taskId,
                 recallResult, runtimeContext, seqCounter);
         applyContextSnapshot(runtimeContext, buildResult);
+        hookManager.postTrim(tenantContext, workflowId, buildTrimHookPayload(runtimeContext, workflowId, buildResult));
         // 构造携带上下文的请求副本，避免修改原请求。
         TaskRequest effectiveRequest = buildRequestWithContext(request, runtimeContext);
 
-        List<Map<String, Object>> stepOutputs = new java.util.ArrayList<>();
+        List<StepResult> stepOutputs = new java.util.ArrayList<>();
         int decomposeAttempts = 0;
         // 生成规划步骤。
         PlanResult plan = plannerService.plan(effectiveRequest, tenantContext, workflowId, seqCounter);
@@ -375,7 +388,7 @@ public class AgentRuntime {
                 return result;
             }
             // 顺序执行规划步骤。
-            for (StepRequest step : plan.getSteps()) {
+            for (StepSpec step : plan.getSteps()) {
                 StepOutcome outcome = executeStep(step, effectiveRequest, tenantContext, workflowId, taskId, seqCounter,
                         runtimeContext, decomposeAttempts, stepOutputs);
                 if (outcome == StepOutcome.REPLAN) {
@@ -420,7 +433,7 @@ public class AgentRuntime {
      * StepOutcome outcome = executeStep(step, request, ctx, wfId, taskId, seq, runtimeContext, 0, outputs);
      * }</pre>
      */
-    private StepOutcome executeStep(StepRequest step,
+    private StepOutcome executeStep(StepSpec step,
                                     TaskRequest request,
                                     TenantContext tenantContext,
                                     String workflowId,
@@ -428,7 +441,7 @@ public class AgentRuntime {
                                     AtomicLong seqCounter,
                                     Map<String, Object> runtimeContext,
                                     int decomposeAttempts,
-                                    List<Map<String, Object>> stepOutputs) {
+                                    List<StepResult> stepOutputs) {
         int attempt = 0;
         while (true) {
             attempt++;
@@ -482,14 +495,33 @@ public class AgentRuntime {
                     output.put("roundId", round.getRoundId());
                     output.put("topic", round.getTopic());
                     output.put("conclusion", round.getConclusion());
+                    if (round.getRawRef() != null && !round.getRawRef().isBlank()) {
+                        output.put("rawRef", round.getRawRef());
+                        output.put("modelRawRef", round.getRawRef());
+                    }
                 } else if ("RESEARCH".equalsIgnoreCase(stepType)) {
                     String query = resolveStepQuery(request, step);
-                    List<ResearchCitation> citations = researchPipeline.run(query, tenantContext, workflowId, seqCounter);
-                    appendResearchCitations(runtimeContext, tenantContext, workflowId, citations);
+                    ResearchRunResult researchResult = researchPipeline.runWithRawRef(
+                            query, tenantContext, workflowId, seqCounter);
+                    List<ResearchCitation> citations = researchResult != null && researchResult.getCitations() != null
+                            ? researchResult.getCitations()
+                            : List.of();
                     output = new HashMap<>();
                     output.put("query", query);
                     output.put("citations", citations);
                     output.put("count", citations.size());
+                    output.put("workflowId", workflowId);
+                    if (researchResult != null
+                            && researchResult.getRawRef() != null
+                            && !researchResult.getRawRef().isBlank()) {
+                        output.put("rawRef", researchResult.getRawRef());
+                        output.put("modelRawRef", researchResult.getRawRef());
+                    }
+                    if (record != null) {
+                        output.put("stepId", record.getStepId());
+                    }
+                    hookManager.postResearch(tenantContext, record, output);
+                    syncEvidencePackFromStore(runtimeContext, tenantContext, workflowId);
                 } else {
                     log.info("转为大模型步骤, 工作流={}, 任务={}, 步骤={}",
                             workflowId, taskId, record.getStepId());
@@ -511,9 +543,9 @@ public class AgentRuntime {
                 }
 
                 // 正常完成步骤并更新上下文。
-                stepRuntimeService.completeStep(record, output, seqCounter);
-                updateRuntimeContext(runtimeContext, record, output);
-                recordStepOutput(stepOutputs, record, output);
+                StepRecord completedRecord = stepRuntimeService.completeStep(record, output, seqCounter);
+                updateRuntimeContext(runtimeContext, completedRecord, output);
+                recordStepOutput(stepOutputs, completedRecord);
                 return StepOutcome.SUCCESS;
             // 异常捕获：记录上下文并按当前策略处理
             } catch (Throwable ex) {
@@ -529,9 +561,9 @@ public class AgentRuntime {
                                 taskId, seqCounter, record, fallbackTool);
                         fallbackOutput.put("fallbackFrom", resolveToolName(request, step));
                         fallbackOutput.put("fallbackReason", resolveErrorMessage(ex));
-                        stepRuntimeService.completeStep(record, fallbackOutput, seqCounter);
-                        updateRuntimeContext(runtimeContext, record, fallbackOutput);
-                        recordStepOutput(stepOutputs, record, fallbackOutput);
+                        StepRecord completedFallbackRecord = stepRuntimeService.completeStep(record, fallbackOutput, seqCounter);
+                        updateRuntimeContext(runtimeContext, completedFallbackRecord, fallbackOutput);
+                        recordStepOutput(stepOutputs, completedFallbackRecord);
                         return StepOutcome.SUCCESS;
                     // 异常捕获：记录上下文并按当前策略处理
                     } catch (Throwable fallbackEx) {
@@ -575,7 +607,7 @@ public class AgentRuntime {
      * @param output 原始输出
      * @return 合并摘要后的输出
      */
-    private Map<String, Object> enrichOutputSummaryForReflection(StepRequest step,
+    private Map<String, Object> enrichOutputSummaryForReflection(StepSpec step,
                                                                  TaskRequest request,
                                                                  StepRecord record,
                                                                  Map<String, Object> stepInput,
@@ -685,6 +717,9 @@ private Map<String, Object> executeToolStep(TaskRequest request,
                 toolName, toolArguments);
         // 执行工具后置钩子。
         hookManager.postTool(tenantContext, record, toolName, output);
+        if (request != null && request.getContext() != null) {
+            syncEvidencePackFromStore(request.getContext(), tenantContext, workflowId);
+        }
         return output;
     }
 
@@ -714,6 +749,10 @@ private Map<String, Object> executeToolStep(TaskRequest request,
         output.put("finalAnswer", result.getFinalAnswer());
         output.put("observations", result.getObservations());
         output.put("status", result.isCompleted() ? "COMPLETED" : "UNRESOLVED");
+        if (result.getRawRef() != null && !result.getRawRef().isBlank()) {
+            output.put("rawRef", result.getRawRef());
+            output.put("modelRawRef", result.getRawRef());
+        }
         return output;
     }
 
@@ -728,7 +767,7 @@ private Map<String, Object> executeToolStep(TaskRequest request,
      * Map<String, Object> output = executeThoughtTree(step, ctx, wfId, seq);
      * }</pre>
      */
-    private Map<String, Object> executeThoughtTree(StepRequest step,
+    private Map<String, Object> executeThoughtTree(StepSpec step,
                                                    TenantContext tenantContext,
                                                    String workflowId,
                                                    AtomicLong seqCounter) {
@@ -775,6 +814,10 @@ private Map<String, Object> executeToolStep(TaskRequest request,
         output.put("confidence", result.getConfidence());
         output.put("stopReason", result.getStopReason());
         output.put("status", result.isCompleted() ? "COMPLETED" : "STOPPED");
+        if (result.getRawRef() != null && !result.getRawRef().isBlank()) {
+            output.put("rawRef", result.getRawRef());
+            output.put("modelRawRef", result.getRawRef());
+        }
         return output;
     }
 
@@ -789,7 +832,7 @@ private Map<String, Object> executeToolStep(TaskRequest request,
      * ReflectionResult result = reflectWithEvents(step, ctx, wfId, seq, output, attempt);
      * }</pre>
      */
-    private ReflectionResult reflectWithEvents(StepRequest step,
+    private ReflectionResult reflectWithEvents(StepSpec step,
                                                TenantContext tenantContext,
                                                String workflowId,
                                                AtomicLong seqCounter,
@@ -971,6 +1014,70 @@ private Map<String, Object> executeToolStep(TaskRequest request,
     }
 
     /**
+     * 构建记忆召回 Hook 载荷。
+     */
+    private Map<String, Object> buildRecallHookPayload(String workflowId, MemoryRecallResult recallResult) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("workflowId", workflowId);
+        if (recallResult == null) {
+            payload.put("count", 0);
+            payload.put("reason", "recall_missing");
+            return payload;
+        }
+        payload.put("count", recallResult.getCount());
+        payload.put("reason", recallResult.getReason());
+        if (recallResult.getRecords() != null && !recallResult.getRecords().isEmpty()) {
+            payload.put("records", recallResult.getRecords());
+        }
+        return payload;
+    }
+
+    /**
+     * 构建上下文裁剪 Hook 载荷。
+     */
+    private Map<String, Object> buildTrimHookPayload(Map<String, Object> runtimeContext,
+                                                     String workflowId,
+                                                     ContextBuildResult buildResult) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("workflowId", workflowId);
+        if (runtimeContext != null) {
+            Object snapshotId = runtimeContext.get("snapshotId");
+            if (snapshotId != null) {
+                payload.put("snapshotId", snapshotId);
+            }
+        }
+        ContextTrimReport trimReport = buildResult != null ? buildResult.getTrimReport() : null;
+        if (trimReport == null) {
+            payload.put("summary", "trim_not_triggered");
+            return payload;
+        }
+        payload.put("beforeTokens", trimReport.getTotalBeforeTokens());
+        payload.put("afterTokens", trimReport.getTotalAfterTokens());
+        payload.put("reasons", trimReport.getReasons());
+        payload.put("summary", "trimmed");
+        if (trimReport.getRemovedItemsBySection() != null) {
+            payload.put("removedBySection", trimReport.getRemovedItemsBySection());
+        }
+        return payload;
+    }
+
+    /**
+     * 从证据包服务同步当前工作流证据到运行上下文。
+     */
+    private void syncEvidencePackFromStore(Map<String, Object> runtimeContext,
+                                           TenantContext tenantContext,
+                                           String workflowId) {
+        if (runtimeContext == null || evidencePackService == null || tenantContext == null
+                || workflowId == null || workflowId.isBlank()) {
+            return;
+        }
+        EvidencePack pack = evidencePackService.getPack(tenantContext.getTenantId(), workflowId);
+        if (pack != null) {
+            runtimeContext.put("evidencePack", pack);
+        }
+    }
+
+    /**
      * 构建上下文快照并发布事件。
      *
      * <p>输入：任务请求、租户上下文与运行时上下文。
@@ -1041,7 +1148,7 @@ private Map<String, Object> executeToolStep(TaskRequest request,
             String snapshotId = buildResult.getSnapshot().getSnapshotId();
             if (snapshotId != null && !snapshotId.isBlank()) {
                 runtimeContext.putIfAbsent("snapshotId", snapshotId);
-                Object evidenceObj = runtimeContext.get(EvidencePackService.CONTEXT_EVIDENCE_PACK);
+                Object evidenceObj = runtimeContext.get("evidencePack");
                 if (evidenceObj instanceof EvidencePack pack
                         && (pack.getSnapshotId() == null || pack.getSnapshotId().isBlank())) {
                     pack.setSnapshotId(snapshotId);
@@ -1054,58 +1161,6 @@ private Map<String, Object> executeToolStep(TaskRequest request,
         if (buildResult.getPruneResult() != null) {
             runtimeContext.put("contextPrune", buildResult.getPruneResult());
         }
-    }
-
-    /**
-     * 将研究引用写入证据包，确保引用链路可追溯。
-     *
-     * <p>输入：运行时上下文、租户上下文与引用列表。
-     * <p>输出：无。
-     * <p>边界：引用为空时不处理。
-     * <p>示例：
-     * <pre>{@code
-     * appendResearchCitations(runtimeContext, ctx, wfId, citations);
-     * }</pre>
-     */
-    private void appendResearchCitations(Map<String, Object> runtimeContext,
-                                         TenantContext tenantContext,
-                                         String workflowId,
-                                         List<ResearchCitation> citations) {
-        if (evidencePackService == null || runtimeContext == null
-                || citations == null || citations.isEmpty()) {
-            return;
-        }
-        String tenantId = tenantContext != null ? tenantContext.getTenantId() : null;
-        String snapshotId = resolveSnapshotId(runtimeContext);
-        EvidencePack pack = evidencePackService.getOrCreatePack(runtimeContext, tenantId, workflowId, snapshotId);
-        evidencePackService.addResearchCitations(pack, citations, tenantId, workflowId, "research");
-    }
-
-    /**
-     * 解析运行时上下文中的快照标识。
-     *
-     * <p>输入：运行时上下文。
-     * <p>输出：快照标识或 {@code null}。
-     * <p>示例：
-     * <pre>{@code
-     * String snapshotId = resolveSnapshotId(runtimeContext);
-     * }</pre>
-     */
-    private String resolveSnapshotId(Map<String, Object> runtimeContext) {
-        if (runtimeContext == null) {
-            return null;
-        }
-        Object value = runtimeContext.get("snapshotId");
-        if (value instanceof String text && !text.isBlank()) {
-            return text;
-        }
-        Object snapshotObj = runtimeContext.get("contextSnapshot");
-        if (snapshotObj instanceof ContextSnapshot snapshot
-                && snapshot.getSnapshotId() != null
-                && !snapshot.getSnapshotId().isBlank()) {
-            return snapshot.getSnapshotId();
-        }
-        return null;
     }
 
     /**
@@ -1204,7 +1259,7 @@ private Map<String, Object> executeToolStep(TaskRequest request,
      * Map<String, Object> input = mergeStepInput(step, runtimeContext);
      * }</pre>
      */
-    private Map<String, Object> mergeStepInput(StepRequest step, Map<String, Object> runtimeContext) {
+    private Map<String, Object> mergeStepInput(StepSpec step, Map<String, Object> runtimeContext) {
         Map<String, Object> merged = new HashMap<>();
         if (runtimeContext != null) {
             merged.putAll(runtimeContext);
@@ -1268,6 +1323,28 @@ private Map<String, Object> executeToolStep(TaskRequest request,
         Map<String, Object> stepSummary = buildStepOutputSummary(record, output);
         runtimeContext.put("lastStepSummary", stepSummary);
         runtimeContext.remove("lastStepOutput");
+        Map<String, Object> rawEnvelope = buildStepRawEnvelope(output);
+        Object rawData = rawEnvelope.get("data");
+        if (rawData != null) {
+            runtimeContext.put("lastStepRawOutput", rawData);
+        } else {
+            runtimeContext.remove("lastStepRawOutput");
+        }
+        Object rawRef = rawEnvelope.get("rawRef");
+        if (rawRef instanceof String text && !text.isBlank()) {
+            runtimeContext.put("lastStepRawRef", text);
+        } else {
+            runtimeContext.remove("lastStepRawRef");
+        }
+        Object rawTruncated = rawEnvelope.get("truncated");
+        runtimeContext.put("lastStepRawTruncated", rawTruncated instanceof Boolean value && value);
+        if (rawEnvelope.get("refs") instanceof Map<?, ?> refsMap && !refsMap.isEmpty()) {
+            Map<String, Object> refs = new HashMap<>();
+            refsMap.forEach((key, value) -> refs.put(String.valueOf(key), value));
+            runtimeContext.put("lastStepRawRefs", refs);
+        } else {
+            runtimeContext.remove("lastStepRawRefs");
+        }
         if (output != null) {
             runtimeContext.put("lastOutputSize", output.size());
         }
@@ -1284,18 +1361,59 @@ private Map<String, Object> executeToolStep(TaskRequest request,
      * recordStepOutput(stepOutputs, record, output);
      * }</pre>
      */
-    private void recordStepOutput(List<Map<String, Object>> stepOutputs,
-                                  StepRecord record,
-                                  Map<String, Object> output) {
-        if (stepOutputs == null || record == null) {
+    private void recordStepOutput(List<StepResult> stepOutputs,
+                                  StepRecord record) {
+        if (stepOutputs == null || record == null || record.getOutput() == null) {
             return;
         }
-        Map<String, Object> entry = new HashMap<>();
-        entry.put("stepId", record.getStepId());
-        entry.put("type", record.getType());
-        entry.put("attempt", record.getAttempt());
-        entry.put("output", buildStepOutputSummary(record, output));
-        stepOutputs.add(entry);
+        stepOutputs.add(record.getOutput());
+    }
+
+    private Map<String, Object> buildStepRawEnvelope(Map<String, Object> output) {
+        if (output == null || output.isEmpty()) {
+            return Map.of();
+        }
+        if (rawOutputEnvelopeBuilder != null) {
+            Map<String, Object> envelope = rawOutputEnvelopeBuilder.build(output);
+            return envelope == null ? Map.of() : envelope;
+        }
+        Map<String, Object> envelope = new HashMap<>();
+        String rawRef = resolveRawRef(output);
+        if (rawRef != null && !rawRef.isBlank()) {
+            envelope.put("rawRef", rawRef);
+        }
+        envelope.put("data", output);
+        envelope.put("truncated", false);
+        return envelope;
+    }
+
+    private String resolveRawRef(Map<String, Object> output) {
+        if (output == null || output.isEmpty()) {
+            return null;
+        }
+        Object direct = output.get("rawRef");
+        if (direct instanceof String text && !text.isBlank()) {
+            return text;
+        }
+        if (output.get("rawResult") instanceof Map<?, ?> rawResultMap) {
+            Object nested = rawResultMap.get("rawRef");
+            if (nested instanceof String text && !text.isBlank()) {
+                return text;
+            }
+        }
+        if (output.get("result") instanceof Map<?, ?> resultMap) {
+            Object nested = resultMap.get("rawRef");
+            if (nested instanceof String text && !text.isBlank()) {
+                return text;
+            }
+        }
+        if (output.get("raw") instanceof Map<?, ?> rawMap) {
+            Object nested = rawMap.get("rawRef");
+            if (nested instanceof String text && !text.isBlank()) {
+                return text;
+            }
+        }
+        return null;
     }
 
     private Map<String, Object> buildStepOutputSummary(StepRecord record, Map<String, Object> output) {
@@ -1365,12 +1483,12 @@ private Map<String, Object> executeToolStep(TaskRequest request,
      * <p>边界：无步骤或输出为空时不处理。
      */
     private Map<String, Object> resolveFinalOutputFromSteps(PlanResult plan,
-                                                            List<Map<String, Object>> stepOutputs,
+                                                            List<StepResult> stepOutputs,
                                                             String workflowId) {
         if (plan == null || plan.getSteps() == null || plan.getSteps().isEmpty()) {
             return null;
         }
-        StepRequest lastStep = plan.getSteps().get(plan.getSteps().size() - 1);
+        StepSpec lastStep = plan.getSteps().get(plan.getSteps().size() - 1);
         if (lastStep == null || lastStep.getStepType() == null) {
             return null;
         }
@@ -1381,11 +1499,14 @@ private Map<String, Object> executeToolStep(TaskRequest request,
         if (stepOutputs == null || stepOutputs.isEmpty()) {
             return null;
         }
-        Map<String, Object> lastOutput = stepOutputs.get(stepOutputs.size() - 1);
-        if (lastOutput == null || lastOutput.get("output") == null) {
+        StepResult lastStepResult = stepOutputs.get(stepOutputs.size() - 1);
+        if (lastStepResult == null) {
             return null;
         }
-        Object output = lastOutput.get("output");
+        Object output = extractFinalOutput(lastStepResult);
+        if (output == null) {
+            return null;
+        }
         Map<String, Object> result = new HashMap<>();
         if (output instanceof Map<?, ?> map) {
             map.forEach((key, value) -> result.put(String.valueOf(key), value));
@@ -1400,6 +1521,27 @@ private Map<String, Object> executeToolStep(TaskRequest request,
         return result;
     }
 
+    private Object extractFinalOutput(StepResult stepResult) {
+        if (stepResult == null) {
+            return null;
+        }
+        if (stepResult.getStructured() != null && stepResult.getStructured().getData() != null
+                && !stepResult.getStructured().getData().isEmpty()) {
+            return stepResult.getStructured().getData();
+        }
+        if (stepResult.getRaw() != null && stepResult.getRaw().getData() != null
+                && !stepResult.getRaw().getData().isEmpty()) {
+            return stepResult.getRaw().getData();
+        }
+        if (stepResult.getSummary() != null) {
+            Map<String, Object> stepSummary = stepResult.getSummary().getStepSummary();
+            if (stepSummary != null && stepSummary.get("summary") != null) {
+                return Map.of("answer", String.valueOf(stepSummary.get("summary")));
+            }
+        }
+        return null;
+    }
+
     /**
      * TOOL 步骤补齐 toolChoice，保证规划工具能被模型决策流程识别。
      *
@@ -1407,7 +1549,7 @@ private Map<String, Object> executeToolStep(TaskRequest request,
      * <p>输出：在 stepInput 中注入 toolChoice（若缺失）。
      * <p>边界：未提供 tool/toolName 时不做注入，仅记录告警。
      */
-    private void applyToolChoiceForToolStep(StepRequest step,
+    private void applyToolChoiceForToolStep(StepSpec step,
                                             TaskRequest request,
                                             Map<String, Object> stepInput,
                                             String workflowId,
@@ -1435,7 +1577,7 @@ private Map<String, Object> executeToolStep(TaskRequest request,
      * <p>输入：步骤定义、任务请求与步骤输入。
      * <p>输出：直达工具路径的输出；不满足条件时返回 {@code null}。
      */
-    private Map<String, Object> tryExecuteDirectToolStep(StepRequest step,
+    private Map<String, Object> tryExecuteDirectToolStep(StepSpec step,
                                                  TaskRequest request,
                                                  Map<String, Object> stepInput,
                                                  TenantContext tenantContext,
@@ -1536,7 +1678,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * <p>边界：仅做字符串化处理，不校验可用性。
      */
     private String resolveToolNameForToolStep(TaskRequest request,
-                                              StepRequest step,
+                                              StepSpec step,
                                               Map<String, Object> stepInput) {
         String toolName = resolveToolName(request, step);
         if (toolName != null && !toolName.isBlank()) {
@@ -1595,7 +1737,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * String tool = resolveToolName(request, step);
      * }</pre>
      */
-    private String resolveToolName(TaskRequest request, StepRequest step) {
+    private String resolveToolName(TaskRequest request, StepSpec step) {
         if (step.getInput() != null) {
             Object tool = step.getInput().get("tool");
             if (tool instanceof String toolName && !toolName.isBlank()) {
@@ -1622,7 +1764,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * <p>输出：工具参数映射；未提供时返回 {@code null}。
      * <p>边界：参数非对象时记录告警并忽略。
      */
-    private Map<String, Object> resolveToolArguments(StepRequest step) {
+    private Map<String, Object> resolveToolArguments(StepSpec step) {
         if (step == null || step.getInput() == null) {
             return null;
         }
@@ -1663,7 +1805,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * @param step 步骤定义
      * @return 工具参数映射；为空时返回 {@code null}
      */
-    private Map<String, Object> resolveFlatToolArguments(StepRequest step) {
+    private Map<String, Object> resolveFlatToolArguments(StepSpec step) {
         Map<String, Object> input = step.getInput();
         if (input == null || input.isEmpty()) {
             return null;
@@ -1688,7 +1830,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * String tool = resolveFallbackTool(request, step);
      * }</pre>
      */
-    private String resolveFallbackTool(TaskRequest request, StepRequest step) {
+    private String resolveFallbackTool(TaskRequest request, StepSpec step) {
         if (step.getInput() != null) {
             Object tool = step.getInput().get("fallbackTool");
             if (tool instanceof String fallback && !fallback.isBlank()) {
@@ -1715,7 +1857,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * String query = resolveStepQuery(request, step);
      * }</pre>
      */
-    private String resolveStepQuery(TaskRequest request, StepRequest step) {
+    private String resolveStepQuery(TaskRequest request, StepSpec step) {
         if (step.getInput() != null) {
             Object query = step.getInput().get("query");
             if (query instanceof String value && !value.isBlank()) {
@@ -1749,7 +1891,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
                 return value;
             }
         }
-        return resolveStepQuery(request, new StepRequest(null, stepInput));
+        return resolveStepQuery(request, new StepSpec(null, stepInput));
     }
 
     /**
@@ -1762,7 +1904,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * String topic = resolveStepTopic(request, step);
      * }</pre>
      */
-    private String resolveStepTopic(TaskRequest request, StepRequest step) {
+    private String resolveStepTopic(TaskRequest request, StepSpec step) {
         if (step.getInput() != null) {
             Object topic = step.getInput().get("topic");
             if (topic instanceof String value && !value.isBlank()) {
@@ -1873,7 +2015,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * @param tenantContext 租户上下文
      * @param seqCounter 序列计数器
      */
-    private void requestApprovalIfNeeded(StepRequest step,
+    private void requestApprovalIfNeeded(StepSpec step,
                                          TaskRequest request,
                                          Map<String, Object> stepInput,
                                          Map<String, Object> runtimeContext,
@@ -1967,7 +2109,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * ApprovalDecision decision = resolveApprovalDecision(step, request, stepInput);
      * }</pre>
      */
-    private ApprovalDecision resolveApprovalDecision(StepRequest step,
+    private ApprovalDecision resolveApprovalDecision(StepSpec step,
                                                      TaskRequest request,
                                                      Map<String, Object> stepInput) {
         ApprovalDecision userDecision = resolveApprovalFromUser(request);
@@ -2017,7 +2159,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * ApprovalDecision decision = resolveApprovalFromStep(step);
      * }</pre>
      */
-    private ApprovalDecision resolveApprovalFromStep(StepRequest step) {
+    private ApprovalDecision resolveApprovalFromStep(StepSpec step) {
         if (step == null) {
             return ApprovalDecision.none();
         }
@@ -2050,7 +2192,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * ApprovalDecision decision = resolveApprovalFromEvaluation(step, stepInput);
      * }</pre>
      */
-    private ApprovalDecision resolveApprovalFromEvaluation(StepRequest step, Map<String, Object> stepInput) {
+    private ApprovalDecision resolveApprovalFromEvaluation(StepSpec step, Map<String, Object> stepInput) {
         Object value = null;
         String source = null;
         if (step != null && step.getRequiresApproval() != null) {
@@ -2131,7 +2273,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * @param approvalSource 审批来源
      * @return 审批事件载荷
      */
-    private Map<String, Object> buildApprovalPayload(StepRequest step,
+    private Map<String, Object> buildApprovalPayload(StepSpec step,
                                                      TaskRequest request,
                                                      Map<String, Object> stepInput,
                                                      String approvalSource) {
@@ -2215,7 +2357,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * }</pre>
      */
     private RuntimeResult buildRuntimeResult(PlanResult plan,
-                                             List<Map<String, Object>> stepOutputs,
+                                             List<StepResult> stepOutputs,
                                              Map<String, Object> finalOutput) {
         RuntimeResult result = new RuntimeResult();
         if (plan != null) {

@@ -1,5 +1,6 @@
 package com.example.agent.runtime;
 
+import com.example.agent.runtime.model.result.StepResult;
 import java.time.Instant;
 import java.util.Map;
 
@@ -46,7 +47,7 @@ public class StepRecord {
     /**
      * 输出内容。
      */
-    private Map<String, Object> output;
+    private StepResult output;
 
     /**
      * 错误码。
@@ -127,11 +128,11 @@ public class StepRecord {
         this.input = input;
     }
 
-    public Map<String, Object> getOutput() {
+    public StepResult getOutput() {
         return output;
     }
 
-    public void setOutput(Map<String, Object> output) {
+    public void setOutput(StepResult output) {
         this.output = output;
     }
 

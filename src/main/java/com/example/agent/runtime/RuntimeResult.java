@@ -1,5 +1,6 @@
 package com.example.agent.runtime;
 
+import com.example.agent.runtime.model.result.StepResult;
 import java.util.List;
 import java.util.Map;
 
@@ -10,7 +11,7 @@ public class RuntimeResult {
 
     private String planId;
     private String planSummary;
-    private List<Map<String, Object>> steps;
+    private List<StepResult> steps;
     private Map<String, Object> finalOutput;
 
     public String getPlanId() {
@@ -29,11 +30,11 @@ public class RuntimeResult {
         this.planSummary = planSummary;
     }
 
-    public List<Map<String, Object>> getSteps() {
+    public List<StepResult> getSteps() {
         return steps;
     }
 
-    public void setSteps(List<Map<String, Object>> steps) {
+    public void setSteps(List<StepResult> steps) {
         this.steps = steps;
     }
 

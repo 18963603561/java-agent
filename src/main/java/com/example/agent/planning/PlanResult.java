@@ -1,6 +1,6 @@
 package com.example.agent.planning;
 
-import com.example.agent.runtime.StepRequest;
+import com.example.agent.runtime.model.plan.StepSpec;
 import java.util.List;
 
 /**
@@ -10,12 +10,12 @@ public class PlanResult {
 
     private String planId;
     private String summary;
-    private List<StepRequest> steps;
+    private List<StepSpec> steps;
 
     public PlanResult() {
     }
 
-    public PlanResult(String planId, String summary, List<StepRequest> steps) {
+    public PlanResult(String planId, String summary, List<StepSpec> steps) {
         this.planId = planId;
         this.summary = summary;
         this.steps = steps;
@@ -37,11 +37,11 @@ public class PlanResult {
         this.summary = summary;
     }
 
-    public List<StepRequest> getSteps() {
+    public List<StepSpec> getSteps() {
         return steps;
     }
 
-    public void setSteps(List<StepRequest> steps) {
+    public void setSteps(List<StepSpec> steps) {
         this.steps = steps;
     }
 }

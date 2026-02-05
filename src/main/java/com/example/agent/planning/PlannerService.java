@@ -24,7 +24,8 @@ import com.example.agent.repair.JsonOutputRepairService;
 import com.example.agent.repair.JsonOutputSchema;
 import com.example.agent.model.PromptTrace;
 import com.example.agent.model.PromptBundle;
-import com.example.agent.runtime.StepRequest;
+import com.example.agent.runtime.model.plan.StepSpec;
+import com.example.agent.runtime.model.plan.StepPolicy;
 import com.example.agent.streaming.ContextEventPublisher;
 import com.example.agent.streaming.ContextSnapshotStage;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -302,7 +303,7 @@ public class PlannerService {
         if (hasExplicitApproval(request) || hasExplicitApproval(plan.getSteps())) {
             return;
         }
-        StepRequest first = plan.getSteps().get(0);
+        StepSpec first = plan.getSteps().get(0);
         markStepRequiresApproval(first, "evaluation");
     }
 
@@ -333,19 +334,15 @@ public class PlannerService {
      * boolean required = hasExplicitApproval(steps);
      * }</pre>
      */
-    private boolean hasExplicitApproval(List<StepRequest> steps) {
+    private boolean hasExplicitApproval(List<StepSpec> steps) {
         if (steps == null) {
             return false;
         }
-        for (StepRequest step : steps) {
+        for (StepSpec step : steps) {
             if (step == null) {
                 continue;
             }
             if (step.getRequiresApproval() != null) {
-                return true;
-            }
-            Map<String, Object> input = step.getInput();
-            if (input != null && input.containsKey("requiresApproval")) {
                 return true;
             }
         }
@@ -363,17 +360,12 @@ public class PlannerService {
      * markStepRequiresApproval(step, "evaluation");
      * }</pre>
      */
-    private void markStepRequiresApproval(StepRequest step, String source) {
+    private void markStepRequiresApproval(StepSpec step, String source) {
         if (step == null) {
             return;
         }
         step.setRequiresApproval(true);
         step.setApprovalSource(source);
-        Map<String, Object> input = step.getInput();
-        if (input != null && !input.containsKey("requiresApproval")) {
-            input.put("requiresApproval", true);
-            input.putIfAbsent("approvalSource", source);
-        }
     }
 
     /**
@@ -598,15 +590,16 @@ public class PlannerService {
             }
             // 解析模型输出为规划步骤。
             String rawContent = response.getContent();
+            String parseErrorType = null;
             boolean repairAttempted = false;
             boolean repairSuccess = false;
-            String parseErrorType = null;
-            PlanParsingResult parsed = null;
+            PlanParsingResult parsed;
             try {
                 parsed = parsePlan(rawContent, request, context);
             } catch (Exception ex) {
                 log.warn("规划解析失败, tenantId={}, planId={}, reason={}",
                         tenantContext.getTenantId(), planId, ex.getMessage());
+                parsed = null;
                 parseErrorType = "json_parse_error";
             }
             if (parsed == null || parsed.steps == null || parsed.steps.isEmpty()) {
@@ -660,7 +653,7 @@ public class PlannerService {
             String mode = context.get("mode") instanceof String value ? value.toLowerCase(Locale.ROOT) : "";
         String strategy = context.get("strategy") instanceof String value ? value.toLowerCase(Locale.ROOT) : "";
 
-        List<StepRequest> steps = new ArrayList<>();
+        List<StepSpec> steps = new ArrayList<>();
         List<Map<String, Object>> planSteps = new ArrayList<>();
         List<Map<String, String>> dependencies = new ArrayList<>();
 
@@ -673,7 +666,7 @@ public class PlannerService {
             input.put("question", query);
             input.put("context", context);
             input.put("stepKey", stepKey);
-            steps.add(new StepRequest("CHAIN_OF_THOUGHT", input));
+            steps.add(buildStepSpec("CHAIN_OF_THOUGHT", input));
             planSteps.add(Map.of("id", stepKey, "type", "CHAIN_OF_THOUGHT", "name", "chain-of-thought"));
             String summary = String.format(Locale.ROOT,
                     "strategy=%s, cognitive=%s, complexity=%.2f, steps=%d",
@@ -695,7 +688,7 @@ public class PlannerService {
             thoughtInput.put("stepKey", thoughtStepKey);
             thoughtInput.put("critical", Boolean.TRUE);
             thoughtInput.put("strategy", cognitiveStrategy);
-            steps.add(new StepRequest("THOUGHT_TREE", thoughtInput));
+            steps.add(buildStepSpec("THOUGHT_TREE", thoughtInput));
             planSteps.add(Map.of("id", thoughtStepKey, "type", "THOUGHT_TREE", "name", "thought-tree"));
             previousStepKey = thoughtStepKey;
         }
@@ -707,7 +700,7 @@ public class PlannerService {
             input.put("query", query);
             input.put("context", context);
             input.put("stepKey", stepKey);
-            steps.add(new StepRequest("MULTI_AGENT", input));
+            steps.add(buildStepSpec("MULTI_AGENT", input));
             planSteps.add(Map.of("id", stepKey, "type", "MULTI_AGENT", "name", "multi-agent"));
             if (previousStepKey != null) {
                 dependencies.add(Map.of("from", previousStepKey, "to", stepKey));
@@ -721,7 +714,7 @@ public class PlannerService {
             Map<String, Object> input = new HashMap<>();
             input.put("topic", query);
             input.put("stepKey", stepKey);
-            steps.add(new StepRequest("DEBATE", input));
+            steps.add(buildStepSpec("DEBATE", input));
             planSteps.add(Map.of("id", stepKey, "type", "DEBATE", "name", "debate"));
             if (previousStepKey != null) {
                 dependencies.add(Map.of("from", previousStepKey, "to", stepKey));
@@ -736,7 +729,7 @@ public class PlannerService {
             input.put("query", query);
             input.put("context", context);
             input.put("stepKey", stepKey);
-            steps.add(new StepRequest("RESEARCH", input));
+            steps.add(buildStepSpec("RESEARCH", input));
             planSteps.add(Map.of("id", stepKey, "type", "RESEARCH", "name", "research"));
             if (previousStepKey != null) {
                 dependencies.add(Map.of("from", previousStepKey, "to", stepKey));
@@ -751,7 +744,7 @@ public class PlannerService {
             input.put("query", query);
             input.put("context", context);
             input.put("stepKey", stepKey);
-            steps.add(new StepRequest("REACT", input));
+            steps.add(buildStepSpec("REACT", input));
             planSteps.add(Map.of("id", stepKey, "type", "REACT", "name", "react"));
             if (previousStepKey != null) {
                 dependencies.add(Map.of("from", previousStepKey, "to", stepKey));
@@ -781,7 +774,7 @@ public class PlannerService {
                 input.put("dependsOn", List.of(previousStepKey));
                 dependencies.add(Map.of("from", previousStepKey, "to", stepKey));
             }
-            steps.add(new StepRequest("LLM", input));
+            steps.add(buildStepSpec("LLM", input));
             planSteps.add(Map.of("id", stepKey, "type", "LLM", "name", "llm"));
 
             String summary = String.format(Locale.ROOT,
@@ -818,7 +811,7 @@ public class PlannerService {
             toolInput.put("dependsOn", List.of(previousStepKey));
             dependencies.add(Map.of("from", previousStepKey, "to", toolStepKey));
         }
-        steps.add(new StepRequest("TOOL", toolInput));
+        steps.add(buildStepSpec("TOOL", toolInput));
         planSteps.add(Map.of("id", toolStepKey, "type", "TOOL", "name", "tool-exec"));
 
         String summary = String.format(Locale.ROOT,
@@ -860,14 +853,14 @@ public class PlannerService {
                 你是任务规划器（planner）。你的任务是：根据 PLAN_CONTEXT_JSON 中的 query 与上下文，生成“最小且可执行”的步骤计划。
                 
                 【规划原则】
-                1) 最小化：能 0 步解决就不要出步骤；能 1 步解决就不要拆 3 步。
+                1) 最小化：必须输出至少 1 个步骤，能少步解决就不要出步骤；能 1 步解决就不要拆 3 步。
                 2) 可执行：每个步骤必须能被执行器直接执行（step.type 与 step.input 必须自洽）。
                 3) 不编造：不得编造外部数据结果；若需要查询数据源，必须规划工具步骤。
                 4) 区分两类问题：
-                   - DIRECT：常识解释/概念说明/纯文本生成，不需要工具，可输出 steps=[]
+                   - DIRECT：常识解释/概念说明/纯文本生成，不需要工具，必须输出至少 1 个步骤
                    - TOOL：需要外部数据/检索/数据库查询/调用系统接口，必须输出至少 1 个步骤
                 
-                【何时输出 steps=[]】
+                【steps=[必须输出至少 1 个步骤]】
                 - 问题属于 DIRECT（解释类、定义类、改写/总结类等），且无需任何外部数据。
                   summary 写明“无需工具，直接回答”，并可输出 answerMode="DIRECT"。
                 
@@ -897,7 +890,7 @@ public class PlannerService {
                    - 不允许只有工具参数而没有 question
                    - arguments 缺失或为空时，禁止输出 TOOL 步骤
                 
-                4) 非 TOOL 步骤（FINAL/THINK/LLM） input 规范：
+                4) 非 TOOL 步骤（LLM/COT/REACT） input 规范：
                    - 必须包含：
                      - question: 该步骤要生成/总结/解释的子问题（必填）
                    - 可包含少量内部处理参数（如去重字段 distinctKey），但禁止塞入长文本或重复上下文。
@@ -922,7 +915,7 @@ public class PlannerService {
                 --------------------------------------------------
                 【步骤字段要求】
                 - steps[*].type：
-                  - 缺省为 "TOOL"
+                  - 缺省为 "LLM"
                   - 仅在需要文本生成/汇总/内部处理时使用 "FINAL"/"THINK"/"LLM"（以执行器支持为准）
                 
                 - steps[*].tool：
@@ -1068,11 +1061,14 @@ public class PlannerService {
         Object evidence = context.get(EvidencePackService.CONTEXT_EVIDENCE_PACK);
         if (evidence instanceof EvidencePack pack) {
             EvidenceStats stats = pack.getStats();
-            if (stats != null && stats.getCitationsCount() != null) {
-                return stats.getCitationsCount();
+            if (stats != null && stats.getResearchCount() != null) {
+                return stats.getResearchCount();
             }
-            if (pack.getCitations() != null) {
-                return pack.getCitations().size();
+            if (stats != null && stats.getTotalCount() != null) {
+                return stats.getTotalCount();
+            }
+            if (pack.getEvidences() != null) {
+                return pack.getEvidences().size();
             }
         }
         return null;
@@ -1384,7 +1380,7 @@ public class PlannerService {
         if (!(stepsObj instanceof List<?> stepList)) {
             return null;
         }
-        List<StepRequest> steps = new ArrayList<>();
+        List<StepSpec> steps = new ArrayList<>();
         int index = 0;
         for (Object item : stepList) {
             index++;
@@ -1416,10 +1412,70 @@ public class PlannerService {
                     return null;
                 }
             }
-            steps.add(new StepRequest(type, input));
+            steps.add(buildStepSpec(type, input));
         }
         String summary = root.get("summary") instanceof String value ? value : "llm-plan";
         return new PlanParsingResult(summary, steps);
+    }
+
+    /**
+     * 从动态输入映射构建步骤规格对象。
+     *
+     * <p>风险点：规划输出可能包含任意字段，必须显式拆分 context/dependsOn/policy，避免参数污染。
+     *
+     * @param type 步骤类型
+     * @param input 输入映射
+     * @return 强类型步骤规格
+     */
+    private StepSpec buildStepSpec(String type, Map<String, Object> input) {
+        StepSpec step = new StepSpec();
+        step.setStepType(type);
+        if (input == null || input.isEmpty()) {
+            return step;
+        }
+
+        Map<String, Object> arguments = new HashMap<>(input);
+        Map<String, Object> context = null;
+        Object contextObj = arguments.remove("context");
+        if (contextObj instanceof Map<?, ?> map) {
+            Map<String, Object> contextMap = new HashMap<>();
+            map.forEach((key, value) -> contextMap.put(String.valueOf(key), value));
+            context = contextMap;
+        }
+        step.setContext(context);
+
+        List<String> dependsOn = null;
+        Object dependsObj = arguments.remove("dependsOn");
+        if (dependsObj instanceof List<?> list && !list.isEmpty()) {
+            dependsOn = new ArrayList<>();
+            for (Object item : list) {
+                if (item != null) {
+                    dependsOn.add(String.valueOf(item));
+                }
+            }
+            if (dependsOn.isEmpty()) {
+                dependsOn = null;
+            }
+        }
+        step.setDependsOn(dependsOn);
+
+        Object requiresApprovalObj = arguments.remove("requiresApproval");
+        Object approvalSourceObj = arguments.remove("approvalSource");
+        if (requiresApprovalObj != null || approvalSourceObj != null) {
+            StepPolicy policy = new StepPolicy();
+            if (requiresApprovalObj instanceof Boolean boolValue) {
+                policy.setRequiresApproval(boolValue);
+            } else if (requiresApprovalObj instanceof String text && !text.isBlank()) {
+                policy.setRequiresApproval(Boolean.parseBoolean(text));
+            }
+            if (approvalSourceObj != null) {
+                policy.setApprovalSource(String.valueOf(approvalSourceObj));
+            }
+            step.setPolicy(policy);
+        }
+
+        step.setArguments(arguments.isEmpty() ? null : arguments);
+        return step;
     }
 
     /**
@@ -1679,7 +1735,7 @@ public class PlannerService {
      */
     private static class PlanParsingResult {
         private final String summary;
-        private final List<StepRequest> steps;
+        private final List<StepSpec> steps;
 
         /**
          * 构造解析结果。
@@ -1694,7 +1750,7 @@ public class PlannerService {
          * @param summary 摘要
          * @param steps 步骤列表
          */
-        private PlanParsingResult(String summary, List<StepRequest> steps) {
+        private PlanParsingResult(String summary, List<StepSpec> steps) {
             this.summary = summary;
             this.steps = steps;
         }
