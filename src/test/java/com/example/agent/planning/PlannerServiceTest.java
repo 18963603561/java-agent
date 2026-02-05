@@ -19,7 +19,7 @@ import com.example.agent.model.PromptRole;
 import com.example.agent.model.PromptTrace;
 import com.example.agent.repair.JsonOutputRepairService;
 import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.runtime.StepRequest;
+import com.example.agent.runtime.model.plan.StepSpec;
 import com.example.agent.streaming.ContextSnapshotStage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
@@ -63,9 +63,10 @@ class PlannerServiceTest {
         assertNotNull(plan.getPlanId());
         assertFalse(plan.getSteps().isEmpty());
         assertEquals(1, plan.getSteps().size());
-        StepRequest step = plan.getSteps().get(0);
+        StepSpec step = plan.getSteps().get(0);
         assertEquals("TOOL", step.getStepType());
-        assertTrue(step.getInput().containsKey("tool"));
+        assertNotNull(step.getArguments());
+        assertTrue(step.getArguments().containsKey("tool"));
     }
 
     @Test
