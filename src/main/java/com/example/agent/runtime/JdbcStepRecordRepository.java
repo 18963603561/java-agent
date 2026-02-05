@@ -1,7 +1,7 @@
 package com.example.agent.runtime;
 
+import com.example.agent.runtime.codec.StepResultJsonCodec;
 import com.example.agent.runtime.model.result.StepResult;
-import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -30,11 +30,13 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
     private static final Logger log = LoggerFactory.getLogger(JdbcStepRecordRepository.class);
 
     private final JdbcTemplate jdbcTemplate;
-    private final ObjectMapper objectMapper;
+    private final StepResultJsonCodec jsonCodec;
 
-    public JdbcStepRecordRepository(JdbcTemplate jdbcTemplate, ObjectMapper objectMapper) {
+    public JdbcStepRecordRepository(JdbcTemplate jdbcTemplate,
+                                    ObjectMapper objectMapper,
+                                    StepResultJsonCodec jsonCodec) {
         this.jdbcTemplate = jdbcTemplate;
-        this.objectMapper = objectMapper;
+        this.jsonCodec = jsonCodec != null ? jsonCodec : new StepResultJsonCodec(objectMapper);
     }
 
     /**
@@ -110,7 +112,7 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
                             WHERE tenant_id = ? AND workflow_id = ?
                             ORDER BY step_seq ASC
                             """,
-                    new StepRecordRowMapper(objectMapper),
+                    new StepRecordRowMapper(jsonCodec),
                     tenantId,
                     workflowId
             );
@@ -129,10 +131,10 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
         try {
             PGobject pgObject = new PGobject();
             pgObject.setType("jsonb");
-            pgObject.setValue(objectMapper.writeValueAsString(payload));
+            pgObject.setValue(jsonCodec.write(payload));
             return pgObject;
         // 异常捕获：记录上下文并按当前策略处理
-        } catch (JsonProcessingException | SQLException ex) {
+        } catch (SQLException ex) {
             // 异常捕获：序列化失败时返回空，避免影响主流程
             log.warn("步骤记录 JSON 序列化失败", ex);
             return null;
@@ -141,10 +143,10 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
 
     private static class StepRecordRowMapper implements RowMapper<StepRecord> {
 
-        private final ObjectMapper objectMapper;
+        private final StepResultJsonCodec jsonCodec;
 
-        private StepRecordRowMapper(ObjectMapper objectMapper) {
-            this.objectMapper = objectMapper;
+        private StepRecordRowMapper(StepResultJsonCodec jsonCodec) {
+            this.jsonCodec = jsonCodec;
         }
 
         /**
@@ -181,30 +183,11 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
         }
 
         private Map<String, Object> readInput(String json) {
-            if (!StringUtils.hasText(json)) {
-                return null;
-            }
-            try {
-                @SuppressWarnings("unchecked")
-                Map<String, Object> map = objectMapper.readValue(json, Map.class);
-                return map;
-            // 异常捕获：记录上下文并按当前策略处理
-            } catch (JsonProcessingException ex) {
-                // 异常捕获：读取结构化内容失败时返回空，避免阻断流程
-                return null;
-            }
+            return jsonCodec.readMap(json);
         }
 
         private StepResult readOutput(String json) {
-            if (!StringUtils.hasText(json)) {
-                return null;
-            }
-            try {
-                return objectMapper.readValue(json, StepResult.class);
-            // 异常捕获：记录上下文并按当前策略处理
-            } catch (JsonProcessingException ex) {
-                return null;
-            }
+            return jsonCodec.readStepResult(json);
         }
     }
 }
