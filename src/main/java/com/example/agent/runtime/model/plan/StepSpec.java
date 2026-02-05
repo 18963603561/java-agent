@@ -88,26 +88,6 @@ public class StepSpec {
     }
 
     /**
-     * 兼容读取步骤输入的动态视图。
-     *
-     * <p>注意：仅用于执行边界适配，业务代码应优先读取强类型字段。
-     *
-     * @return 执行输入映射
-     */
-    public Map<String, Object> getInput() {
-        return toExecutionInput();
-    }
-
-    /**
-     * 兼容写入步骤输入的动态视图。
-     *
-     * @param input 执行输入映射
-     */
-    public void setInput(Map<String, Object> input) {
-        fromExecutionInput(input);
-    }
-
-    /**
      * 获取步骤审批标记。
      *
      * @return 审批标记
@@ -161,56 +141,5 @@ public class StepSpec {
             }
         }
         return merged;
-    }
-
-    /**
-     * 由执行输入映射回填步骤规格。
-     *
-     * @param input 执行输入
-     */
-    public void fromExecutionInput(Map<String, Object> input) {
-        if (input == null || input.isEmpty()) {
-            this.arguments = null;
-            this.context = null;
-            this.dependsOn = null;
-            this.policy = null;
-            return;
-        }
-        Map<String, Object> copied = new HashMap<>(input);
-        Object contextValue = copied.remove("context");
-        if (contextValue instanceof Map<?, ?> map) {
-            Map<String, Object> contextMap = new HashMap<>();
-            map.forEach((key, value) -> contextMap.put(String.valueOf(key), value));
-            this.context = contextMap;
-        } else {
-            this.context = null;
-        }
-        Object dependsValue = copied.remove("dependsOn");
-        if (dependsValue instanceof List<?> list) {
-            List<String> depends = new ArrayList<>();
-            for (Object item : list) {
-                if (item != null) {
-                    depends.add(String.valueOf(item));
-                }
-            }
-            this.dependsOn = depends.isEmpty() ? null : depends;
-        } else {
-            this.dependsOn = null;
-        }
-        Object requiresApprovalValue = copied.remove("requiresApproval");
-        Object approvalSourceValue = copied.remove("approvalSource");
-        if (requiresApprovalValue != null || approvalSourceValue != null) {
-            StepPolicy stepPolicy = new StepPolicy();
-            if (requiresApprovalValue instanceof Boolean boolValue) {
-                stepPolicy.setRequiresApproval(boolValue);
-            }
-            if (approvalSourceValue != null) {
-                stepPolicy.setApprovalSource(String.valueOf(approvalSourceValue));
-            }
-            this.policy = stepPolicy;
-        } else {
-            this.policy = null;
-        }
-        this.arguments = copied.isEmpty() ? null : copied;
     }
 }

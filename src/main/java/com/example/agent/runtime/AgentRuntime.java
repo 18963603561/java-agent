@@ -771,7 +771,8 @@ private Map<String, Object> executeToolStep(TaskRequest request,
                                                    TenantContext tenantContext,
                                                    String workflowId,
                                                    AtomicLong seqCounter) {
-        String prompt = step.getInput() != null && step.getInput().get("prompt") instanceof String value
+        Map<String, Object> stepInput = resolveStepInput(step);
+        String prompt = stepInput != null && stepInput.get("prompt") instanceof String value
                 ? value
                 : "";
         // 构建思维树并发布展开事件。
@@ -1264,12 +1265,27 @@ private Map<String, Object> executeToolStep(TaskRequest request,
         if (runtimeContext != null) {
             merged.putAll(runtimeContext);
         }
-        if (step.getInput() != null) {
-            merged.putAll(step.getInput());
+        Map<String, Object> stepInput = resolveStepInput(step);
+        if (stepInput != null && !stepInput.isEmpty()) {
+            merged.putAll(stepInput);
         }
         // 提升审批字段，避免审批信息被嵌套丢失。
         promoteApprovalFields(merged);
         return merged;
+    }
+
+    /**
+     * 获取步骤输入的执行视图。
+     *
+     * @param step 步骤定义
+     * @return 执行输入映射
+     */
+    private Map<String, Object> resolveStepInput(StepSpec step) {
+        if (step == null) {
+            return null;
+        }
+        Map<String, Object> input = step.toExecutionInput();
+        return input == null || input.isEmpty() ? null : input;
     }
 
     /**
@@ -1738,12 +1754,13 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * }</pre>
      */
     private String resolveToolName(TaskRequest request, StepSpec step) {
-        if (step.getInput() != null) {
-            Object tool = step.getInput().get("tool");
+        Map<String, Object> stepInput = resolveStepInput(step);
+        if (stepInput != null) {
+            Object tool = stepInput.get("tool");
             if (tool instanceof String toolName && !toolName.isBlank()) {
                 return toolName;
             }
-            Object toolName = step.getInput().get("toolName");
+            Object toolName = stepInput.get("toolName");
             if (toolName instanceof String name && !name.isBlank()) {
                 return name;
             }
@@ -1765,10 +1782,11 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * <p>边界：参数非对象时记录告警并忽略。
      */
     private Map<String, Object> resolveToolArguments(StepSpec step) {
-        if (step == null || step.getInput() == null) {
+        Map<String, Object> stepInput = resolveStepInput(step);
+        if (stepInput == null || stepInput.isEmpty()) {
             return null;
         }
-        Object raw = step.getInput().get("arguments");
+        Object raw = stepInput.get("arguments");
         if (raw == null) {
             return resolveFlatToolArguments(step);
         }
@@ -1806,7 +1824,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * @return 工具参数映射；为空时返回 {@code null}
      */
     private Map<String, Object> resolveFlatToolArguments(StepSpec step) {
-        Map<String, Object> input = step.getInput();
+        Map<String, Object> input = resolveStepInput(step);
         if (input == null || input.isEmpty()) {
             return null;
         }
@@ -1831,8 +1849,9 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * }</pre>
      */
     private String resolveFallbackTool(TaskRequest request, StepSpec step) {
-        if (step.getInput() != null) {
-            Object tool = step.getInput().get("fallbackTool");
+        Map<String, Object> stepInput = resolveStepInput(step);
+        if (stepInput != null) {
+            Object tool = stepInput.get("fallbackTool");
             if (tool instanceof String fallback && !fallback.isBlank()) {
                 return fallback;
             }
@@ -1858,8 +1877,24 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * }</pre>
      */
     private String resolveStepQuery(TaskRequest request, StepSpec step) {
-        if (step.getInput() != null) {
-            Object query = step.getInput().get("query");
+        Map<String, Object> stepInput = resolveStepInput(step);
+        return resolveStepQuery(request, stepInput);
+    }
+
+    /**
+     * 基于步骤输入映射解析查询文本。
+     *
+     * <p>输入：任务请求与步骤输入映射。
+     * <p>输出：查询文本。
+     * <p>边界：无内容时返回空字符串。
+     *
+     * @param request 任务请求
+     * @param stepInput 步骤输入映射
+     * @return 查询文本
+     */
+    private String resolveStepQuery(TaskRequest request, Map<String, Object> stepInput) {
+        if (stepInput != null) {
+            Object query = stepInput.get("query");
             if (query instanceof String value && !value.isBlank()) {
                 return value;
             }
@@ -1891,7 +1926,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
                 return value;
             }
         }
-        return resolveStepQuery(request, new StepSpec(null, stepInput));
+        return resolveStepQuery(request, stepInput);
     }
 
     /**
@@ -1905,8 +1940,9 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
      * }</pre>
      */
     private String resolveStepTopic(TaskRequest request, StepSpec step) {
-        if (step.getInput() != null) {
-            Object topic = step.getInput().get("topic");
+        Map<String, Object> stepInput = resolveStepInput(step);
+        if (stepInput != null) {
+            Object topic = stepInput.get("topic");
             if (topic instanceof String value && !value.isBlank()) {
                 return value;
             }
@@ -2170,7 +2206,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
             }
             return new ApprovalDecision(true, step.getRequiresApproval(), source);
         }
-        Map<String, Object> input = step.getInput();
+        Map<String, Object> input = resolveStepInput(step);
         if (input != null && input.containsKey("requiresApproval")) {
             String source = normalizeApprovalSource(input.get("approvalSource"), "step");
             if (isEvaluationSource(source)) {
@@ -2195,6 +2231,7 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
     private ApprovalDecision resolveApprovalFromEvaluation(StepSpec step, Map<String, Object> stepInput) {
         Object value = null;
         String source = null;
+        Map<String, Object> input = resolveStepInput(step);
         if (step != null && step.getRequiresApproval() != null) {
             String stepSource = normalizeApprovalSource(step.getApprovalSource(), "evaluation");
             if (isEvaluationSource(stepSource)) {
@@ -2202,10 +2239,10 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
                 source = stepSource;
             }
         }
-        if (source == null && step != null && step.getInput() != null && step.getInput().containsKey("requiresApproval")) {
-            String inputSource = normalizeApprovalSource(step.getInput().get("approvalSource"), "evaluation");
+        if (source == null && input != null && input.containsKey("requiresApproval")) {
+            String inputSource = normalizeApprovalSource(input.get("approvalSource"), "evaluation");
             if (isEvaluationSource(inputSource)) {
-                value = step.getInput().get("requiresApproval");
+                value = input.get("requiresApproval");
                 source = inputSource;
             }
         }
