@@ -6,6 +6,7 @@ import com.example.agent.domain.event.StreamEvent;
 import com.example.agent.governance.ReplayRequest;
 import com.example.agent.policy.PolicyRequest;
 import com.example.agent.tools.McpToolCallRequest;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.test.web.reactive.server.FluxExchangeResult;
 import org.springframework.test.web.reactive.server.WebTestClient;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -36,7 +38,8 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
         "agent.mcp.remote-enabled=false",
         "agent.mcp.servers[0].id=mcp-default",
         "agent.mcp.servers[0].available=true",
-        "agent.mcp.servers[0].base-url=http://localhost:9999"
+        "agent.mcp.servers[0].base-url=http://localhost:9999",
+        "agent.storage.mode=memory"
 })
 @AutoConfigureWebTestClient
 class QuickstartFlowTest {
@@ -106,20 +109,17 @@ class QuickstartFlowTest {
         assertNotNull(event.id());
         assertTrue(event.id().startsWith(workflowId + ":"));
 
-        webTestClient.get()
-                .uri("/api/v1/timeline/steps?workflowId={workflowId}&size=20", workflowId)
-                .header("X-API-Key", API_KEY)
-                .header("X-Tenant-Id", TENANT_ID)
-                .header("X-Trace-Id", TRACE_ID)
-                .header("X-Request-Id", REQUEST_ID)
-                .exchange()
-                .expectStatus().isOk()
-                .expectBody()
-                .jsonPath("$.data.workflowId").isEqualTo(workflowId)
-                .jsonPath("$.data.steps.length()").value(value -> {
-                    int count = (Integer) value;
-                    assertTrue(count > 0);
-                });
+        waitForTaskTerminal(taskId);
+        Map<String, Object> timelineResponse = fetchStepTimelineWithRetry(workflowId);
+        assertNotNull(timelineResponse);
+        @SuppressWarnings("unchecked")
+        Map<String, Object> timelineData = (Map<String, Object>) timelineResponse.get("data");
+        assertNotNull(timelineData);
+        assertEquals(workflowId, timelineData.get("workflowId"));
+        @SuppressWarnings("unchecked")
+        List<Object> steps = (List<Object>) timelineData.get("steps");
+        assertNotNull(steps);
+        assertTrue(steps.size() > 0);
 
         webTestClient.get()
                 .uri("/api/v1/timeline/steps?workflowId={workflowId}&size=20", workflowId)
@@ -207,5 +207,82 @@ class QuickstartFlowTest {
                 .expectStatus().isNotFound()
                 .expectBody()
                 .jsonPath("$.code").isEqualTo("REPLAY_NOT_FOUND");
+    }
+
+    private Map<String, Object> fetchStepTimelineWithRetry(String workflowId) {
+        ObjectMapper mapper = new ObjectMapper();
+        for (int i = 0; i < 10; i++) {
+            FluxExchangeResult<String> result = webTestClient.get()
+                    .uri("/api/v1/timeline/steps?workflowId={workflowId}&size=20", workflowId)
+                    .header("X-API-Key", API_KEY)
+                    .header("X-Tenant-Id", TENANT_ID)
+                    .header("X-Trace-Id", TRACE_ID)
+                    .header("X-Request-Id", REQUEST_ID)
+                    .exchange()
+                    .returnResult(String.class);
+            if (result.getStatus().is2xxSuccessful()) {
+                List<String> chunks = result.getResponseBody()
+                        .collectList()
+                        .block(Duration.ofSeconds(5));
+                String body = chunks == null ? "" : String.join("", chunks);
+                if (body.isBlank()) {
+                    return Map.of();
+                }
+                try {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> response = mapper.readValue(body, Map.class);
+                    return response;
+                } catch (Exception ex) {
+                    throw new IllegalStateException("解析步骤时间线失败", ex);
+                }
+            }
+            try {
+                Thread.sleep(500L);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                break;
+            }
+        }
+        return null;
+    }
+
+    private void waitForTaskTerminal(String taskId) {
+        ObjectMapper mapper = new ObjectMapper();
+        for (int i = 0; i < 10; i++) {
+            FluxExchangeResult<String> result = webTestClient.get()
+                    .uri("/api/v1/tasks/{taskId}", taskId)
+                    .header("X-API-Key", API_KEY)
+                    .header("X-Tenant-Id", TENANT_ID)
+                    .header("X-Trace-Id", TRACE_ID)
+                    .header("X-Request-Id", REQUEST_ID)
+                    .exchange()
+                    .returnResult(String.class);
+            if (result.getStatus().is2xxSuccessful()) {
+                List<String> chunks = result.getResponseBody()
+                        .collectList()
+                        .block(Duration.ofSeconds(5));
+                String body = chunks == null ? "" : String.join("", chunks);
+                if (!body.isBlank()) {
+                    try {
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> response = mapper.readValue(body, Map.class);
+                        @SuppressWarnings("unchecked")
+                        Map<String, Object> data = (Map<String, Object>) response.get("data");
+                        String status = data != null ? String.valueOf(data.get("status")) : null;
+                        if ("COMPLETED".equalsIgnoreCase(status) || "FAILED".equalsIgnoreCase(status)) {
+                            return;
+                        }
+                    } catch (Exception ex) {
+                        throw new IllegalStateException("解析任务状态失败", ex);
+                    }
+                }
+            }
+            try {
+                Thread.sleep(500L);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                return;
+            }
+        }
     }
 }

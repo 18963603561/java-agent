@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
@@ -42,6 +43,13 @@ import org.springframework.util.StringUtils;
 public class ReactLoopService {
 
     private static final Logger log = LoggerFactory.getLogger(ReactLoopService.class);
+    private static final Set<String> OBSERVATION_EXCLUDED_KEYS = Set.of(
+            "contextSnapshot",
+            "contextBudget",
+            "evidencePack",
+            "tokenUsage",
+            "content"
+    );
 
     private final ModelInvocationService modelInvocationService;
     private final ModelToolResolver modelToolResolver;
@@ -54,6 +62,7 @@ public class ReactLoopService {
     private final TracingPublisher tracingPublisher;
     private final EventStreamService eventStreamService;
     private final ReactRuntimeProperties properties;
+    private final StepOutputSummaryBuilder stepOutputSummaryBuilder;
     private final ObjectMapper objectMapper;
     private final JsonOutputRepairService jsonOutputRepairService;
     private final ReactStopEvaluator stopEvaluator = new ReactStopEvaluator();
@@ -69,6 +78,7 @@ public class ReactLoopService {
                             TracingPublisher tracingPublisher,
                             EventStreamService eventStreamService,
                             ReactRuntimeProperties properties,
+                            StepOutputSummaryBuilder stepOutputSummaryBuilder,
                             ObjectMapper objectMapper,
                             JsonOutputRepairService jsonOutputRepairService) {
         this.modelInvocationService = modelInvocationService;
@@ -82,6 +92,7 @@ public class ReactLoopService {
         this.tracingPublisher = tracingPublisher;
         this.eventStreamService = eventStreamService;
         this.properties = properties;
+        this.stepOutputSummaryBuilder = stepOutputSummaryBuilder;
         this.objectMapper = objectMapper;
         this.jsonOutputRepairService = jsonOutputRepairService;
     }
@@ -419,8 +430,8 @@ public class ReactLoopService {
             if (StringUtils.hasText(tool)) {
                 summary.put("tool", tool);
             }
-
-            ObservationSummaryData data = resolveObservationSummary(outputMap);
+            Map<String, Object> summarySource = buildObservationSummarySource(outputMap, tool);
+            ObservationSummaryData data = resolveObservationSummary(summarySource, outputMap);
             summary.put("summary", data.summary);
             summary.put("truncated", data.truncated);
             if (StringUtils.hasText(data.status)) {
@@ -432,6 +443,32 @@ public class ReactLoopService {
             summaries.add(summary);
         }
         return summaries;
+    }
+
+    private Map<String, Object> buildObservationSummarySource(Map<String, Object> output, String tool) {
+        if (output == null || output.isEmpty()) {
+            return Map.of();
+        }
+        if (stepOutputSummaryBuilder == null || !stepOutputSummaryBuilder.isEnabled()) {
+            return output;
+        }
+        Object sanitizedOutput = sanitizeObservationOutput(output);
+        Map<String, Object> summary = stepOutputSummaryBuilder.build(null, null, sanitizedOutput, tool, null);
+        return summary == null ? Map.of() : summary;
+    }
+
+    private Object sanitizeObservationOutput(Object output) {
+        if (!(output instanceof Map<?, ?> map)) {
+            return output;
+        }
+        Map<String, Object> sanitized = new HashMap<>();
+        map.forEach((key, value) -> {
+            String keyText = String.valueOf(key);
+            if (!OBSERVATION_EXCLUDED_KEYS.contains(keyText)) {
+                sanitized.put(keyText, value);
+            }
+        });
+        return sanitized;
     }
 
     private Map<String, Object> parseObservationOutput(String content) {
@@ -458,12 +495,13 @@ public class ReactLoopService {
         return tool;
     }
 
-    private ObservationSummaryData resolveObservationSummary(Map<String, Object> output) {
+    private ObservationSummaryData resolveObservationSummary(Map<String, Object> summarySource,
+                                                             Map<String, Object> output) {
         ObservationSummaryData data = new ObservationSummaryData();
-        Map<String, Object> toolResultSummary = extractMap(output, "toolResultSummary");
-        Map<String, Object> outputSummary = extractMap(output, "outputSummary");
-        Map<String, Object> stepSummary = extractMap(output, "stepSummary");
-        Map<String, Object> outputDigest = extractMap(output, "outputDigest");
+        Map<String, Object> toolResultSummary = extractMap(summarySource, "toolResultSummary");
+        Map<String, Object> outputSummary = extractMap(summarySource, "outputSummary");
+        Map<String, Object> stepSummary = extractMap(summarySource, "stepSummary");
+        Map<String, Object> outputDigest = extractMap(summarySource, "outputDigest");
 
         data.summary = resolveSummaryText(toolResultSummary);
         if (!StringUtils.hasText(data.summary)) {
@@ -481,7 +519,7 @@ public class ReactLoopService {
 
         data.status = resolveStatus(outputSummary, stepSummary, output);
         data.errorCode = resolveErrorCode(outputSummary, output);
-        data.truncated = resolveTruncated(output, outputDigest);
+        data.truncated = resolveTruncated(summarySource, outputDigest, output);
         return data;
     }
 
@@ -510,6 +548,9 @@ public class ReactLoopService {
         if (!StringUtils.hasText(status)) {
             status = toText(output != null ? output.get("status") : null);
         }
+        if (!StringUtils.hasText(status)) {
+            status = toText(output != null ? output.get("toolStatus") : null);
+        }
         return status;
     }
 
@@ -518,16 +559,25 @@ public class ReactLoopService {
         if (!StringUtils.hasText(errorCode)) {
             errorCode = toText(output != null ? output.get("errorCode") : null);
         }
+        if (!StringUtils.hasText(errorCode)) {
+            errorCode = toText(output != null ? output.get("toolErrorCode") : null);
+        }
         return errorCode;
     }
 
-    private boolean resolveTruncated(Map<String, Object> output, Map<String, Object> outputDigest) {
-        Object truncated = output != null ? output.get("truncated") : null;
+    private boolean resolveTruncated(Map<String, Object> summarySource,
+                                     Map<String, Object> outputDigest,
+                                     Map<String, Object> output) {
+        Object truncated = summarySource != null ? summarySource.get("truncated") : null;
         if (truncated instanceof Boolean value) {
             return value;
         }
         Object digestValue = outputDigest != null ? outputDigest.get("truncated") : null;
-        return digestValue instanceof Boolean value && value;
+        if (digestValue instanceof Boolean value) {
+            return value;
+        }
+        Object outputValue = output != null ? output.get("truncated") : null;
+        return outputValue instanceof Boolean value && value;
     }
 
     private String buildDigestSummary(Map<String, Object> digest) {

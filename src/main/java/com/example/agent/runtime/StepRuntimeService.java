@@ -106,28 +106,18 @@ public class StepRuntimeService {
      */
     public StepRecord completeStep(StepRecord record, Map<String, Object> output, AtomicLong seqCounter) {
         record.setStatus(stateMachine.transition(record.getStatus(), StepState.COMPLETED));
-        Map<String, Object> outputWithSummary = output;
+        Map<String, Object> summary = null;
         if (stepOutputSummaryBuilder != null && stepOutputSummaryBuilder.isEnabled()) {
             long summaryStart = System.nanoTime();
-            Map<String, Object> summary = stepOutputSummaryBuilder.build(
+            summary = stepOutputSummaryBuilder.build(
                     record,
                     null,
-                    outputWithSummary,
+                    output,
                     null,
                     null
             );
             long summaryMs = (System.nanoTime() - summaryStart) / 1_000_000;
             if (summary != null && !summary.isEmpty()) {
-                if (outputWithSummary == null) {
-                    outputWithSummary = new java.util.LinkedHashMap<>();
-                }
-                try {
-                    outputWithSummary.putAll(summary);
-                // 异常捕获：记录上下文并按当前策略处理
-                } catch (UnsupportedOperationException ex) {
-                    outputWithSummary = new HashMap<>(outputWithSummary);
-                    outputWithSummary.putAll(summary);
-                }
                 Map<String, Object> digest = summary.get("outputDigest") instanceof Map<?, ?> map
                         ? new HashMap<>(map.size())
                         : null;
@@ -155,7 +145,8 @@ public class StepRuntimeService {
                         summaryMs);
             }
         }
-        record.setOutput(outputWithSummary);
+        record.setSummary(summary);
+        record.setOutput(output);
         record.setCompletedAt(Instant.now());
         metricsPublisher.recordTime("step.duration.ms", calcDuration(record), resolveTraceId(null));
 
@@ -172,15 +163,6 @@ public class StepRuntimeService {
         return record;
     }
 
-    /**
-     * 步骤失败并发布事件。
-     *
-     * @param record 步骤记录
-     * @param errorCode 错误码
-     * @param details 失败详情
-     * @param seqCounter 序列号计数器
-     * @return 更新后的步骤记录
-     */
     public StepRecord failStep(StepRecord record,
                                String errorCode,
                                Map<String, Object> details,

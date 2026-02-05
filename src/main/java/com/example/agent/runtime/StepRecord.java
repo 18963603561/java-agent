@@ -49,6 +49,11 @@ public class StepRecord {
     private Map<String, Object> output;
 
     /**
+     * 摘要内容，用于存放输入与输出的摘要信息。
+     */
+    private Map<String, Object> summary;
+
+    /**
      * 错误码。
      */
     private String errorCode;
@@ -133,6 +138,14 @@ public class StepRecord {
 
     public void setOutput(Map<String, Object> output) {
         this.output = output;
+    }
+
+    public Map<String, Object> getSummary() {
+        return summary;
+    }
+
+    public void setSummary(Map<String, Object> summary) {
+        this.summary = summary;
     }
 
     public String getErrorCode() {

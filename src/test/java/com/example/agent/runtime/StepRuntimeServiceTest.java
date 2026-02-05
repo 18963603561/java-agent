@@ -45,20 +45,20 @@ class StepRuntimeServiceTest {
 
         StepRecord completed = service.completeStep(record, null, new AtomicLong(0));
 
-        Map<String, Object> output = completed.getOutput();
-        assertNotNull(output);
-        assertTrue(output.containsKey("outputSummary"));
-        assertTrue(output.containsKey("stepSummary"));
-        assertTrue(output.containsKey("outputDigest"));
-        assertTrue(output.containsKey("truncated"));
+        Map<String, Object> summary = completed.getSummary();
+        assertNotNull(summary);
+        assertTrue(summary.containsKey("outputSummary"));
+        assertTrue(summary.containsKey("stepSummary"));
+        assertTrue(summary.containsKey("outputDigest"));
+        assertTrue(summary.containsKey("truncated"));
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> outputSummary = (Map<String, Object>) output.get("outputSummary");
+        Map<String, Object> outputSummary = (Map<String, Object>) summary.get("outputSummary");
         assertNotNull(outputSummary);
         assertEquals(false, outputSummary.get("hasOutput"));
 
         @SuppressWarnings("unchecked")
-        Map<String, Object> outputDigest = (Map<String, Object>) output.get("outputDigest");
+        Map<String, Object> outputDigest = (Map<String, Object>) summary.get("outputDigest");
         assertNotNull(outputDigest);
         assertEquals(0, ((Number) outputDigest.get("keyCount")).intValue());
         assertEquals(0, ((Number) outputDigest.get("charCount")).intValue());

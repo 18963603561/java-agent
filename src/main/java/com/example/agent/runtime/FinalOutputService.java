@@ -286,7 +286,7 @@ public class FinalOutputService {
             Map<String, Object> summary = new HashMap<>();
             summary.put("stepId", toText(step.get("stepId")));
             summary.put("type", toText(step.get("type")));
-            StepSummaryData data = resolveStepSummaryData(step.get("output"));
+            StepSummaryData data = resolveStepSummaryData(step.get("summary"));
             summary.put("status", data.status);
             summary.put("summary", data.summary);
             summaries.add(summary);
@@ -295,13 +295,13 @@ public class FinalOutputService {
     }
 
     /**
-     * 从输出中提取摘要与状态，优先使用 stepSummary.summary。
+     * 从摘要中提取摘要与状态，优先使用 stepSummary.summary。
      */
-    private StepSummaryData resolveStepSummaryData(Object output) {
+    private StepSummaryData resolveStepSummaryData(Object summarySource) {
         StepSummaryData data = new StepSummaryData();
-        if (output instanceof Map<?, ?> map) {
-            Map<?, ?> outputMap = map;
-            Object stepSummaryObj = outputMap.get("stepSummary");
+        if (summarySource instanceof Map<?, ?> map) {
+            Map<?, ?> summaryMap = map;
+            Object stepSummaryObj = summaryMap.get("stepSummary");
             if (stepSummaryObj instanceof Map<?, ?> stepSummary) {
                 data.status = toText(stepSummary.get("status"));
                 Object summaryValue = stepSummary.get("summary");
@@ -312,13 +312,13 @@ public class FinalOutputService {
                 }
             }
             if (!StringUtils.hasText(data.status)) {
-                Object outputSummaryObj = outputMap.get("outputSummary");
+                Object outputSummaryObj = summaryMap.get("outputSummary");
                 if (outputSummaryObj instanceof Map<?, ?> outputSummary) {
                     data.status = toText(outputSummary.get("status"));
                 }
             }
             if (!StringUtils.hasText(data.summary)) {
-                Object digestObj = outputMap.get("outputDigest");
+                Object digestObj = summaryMap.get("outputDigest");
                 if (digestObj instanceof Map<?, ?> digest) {
                     data.summary = buildDigestSummary(digest);
                 }

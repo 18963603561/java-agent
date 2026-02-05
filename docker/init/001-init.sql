@@ -48,6 +48,7 @@ COMMENT ON COLUMN event_logs.seq IS '事件序号，用于同一流程内的有�
 COMMENT ON COLUMN event_logs.stream_id IS '流式会话标识，用于SSE/流式输出的分组与定位。';
 COMMENT ON COLUMN event_logs.created_at IS '日志写入时间，用于延迟分析与运维排查。';
 
+DROP TABLE IF EXISTS step_records;
 CREATE TABLE IF NOT EXISTS step_records (
   step_id TEXT PRIMARY KEY,
   workflow_id TEXT NOT NULL,
@@ -57,6 +58,7 @@ CREATE TABLE IF NOT EXISTS step_records (
   attempt INT,
   input JSONB,
   output JSONB,
+  summary JSONB,
   error_code TEXT,
   tenant_id TEXT NOT NULL,
   started_at TIMESTAMPTZ,
@@ -73,6 +75,7 @@ COMMENT ON COLUMN step_records.status IS '步骤执行状态，用于流程控�
 COMMENT ON COLUMN step_records.attempt IS '步骤尝试次数或当前重试序号，用于重试策略分析。';
 COMMENT ON COLUMN step_records.input IS '步骤输入参数的JSON结构，用于审计与复现。';
 COMMENT ON COLUMN step_records.output IS '步骤输出结果的JSON结构，用于回溯与展示。';
+COMMENT ON COLUMN step_records.summary IS '步骤摘要JSON，用于保存步骤输入与输出的摘要信息。';
 COMMENT ON COLUMN step_records.error_code IS '步骤失败错误码，用于故障归因与报警聚合。';
 COMMENT ON COLUMN step_records.tenant_id IS '租户标识，用于多租户数据隔离与权限控制。';
 COMMENT ON COLUMN step_records.started_at IS '步骤开始时间，用于耗时统计与性能分析。';

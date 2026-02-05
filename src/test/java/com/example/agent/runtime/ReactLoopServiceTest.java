@@ -233,6 +233,7 @@ class ReactLoopServiceTest {
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
                 metricsPublisher);
+        StepOutputSummaryBuilder summaryBuilder = new StepOutputSummaryBuilder(new StepSummaryProperties());
 
         ReactLoopService service = new ReactLoopService(modelInvocationService,
                 modelToolResolver,
@@ -245,6 +246,7 @@ class ReactLoopServiceTest {
                 tracingPublisher,
                 eventStreamService,
                 properties,
+                summaryBuilder,
                 new ObjectMapper(),
                 repairService);
 
@@ -289,6 +291,7 @@ class ReactLoopServiceTest {
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
                 metricsPublisher);
+        StepOutputSummaryBuilder summaryBuilder = new StepOutputSummaryBuilder(new StepSummaryProperties());
 
         ReactLoopService service = new ReactLoopService(modelInvocationService,
                 modelToolResolver,
@@ -301,6 +304,7 @@ class ReactLoopServiceTest {
                 tracingPublisher,
                 eventStreamService,
                 properties,
+                summaryBuilder,
                 new ObjectMapper(),
                 repairService);
 
@@ -350,6 +354,7 @@ class ReactLoopServiceTest {
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
                 metricsPublisher);
+        StepOutputSummaryBuilder summaryBuilder = new StepOutputSummaryBuilder(new StepSummaryProperties());
 
         ReactLoopService service = new ReactLoopService(modelInvocationService,
                 modelToolResolver,
@@ -362,6 +367,7 @@ class ReactLoopServiceTest {
                 tracingPublisher,
                 eventStreamService,
                 properties,
+                summaryBuilder,
                 new ObjectMapper(),
                 repairService);
 
@@ -413,6 +419,7 @@ class ReactLoopServiceTest {
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
                 metricsPublisher);
+        StepOutputSummaryBuilder summaryBuilder = new StepOutputSummaryBuilder(new StepSummaryProperties());
 
         return new ReactLoopService(modelInvocationService,
                 modelToolResolver,
@@ -425,6 +432,7 @@ class ReactLoopServiceTest {
                 tracingPublisher,
                 eventStreamService,
                 properties,
+                summaryBuilder,
                 new ObjectMapper(),
                 repairService);
     }

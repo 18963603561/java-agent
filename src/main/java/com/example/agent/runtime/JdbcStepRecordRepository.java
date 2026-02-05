@@ -54,9 +54,9 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
             // 外部数据库调用：写入步骤记录
             jdbcTemplate.update("""
                             INSERT INTO step_records
-                            (step_id, workflow_id, step_seq, type, status, attempt, input, output, error_code,
+                            (step_id, workflow_id, step_seq, type, status, attempt, input, output, summary, error_code,
                              tenant_id, started_at, completed_at)
-                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                             ON CONFLICT (step_id) DO UPDATE SET
                               workflow_id = EXCLUDED.workflow_id,
                               step_seq = EXCLUDED.step_seq,
@@ -65,6 +65,7 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
                               attempt = EXCLUDED.attempt,
                               input = EXCLUDED.input,
                               output = EXCLUDED.output,
+                              summary = EXCLUDED.summary,
                               error_code = EXCLUDED.error_code,
                               tenant_id = EXCLUDED.tenant_id,
                               started_at = EXCLUDED.started_at,
@@ -78,6 +79,7 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
                     record.getAttempt(),
                     toJson(record.getInput()),
                     toJson(record.getOutput()),
+                    toJson(record.getSummary()),
                     record.getErrorCode(),
                     record.getTenantId(),
                     startedAtTs,
@@ -103,7 +105,7 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
         try {
             // 外部数据库调用：按工作流读取步骤记录
             return jdbcTemplate.query("""
-                            SELECT step_id, workflow_id, step_seq, type, status, attempt, input, output, error_code,
+                            SELECT step_id, workflow_id, step_seq, type, status, attempt, input, output, summary, error_code,
                                    tenant_id, started_at, completed_at
                             FROM step_records
                             WHERE tenant_id = ? AND workflow_id = ?
@@ -176,6 +178,7 @@ public class JdbcStepRecordRepository implements StepRecordRepository {
             }
             record.setInput(readJson(rs.getString("input")));
             record.setOutput(readJson(rs.getString("output")));
+            record.setSummary(readJson(rs.getString("summary")));
             return record;
         }
 

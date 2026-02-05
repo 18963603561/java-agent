@@ -1,0 +1,1335 @@
+跳至内容
+历史聊天记录
+
+
+
+你说：
+智能体里面的证据包是什么，在哪个环节生成，如何使用，包含结构有哪些
+ChatGPT 说：
+你现在做的这套 Java Shannon Agent Orchestrator，如果没有 EvidencePack（证据包），系统是不可审计、不可回放、不可解释的。
+
+很多人把它误以为是“日志增强”，其实完全不是一回事。
+
+EvidencePack 是 让多智能体系统具备“可解释推理链”的核心部件。
+它解决的是：模型的结论从哪来？依据了什么？用了哪些外部信息？
+
+这在你现在做的 Memory / Tool / Research / Hook / Summary / Replay / Audit 整条链路里，是中枢角色。
+
+一句话理解
+EvidencePack = 本次任务中，模型做出结论时“用过的全部外部证据清单”
+
+包括：
+
+用过哪些 Tool 的结果
+
+召回了哪些 Memory
+
+引用了哪些 Research 来源
+
+截断了哪些上下文
+
+最终回答依赖了哪些证据
+
+在哪里生成？（非常关键）
+EvidencePack 不是某一步生成的，而是在运行时被持续“写入”。
+
+生成位置分布在 4 个关键节点：
+
+阶段	触发位置	写入什么证据
+Step 执行前	HookManager.preStep	记录计划/意图/上下文快照引用
+Tool 调用后	HookManager.postTool	最重要：工具结果证据
+Memory 召回后	MemoryRecallService	召回的 memory 证据
+Research 完成后	AgentRuntime	外部来源证据（URL/文档/引用）
+注意：EvidencePack 是边跑边长大的。
+
+结构长什么样？
+一个典型 EvidencePack（精简示意）：
+
+{
+  "packId": "ep-xxx",
+  "tenantId": "t1",
+  "workflowId": "w1",
+  "snapshotId": "s3",
+  "evidences": [
+    {
+      "type": "tool",
+      "source": "fmdb.query",
+      "stepId": "step-2",
+      "digest": "rows=120, cols=8",
+      "ref": "toolResultRef-abc"
+    },
+    {
+      "type": "memory",
+      "source": "memory_records",
+      "memoryId": "m-77",
+      "summary": "用户偏好：中文+结构化",
+      "ref": "memoryRef-77"
+    },
+    {
+      "type": "research",
+      "source": "https://xxx/doc",
+      "title": "FMDB FRC 建表规范",
+      "ref": "researchRef-12"
+    }
+  ],
+  "stats": {
+    "toolCount": 1,
+    "memoryCount": 1,
+    "researchCount": 1
+  }
+}
+你会发现：这里面不放大文本，只放引用和摘要。
+
+因为真正的大内容在：
+
+tool_result 表
+
+memory_records 表
+
+research 引用缓存
+
+step output summary
+
+EvidencePack 是索引层。
+
+EvidencePack 在哪里被用到？（这才是精髓）
+1️⃣ 给 LLM 做最终总结时
+在 FINAL / LLM Step：
+
+PromptAssembler 会把 EvidencePack 注入进去
+
+模型看到的不是一堆上下文，而是：
+
+你可以基于以下证据回答：
+- 工具 fmdb.query 返回 120 行
+- 用户偏好：中文结构化
+- 引用文档：FRC 建表规范
+这叫 Evidence-aware answering。
+
+2️⃣ 用于 Summary / Digest 层裁剪
+StepOutputSummaryBuilder 会：
+
+根据 EvidencePack 决定哪些内容必须保留，哪些可以截断。
+
+因为有证据引用，就不怕截断正文。
+
+3️⃣ 用于 Replay / 审计 / 回放
+回放任务时，不需要完整上下文：
+
+只需要 EvidencePack + Snapshot，就能还原推理依据。
+
+这是你做 Task History Timeline 的关键。
+
+4️⃣ 用于 Reflection Reviewer（是否重试）
+你之前那套 步骤质量审查提示词：
+
+判断是否 retry 的核心依据就是：
+
+Evidence 是否完整、是否合理
+
+不是看 answer，而是看 EvidencePack。
+
+5️⃣ 用于 Memory 写回决策
+MemoryWriteService 会判断：
+
+这次结论是不是基于稳定证据产生的？
+
+如果 EvidencePack 很弱，就不写长期记忆。
+
+为什么必须有 EvidencePack（没有会发生什么）
+如果没有：
+
+Step Summary 只能靠全文压缩（token 爆炸）
+
+无法判断模型结论依据
+
+Replay 时必须还原全部上下文（不现实）
+
+无法做审计
+
+无法做可解释 AI
+
+Memory 写回完全拍脑袋
+
+这也是 Shannon memory-system-architecture 里专门强调 Evidence 的原因。
+
+和日志的本质区别
+日志	EvidencePack
+给人看	给模型 + 系统用
+文本记录	结构化证据索引
+事后查看	运行时参与决策
+不参与推理	直接参与 Prompt 与裁剪
+在你当前工程里的真实调用链
+AgentRuntime
+   ↓
+HookManager.preStep
+   ↓
+Tool 执行
+   ↓
+HookManager.postTool  → EvidencePack.write(tool)
+   ↓
+MemoryRecallService   → EvidencePack.write(memory)
+   ↓
+Research              → EvidencePack.write(research)
+   ↓
+StepOutputSummaryBuilder  ← 读取 EvidencePack
+   ↓
+PromptAssembler           ← 注入 EvidencePack
+   ↓
+LLM FINAL
+它贯穿了你现在几乎所有“难点模块”。
+
+总结（非常重要）
+EvidencePack 不是附属功能
+是 让 Agent 系统具备“推理可解释性 + 上下文可裁剪性 + 任务可回放性”的核心枢纽
+
+没有它，你做的：
+
+分层摘要
+
+上下文预算
+
+记忆系统
+
+反思重试
+
+任务回放
+
+审计能力
+
+全部会退化成“日志系统”级别。
+
+你说：
+那么他有统一收口吗？就是设计的时候不让代码散乱在各个地方
+ChatGPT 说：
+很好，这个问题正中 EvidencePack 设计的命门。
+
+如果 EvidencePack 的写入散落在：
+
+Tool 代码里
+
+Memory 代码里
+
+Research 代码里
+
+Runtime 代码里
+
+那它必然失控，最后退化成你最讨厌的那种：
+
+“到处 if (evidencePack != null) evidencePack.add(...)”
+
+这就是很多 Agent 项目 Evidence 失败的原因。
+
+正确做法：统一收口（Single Write Gate）
+任何证据写入，只允许通过一个地方：HookManager
+
+不是比喻，是架构强约束。
+
+                 ┌──────────────┐
+Tool 执行完成 ───▶ HookManager  │
+Memory 召回完成 ─▶ (唯一入口)   │──▶ EvidencePackService.write(...)
+Research 完成 ───▶              │
+                 └──────────────┘
+Tool / Memory / Research 完全不知道 EvidencePack 的存在。
+
+你应该形成的强制规范
+❌ 错误（会失控）
+evidencePack.addToolEvidence(...)
+出现在：
+
+ToolExecutor
+
+MemoryService
+
+ResearchService
+
+✅ 正确（Shannon 原始设计思路）
+所有证据，只能在 Hook 里写：
+
+// HookManager.postTool()
+evidencePackService.recordToolEvidence(context, toolResult);
+// HookManager.postMemoryRecall()
+evidencePackService.recordMemoryEvidence(context, memories);
+// HookManager.postResearch()
+evidencePackService.recordResearchEvidence(context, sources);
+业务代码零感知。
+
+为什么必须这样（非常关键）
+因为 Evidence 是横切关注点（Cross-Cutting Concern）：
+
+和
+
+日志
+
+监控
+
+事务
+
+一个级别。
+
+这种东西如果侵入业务层，系统会迅速腐烂。
+
+在运行时的真实流转应该是
+AgentRuntime
+   ↓
+执行 Step
+   ↓
+HookManager.preStep
+   ↓
+调用 ToolExecutor (纯业务)
+   ↓
+HookManager.postTool  ← 这里写 Evidence
+   ↓
+MemoryRecallService (纯业务)
+   ↓
+HookManager.postMemory
+   ↓
+ResearchService (纯业务)
+   ↓
+HookManager.postResearch
+业务层不允许出现 EvidencePack 字样。
+
+EvidencePackService 的角色也要非常纯
+它不判断时机，只做：
+
+“有人告诉我写什么证据，我就写什么证据”
+
+它不被 Tool/Memory 调用。
+
+只被 HookManager 调用。
+
+你可以用一句架构铁律约束团队
+Evidence 只能在 Hook 写，谁在别处写，直接 code review 打回。
+
+为什么你现在感觉它“特别优雅”
+因为你之前做的：
+
+SummaryBuilder
+
+PromptAssembler
+
+MemoryWriteService
+
+Reflection
+
+都只读 EvidencePack。
+
+如果 Evidence 写入分散，这些模块就会跟着污染。
+
+最终你会得到的架构形态（非常干净）
+           业务区（完全无感）
+Tool / Memory / Research / Runtime
+                 │
+                 ▼
+            HookManager（唯一入口）
+                 │
+                 ▼
+         EvidencePackService（纯记录）
+                 │
+                 ▼
+      Prompt / Summary / Replay / Audit（只读）
+这才是 Shannon 那套 memory-system 为什么高级的真正原因。
+
+一句话总结
+EvidencePack 必须 只允许 Hook 写入，否则必然散乱。
+
+你说：
+多个步骤输入输出时，对模型或工具生成的结果一般有哪几个方面组成，原始结果和摘要是否必须要有？当任务依赖上一个步骤时给出的数据是什么，如何设计
+ChatGPT 说：
+在多步骤（plan → step1 → step2 …）里，每个步骤的“输入/输出”建议拆成 4 层，这样既能控体积、又能可追溯、还能让后续步骤稳定依赖。
+
+1) 每个步骤输出一般由哪几部分组成
+建议把 Step 的输出统一成下面这几块（不管是 LLM 还是 TOOL）：
+
+状态与元信息（Meta）
+
+stepId / seq / type（TOOL/LLM/FINAL/RESEARCH…）
+
+status（COMPLETED/FAILED…）
+
+modelId 或 toolName
+
+timings（开始/结束/耗时）
+
+attempt / retry 等
+
+原始结果（Raw payload）
+
+TOOL：工具返回的完整 JSON / 表格 / 文本（可能很大）
+
+LLM：模型原始回复（完整文本/JSON）
+
+结构化可依赖结果（Structured result）
+
+从 raw 提取出的、供后续 step 稳定消费的字段
+
+例如：rows[]、topK[]、entities[]、sql、error_code、next_action 等
+
+这是“契约层”，比 raw 稳定、比摘要可编程
+
+证据与引用（Evidence refs）
+
+toolResultRef / memoryRef / citationRef 等
+
+用 EvidencePack 做索引，不在 step output 里重复塞大文本
+
+2) 原始结果和摘要是否必须要有？
+原始结果（Raw）——建议有，但不一定必须“常驻”
+必须可回溯：要么落库（大对象表/对象存储），要么可重放再取回
+
+但不一定要在“步骤上下文里一直携带”，否则 token/内存爆炸
+
+✅ 结论：Raw 必须可获取，但不必须常驻上下文
+
+摘要（Summary）——强烈建议有，但不是绝对必须
+摘要有两类用途：
+
+上下文预算：给后续 step 作为短上下文输入
+
+可观测性/审计：快速看懂每步做了啥
+
+如果你已经有 Structured result（契约层）且足够短，摘要可以弱化；但在现实里：
+
+工具返回大、字段杂、模型输出长
+
+只靠 structured 很难覆盖所有“给人看、给模型用”的信息
+
+✅ 结论：建议每步都产出摘要（受限、可截断），但不是逻辑硬依赖
+
+最稳的组合：Raw（可回溯） + Structured（可编程依赖） + Summary（可控上下文）
+
+3) 当任务依赖上一个步骤时，给出的数据是什么？
+后续步骤依赖前一步时，不要直接依赖 raw，也不要只给摘要（摘要不可编程）。
+
+推荐依赖顺序（从强到弱）：
+
+依赖 Structured result（首选）
+
+例如：previous.outputs.structured.topTables[]
+
+例如：previous.outputs.structured.sql
+
+例如：previous.outputs.structured.entities
+
+依赖 Evidence refs（需要时再取回/展开）
+
+例如：toolResultRef=xxx，后续若要更细节，再去拉取 raw 或分页数据
+
+依赖 Summary（兜底给模型理解）
+
+例如：把上一环节摘要作为自然语言上下文补充
+
+✅ 结论：真正传给下一步的是：structured + refs（必要时）+ 少量摘要
+
+4) 如何设计：一套通用的 Step I/O 合同
+StepInput（后续步骤拿到的“可执行输入”）
+{
+  "question": "本步要解决的问题（所有 step 必填）",
+  "dependsOn": ["step-1"],
+  "contextRefs": ["ep:pack-1"], 
+  "upstream": {
+    "step-1": {
+      "structured": { "topTables": ["t1","t2"] },
+      "refs": { "toolResultRef": "tr-abc" },
+      "summary": "上一步找到手机号字段表：t1,t2"
+    }
+  },
+  "constraints": { "maxRows": 50 }
+}
+StepOutput（每步产物）
+{
+  "meta": { "stepId":"step-1","type":"TOOL","status":"COMPLETED","tool":"fmdb.search" },
+  "rawRef": "tr-abc",               
+  "structured": { "topTables": ["t1","t2"], "matchRules": ["手机号","mobile"] },
+  "summary": "命中2张表：t1,t2；优先级：t1>t2",
+  "errors": []
+}
+要点：
+
+raw 不直接塞 output，只放 rawRef（你已经在做 summary builder / evidence pack，很合适）
+
+structured 是稳定契约，下一步直接用
+
+summary 是给模型读的短文本，受 maxChars/maxListItems 控制
+
+5) 设计上的关键取舍（你这类工程最容易踩坑）
+坑 1：只传摘要
+摘要不可编程，后续步骤要“猜”
+
+容易幻觉、容易丢关键信息
+
+✅ 必须有 structured（哪怕很小）
+
+坑 2：把 raw 全塞进上下文
+token 爆、内存爆、传输爆
+
+还容易触发 JSON 解析/最大字符串限制（你前面遇到过）
+
+✅ raw 走引用（ref）+ 按需展开
+
+坑 3：structured 设计成“随意 JSON”
+今天工具A给字段x，明天工具B给字段y，后续步骤写不动
+
+最终又回到摘要/原文依赖
+
+✅ structured 要有 schema/contract（哪怕用 JSON Schema 或接口定义）
+
+推荐的最小落地方案（不重构也能做）
+每个 step output 固定含：meta + structured + summary + refs
+
+raw 只存储在外部（DB/对象存储），step output 只记录 rawRef
+
+后续 step 输入里，只注入：
+
+upstream structured（必选）
+
+upstream summary（可选）
+
+upstream refs（可选）
+
+PromptAssembler 里对注入顺序固定：
+
+structured（机器可用）
+
+summary（模型可读）
+
+refs（提示可追溯、可按需展开）
+
+如果你愿意，我可以给你一版**“可直接塞进 planner/runner 的 JSON 合同模板”**（含字段约束、截断策略、refs 命名规范），和你现在的 StepOutputSummaryBuilder / EvidencePackService 对齐。
+
+你说：
+原始结果和结构化可依赖结果区别是什么
+ChatGPT 说：
+这个问题是多步骤智能体是否稳定的分水岭。
+
+很多系统把这两者混在一起，结果就是：
+
+后续步骤要么读不懂、要么强依赖原文、要么疯狂幻觉。
+
+一句话先记住
+Raw（原始结果）是“事实全量”
+Structured（结构化结果）是“为后续步骤准备的契约数据”
+
+两者目的完全不同。
+
+Raw 是什么？
+工具 / 模型真实返回的完整内容，不做任何语义加工。
+
+例子（FMDB 工具返回）：
+
+{
+  "rows": [
+    {"table":"t_user","column":"mobile","type":"string","comment":"手机号"},
+    {"table":"t_order","column":"phone","type":"string","comment":"联系电话"}
+  ],
+  "cost": 183,
+  "scanPartitions": 24,
+  "traceId": "xxx"
+}
+特点：
+
+很大
+
+字段很多
+
+结构不稳定（工具升级字段就变）
+
+包含大量后续步骤不关心的信息
+
+但它是完整事实来源（可追溯）
+
+Raw 是“档案袋”。
+
+Structured 是什么？
+从 Raw 里抽取出来、专门给后续步骤使用的一小撮稳定字段。
+
+同样这个例子，structured 可能是：
+
+{
+  "matchedTables": ["t_user","t_order"],
+  "matchedColumns": ["mobile","phone"],
+  "matchCount": 2
+}
+特点：
+
+很小
+
+字段极稳定（你定义的契约）
+
+后续步骤可以直接编程依赖
+
+与工具实现解耦
+
+Structured 是“任务接力棒”。
+
+本质区别（非常关键）
+维度	Raw 原始结果	Structured 可依赖结果
+目的	完整事实留档	给下一步用
+体积	大	小
+稳定性	低（随工具变化）	高（你定义）
+可读性	给人/审计	给程序/模型
+是否进上下文	❌ 不应该	✅ 必须
+是否可被依赖	❌	✅
+是否可截断	❌	✅
+来源	工具/模型	你在 StepRuntime 提取
+为什么不能让下一步直接用 Raw？
+因为你会立刻遇到这 4 个灾难：
+
+工具字段一改，后续步骤全挂
+
+token/内存爆炸（你已经踩过）
+
+模型读 Raw 会被噪音淹没
+
+后续步骤要“理解 JSON 语义” → 幻觉
+
+正确的数据流（你现在的架构其实非常适配）
+Tool 返回 Raw
+        ↓
+StepRuntime 提取 Structured（契约层）
+        ↓
+StepOutputSummaryBuilder 生成 Summary（给模型）
+        ↓
+EvidencePack 记录 rawRef
+后续步骤拿到的是：
+
+structured + summary + rawRef
+绝对不是 raw。
+
+一个非常贴近你场景的例子
+Step1：找出包含手机号的表
+Raw（FMDB 返回 200 行各种字段） ❌ 后续不能用
+
+Structured：
+
+{
+  "tablesWithMobile": ["t_user","t_order"]
+}
+Summary：
+
+找到2张包含手机号字段的表：t_user, t_order
+
+Step2：基于这些表生成治理 SQL
+它依赖的是：
+
+previous.structured.tablesWithMobile
+不是去解析 200 行 raw。
+
+这就是可编排和不可编排的差别。
+
+一句话总结到位
+Raw 是为了 可追溯
+Structured 是为了 可编排
+
+没有 Raw → 不可审计
+没有 Structured → 不可多步骤协作
+
+两个都要，但职责完全不同。
+
+你说：
+因为工具和模型输出的原始数据都不一样，如何设计出稳定的structured呢
+ChatGPT 说：
+你这个点非常关键：Raw 天生不稳定（不同工具/不同模型/同一工具升级都可能变），所以 Structured 的稳定性只能来自一件事：
+
+Structured 不是“工具返回长什么样”，而是“编排系统规定后续步骤需要什么”。
+
+也就是说：Structured 的稳定性靠 你定义的契约（contract）+ 适配层（extractor/adapter），而不是靠工具自觉。
+
+下面给你一套在智能体编排里最常用、最稳的设计方法。
+
+1) 先定“稳定的语义域”，不要定“稳定的字段细节”
+你要稳定的是语义类型（例如：查询命中表、生成 SQL、识别实体、计算指标、错误分类），而不是每个工具五花八门的字段。
+
+建议：先抽象出 8~12 个“通用结果类型”（ResultKind）
+比如（够你覆盖 80% 场景）：
+
+TABLE_MATCHES：命中表/字段（数据发现、治理检索）
+
+SQL：SQL 产物（生成/修复/优化）
+
+RECORDSET：表格/行集（查询结果）
+
+ENTITY_LIST：实体集合（手机号/IMSI/IMEI…识别）
+
+DECISION：决策/路由（下一步做什么）
+
+DIAGNOSIS：诊断（根因、建议、风险）
+
+DOCUMENT_CITATIONS：引用/来源（research）
+
+ERROR：错误分类与可行动建议
+
+Structured 的第一层稳定字段就是：kind。
+
+2) 用“统一外壳 + kind-specific payload”的契约
+不要搞“每个工具一个 structured 结构”，会炸。
+
+推荐契约长这样：
+
+{
+  "kind": "TABLE_MATCHES",
+  "schemaVersion": 1,
+  "data": { ... },
+  "quality": { "confidence": 0.82, "warnings": ["truncated"] },
+  "refs": { "rawRef": "tr-abc", "evidenceIds": ["ev-1","ev-2"] }
+}
+外壳固定：kind / schemaVersion / quality / refs
+
+data 随 kind 变化：但每个 kind 的 data 你可以定义成稳定 schema
+
+3) 每个 kind 的 data 要“够用且最小”，只放后续必需
+举 2 个你最常见的：
+
+3.1 TABLE_MATCHES（数据发现/治理检索）
+{
+  "kind": "TABLE_MATCHES",
+  "schemaVersion": 1,
+  "data": {
+    "items": [
+      {
+        "table": "dwd_user",
+        "column": "mobile",
+        "matchType": "SEMANTIC|NAME|COMMENT",
+        "score": 0.93,
+        "reason": "列注释包含手机号"
+      }
+    ],
+    "topTables": ["dwd_user", "dwd_order"],
+    "requiredFieldsCovered": ["mobile", "imsi"],
+    "missingRequiredFields": ["imei"]
+  }
+}
+注意：这里完全不关心工具 raw 里的 rows/cost/traceId/extra 字段。
+
+3.2 SQL（生成 SQL/修复 SQL）
+{
+  "kind": "SQL",
+  "schemaVersion": 1,
+  "data": {
+    "sql": "SELECT ...",
+    "dialect": "FMDB",
+    "params": [{"name":"startTime","type":"TIMESTAMP"}],
+    "tables": ["dwd_user"],
+    "risk": {"level":"LOW","reasons":[]}
+  }
+}
+4) 关键：做一个“StructuredExtractor 适配层”，集中收口
+稳定 structured 的秘诀：别让业务到处拼 structured，而是统一用提取器把 raw → structured。
+
+你的代码里建议这样分层
+ToolExecutor / ModelInvoker：只产 raw
+
+StepRuntime：负责调度
+
+StructuredExtractorRegistry：唯一做“映射/归一化”的地方（收口）
+
+SummaryBuilder：再做人类可读摘要
+
+EvidencePack：只收 refs
+
+概念接口：
+
+interface StructuredExtractor {
+  boolean supports(StepType stepType, String toolName, String modelId, Object raw);
+  StructuredResult extract(ExtractionContext ctx, Object raw);
+}
+然后注册：
+
+FmdbSearchExtractor -> TABLE_MATCHES
+
+JdbcQueryExtractor -> RECORDSET
+
+SqlGenExtractor -> SQL
+
+GenericLLMDecisionExtractor -> DECISION
+
+ErrorClassifierExtractor -> ERROR
+
+工具/模型怎么变，你只改 extractor，不改编排，不改后续步骤依赖。
+
+5) 归一化策略：把“差异”压在适配层里
+Raw 差异主要来自 4 类：
+
+字段命名不同（rows vs data vs result）
+
+类型不同（string 数字/时间格式）
+
+结构不同（list vs map vs nested）
+
+语义不同（同一个 score 含义不同）
+
+你在 extractor 里做 3 件事即可：
+
+字段映射：多套候选路径（JSONPath 风格）
+
+类型标准化：时间统一 ISO8601；数字统一 double/int；布尔统一
+
+语义对齐：score 统一到 0~1；matchType 统一枚举
+
+6) “稳定性”还需要版本化与兼容策略
+Structured 必须有：
+
+schemaVersion
+
+向后兼容规则（只新增字段，不删除/不改语义）
+
+tool/model 版本变化时：只升级 extractor，不改 schema（能扛住绝大多数变化）
+
+如果不得不变：schemaVersion + 双读/双写过渡
+
+7) 兜底：当抽取失败时也要稳定
+Structured 不能“没有就算了”，否则后续 step 断链。
+
+建议统一 ERROR kind：
+
+{
+  "kind": "ERROR",
+  "schemaVersion": 1,
+  "data": {
+    "category": "PARSE_ERROR|TOOL_FAILED|EMPTY_RESULT|BUDGET_TRUNCATED",
+    "message": "无法从工具响应提取 tables",
+    "actionableNext": ["降低字段要求", "改用工具X", "分页获取rawRef"]
+  },
+  "refs": { "rawRef": "tr-abc" }
+}
+这样后续步骤至少能走“错误处理分支”，而不是 NPE。
+
+8) 落地建议：从“后续依赖点”倒推 structured
+最实用的方法（强烈推荐）：
+
+把你系统里 dependsOn 的地方全扫出来
+
+统计后续 step 真正需要哪些数据（10~30 个字段就够）
+
+这些字段定义成 8~12 个 kind 的 schema
+
+写 extractor 覆盖现有工具/模型
+
+让后续步骤只读 structured，不读 raw
+
+最后一句话
+Structured 的稳定性 = 你定义的结果契约（kind+schema） + 集中提取器（extractor registry） + 版本化兼容。
+Raw 随便变，只要 extractor 能吃下去，编排就稳。
+
+如果你愿意，我可以按你现在的场景（MCP 工具、FMDB 查询、治理检索、SQL 生成、诊断）给你一份 ResultKind 列表 + 每个 kind 的 JSON Schema + Java DTO，直接能落到工程里。
+
+你说：
+ToolExecutor / ModelInvoker：只产 raw
+	•	StepRuntime：负责调度
+	•	StructuredExtractorRegistry：唯一做“映射/归一化”的地方（收口）
+	•	SummaryBuilder：再做人类可读摘要
+	•	EvidencePack：只收 refs。上面每一个对象具体这些如何设计呢，包含哪些
+ChatGPT 说：
+下面按你给的 5 个组件，把“职责边界 + 核心字段/接口 + 典型数据结构”一次讲清楚。目标是：raw 可回溯、structured 可编排、summary 可读、evidence 可审计，并且写入点不散乱。
+
+1) ToolExecutor：只产 raw
+职责
+接收“工具调用请求”（toolName + args + tenant/workflow/step 信息）
+
+执行 MCP/HTTP/JDBC 等工具
+
+原样保存工具返回（raw），不要做业务抽取
+
+统一超时、重试、限流、错误包装
+
+输入（ToolCallRequest）
+toolName
+
+arguments（JSON）
+
+tenantId/workflowId/taskId/stepId
+
+timeouts/retryPolicy
+
+traceId
+
+输出（ToolCallResult）
+status：SUCCESS/FAILED
+
+raw：工具原始返回（Object/String/byte[]）
+
+rawMediaType：application/json,text/plain…
+
+metrics：latency/cost/tokens(if any)
+
+error：错误分类、message、stackKey
+
+rawRef：原始结果引用（落库/对象存储后的 key）
+
+关键：ToolExecutor 输出里可以带 rawRef，但 structured/summary 不在这里做。
+
+2) ModelInvoker：只产 raw（模型也是工具）
+职责
+统一封装对模型的调用（openai-compatible/vLLM/DeepSeek等）
+
+只负责请求组装、超时、重试、解析响应为“模型原始结果”
+
+支持 tool_calls 但不负责执行工具（执行工具在 runtime 层）
+
+输入（ModelInvokeRequest）
+modelId
+
+messages（system/developer/user）
+
+temperature/topP/maxTokens
+
+tools & toolChoice（如果是 planner/runner）
+
+tenantId/workflowId/stepId
+
+traceId
+
+输出（ModelInvokeResult）
+status
+
+rawText / rawJson（原始回复）
+
+toolCalls（若有，原样解析）
+
+usage（promptTokens/completionTokens/cost）
+
+error
+
+rawRef（可选：存档原始响应）
+
+关键：ModelInvoker 不生成 structured，不生成摘要，不写 Evidence。
+
+3) StepRuntime：负责调度（编排核心）
+职责
+执行 step 的生命周期：preStep → execute → postStep
+
+根据 step.type 决定走 ToolExecutor 还是 ModelInvoker
+
+将 raw 交给 StructuredExtractorRegistry 生成 structured
+
+将 raw/structured 交给 SummaryBuilder 生成 summary
+
+通过 HookManager 在关键点统一收口写 EvidencePack（你已在用 hook 思路）
+
+StepRuntime 输入（StepExecutionContext）
+TaskContext：tenant/workflow/task/userQuery…
+
+StepPlan：stepId/type/tool/input/dependsOn
+
+Upstream：依赖 step 的 structured/summary/refs（只放小对象 + ref）
+
+EvidencePackRef：本任务证据包引用（packId）
+
+StepRuntime 输出（StepExecutionResult）
+meta：stepId/type/status/timing/attempt
+
+rawRef：raw 的引用
+
+structured：归一化结果（稳定契约）
+
+summary：短摘要（受限）
+
+errors：标准化错误
+
+evidenceDelta：本步新增 evidence 的 ids（可选）
+
+4) StructuredExtractorRegistry：唯一做映射/归一化的地方（收口）
+职责
+维护一组 Extractor（按 toolName/modelPhase/kind 匹配）
+
+输入 raw + context，输出 稳定 structured
+
+统一：
+
+字段映射（不同工具字段差异）
+
+类型归一（时间/数字/布尔）
+
+语义归一（score 0~1，枚举统一）
+
+失败兜底（输出 ERROR kind，而不是 null）
+
+核心接口
+interface StructuredExtractor {
+  boolean supports(ExtractionContext ctx, RawResult raw);
+  StructuredResult extract(ExtractionContext ctx, RawResult raw);
+}
+Registry 设计要点
+ExtractorSelector：按优先级挑选 extractor
+
+FallbackExtractor：无法识别时产出 kind=ERROR
+
+schemaVersion：每个 kind 的版本控制
+
+StructuredResult（统一外壳）
+kind：TABLE_MATCHES / SQL / RECORDSET / DECISION / ERROR ...
+
+schemaVersion
+
+data：kind-specific payload（小、稳定）
+
+quality：confidence/warnings/truncated
+
+refs：rawRef/evidenceIds（只放引用）
+
+关键：后续 step 只依赖 structured 的 kind+data，不解析 raw。
+
+5) SummaryBuilder：人类可读摘要（受限、可截断）
+职责
+把 raw/structured 变成短摘要，服务两个目标：
+
+给人看（日志、回放）
+
+给模型看（后续 step 上下文）
+
+必须“可控”：maxChars/maxFieldChars/maxListItems
+
+绝不做“凭空推断”：摘要应基于 structured + 可验证字段
+
+输入
+StepMeta
+
+StructuredResult（优先）
+
+RawPreview（可选：从 raw 截取有限片段/统计信息，而不是全量）
+
+SummaryLimits
+
+输出
+summaryText（短文本）
+
+summaryJson（可选：结构化摘要，便于 UI 展示）
+
+truncationState（是否截断、截断原因）
+
+建议：摘要尽量从 structured 生成；raw 只用来补“行数/耗时/空结果”等统计。
+
+6) EvidencePack：只收 refs（证据索引层）
+职责
+聚合本任务“用过的证据引用”
+
+只存索引与摘要性信息：不存大文本
+
+为审计/回放/引用注入 Prompt 提供统一入口
+
+EvidencePack 核心结构（建议）
+packId / tenantId / workflowId / snapshotId
+
+evidences[]（append-only）
+
+stats（count、大小、截断）
+
+index（按 stepId/toolName/type 建索引，加速查询）
+
+Evidence（证据项）
+evidenceId
+
+type：TOOL_RESULT / MEMORY / RESEARCH / CONTEXT_TRUNCATION
+
+stepId
+
+ref：toolResultRef/memoryId/urlRef…
+
+digest：小摘要（如 rows=120, topTables=3）
+
+createdAt
+
+写入点（统一收口）
+只允许在 HookManager 的 postTool/postRecall/postResearch/postTrim 写入
+业务层（ToolExecutor/ModelInvoker/Extractor/Summary）不写 Evidence
+
+7) 这 5 个组件“各包含哪些对象/字段”的最小落地清单
+你可以按这个最小集合先落地（不会过度设计）：
+
+统一上下文对象
+ExecutionIds { tenantId, workflowId, taskId, stepId, traceId }
+
+RawRef { store, key, size, mediaType }
+
+StepMeta { type, status, timing, toolName/modelId, attempt }
+
+Raw 侧
+ToolCallResult { status, raw, rawRef, metrics, error }
+
+ModelInvokeResult { status, rawText/rawJson, toolCalls, usage, error, rawRef }
+
+Structured 侧
+StructuredResult { kind, schemaVersion, data, quality, refs }
+
+Summary 侧
+StepSummary { text, json?, truncation }
+
+Evidence 侧
+EvidencePack { packId, evidences[], stats }
+
+EvidenceItem { type, stepId, ref, digest }
+
+8) 你现在的系统怎么套进去（最贴合你的工程）
+你已有 StepOutputSummaryBuilder → 它就是 SummaryBuilder 的雏形（增强为“优先 structured”即可）
+
+你已有 EvidencePackService → 把写入点强约束到 Hook（postTool/postResearch/recall）
+
+下一步重点是补齐：
+
+StructuredExtractorRegistry
+
+每个 tool/model phase 对应的 extractor（先做 3~5 个最常用 kind）
+
+如果你想我给你“能直接开工”的版本，我可以按你当前最常见的 3 类输出先给一套Java DTO + 接口草案：
+
+FMDB 表字段检索（TABLE_MATCHES）
+
+SQL 生成（SQL）
+
+JDBC/MCP 查询结果（RECORDSET）
+
+并把它们如何落到 StepRuntimeService 的执行链里（pre/post hook + rawRef 落库 + extractor + summary + evidence delta）用一张流程图串起来。
+
+你说：
+EvidencePack是不是也不需要走hook了，和structured、summary保持一致
+ChatGPT 说：
+不建议。EvidencePack 反而最应该走 Hook 统一收口，它和 structured / summary 的“生成方式”不一样。
+
+你这句话里隐含的目标是“别让代码散乱”。这个目标没错，但实现路径应当是：
+
+structured / summary：在 StepRuntime 主流程里生成（纯函数式、可重复计算）
+
+EvidencePack：在 Hook 里写入（横切关注点、审计索引、append-only）
+
+把 EvidencePack 也挪到 StepRuntime 跟 structured/summary“保持一致”，会带来两个明显问题：
+
+职责污染：StepRuntime 变成“既负责业务编排，又负责审计索引写入”，以后会越来越重
+
+写入点变多：tool/memory/research/trim 各处都要判断何时写 evidence，很容易又散
+
+为什么 structured/summary 不必走 Hook？
+因为它们属于“本 step 的产物”，满足：
+
+输入确定（raw + ctx），输出确定
+
+可重复计算（必要时重算）
+
+只服务后续步骤编排和上下文压缩
+
+所以放在 StepRuntime 的主流程里很自然：
+
+raw -> structured -> summary
+
+为什么 EvidencePack 更适合走 Hook？
+EvidencePack 属于“横切事件索引”，满足：
+
+写入点天然在“生命周期事件”上：pre/postStep、postTool、postRecall、postResearch、postTrim
+
+append-only（追加证据项），更像审计日志/证据索引
+
+需要统一策略：采集哪些、怎么截断、如何统计、如何对外发布事件
+
+Hook 的优势就是：把这些横切写入从业务链路里剥离。
+
+最稳的统一方式（既不散乱，又不混职责）
+你可以做到“看起来一致”，但实现仍分层：
+
+StepRuntime 主流程（产物生成）
+调用 ToolExecutor/ModelInvoker 得到 raw + rawRef
+
+structured = extractorRegistry.extract(raw)
+
+summary = summaryBuilder.build(structured, rawPreview)
+
+落库 step 输出（meta + structured + summary + rawRef）
+
+Hook 侧（证据索引写入）
+postTool：写 tool evidence（ref=rawRef + digest=structured摘要信息）
+
+postRecall：写 memory evidence（ref=memoryId）
+
+postResearch：写 citation evidence（ref=url/doc）
+
+postTrim：写 truncation evidence（ref=截断报告）
+
+注意：Hook 写 EvidencePack 时不需要 raw 全量，用 rawRef + structured.digests 就够了。
+
+如果你坚持“不走 Hook”会怎样？
+不是不行，但你要额外承担：
+
+在 StepRuntime 里实现一个“证据写入 orchestrator”
+
+每次新增一种证据类型（如 context trimming、budget stop、rerank），都要改主流程
+
+更难做“开关/灰度/拦截”（Hook 天然适合做）
+
+最终 StepRuntime 会越来越像一个巨型 God-class。
+
+折中方案（我推荐的“最佳实践”）
+Structured / Summary 不走 Hook
+EvidencePack 仍走 Hook
+但 EvidencePack 的数据来自 StepRuntime 的产物（structured/summary），避免重复计算
+
+做法：
+
+StepRuntime 在 StepExecutionResult 里产出一个小对象：EvidenceDigest
+
+比如：rowsCount、topTables、sqlHash、confidence、emptyResult
+
+Hook 只负责把这个 digest + ref append 到 pack
+
+这样你会得到：
+
+职责清晰
+
+写入集中
+
+数据不重复解析
+
+后续扩展不改主流程
+
+一句话结论
+EvidencePack 不要和 structured/summary 同路走：
+structured/summary 是“step 产物”，放主流程；EvidencePack 是“横切证据索引”，放 Hook 才能真正做到不散乱、可扩展、可审计。
+
+你说：
+这个session对话帮我总结一下
+ChatGPT 说：
+下面把这次关于 多步骤智能体的 Step I/O、Structured、Summary、EvidencePack、Hook 收口 的整条设计脉络，压成一份可直接落地的架构要点清单。
+
+你最核心的几个问题（串起来）
+多步骤里每步的输入/输出应包含哪些部分？
+
+Raw / Structured / Summary 的区别与必要性？
+
+上一步的数据如何稳定传给下一步？
+
+工具/模型 raw 五花八门，Structured 如何做到稳定？
+
+EvidencePack 到底是什么，在哪写，如何不让代码散乱？
+
+Evidence 是否也应和 structured/summary 一样在主流程做？
+
+最终形成的标准 Step 输出模型（四层）
+每个 step 的输出应统一为：
+
+层	作用	特点	给谁用
+Raw（原始结果）	完整事实留档	大、不稳定	审计/回溯
+Structured（结构化契约）	给下一步稳定依赖	小、稳定、可编程	编排系统
+Summary（摘要）	给模型/人看	短、可截断	LLM/日志
+Refs（引用）	关联 raw/evidence	轻量索引	Evidence/回放
+口诀：Raw 可追溯，Structured 可编排，Summary 可读，Refs 可审计
+
+Raw vs Structured 的本质区别
+Raw	Structured
+工具/模型真实返回	你定义的“结果契约”
+字段不稳定	字段稳定（schema）
+不能进上下文	必须进上下文
+不能被依赖	专门给后续步骤依赖
+用于回放	用于编排
+Raw 是“档案袋”，Structured 是“接力棒”。
+
+Structured 如何在工具/模型差异下保持稳定？
+关键不是适配字段，而是先抽象语义类型（ResultKind）：
+
+TABLE_MATCHES（命中表/字段）
+
+SQL（SQL 产物）
+
+RECORDSET（查询结果）
+
+DECISION（决策）
+
+DIAGNOSIS（诊断）
+
+ERROR（错误兜底）
+
+然后设计：
+
+StructuredResult {
+  kind,
+  schemaVersion,
+  data,        // kind-specific，稳定 schema
+  quality,
+  refs
+}
+再通过：
+
+StructuredExtractorRegistry（唯一映射层）
+raw → structured
+
+工具怎么变，只改 extractor，不改编排。
+
+上一步数据如何传给下一步？
+后续 step 只拿：
+
+previous.structured
+previous.summary（可选）
+previous.refs（可选）
+绝不解析 raw。
+
+五大核心组件的清晰职责边界
+组件	只负责什么	不负责什么
+ToolExecutor	执行工具，产 raw+rawRef	不做 structured/summary/evidence
+ModelInvoker	调模型，产 raw	不做 structured/summary/evidence
+StepRuntime	编排：raw→structured→summary	不直接写 evidence
+StructuredExtractorRegistry	raw→structured 归一化	不感知编排
+SummaryBuilder	structured→短摘要	不读全量 raw
+EvidencePack（通过 Hook）	记录 refs 索引	不参与业务计算
+EvidencePack 的真正定位（关键）
+EvidencePack = 本任务用过的全部证据引用索引
+
+它不是 step 产物，而是横切审计索引。
+
+为什么必须走 Hook？
+因为证据写入天然发生在：
+
+postTool
+
+postRecall
+
+postResearch
+
+postTrim
+
+这是生命周期事件，典型横切关注点。
+
+如果放 StepRuntime 主流程，会变成 God-class。
+
+正确的“统一收口”形态
+业务区（纯）
+Tool / Model / Runtime / Extractor / Summary
+                │
+                ▼
+           HookManager
+                │
+                ▼
+        EvidencePackService（append-only）
+Structured/Summary 在主流程
+Evidence 在 Hook
+
+最终稳定的数据流
+Tool/Model → Raw
+          ↓
+StructuredExtractor → Structured（契约）
+          ↓
+SummaryBuilder → Summary（短文本）
+          ↓
+Hook.postX → EvidencePack.write(ref + digest)
+为什么这一整套对你现在的工程特别契合
+你已经有：
+
+StepOutputSummaryBuilder（= SummaryBuilder 雏形）
+
+EvidencePackService
+
+HookManager
+
+Context 裁剪/分层摘要
+
+只需要补：
+
+StructuredExtractorRegistry + ResultKind 契约
+
+整个系统会从“能跑”变成非常优雅、可扩展的编排内核。
+
+一句话总纲（这次对话的结论）
+Raw 用于可追溯，Structured 用于可编排，Summary 用于可读，Evidence 用于可审计。
+Structured/Summary 属于 step 产物走主流程；Evidence 属于横切索引必须走 Hook 收口。
+
+
+
+
+未选择任何文件未选择任何文件
+ChatGPT 也可能会犯错。请核查重要信息。
+

@@ -496,10 +496,11 @@ public class AgentRuntime {
                     output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
                 }
 
-                // 反思前补充临时摘要，避免反思阶段摘要为空。
-                output = enrichOutputSummaryForReflection(step, request, record, stepInput, output);
+                // 反思前构建摘要，避免反思阶段缺少摘要信息。
+                Map<String, Object> reflectionSummary = buildSummaryForReflection(step, request, record, stepInput, output);
+                Map<String, Object> reflectionInput = reflectionSummary != null ? reflectionSummary : output;
                 // 对步骤输出进行反思评估，可能触发重试。
-                ReflectionResult reflection = reflectWithEvents(step, tenantContext, workflowId, seqCounter, output, attempt);
+                ReflectionResult reflection = reflectWithEvents(step, tenantContext, workflowId, seqCounter, reflectionInput, attempt);
                 if (reflection != null && reflection.isRetryRequested()) {
                     Map<String, Object> details = new HashMap<>();
                     if (reflection.getReport() != null && reflection.getReport().getNotes() != null) {
@@ -575,44 +576,29 @@ public class AgentRuntime {
      * @param output 原始输出
      * @return 合并摘要后的输出
      */
-    private Map<String, Object> enrichOutputSummaryForReflection(StepRequest step,
+        private Map<String, Object> buildSummaryForReflection(StepRequest step,
                                                                  TaskRequest request,
                                                                  StepRecord record,
                                                                  Map<String, Object> stepInput,
                                                                  Map<String, Object> output) {
         if (output == null || output.isEmpty()) {
-            return output;
+            return null;
         }
         boolean summaryEnabled = stepOutputSummaryBuilder != null && stepOutputSummaryBuilder.isEnabled();
-        if (summaryEnabled) {
-            if (hasSummaryFields(output)) {
-                return output;
-            }
-            String toolName = step != null ? resolveToolName(request, step) : null;
-            Map<String, Object> summary = stepOutputSummaryBuilder.build(
-                    record,
-                    stepInput,
-                    output,
-                    toolName,
-                    null
-            );
-            if (summary == null || summary.isEmpty()) {
-                return output;
-            }
-            Map<String, Object> merged = new HashMap<>();
-            merged.putAll(output);
-            merged.putAll(summary);
-            return merged;
+        if (!summaryEnabled) {
+            return null;
         }
-        return output;
+        String toolName = step != null ? resolveToolName(request, step) : null;
+        Map<String, Object> summary = stepOutputSummaryBuilder.build(
+                record,
+                stepInput,
+                output,
+                toolName,
+                null
+        );
+        return (summary == null || summary.isEmpty()) ? null : summary;
     }
 
-    private boolean hasSummaryFields(Map<String, Object> output) {
-        return output != null
-                && (output.containsKey("outputSummary")
-                || output.containsKey("outputDigest")
-                || output.containsKey("stepSummary"));
-    }
 
     /**
      * 执行 LLM 步骤，走独立 LLM 分支并支持工具调用。
@@ -1265,7 +1251,7 @@ private Map<String, Object> executeToolStep(TaskRequest request,
         }
         runtimeContext.put("lastStepId", record.getStepId());
         runtimeContext.put("lastStepType", record.getType());
-        Map<String, Object> stepSummary = buildStepOutputSummary(record, output);
+        Map<String, Object> stepSummary = buildStepOutputSummary(record, record.getSummary());
         runtimeContext.put("lastStepSummary", stepSummary);
         runtimeContext.remove("lastStepOutput");
         if (output != null) {
@@ -1294,27 +1280,26 @@ private Map<String, Object> executeToolStep(TaskRequest request,
         entry.put("stepId", record.getStepId());
         entry.put("type", record.getType());
         entry.put("attempt", record.getAttempt());
-        entry.put("output", buildStepOutputSummary(record, output));
+        entry.put("output", output);
+        entry.put("summary", buildStepOutputSummary(record, record.getSummary()));
         stepOutputs.add(entry);
     }
 
-    private Map<String, Object> buildStepOutputSummary(StepRecord record, Map<String, Object> output) {
+    private Map<String, Object> buildStepOutputSummary(StepRecord record, Map<String, Object> summarySource) {
         Map<String, Object> summary = new HashMap<>();
-        if (output != null) {
-            copyIfPresent(output, summary, "outputSummary");
-            copyIfPresent(output, summary, "toolResultSummary");
-            copyIfPresent(output, summary, "stepSummary");
-            copyIfPresent(output, summary, "outputDigest");
-            copyIfPresent(output, summary, "truncated");
+        if (summarySource != null) {
+            copyIfPresent(summarySource, summary, "outputSummary");
+            copyIfPresent(summarySource, summary, "toolResultSummary");
+            copyIfPresent(summarySource, summary, "stepSummary");
+            copyIfPresent(summarySource, summary, "outputDigest");
+            copyIfPresent(summarySource, summary, "truncated");
+            copyIfPresent(summarySource, summary, "inputSummary");
+            copyIfPresent(summarySource, summary, "inputDigest");
         }
         Map<String, Object> stepSummary = normalizeStepSummary(summary.get("stepSummary"), record, null);
         summary.put("stepSummary", stepSummary);
         if (!summary.containsKey("outputDigest")) {
-            Map<String, Object> digest = new HashMap<>();
-            if (output != null) {
-                digest.put("keyCount", output.size());
-            }
-            summary.put("outputDigest", digest);
+            summary.put("outputDigest", new HashMap<>());
         }
         if (!summary.containsKey("truncated")) {
             summary.put("truncated", Boolean.FALSE);

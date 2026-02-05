@@ -102,10 +102,16 @@ class FinalOutputServiceTest {
                 "evidencePack", "big",
                 "tokenUsage", "big"
         );
+        Map<String, Object> stepSummary = new java.util.HashMap<>();
+        stepSummary.put("summary", "tool summary");
+        stepSummary.put("status", "COMPLETED");
+        Map<String, Object> summary = new java.util.HashMap<>();
+        summary.put("stepSummary", stepSummary);
         Map<String, Object> step = new java.util.HashMap<>();
         step.put("stepId", "s-1");
         step.put("type", "TOOL");
         step.put("output", output);
+        step.put("summary", summary);
 
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
                 any(), any(), any(), eq("finalize"), any()))
@@ -127,7 +133,7 @@ class FinalOutputServiceTest {
         assertFalse(prompt.contains("evidencePack"));
         assertFalse(prompt.contains("tokenUsage"));
         assertFalse(prompt.contains("\"output\""));
-        assertTrue(prompt.contains("(summary disabled)"));
+        assertTrue(prompt.contains("tool summary"));
     }
 
     @Test
@@ -146,12 +152,12 @@ class FinalOutputServiceTest {
         Map<String, Object> stepSummary = new java.util.HashMap<>();
         stepSummary.put("summary", longSummary);
         stepSummary.put("status", "COMPLETED");
-        Map<String, Object> output = new java.util.HashMap<>();
-        output.put("stepSummary", stepSummary);
+        Map<String, Object> summaryPayload = new java.util.HashMap<>();
+        summaryPayload.put("stepSummary", stepSummary);
         Map<String, Object> step = new java.util.HashMap<>();
         step.put("stepId", "s-1");
         step.put("type", "TOOL");
-        step.put("output", output);
+        step.put("summary", summaryPayload);
 
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
                 any(), any(), any(), eq("finalize"), any()))
@@ -175,8 +181,8 @@ class FinalOutputServiceTest {
         String contextJson = prompt.substring(index + marker.length()).trim();
         Map<String, Object> context = new ObjectMapper().readValue(contextJson, Map.class);
         List<?> steps = (List<?>) context.get("steps");
-        Map<?, ?> summary = (Map<?, ?>) steps.get(0);
-        String summaryText = String.valueOf(summary.get("summary"));
+        Map<?, ?> summaryItem = (Map<?, ?>) steps.get(0);
+        String summaryText = String.valueOf(summaryItem.get("summary"));
         assertTrue(summaryText.length() <= properties.getPromptSummaryMaxChars());
         assertTrue(summaryText.endsWith("...(truncated)"));
     }
@@ -197,12 +203,12 @@ class FinalOutputServiceTest {
         Map<String, Object> stepSummary = new java.util.HashMap<>();
         stepSummary.put("summary", shortSummary);
         stepSummary.put("status", "COMPLETED");
-        Map<String, Object> output = new java.util.HashMap<>();
-        output.put("stepSummary", stepSummary);
+        Map<String, Object> summaryPayload = new java.util.HashMap<>();
+        summaryPayload.put("stepSummary", stepSummary);
         Map<String, Object> step = new java.util.HashMap<>();
         step.put("stepId", "s-1");
         step.put("type", "TOOL");
-        step.put("output", output);
+        step.put("summary", summaryPayload);
 
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
                 any(), any(), any(), eq("finalize"), any()))
@@ -226,8 +232,8 @@ class FinalOutputServiceTest {
         String contextJson = prompt.substring(index + marker.length()).trim();
         Map<String, Object> context = new ObjectMapper().readValue(contextJson, Map.class);
         List<?> steps = (List<?>) context.get("steps");
-        Map<?, ?> summary = (Map<?, ?>) steps.get(0);
-        String summaryText = String.valueOf(summary.get("summary"));
+        Map<?, ?> summaryItem = (Map<?, ?>) steps.get(0);
+        String summaryText = String.valueOf(summaryItem.get("summary"));
         assertEquals(shortSummary, summaryText);
         assertFalse(summaryText.endsWith("...(truncated)"));
     }

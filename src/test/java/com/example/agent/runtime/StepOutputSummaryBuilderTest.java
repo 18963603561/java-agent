@@ -25,7 +25,7 @@ class StepOutputSummaryBuilderTest {
         output.put("nested", List.of(List.of("a", "b", "c"), List.of("d", "e")));
         output.put("explosive", new ExplosiveBean());
 
-        Map<String, Object> summary = builder.build("s-1", "TOOL", "COMPLETED", output, null, null, 1);
+        Map<String, Object> summary = builder.build(buildRecord("s-1"), null, output, null, null);
         @SuppressWarnings("unchecked")
         Map<String, Object> digest = (Map<String, Object>) summary.get("outputDigest");
 
@@ -44,7 +44,7 @@ class StepOutputSummaryBuilderTest {
         StepOutputSummaryBuilder builder = new StepOutputSummaryBuilder(properties);
 
         List<String> output = List.of("a", "b", "c", "d");
-        Map<String, Object> summary = builder.build("s-2", "TOOL", "COMPLETED", output, null, null, 1);
+        Map<String, Object> summary = builder.build(buildRecord("s-2"), null, output, null, null);
         @SuppressWarnings("unchecked")
         Map<String, Object> outputSummary = (Map<String, Object>) summary.get("outputSummary");
         String sample = outputSummary != null ? (String) outputSummary.get("sample") : null;
@@ -71,7 +71,7 @@ class StepOutputSummaryBuilderTest {
         array[0] = array;
         array[1] = "tail";
 
-        Map<String, Object> summary = builder.build("s-3", "TOOL", "COMPLETED", array, null, null, 1);
+        Map<String, Object> summary = builder.build(buildRecord("s-3"), null, array, null, null);
         @SuppressWarnings("unchecked")
         Map<String, Object> outputSummary = (Map<String, Object>) summary.get("outputSummary");
         String sample = outputSummary != null ? (String) outputSummary.get("sample") : null;
@@ -96,7 +96,7 @@ class StepOutputSummaryBuilderTest {
         Map<String, Object> output = new LinkedHashMap<>();
         output.put("bad", new BadToString());
 
-        Map<String, Object> summary = builder.build("s-4", "TOOL", "COMPLETED", output, null, null, 1);
+        Map<String, Object> summary = builder.build(buildRecord("s-4"), null, output, null, null);
         @SuppressWarnings("unchecked")
         Map<String, Object> outputSummary = (Map<String, Object>) summary.get("outputSummary");
         String sample = outputSummary != null ? (String) outputSummary.get("sample") : null;
@@ -121,5 +121,14 @@ class StepOutputSummaryBuilderTest {
         public String toString() {
             throw new RuntimeException("bad");
         }
+    }
+
+    private StepRecord buildRecord(String stepId) {
+        StepRecord record = new StepRecord();
+        record.setStepId(stepId);
+        record.setType("TOOL");
+        record.setStatus(StepState.COMPLETED);
+        record.setAttempt(1);
+        return record;
     }
 }
