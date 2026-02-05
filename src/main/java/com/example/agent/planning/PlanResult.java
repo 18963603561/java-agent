@@ -1,6 +1,6 @@
 package com.example.agent.planning;
 
-import com.example.agent.runtime.model.plan.StepSpec;
+import com.example.agent.runtime.model.StepSpec;
 import java.util.List;
 
 /**

@@ -1,6 +1,10 @@
 package com.example.agent.reasoning;
 
 import org.junit.jupiter.api.Test;
+import com.example.agent.reasoning.thoughttree.ThoughtNode;
+import com.example.agent.reasoning.thoughttree.ThoughtTreeConfig;
+import com.example.agent.reasoning.thoughttree.ThoughtTreeResult;
+import com.example.agent.reasoning.thoughttree.ThoughtTreeService;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

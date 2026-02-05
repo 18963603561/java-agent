@@ -1,10 +1,17 @@
 package com.example.agent.budget;
 
-import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import java.util.EnumMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import com.example.agent.budget.token.ContextBudgetAllocation;
+import com.example.agent.budget.token.ContextBudgetPolicy;
+import com.example.agent.budget.token.ContextBudgetProperties;
+import com.example.agent.budget.token.ContextBudgetRequest;
+import com.example.agent.budget.token.DefaultContextBudgetAllocator;
+import com.example.agent.budget.token.TokenBudgetManager;
+import com.example.agent.budget.trim.ContextSection;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

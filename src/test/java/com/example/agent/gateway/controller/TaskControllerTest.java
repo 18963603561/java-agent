@@ -1,10 +1,10 @@
 package com.example.agent.gateway.controller;
 
-import com.example.agent.common.TaskRequest;
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.orchestrator.TaskExecutionService;
-import com.example.agent.orchestrator.WorkflowRouter;
-import com.example.agent.runtime.RuntimeResult;
+import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.orchestration.task.TaskExecutionService;
+import com.example.agent.orchestration.workflow.WorkflowRouter;
+import com.example.agent.runtime.engine.RuntimeResult;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import java.util.concurrent.CountDownLatch;

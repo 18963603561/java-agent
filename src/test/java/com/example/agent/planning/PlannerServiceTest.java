@@ -1,26 +1,26 @@
 package com.example.agent.planning;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.common.TaskRequest;
-import com.example.agent.context.ContextAssembler;
-import com.example.agent.context.PromptAssemblyInput;
-import com.example.agent.evaluation.CapabilityBoundaryEvaluator;
-import com.example.agent.evaluation.CapabilityEvaluationProperties;
-import com.example.agent.model.ModelInvocationService;
-import com.example.agent.model.ModelRequest;
-import com.example.agent.model.ModelResponse;
-import com.example.agent.model.ModelScene;
-import com.example.agent.model.ModelToolChoice;
-import com.example.agent.model.ModelToolResolver;
-import com.example.agent.model.PromptAssembler;
-import com.example.agent.model.PromptBundle;
-import com.example.agent.model.PromptMessage;
-import com.example.agent.model.PromptRole;
-import com.example.agent.model.PromptTrace;
-import com.example.agent.repair.JsonOutputRepairService;
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.runtime.model.plan.StepSpec;
-import com.example.agent.streaming.ContextSnapshotStage;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.capabilities.context.ContextAssembler;
+import com.example.agent.capabilities.context.PromptAssemblyInput;
+import com.example.agent.governance.evaluation.CapabilityBoundaryEvaluator;
+import com.example.agent.governance.evaluation.CapabilityEvaluationProperties;
+import com.example.agent.capabilities.llm.ModelInvocationService;
+import com.example.agent.capabilities.llm.ModelRequest;
+import com.example.agent.capabilities.llm.ModelResponse;
+import com.example.agent.capabilities.llm.ModelScene;
+import com.example.agent.capabilities.llm.ModelToolChoice;
+import com.example.agent.capabilities.llm.ModelToolResolver;
+import com.example.agent.capabilities.llm.PromptAssembler;
+import com.example.agent.capabilities.llm.PromptBundle;
+import com.example.agent.capabilities.llm.PromptMessage;
+import com.example.agent.capabilities.llm.PromptRole;
+import com.example.agent.capabilities.llm.PromptTrace;
+import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.runtime.model.StepSpec;
+import com.example.agent.streaming.payload.ContextSnapshotStage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
@@ -46,8 +46,8 @@ class PlannerServiceTest {
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
-        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
-                com.example.agent.streaming.ContextEventPublisher.class);
+        com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.payload.ContextEventPublisher.class);
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(false);
         properties.setFallbackEnabled(true);
@@ -75,8 +75,8 @@ class PlannerServiceTest {
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
-        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
-                com.example.agent.streaming.ContextEventPublisher.class);
+        com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.payload.ContextEventPublisher.class);
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(false);
         properties.setFallbackEnabled(true);
@@ -101,8 +101,8 @@ class PlannerServiceTest {
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
-        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
-                com.example.agent.streaming.ContextEventPublisher.class);
+        com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.payload.ContextEventPublisher.class);
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(true);
         properties.setFallbackEnabled(false);
@@ -138,8 +138,8 @@ class PlannerServiceTest {
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
-        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
-                com.example.agent.streaming.ContextEventPublisher.class);
+        com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.payload.ContextEventPublisher.class);
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(true);
         properties.setFallbackEnabled(false);
@@ -188,8 +188,8 @@ class PlannerServiceTest {
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
-        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
-                com.example.agent.streaming.ContextEventPublisher.class);
+        com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.payload.ContextEventPublisher.class);
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(false);
         properties.setFallbackEnabled(true);
@@ -212,8 +212,8 @@ class PlannerServiceTest {
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
-        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
-                com.example.agent.streaming.ContextEventPublisher.class);
+        com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.payload.ContextEventPublisher.class);
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(true);
         properties.setFallbackEnabled(false);
@@ -276,8 +276,8 @@ class PlannerServiceTest {
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
-        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
-                com.example.agent.streaming.ContextEventPublisher.class);
+        com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.payload.ContextEventPublisher.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
                 metricsPublisher);
@@ -320,8 +320,8 @@ class PlannerServiceTest {
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
-        com.example.agent.streaming.ContextEventPublisher contextEventPublisher = Mockito.mock(
-                com.example.agent.streaming.ContextEventPublisher.class);
+        com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
+                com.example.agent.streaming.payload.ContextEventPublisher.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
                 metricsPublisher);
@@ -361,8 +361,8 @@ class PlannerServiceTest {
         CapabilityEvaluationProperties evalProps = new CapabilityEvaluationProperties();
         evalProps.setEnabled(enabled);
         ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
-        com.example.agent.streaming.EventStreamService eventStreamService = Mockito.mock(
-                com.example.agent.streaming.EventStreamService.class);
+        com.example.agent.streaming.sse.EventStreamService eventStreamService = Mockito.mock(
+                com.example.agent.streaming.sse.EventStreamService.class);
         return new CapabilityBoundaryEvaluator(evalProps, publisher, eventStreamService);
     }
 }

@@ -1,10 +1,10 @@
 package com.example.agent.streaming;
 
-import com.example.agent.auth.AuthService;
-import com.example.agent.auth.TenantContext;
-import com.example.agent.auth.UserContext;
-import com.example.agent.domain.event.EventType;
-import com.example.agent.domain.event.StreamEvent;
+import com.example.agent.security.auth.AuthService;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.security.auth.UserContext;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
 import java.time.Duration;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -20,6 +20,9 @@ import org.springframework.web.server.ServerWebExchange;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
+import com.example.agent.streaming.sse.EventStreamService;
+import com.example.agent.streaming.sse.SseStreamController;
+import com.example.agent.streaming.sse.TaskStreamRequest;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -36,8 +39,8 @@ class SseStreamControllerTest {
 
     @Test
     void timeoutEmitsErrorEventWithSequence() {
-        com.example.agent.observability.TracingPublisher tracingPublisher = Mockito.mock(
-                com.example.agent.observability.TracingPublisher.class);
+        com.example.agent.streaming.observability.TracingPublisher tracingPublisher = Mockito.mock(
+                com.example.agent.streaming.observability.TracingPublisher.class);
         SseStreamController controller = new SseStreamController(eventStreamService, authService, tracingPublisher);
         ReflectionTestUtils.setField(controller, "firstEventTimeout", Duration.ZERO);
         ReflectionTestUtils.setField(controller, "timeoutScheduler", Schedulers.immediate());

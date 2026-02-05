@@ -3,6 +3,9 @@ package com.example.agent.model;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import com.example.agent.capabilities.llm.DefaultPromptTemplate;
+import com.example.agent.capabilities.llm.PromptMessage;
+import com.example.agent.capabilities.llm.PromptRenderContext;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

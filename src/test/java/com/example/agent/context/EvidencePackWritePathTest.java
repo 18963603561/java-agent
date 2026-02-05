@@ -1,13 +1,17 @@
 package com.example.agent.context;
 
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.tools.hook.EvidencePackHookHandler;
-import com.example.agent.tools.hook.HookContext;
-import com.example.agent.tools.hook.HookType;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.capabilities.tools.hook.EvidencePackHookHandler;
+import com.example.agent.capabilities.tools.hook.HookContext;
+import com.example.agent.capabilities.tools.hook.HookType;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import com.example.agent.capabilities.context.EvidenceItem;
+import com.example.agent.capabilities.context.EvidencePack;
+import com.example.agent.capabilities.context.EvidencePackService;
+import com.example.agent.capabilities.context.EvidenceType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

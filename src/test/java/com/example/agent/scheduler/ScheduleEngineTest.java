@@ -1,7 +1,7 @@
 package com.example.agent.scheduler;
 
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.streaming.EventStreamService;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.streaming.sse.EventStreamService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;

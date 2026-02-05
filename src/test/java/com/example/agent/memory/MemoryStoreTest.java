@@ -1,12 +1,28 @@
 package com.example.agent.memory;
 
-import com.example.agent.auth.TenantContext;
+import com.example.agent.security.auth.TenantContext;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
+import com.example.agent.capabilities.memory.InMemoryMemoryRepository;
+import com.example.agent.capabilities.memory.MemoryExpireProperties;
+import com.example.agent.capabilities.memory.MemoryPolicyProperties;
+import com.example.agent.capabilities.memory.MemoryStore;
+import com.example.agent.capabilities.memory.CompressionRequest;
+import com.example.agent.capabilities.memory.MemoryRecord;
+import com.example.agent.capabilities.memory.CompressedMemoryStore;
+import com.example.agent.capabilities.memory.EmbeddingService;
+import com.example.agent.capabilities.memory.MemoryExpirationService;
+import com.example.agent.capabilities.memory.MemoryPolicy;
+import com.example.agent.capabilities.memory.MemoryQuery;
+import com.example.agent.capabilities.memory.MemorySearchResult;
+import com.example.agent.capabilities.memory.RecentMemoryStore;
+import com.example.agent.capabilities.memory.SemanticMemoryStore;
+import com.example.agent.capabilities.memory.TokenEstimator;
+import com.example.agent.capabilities.memory.VectorStore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

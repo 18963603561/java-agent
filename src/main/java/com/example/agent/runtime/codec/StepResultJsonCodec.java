@@ -1,6 +1,6 @@
 package com.example.agent.runtime.codec;
 
-import com.example.agent.runtime.model.result.StepResult;
+import com.example.agent.runtime.model.StepResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;

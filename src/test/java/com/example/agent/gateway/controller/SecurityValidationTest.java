@@ -1,11 +1,11 @@
 package com.example.agent.gateway.controller;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.common.TaskRequest;
-import com.example.agent.common.TaskResponse;
-import com.example.agent.orchestrator.TaskQueryService;
-import com.example.agent.orchestrator.TaskSubmissionService;
-import com.example.agent.streaming.EventStreamService;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.api.http.dto.TaskResponse;
+import com.example.agent.orchestration.task.TaskQueryService;
+import com.example.agent.orchestration.task.TaskSubmissionService;
+import com.example.agent.streaming.sse.EventStreamService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
 import java.time.Instant;

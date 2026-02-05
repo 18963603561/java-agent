@@ -1,8 +1,12 @@
 package com.example.agent.security;
 
-import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
+import com.example.agent.security.redaction.RedactionProperties;
+import com.example.agent.security.redaction.RedactionResult;
+import com.example.agent.security.redaction.RedactionService;
+import com.example.agent.security.redaction.RedactionStage;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;

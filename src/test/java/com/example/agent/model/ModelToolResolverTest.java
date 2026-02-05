@@ -1,21 +1,24 @@
 package com.example.agent.model;
 
-import com.example.agent.agentcore.ToolRegistry;
-import com.example.agent.common.ErrorCodeException;
-import com.example.agent.common.TaskRequest;
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.tools.McpToolDefinition;
-import com.example.agent.tools.ToolCatalog;
-import com.example.agent.tools.ToolCatalogService;
-import com.example.agent.tools.ToolSummary;
-import com.example.agent.tools.skill.SkillDefinition;
-import com.example.agent.tools.skill.SkillRegistry;
+import com.example.agent.capabilities.tools.registry.ToolRegistry;
+import com.example.agent.common.error.ErrorCodeException;
+import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
+import com.example.agent.capabilities.tools.ToolCatalog;
+import com.example.agent.capabilities.tools.ToolCatalogService;
+import com.example.agent.capabilities.tools.ToolSummary;
+import com.example.agent.capabilities.tools.skill.SkillDefinition;
+import com.example.agent.capabilities.tools.skill.SkillRegistry;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
+import com.example.agent.capabilities.llm.ModelRequest;
+import com.example.agent.capabilities.llm.ModelToolChoice;
+import com.example.agent.capabilities.llm.ModelToolResolver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

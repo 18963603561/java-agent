@@ -1,15 +1,22 @@
 package com.example.agent.tools.hook;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.common.ErrorCodeException;
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.streaming.EventStreamService;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.common.error.ErrorCodeException;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.streaming.sse.EventStreamService;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEventPublisher;
+import com.example.agent.capabilities.tools.hook.HookContext;
+import com.example.agent.capabilities.tools.hook.HookDecision;
+import com.example.agent.capabilities.tools.hook.HookHandler;
+import com.example.agent.capabilities.tools.hook.HookManager;
+import com.example.agent.capabilities.tools.hook.HookProperties;
+import com.example.agent.capabilities.tools.hook.HookTimeoutPolicy;
+import com.example.agent.capabilities.tools.hook.HookRecord;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;

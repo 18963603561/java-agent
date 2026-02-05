@@ -1,10 +1,14 @@
 package com.example.agent.approval;
 
-import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import com.example.agent.governance.approval.ApprovalService;
+import com.example.agent.governance.approval.ApprovalDecision;
+import com.example.agent.governance.approval.ApprovalHandle;
+import com.example.agent.governance.approval.ApprovalProperties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

@@ -1,14 +1,14 @@
 package com.example.agent.orchestrator;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.common.TaskListResponse;
-import com.example.agent.common.TaskQuery;
-import com.example.agent.common.TaskRequest;
-import com.example.agent.common.TaskResponse;
-import com.example.agent.domain.event.EventType;
-import com.example.agent.domain.event.StreamEvent;
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.streaming.EventStreamService;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.api.http.dto.TaskListResponse;
+import com.example.agent.api.http.dto.TaskQuery;
+import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.api.http.dto.TaskResponse;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.streaming.sse.EventStreamService;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
@@ -28,6 +28,11 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.context.ApplicationEventPublisher;
+import com.example.agent.orchestration.task.TaskExecutionService;
+import com.example.agent.orchestration.task.TaskOrchestrator;
+import com.example.agent.orchestration.task.TaskRepository;
+import com.example.agent.orchestration.workflow.WorkflowRouter;
+import com.example.agent.orchestration.task.InMemoryTaskRepository;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -52,7 +57,7 @@ class TaskOrchestratorTest {
     private MetricsPublisher metricsPublisher;
 
     @Mock
-    private com.example.agent.observability.TracingPublisher tracingPublisher;
+    private com.example.agent.streaming.observability.TracingPublisher tracingPublisher;
 
     @Mock
     private EventStreamService eventStreamService;

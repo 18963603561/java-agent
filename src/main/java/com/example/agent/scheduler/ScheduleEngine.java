@@ -1,10 +1,10 @@
 package com.example.agent.scheduler;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.domain.event.EventType;
-import com.example.agent.domain.event.StreamEvent;
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.streaming.EventStreamService;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.streaming.sse.EventStreamService;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.util.Map;

@@ -1,11 +1,11 @@
 package com.example.agent.gateway.controller;
 
-import com.example.agent.common.TaskRequest;
-import com.example.agent.domain.event.EventType;
-import com.example.agent.domain.event.StreamEvent;
-import com.example.agent.governance.ReplayRequest;
-import com.example.agent.policy.PolicyRequest;
-import com.example.agent.tools.McpToolCallRequest;
+import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
+import com.example.agent.governance.replay.ReplayRequest;
+import com.example.agent.governance.policy.PolicyRequest;
+import com.example.agent.capabilities.tools.mcp.McpToolCallRequest;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;

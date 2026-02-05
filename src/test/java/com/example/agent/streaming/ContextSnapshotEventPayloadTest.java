@@ -2,6 +2,8 @@ package com.example.agent.streaming;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import com.example.agent.streaming.payload.ContextSnapshotEventPayload;
+import com.example.agent.streaming.payload.ContextSnapshotStage;
 
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 

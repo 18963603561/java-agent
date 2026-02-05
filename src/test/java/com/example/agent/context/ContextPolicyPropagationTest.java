@@ -1,14 +1,14 @@
 package com.example.agent.context;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.budget.ContextBudgetAllocation;
-import com.example.agent.budget.ContextBudgetAllocator;
-import com.example.agent.budget.ContextBudgetProperties;
-import com.example.agent.budget.ContextBudgetRequest;
-import com.example.agent.budget.ContextPruneRequest;
-import com.example.agent.budget.ContextPruner;
-import com.example.agent.common.TaskRequest;
-import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.budget.token.ContextBudgetAllocation;
+import com.example.agent.budget.token.ContextBudgetAllocator;
+import com.example.agent.budget.token.ContextBudgetProperties;
+import com.example.agent.budget.token.ContextBudgetRequest;
+import com.example.agent.budget.trim.ContextPruneRequest;
+import com.example.agent.budget.trim.ContextPruner;
+import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import java.util.Map;
@@ -16,6 +16,9 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
+import com.example.agent.capabilities.context.ContextBuildRequest;
+import com.example.agent.capabilities.context.ContextPolicy;
+import com.example.agent.capabilities.context.DefaultContextBuilder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

@@ -1,7 +1,7 @@
 package com.example.agent.tools.plugin;
 
-import com.example.agent.agentcore.ToolRegistry;
-import com.example.agent.tools.McpToolDefinition;
+import com.example.agent.capabilities.tools.registry.ToolRegistry;
+import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -9,6 +9,9 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import com.example.agent.capabilities.tools.plugin.PluginDescriptor;
+import com.example.agent.capabilities.tools.plugin.PluginLoader;
+import com.example.agent.capabilities.tools.plugin.PluginProperties;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 

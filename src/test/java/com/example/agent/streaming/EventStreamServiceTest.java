@@ -1,9 +1,9 @@
 package com.example.agent.streaming;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.domain.event.EventType;
-import com.example.agent.domain.event.StreamEvent;
-import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
@@ -19,6 +19,8 @@ import org.springframework.test.util.ReflectionTestUtils;
 import reactor.core.publisher.Flux;
 import reactor.core.scheduler.Schedulers;
 import reactor.test.StepVerifier;
+import com.example.agent.streaming.sse.EventStreamService;
+import com.example.agent.streaming.sse.TaskStreamRequest;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.any;

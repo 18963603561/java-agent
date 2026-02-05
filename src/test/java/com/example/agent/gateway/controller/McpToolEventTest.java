@@ -1,8 +1,8 @@
 package com.example.agent.gateway.controller;
 
-import com.example.agent.domain.event.EventType;
-import com.example.agent.domain.event.StreamEvent;
-import com.example.agent.tools.McpToolCallRequest;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
+import com.example.agent.capabilities.tools.mcp.McpToolCallRequest;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;

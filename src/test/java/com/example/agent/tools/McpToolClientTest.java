@@ -1,11 +1,14 @@
 package com.example.agent.tools;
 
-import com.example.agent.agentcore.ToolRegistry;
-import com.example.agent.auth.TenantContext;
-import com.example.agent.common.ErrorCodeException;
-import com.example.agent.governance.CircuitBreakerManager;
-import com.example.agent.governance.RateLimitService;
+import com.example.agent.capabilities.tools.registry.ToolRegistry;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.common.error.ErrorCodeException;
+import com.example.agent.governance.circuitbreaker.CircuitBreakerManager;
+import com.example.agent.governance.ratelimit.RateLimitService;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.sun.net.httpserver.HttpServer;
+import java.io.OutputStream;
+import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +23,10 @@ import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
+import com.example.agent.capabilities.tools.mcp.McpServerProperties;
+import com.example.agent.capabilities.tools.mcp.McpToolClient;
+import com.example.agent.capabilities.tools.mcp.McpToolListRequest;
+import com.example.agent.capabilities.tools.mcp.McpToolListResponse;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -135,6 +142,45 @@ class McpToolClientTest {
                 () -> client.listTools(request, new TenantContext("t1", "u1", List.of(), "req", "trace")));
 
         assertEquals("MCP_RESPONSE_TOO_LARGE", ex.getErrorCode());
+    }
+
+    @Test
+    void fallsBackToJdkClientWhenWebClientTimeout() throws Exception {
+        HttpServer fakeServer = HttpServer.create(new InetSocketAddress("127.0.0.1", 0), 0);
+        fakeServer.createContext("/mcp/test/tools/list", exchange -> {
+            byte[] body = "{\"tools\":[],\"hasMore\":false}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().add("Content-Type", "application/json");
+            exchange.sendResponseHeaders(200, body.length);
+            try (OutputStream output = exchange.getResponseBody()) {
+                output.write(body);
+            }
+        });
+        fakeServer.start();
+        try {
+            int port = fakeServer.getAddress().getPort();
+            McpServerProperties serverProperties = new McpServerProperties();
+            McpServerProperties.McpServer server = new McpServerProperties.McpServer();
+            server.setId("mcp-default");
+            server.setBaseUrl("http://127.0.0.1:" + port + "/mcp/test");
+            server.setAllowedHosts(List.of("127.0.0.1"));
+            serverProperties.setServers(List.of(server));
+
+            ExchangeFunction timeoutExchange = request -> Mono.error(new java.util.concurrent.TimeoutException("simulated timeout"));
+            McpToolClient client = buildClient(serverProperties, timeoutExchange);
+            ReflectionTestUtils.setField(client, "remoteEnabled", true);
+            ReflectionTestUtils.setField(client, "timeoutSeconds", 2L);
+
+            McpToolListRequest request = new McpToolListRequest();
+            request.setServerId("mcp-default");
+
+            McpToolListResponse response = client.listTools(request,
+                    new TenantContext("t1", "u1", List.of(), "req", "trace"));
+
+            assertEquals(0, response.getTools().size());
+            assertEquals(false, response.isHasMore());
+        } finally {
+            fakeServer.stop(0);
+        }
     }
 
     private McpToolClient buildClient(McpServerProperties properties, ExchangeFunction exchangeFunction) {

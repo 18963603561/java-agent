@@ -1,7 +1,12 @@
 package com.example.agent.context;
 
-import com.example.agent.model.DefaultPromptTemplate;
+import com.example.agent.capabilities.llm.DefaultPromptTemplate;
 import org.junit.jupiter.api.Test;
+import com.example.agent.capabilities.context.ContextSnapshot;
+import com.example.agent.capabilities.context.DefaultContextAssembler;
+import com.example.agent.capabilities.context.PromptAssemblyInput;
+import com.example.agent.capabilities.context.RoleBoundary;
+import com.example.agent.capabilities.context.RuntimeMeta;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

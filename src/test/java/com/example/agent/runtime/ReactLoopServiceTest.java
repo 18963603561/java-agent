@@ -1,20 +1,20 @@
 package com.example.agent.runtime;
 
-import com.example.agent.agentcore.EnforcementGateway;
-import com.example.agent.auth.TenantContext;
-import com.example.agent.common.TaskRequest;
-import com.example.agent.domain.event.EventType;
-import com.example.agent.domain.event.StreamEvent;
-import com.example.agent.memory.MemoryWriteService;
-import com.example.agent.model.ModelInvocationService;
-import com.example.agent.model.ModelResponse;
-import com.example.agent.model.ModelToolResolver;
-import com.example.agent.model.PromptAssembler;
-import com.example.agent.observability.TracingPublisher;
-import com.example.agent.repair.JsonOutputRepairService;
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.streaming.EventStreamService;
-import com.example.agent.tools.hook.HookManager;
+import com.example.agent.capabilities.tools.enforcement.EnforcementGateway;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
+import com.example.agent.capabilities.memory.MemoryWriteService;
+import com.example.agent.capabilities.llm.ModelInvocationService;
+import com.example.agent.capabilities.llm.ModelResponse;
+import com.example.agent.capabilities.llm.ModelToolResolver;
+import com.example.agent.capabilities.llm.PromptAssembler;
+import com.example.agent.streaming.observability.TracingPublisher;
+import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.streaming.sse.EventStreamService;
+import com.example.agent.capabilities.tools.hook.HookManager;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
@@ -25,6 +25,11 @@ import org.mockito.Mockito;
 import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import com.example.agent.runtime.control.ExecutionControlService;
+import com.example.agent.runtime.engine.ReactLoopService;
+import com.example.agent.runtime.engine.ReactRuntimeProperties;
+import com.example.agent.runtime.control.ExecutionControlState;
+import com.example.agent.runtime.engine.ReactLoopResult;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -370,12 +375,12 @@ class ReactLoopServiceTest {
         service.run(request, new TenantContext("t-1", "u-1", List.of(), "req", "trace"),
                 "wf-1", "task-1", new AtomicLong(0));
 
-        ArgumentCaptor<com.example.agent.model.ModelRequest> captor = ArgumentCaptor.forClass(
-                com.example.agent.model.ModelRequest.class);
+        ArgumentCaptor<com.example.agent.capabilities.llm.ModelRequest> captor = ArgumentCaptor.forClass(
+                com.example.agent.capabilities.llm.ModelRequest.class);
         Mockito.verify(modelInvocationService, Mockito.atLeast(2)).invoke(
-                captor.capture(), eq(com.example.agent.model.ModelScene.PLANNER),
+                captor.capture(), eq(com.example.agent.capabilities.llm.ModelScene.PLANNER),
                 any(), any(), any(), any(), any());
-        List<com.example.agent.model.ModelRequest> captured = captor.getAllValues();
+        List<com.example.agent.capabilities.llm.ModelRequest> captured = captor.getAllValues();
         String prompt = captured.get(captured.size() - 1).getPrompt();
         assertNotNull(prompt);
         assertFalse(prompt.contains("contextSnapshot"));

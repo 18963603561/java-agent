@@ -1,8 +1,8 @@
 package com.example.agent.scheduler;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.common.ErrorCodeException;
-import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.common.error.ErrorCodeException;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;

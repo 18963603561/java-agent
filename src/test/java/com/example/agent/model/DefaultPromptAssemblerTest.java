@@ -1,13 +1,13 @@
 package com.example.agent.model;
 
-import com.example.agent.budget.ContextBudgetAllocation;
-import com.example.agent.budget.ContextSection;
-import com.example.agent.common.TaskRequest;
-import com.example.agent.context.ContextSnapshot;
-import com.example.agent.context.PromptAssemblyInput;
-import com.example.agent.context.RoleBoundary;
-import com.example.agent.memory.TokenEstimator;
-import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.budget.token.ContextBudgetAllocation;
+import com.example.agent.budget.trim.ContextSection;
+import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.capabilities.context.ContextSnapshot;
+import com.example.agent.capabilities.context.PromptAssemblyInput;
+import com.example.agent.capabilities.context.RoleBoundary;
+import com.example.agent.capabilities.memory.TokenEstimator;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.EnumMap;
 import java.util.HashMap;
@@ -15,6 +15,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
+import com.example.agent.capabilities.llm.DefaultPromptAssembler;
+import com.example.agent.capabilities.llm.DefaultPromptTemplate;
+import com.example.agent.capabilities.llm.PromptBundle;
+import com.example.agent.capabilities.llm.PromptRole;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

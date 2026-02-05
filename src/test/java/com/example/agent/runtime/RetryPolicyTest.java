@@ -2,6 +2,7 @@ package com.example.agent.runtime;
 
 import java.time.Duration;
 import org.junit.jupiter.api.Test;
+import com.example.agent.runtime.recovery.RetryPolicy;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 

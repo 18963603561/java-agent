@@ -1,8 +1,8 @@
 package com.example.agent.evaluation;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.domain.event.EventType;
-import com.example.agent.domain.event.StreamEvent;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
@@ -10,6 +10,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import com.example.agent.governance.evaluation.CapabilityBoundaryEvaluator;
+import com.example.agent.governance.evaluation.CapabilityEvaluationInput;
+import com.example.agent.governance.evaluation.CapabilityEvaluationProperties;
+import com.example.agent.governance.evaluation.CapabilityEvaluationResult;
+import com.example.agent.governance.evaluation.CapabilityRiskLevel;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -27,7 +32,7 @@ class CapabilityBoundaryEvaluatorTest {
 
         TestEventPublisher publisher = new TestEventPublisher();
         CapabilityBoundaryEvaluator evaluator = new CapabilityBoundaryEvaluator(
-                properties, publisher, Mockito.mock(com.example.agent.streaming.EventStreamService.class));
+                properties, publisher, Mockito.mock(com.example.agent.streaming.sse.EventStreamService.class));
 
         CapabilityEvaluationInput input = new CapabilityEvaluationInput();
         input.setTaskDescription("请对大型复杂系统进行深入调研并输出综合报告与证据来源，包含风险评估与对比分析");

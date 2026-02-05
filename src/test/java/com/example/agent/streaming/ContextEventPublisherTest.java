@@ -1,15 +1,15 @@
 package com.example.agent.streaming;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.context.ContextSnapshot;
-import com.example.agent.context.EvidenceItem;
-import com.example.agent.context.EvidencePack;
-import com.example.agent.context.EvidenceStats;
-import com.example.agent.context.EvidenceType;
-import com.example.agent.context.WorkingMemory;
-import com.example.agent.domain.event.EventType;
-import com.example.agent.domain.event.StreamEvent;
-import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.capabilities.context.ContextSnapshot;
+import com.example.agent.capabilities.context.EvidenceItem;
+import com.example.agent.capabilities.context.EvidencePack;
+import com.example.agent.capabilities.context.EvidenceStats;
+import com.example.agent.capabilities.context.EvidenceType;
+import com.example.agent.capabilities.context.WorkingMemory;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.ArrayList;
 import java.util.List;
@@ -19,6 +19,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import com.example.agent.streaming.payload.ContextEventPublisher;
+import com.example.agent.streaming.sse.EventStreamService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

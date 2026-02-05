@@ -1,6 +1,6 @@
 package com.example.agent.gateway.controller;
 
-import com.example.agent.budget.TokenUsageInput;
+import com.example.agent.budget.token.TokenUsageInput;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.reactive.AutoConfigureWebTestClient;

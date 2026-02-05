@@ -1,11 +1,11 @@
 package com.example.agent.agentcore;
 
-import com.example.agent.approval.ApprovalProperties;
-import com.example.agent.approval.ApprovalService;
-import com.example.agent.auth.TenantContext;
-import com.example.agent.common.ErrorCodeException;
-import com.example.agent.common.TaskRequest;
-import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.governance.approval.ApprovalProperties;
+import com.example.agent.governance.approval.ApprovalService;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.common.error.ErrorCodeException;
+import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.HashMap;
 import java.util.List;
@@ -21,6 +21,8 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.test.util.ReflectionTestUtils;
+import com.example.agent.capabilities.tools.enforcement.EnforcementGateway;
+import com.example.agent.capabilities.tools.execution.ToolExecutor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

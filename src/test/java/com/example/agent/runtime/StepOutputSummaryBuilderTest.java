@@ -4,6 +4,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import com.example.agent.runtime.engine.StepRecord;
+import com.example.agent.runtime.engine.StepState;
+import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
+import com.example.agent.runtime.summary.StepSummaryProperties;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

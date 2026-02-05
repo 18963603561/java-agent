@@ -1,20 +1,22 @@
 package com.example.agent.research;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.model.ModelInvocationService;
-import com.example.agent.model.ModelRequest;
-import com.example.agent.model.ModelResponse;
-import com.example.agent.model.ModelScene;
-import com.example.agent.model.PromptAssembler;
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.repair.JsonOutputRepairService;
-import com.example.agent.streaming.EventStreamService;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.capabilities.llm.ModelInvocationService;
+import com.example.agent.capabilities.llm.ModelRequest;
+import com.example.agent.capabilities.llm.ModelResponse;
+import com.example.agent.capabilities.llm.ModelScene;
+import com.example.agent.capabilities.llm.PromptAssembler;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
+import com.example.agent.streaming.sse.EventStreamService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEventPublisher;
+import com.example.agent.capabilities.context.research.ResearchCitation;
+import com.example.agent.capabilities.context.research.ResearchPipeline;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

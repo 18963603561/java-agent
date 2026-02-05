@@ -1,12 +1,14 @@
 package com.example.agent.model;
 
-import com.example.agent.context.AuditMetadata;
-import com.example.agent.context.BudgetState;
-import com.example.agent.context.ContextSnapshot;
-import com.example.agent.context.RoleBoundary;
-import com.example.agent.context.RuntimeMeta;
+import com.example.agent.capabilities.context.AuditMetadata;
+import com.example.agent.capabilities.context.BudgetState;
+import com.example.agent.capabilities.context.ContextSnapshot;
+import com.example.agent.capabilities.context.RoleBoundary;
+import com.example.agent.capabilities.context.RuntimeMeta;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import com.example.agent.capabilities.llm.PromptMessage;
+import com.example.agent.capabilities.llm.DefaultPromptTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

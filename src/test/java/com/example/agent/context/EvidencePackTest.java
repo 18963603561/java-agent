@@ -4,6 +4,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import com.example.agent.capabilities.context.EvidenceItem;
+import com.example.agent.capabilities.context.EvidencePack;
+import com.example.agent.capabilities.context.EvidenceStats;
+import com.example.agent.capabilities.context.EvidenceType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

@@ -1,20 +1,25 @@
 package com.example.agent.budget;
 
-import com.example.agent.context.Citation;
-import com.example.agent.context.ContextPolicy;
-import com.example.agent.context.ContextSnapshot;
-import com.example.agent.context.DomainKnowledge;
-import com.example.agent.context.EvidenceItem;
-import com.example.agent.context.EvidencePack;
-import com.example.agent.context.LongTermMemory;
-import com.example.agent.context.MemoryRef;
-import com.example.agent.context.WorkingMemory;
-import com.example.agent.memory.TokenEstimator;
-import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.capabilities.context.Citation;
+import com.example.agent.capabilities.context.ContextPolicy;
+import com.example.agent.capabilities.context.ContextSnapshot;
+import com.example.agent.capabilities.context.DomainKnowledge;
+import com.example.agent.capabilities.context.EvidenceItem;
+import com.example.agent.capabilities.context.EvidencePack;
+import com.example.agent.capabilities.context.LongTermMemory;
+import com.example.agent.capabilities.context.MemoryRef;
+import com.example.agent.capabilities.context.WorkingMemory;
+import com.example.agent.capabilities.memory.TokenEstimator;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.EnumMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
+import com.example.agent.budget.token.ContextBudgetAllocation;
+import com.example.agent.budget.trim.ContextPruneRequest;
+import com.example.agent.budget.trim.ContextPruneResult;
+import com.example.agent.budget.trim.ContextSection;
+import com.example.agent.budget.trim.DefaultContextPruner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

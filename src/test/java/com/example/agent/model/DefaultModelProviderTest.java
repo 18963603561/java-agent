@@ -6,6 +6,13 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.web.reactive.function.client.WebClient;
+import com.example.agent.capabilities.llm.DefaultModelProvider;
+import com.example.agent.capabilities.llm.ModelRequest;
+import com.example.agent.capabilities.llm.ModelScene;
+import com.example.agent.capabilities.llm.ModelToolChoice;
+import com.example.agent.capabilities.llm.ModelToolDefinition;
+import com.example.agent.capabilities.llm.PromptMessage;
+import com.example.agent.capabilities.llm.PromptRole;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

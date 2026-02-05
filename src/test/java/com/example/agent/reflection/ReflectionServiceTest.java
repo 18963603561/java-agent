@@ -1,15 +1,15 @@
 package com.example.agent.reflection;
 
-import com.example.agent.auth.TenantContext;
-import com.example.agent.model.ModelInvocationService;
-import com.example.agent.model.ModelRequest;
-import com.example.agent.model.ModelResponse;
-import com.example.agent.model.ModelScene;
-import com.example.agent.model.ModelToolResolver;
-import com.example.agent.model.PromptAssembler;
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.runtime.model.plan.StepSpec;
-import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.capabilities.llm.ModelInvocationService;
+import com.example.agent.capabilities.llm.ModelRequest;
+import com.example.agent.capabilities.llm.ModelResponse;
+import com.example.agent.capabilities.llm.ModelScene;
+import com.example.agent.capabilities.llm.ModelToolResolver;
+import com.example.agent.capabilities.llm.PromptAssembler;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.runtime.model.StepSpec;
+import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;

@@ -1,16 +1,23 @@
 package com.example.agent.runtime;
 
-import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.observability.TracingPublisher;
-import com.example.agent.runtime.model.result.StepResult;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.streaming.observability.TracingPublisher;
+import com.example.agent.runtime.model.StepResult;
 import com.example.agent.runtime.structured.GenericStructuredExtractor;
 import com.example.agent.runtime.structured.StructuredExtractorRegistry;
-import com.example.agent.streaming.EventStreamService;
+import com.example.agent.streaming.sse.EventStreamService;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEventPublisher;
+import com.example.agent.runtime.engine.StepRecord;
+import com.example.agent.runtime.engine.StepRecordRepository;
+import com.example.agent.runtime.engine.StepRuntimeService;
+import com.example.agent.runtime.engine.StepState;
+import com.example.agent.runtime.raw.RawOutputEnvelopeBuilder;
+import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
+import com.example.agent.runtime.summary.StepSummaryProperties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

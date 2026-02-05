@@ -1,14 +1,19 @@
 package com.example.agent.tools;
 
-import com.example.agent.agentcore.ToolCache;
-import com.example.agent.agentcore.ToolRegistry;
-import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.capabilities.tools.registry.ToolCache;
+import com.example.agent.capabilities.tools.registry.ToolRegistry;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
+import com.example.agent.capabilities.tools.DefaultToolCatalog;
+import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
+import com.example.agent.capabilities.tools.mcp.McpToolSyncService;
+import com.example.agent.capabilities.tools.ToolQuery;
+import com.example.agent.capabilities.tools.ToolSummary;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
