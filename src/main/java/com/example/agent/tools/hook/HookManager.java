@@ -77,26 +77,65 @@ public class HookManager {
                     decision.getReason());
             throw new ErrorCodeException(HttpStatus.CONFLICT, "HOOK_BLOCKED", decision.getReason());
         }
-        publishHookEvent(EventType.HOOK_PRE_TOOL, tenantContext, stepRecord, toolName, decision);
+        publishHookEvent(EventType.HOOK_PRE_TOOL, tenantContext, stepRecord, toolName, decision, null);
     }
 
     public void postTool(TenantContext tenantContext, StepRecord stepRecord, String toolName,
                          Map<String, Object> result) {
         HookDecision decision = executeHooks(HookType.POST_TOOL, tenantContext, stepRecord, toolName,
                 buildPayload(stepRecord, result), false);
-        publishHookEvent(EventType.HOOK_POST_TOOL, tenantContext, stepRecord, toolName, decision);
+        publishHookEvent(EventType.HOOK_POST_TOOL, tenantContext, stepRecord, toolName, decision, result);
     }
 
     public void preStep(TenantContext tenantContext, StepRecord stepRecord) {
         HookDecision decision = executeHooks(HookType.PRE_STEP, tenantContext, stepRecord, null,
                 buildPayload(stepRecord, null), true);
-        publishHookEvent(EventType.HOOK_PRE_STEP, tenantContext, stepRecord, null, decision);
+        publishHookEvent(EventType.HOOK_PRE_STEP, tenantContext, stepRecord, null, decision, null);
     }
 
     public void postStep(TenantContext tenantContext, StepRecord stepRecord) {
         HookDecision decision = executeHooks(HookType.POST_STEP, tenantContext, stepRecord, null,
                 buildPayload(stepRecord, null), false);
-        publishHookEvent(EventType.HOOK_POST_STEP, tenantContext, stepRecord, null, decision);
+        publishHookEvent(EventType.HOOK_POST_STEP, tenantContext, stepRecord, null, decision, null);
+    }
+
+    /**
+     * 记忆召回后置 Hook。
+     *
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param payload 召回结果摘要
+     */
+    public void postRecall(TenantContext tenantContext, String workflowId, Map<String, Object> payload) {
+        HookDecision decision = executeHooks(HookType.POST_RECALL, tenantContext, null, null,
+                payload == null ? Collections.emptyMap() : new HashMap<>(payload), false);
+        publishHookEvent(EventType.HOOK_POST_RECALL, tenantContext, null, null, decision, payload, workflowId);
+    }
+
+    /**
+     * 研究引用后置 Hook。
+     *
+     * @param tenantContext 租户上下文
+     * @param stepRecord 步骤记录
+     * @param payload 研究结果摘要
+     */
+    public void postResearch(TenantContext tenantContext, StepRecord stepRecord, Map<String, Object> payload) {
+        HookDecision decision = executeHooks(HookType.POST_RESEARCH, tenantContext, stepRecord, null,
+                payload == null ? Collections.emptyMap() : new HashMap<>(payload), false);
+        publishHookEvent(EventType.HOOK_POST_RESEARCH, tenantContext, stepRecord, null, decision, payload);
+    }
+
+    /**
+     * 上下文裁剪后置 Hook。
+     *
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param payload 裁剪摘要
+     */
+    public void postTrim(TenantContext tenantContext, String workflowId, Map<String, Object> payload) {
+        HookDecision decision = executeHooks(HookType.POST_TRIM, tenantContext, null, null,
+                payload == null ? Collections.emptyMap() : new HashMap<>(payload), false);
+        publishHookEvent(EventType.HOOK_POST_TRIM, tenantContext, null, null, decision, payload, workflowId);
     }
 
     List<HookRecord> listRecords() {
@@ -269,6 +308,8 @@ public class HookManager {
     private Map<String, Object> buildPayload(StepRecord stepRecord, Map<String, Object> result) {
         Map<String, Object> payload = new HashMap<>();
         if (stepRecord != null) {
+            payload.put("stepId", stepRecord.getStepId());
+            payload.put("workflowId", stepRecord.getWorkflowId());
             if (stepRecord.getType() != null) {
                 payload.put("stepType", stepRecord.getType());
             }
@@ -342,27 +383,44 @@ public class HookManager {
                                   TenantContext tenantContext,
                                   StepRecord stepRecord,
                                   String toolName,
-                                  HookDecision decision) {
-        if (stepRecord == null) {
+                                  HookDecision decision,
+                                  Map<String, Object> detailPayload) {
+        publishHookEvent(type, tenantContext, stepRecord, toolName, decision, detailPayload,
+                stepRecord != null ? stepRecord.getWorkflowId() : null);
+    }
+
+    private void publishHookEvent(EventType type,
+                                  TenantContext tenantContext,
+                                  StepRecord stepRecord,
+                                  String toolName,
+                                  HookDecision decision,
+                                  Map<String, Object> detailPayload,
+                                  String workflowId) {
+        if (tenantContext == null || workflowId == null || workflowId.isBlank()) {
             return;
         }
-        long seq = eventStreamService.nextSequence(tenantContext.getTenantId(), stepRecord.getWorkflowId());
+        long seq = eventStreamService.nextSequence(tenantContext.getTenantId(), workflowId);
         StreamEvent event = new StreamEvent();
-        event.setEventId(stepRecord.getWorkflowId() + ":" + seq);
+        event.setEventId(workflowId + ":" + seq);
         event.setSchemaVersion("v1");
-        event.setWorkflowId(stepRecord.getWorkflowId());
+        event.setWorkflowId(workflowId);
         event.setType(type);
         event.setTimestamp(Instant.now());
         event.setSeq(seq);
-        event.setStreamId(stepRecord.getWorkflowId());
+        event.setStreamId(workflowId);
         event.setTenantId(tenantContext.getTenantId());
         Map<String, Object> payload = new HashMap<>();
-        payload.put("stepId", stepRecord.getStepId());
+        if (stepRecord != null) {
+            payload.put("stepId", stepRecord.getStepId());
+        }
         if (toolName != null) {
             payload.put("toolName", toolName);
         }
-        payload.put("allowed", decision.isAllowed());
-        payload.put("reason", decision.getReason());
+        payload.put("allowed", decision != null && decision.isAllowed());
+        payload.put("reason", decision != null ? decision.getReason() : "unknown");
+        if (detailPayload != null && !detailPayload.isEmpty()) {
+            payload.putAll(detailPayload);
+        }
         event.setPayload(payload);
         eventPublisher.publishEvent(event);
     }

@@ -8,7 +8,7 @@ import com.example.agent.model.ModelScene;
 import com.example.agent.model.ModelToolResolver;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.observability.MetricsPublisher;
-import com.example.agent.runtime.StepRequest;
+import com.example.agent.runtime.model.plan.StepSpec;
 import com.example.agent.repair.JsonOutputRepairService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -43,7 +43,7 @@ class ReflectionServiceTest {
         ReflectionService service = new ReflectionService(properties, metricsPublisher,
                 modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper(), Mockito.mock(JsonOutputRepairService.class));
 
-        StepRequest step = new StepRequest("TOOL", Map.of("critical", true));
+        StepSpec step = new StepSpec("TOOL", Map.of("critical", true));
         Map<String, Object> output = Map.of("error", "failed");
 
         ReflectionResult result = service.reflect(step, output,
@@ -66,7 +66,7 @@ class ReflectionServiceTest {
         ReflectionService service = new ReflectionService(properties, metricsPublisher,
                 modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper(), Mockito.mock(JsonOutputRepairService.class));
 
-        StepRequest step = new StepRequest("TOOL", Map.of("critical", true));
+        StepSpec step = new StepSpec("TOOL", Map.of("critical", true));
         Map<String, Object> output = Map.of("error", "failed");
 
         ReflectionResult result = service.reflect(step, output,
@@ -94,7 +94,7 @@ class ReflectionServiceTest {
                 any(TenantContext.class), any(), any(), eq("reflect"), any()))
                 .thenReturn(new ModelResponse("reflect", content, 10, 5));
 
-        StepRequest step = new StepRequest("TOOL", Map.of("critical", true));
+        StepSpec step = new StepSpec("TOOL", Map.of("critical", true));
         Map<String, Object> output = Map.of("result", "ok");
 
         ReflectionResult result = service.reflect(step, output,
@@ -125,7 +125,7 @@ class ReflectionServiceTest {
                 .thenReturn(new ModelResponse("reflect", badContent, 10, 20),
                         new ModelResponse("repair", repaired, 10, 20));
 
-        StepRequest step = new StepRequest("TOOL", Map.of());
+        StepSpec step = new StepSpec("TOOL", Map.of());
         ReflectionResult result = service.reflect(step, Map.of("answer", "ok"),
                 new TenantContext("t-1", "u-1", List.of(), "req", "trace"), 1, "wf-1",
                 new java.util.concurrent.atomic.AtomicLong(0));
@@ -156,7 +156,7 @@ class ReflectionServiceTest {
                 .thenReturn(new ModelResponse("reflect", badContent, 10, 20),
                         new ModelResponse("repair", "", 10, 20));
 
-        StepRequest step = new StepRequest("TOOL", Map.of());
+        StepSpec step = new StepSpec("TOOL", Map.of());
         ReflectionResult result = service.reflect(step, Map.of(),
                 new TenantContext("t-1", "u-1", List.of(), "req", "trace"), 1, "wf-1",
                 new java.util.concurrent.atomic.AtomicLong(0));
@@ -185,7 +185,7 @@ class ReflectionServiceTest {
                 any(TenantContext.class), any(), any(), eq("reflect"), any()))
                 .thenReturn(new ModelResponse("reflect", content, 10, 5));
 
-        StepRequest step = new StepRequest("TOOL", Map.of());
+        StepSpec step = new StepSpec("TOOL", Map.of());
         Map<String, Object> output = Map.of(
                 "contextSnapshot", "big",
                 "contextBudget", "big",
@@ -244,7 +244,7 @@ class ReflectionServiceTest {
         output.put("evidencePack", "big");
         output.put("tokenUsage", "big");
 
-        StepRequest step = new StepRequest("TOOL", Map.of());
+        StepSpec step = new StepSpec("TOOL", Map.of());
         ReflectionResult result = service.reflect(step, output,
                 new TenantContext("t1", "u1", List.of(), "req", "trace"), 1,
                 "wf-1", new java.util.concurrent.atomic.AtomicLong(0));

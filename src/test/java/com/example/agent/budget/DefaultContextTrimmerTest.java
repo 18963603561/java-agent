@@ -1,10 +1,11 @@
 package com.example.agent.budget;
 
 import com.example.agent.context.ContextSnapshot;
+import com.example.agent.context.EvidenceItem;
 import com.example.agent.context.EvidencePack;
+import com.example.agent.context.EvidenceType;
 import com.example.agent.context.LongTermMemory;
 import com.example.agent.context.MemoryRef;
-import com.example.agent.context.ToolCallEvidence;
 import com.example.agent.context.WorkingMemory;
 import com.example.agent.memory.TokenEstimator;
 import com.example.agent.observability.MetricsPublisher;
@@ -92,12 +93,14 @@ class DefaultContextTrimmerTest {
         ContextBudgetProperties properties = new ContextBudgetProperties();
         DefaultContextTrimmer trimmer = buildTrimmer(properties);
 
-        ToolCallEvidence call = new ToolCallEvidence();
-        call.setToolName("tool-a");
-        call.setResultDigest("a".repeat(400));
+        EvidenceItem call = new EvidenceItem();
+        call.setEvidenceId("ev-1");
+        call.setType(EvidenceType.TOOL_RESULT);
+        call.setSource("tool-a");
+        call.setDigest("a".repeat(400));
 
         EvidencePack pack = new EvidencePack();
-        pack.setToolCalls(List.of(call));
+        pack.setEvidences(List.of(call));
 
         WorkingMemory workingMemory = new WorkingMemory();
         workingMemory.setSummary("b".repeat(80));
@@ -130,7 +133,7 @@ class DefaultContextTrimmerTest {
         ContextBudgetAllocation allocation = buildAllocation(totalBudget, sectionTokens);
 
         String originalSummary = workingMemory.getSummary();
-        int originalDigestLength = call.getResultDigest().length();
+        int originalDigestLength = call.getDigest().length();
 
         ContextTrimResult result = trimmer.trim(new ContextTrimRequest(snapshot, allocation, new ContextBudgetPolicy()));
 
@@ -138,8 +141,8 @@ class DefaultContextTrimmerTest {
         assertEquals(1, result.getTrimmedSnapshot().getLongTermMemory().getMemoryRefs().size());
 
         EvidencePack trimmedPack = result.getTrimmedSnapshot().getWorkingMemory().getEvidencePack();
-        List<ToolCallEvidence> calls = trimmedPack != null ? trimmedPack.getToolCalls() : null;
-        assertTrue(calls == null || calls.isEmpty() || calls.get(0).getResultDigest().length() < originalDigestLength);
+        List<EvidenceItem> calls = trimmedPack != null ? trimmedPack.getEvidences() : null;
+        assertTrue(calls == null || calls.isEmpty() || calls.get(0).getDigest().length() < originalDigestLength);
     }
 
     @Test
@@ -190,14 +193,14 @@ class DefaultContextTrimmerTest {
         return total;
     }
 
-    private int estimateToolCallTokens(TokenEstimator estimator, ToolCallEvidence evidence) {
+    private int estimateToolCallTokens(TokenEstimator estimator, EvidenceItem evidence) {
         int total = 0;
-        total += estimator.estimateTokens(evidence.getToolName());
-        total += estimator.estimateTokens(evidence.getArgsDigest());
-        total += estimator.estimateTokens(evidence.getResultDigest());
-        total += estimator.estimateTokens(evidence.getStatus());
-        total += estimator.estimateTokens(evidence.getErrorCode());
-        total += estimator.estimateTokens(evidence.getToolCallId());
+        total += estimator.estimateTokens(evidence.getType() != null ? evidence.getType().name() : null);
+        total += estimator.estimateTokens(evidence.getEvidenceId());
+        total += estimator.estimateTokens(evidence.getStepId());
+        total += estimator.estimateTokens(evidence.getSource());
+        total += estimator.estimateTokens(evidence.getRef());
+        total += estimator.estimateTokens(evidence.getDigest());
         return total;
     }
 }

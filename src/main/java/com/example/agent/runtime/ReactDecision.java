@@ -37,6 +37,11 @@ public class ReactDecision {
      */
     private String finalAnswer;
 
+    /**
+     * 本次决策模型原始输出引用。
+     */
+    private String rawRef;
+
     public String getAction() {
         return action;
     }
@@ -83,6 +88,14 @@ public class ReactDecision {
 
     public void setFinalAnswer(String finalAnswer) {
         this.finalAnswer = finalAnswer;
+    }
+
+    public String getRawRef() {
+        return rawRef;
+    }
+
+    public void setRawRef(String rawRef) {
+        this.rawRef = rawRef;
     }
 
     /**

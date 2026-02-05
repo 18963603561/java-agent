@@ -1,87 +1,61 @@
 package com.example.agent.context;
 
 import com.example.agent.observability.MetricsPublisher;
+import com.example.agent.research.ResearchCitation;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 /**
- * 证据包聚合器，用于创建与追加证据信息并维护统计数据。
+ * 证据包服务，负责证据包创建、追加和统计索引维护。
  */
 @Service
 public class EvidencePackService {
 
     /**
-     * 上下文中保存证据包的键名。
+     * 运行上下文中的证据包键。
      */
     public static final String CONTEXT_EVIDENCE_PACK = "evidencePack";
 
     private static final Logger log = LoggerFactory.getLogger(EvidencePackService.class);
-    /**
-     * 引用标签的最大长度，避免提示词膨胀。
-     */
-    private static final int MAX_CITATION_LABEL_CHARS = 120;
-    /**
-     * 引用标识的最大长度，避免索引过长。
-     */
-    private static final int MAX_CITATION_REF_ID_CHARS = 200;
-    /**
-     * 引用来源字段的最大长度。
-     */
-    private static final int MAX_CITATION_SOURCE_CHARS = 64;
 
-    /**
-     * 指标发布器，用于记录证据包统计信息。
-     */
     private final MetricsPublisher metricsPublisher;
+    private final Map<String, EvidencePack> packStore = new ConcurrentHashMap<>();
 
-    /**
-     * 构造证据包服务。
-     *
-     * @param metricsPublisher 指标发布器
-     */
     public EvidencePackService(MetricsPublisher metricsPublisher) {
         this.metricsPublisher = metricsPublisher;
     }
 
     /**
-     * 创建证据包并初始化基础元信息。
-     *
-     * @param tenantId 租户标识
-     * @param workflowId 工作流标识
-     * @param snapshotId 快照标识
-     * @return 新证据包
+     * 创建证据包。
      */
     public EvidencePack createPack(String tenantId, String workflowId, String snapshotId) {
         EvidencePack pack = new EvidencePack();
-        // 写入关联标识，便于回溯
+        pack.setPackId("ep-" + UUID.randomUUID());
         pack.setTenantId(tenantId);
         pack.setWorkflowId(workflowId);
         pack.setSnapshotId(snapshotId);
-        // 使用当前时间作为创建时间
         pack.setCreatedAt(Instant.now());
+        pack.setEvidences(new ArrayList<>());
+        pack.setIndex(new EvidenceIndex());
         return pack;
     }
 
     /**
-     * 从上下文获取或创建证据包，并写回上下文。
-     *
-     * @param context 运行上下文
-     * @param tenantId 租户标识
-     * @param workflowId 工作流标识
-     * @param snapshotId 快照标识
-     * @return 证据包实例
+     * 从上下文读取或创建证据包。
      */
     public EvidencePack getOrCreatePack(Map<String, Object> context,
                                         String tenantId,
                                         String workflowId,
                                         String snapshotId) {
         EvidencePack pack = null;
-        // 先尝试从上下文取已有证据包
         if (context != null) {
             Object value = context.get(CONTEXT_EVIDENCE_PACK);
             if (value instanceof EvidencePack evidencePack) {
@@ -89,18 +63,34 @@ public class EvidencePackService {
             }
         }
         if (pack == null) {
-            // 没有则创建并尝试写回上下文
-            pack = createPack(tenantId, workflowId, snapshotId);
+            pack = getOrCreatePack(tenantId, workflowId, snapshotId);
             if (context != null) {
-                // 可能是不可变上下文，因此需要捕获写入异常
-                try {
-                    context.put(CONTEXT_EVIDENCE_PACK, pack);
-                } catch (UnsupportedOperationException ex) {
-                    // 忽略不可变上下文的写入失败，避免影响主流程。
-                }
+                context.put(CONTEXT_EVIDENCE_PACK, pack);
             }
-        } else {
-            // 如果已有证据包缺少标识，则补齐
+        }
+        if (tenantId != null && (pack.getTenantId() == null || pack.getTenantId().isBlank())) {
+            pack.setTenantId(tenantId);
+        }
+        if (workflowId != null && (pack.getWorkflowId() == null || pack.getWorkflowId().isBlank())) {
+            pack.setWorkflowId(workflowId);
+        }
+        if (snapshotId != null && !snapshotId.isBlank()
+                && (pack.getSnapshotId() == null || pack.getSnapshotId().isBlank())) {
+            pack.setSnapshotId(snapshotId);
+        }
+        return pack;
+    }
+
+    /**
+     * 按租户与工作流获取或创建证据包。
+     */
+    public EvidencePack getOrCreatePack(String tenantId, String workflowId, String snapshotId) {
+        String key = buildStoreKey(tenantId, workflowId);
+        return packStore.compute(key, (ignored, existing) -> {
+            EvidencePack pack = existing;
+            if (pack == null) {
+                pack = createPack(tenantId, workflowId, snapshotId);
+            }
             if (tenantId != null && (pack.getTenantId() == null || pack.getTenantId().isBlank())) {
                 pack.setTenantId(tenantId);
             }
@@ -111,224 +101,218 @@ public class EvidencePackService {
                     && (pack.getSnapshotId() == null || pack.getSnapshotId().isBlank())) {
                 pack.setSnapshotId(snapshotId);
             }
-        }
-        return pack;
+            return pack;
+        });
     }
 
     /**
-     * 追加工具调用证据。
-     *
-     * @param pack 证据包
-     * @param evidence 工具调用证据
-     * @param tenantId 租户标识
-     * @param workflowId 工作流标识
+     * 按租户与工作流查询证据包。
      */
-    public void addToolCall(EvidencePack pack,
-                            ToolCallEvidence evidence,
-                            String tenantId,
-                            String workflowId) {
-        if (pack == null || evidence == null) {
-            return;
-        }
-        // 证据包可能被多线程访问，写入时加锁
-        synchronized (pack) {
-            if (pack.getToolCalls() == null) {
-                pack.setToolCalls(new CopyOnWriteArrayList<>());
-            }
-            pack.getToolCalls().add(evidence);
-        }
-        // 指标与日志仅记录概要，不记录正文
-        metricsPublisher.increment("evidence_pack_tool_calls_total");
-        log.info("evidence tool append tenantId={}, workflowId={}, toolName={}, status={}, durationMs={}",
-                tenantId,
-                workflowId,
-                evidence.getToolName(),
-                evidence.getStatus(),
-                evidence.getDurationMs());
+    public EvidencePack getPack(String tenantId, String workflowId) {
+        return packStore.get(buildStoreKey(tenantId, workflowId));
     }
 
     /**
-     * 追加记忆引用证据列表。
-     *
-     * @param pack 证据包
-     * @param memories 记忆证据列表
-     * @param tenantId 租户标识
-     * @param workflowId 工作流标识
+     * 追加工具证据。
      */
-    public void addMemoriesUsed(EvidencePack pack,
-                                List<MemoryEvidence> memories,
-                                String tenantId,
-                                String workflowId) {
-        if (pack == null || memories == null || memories.isEmpty()) {
-            return;
-        }
-        // 证据包可能被多线程访问，写入时加锁
-        synchronized (pack) {
-            if (pack.getMemoriesUsed() == null) {
-                pack.setMemoriesUsed(new CopyOnWriteArrayList<>());
-            }
-            pack.getMemoriesUsed().addAll(memories);
-        }
-        // 按数量累计指标
-        for (int i = 0; i < memories.size(); i++) {
-            metricsPublisher.increment("evidence_pack_memories_used_total");
-        }
-        log.info("evidence memory append tenantId={}, workflowId={}, memoriesAddedCount={}",
-                tenantId,
-                workflowId,
-                memories.size());
+    public EvidenceItem appendToolResult(EvidencePack pack,
+                                         String stepId,
+                                         String toolName,
+                                         String ref,
+                                         String digest,
+                                         String tenantId,
+                                         String workflowId) {
+        return appendEvidence(pack, buildItem(EvidenceType.TOOL_RESULT, stepId, toolName, ref, digest),
+                tenantId, workflowId);
     }
 
     /**
-     * 结束聚合并刷新统计数据。
-     *
-     * @param pack 证据包
-     * @param tenantId 租户标识
-     * @param workflowId 工作流标识
-     * @return 刷新后的证据包
+     * 追加记忆证据。
      */
-    /**
-     * 追加研究引用证据并刷新统计信息。
-     *
-     * @param pack 证据包
-     * @param citations 研究引用列表
-     * @param tenantId 租户标识
-     * @param workflowId 工作流标识
-     * @param stage 引用来源阶段
-     */
-    public void addResearchCitations(EvidencePack pack,
-                                     List<com.example.agent.research.ResearchCitation> citations,
+    public EvidenceItem appendMemory(EvidencePack pack,
+                                     String stepId,
+                                     String source,
+                                     String ref,
+                                     String digest,
                                      String tenantId,
-                                     String workflowId,
-                                     String stage) {
-        if (citations == null || citations.isEmpty()) {
-            return;
-        }
-        List<Citation> mapped = mapResearchCitations(citations);
-        addCitations(pack, mapped, tenantId, workflowId, stage);
+                                     String workflowId) {
+        return appendEvidence(pack, buildItem(EvidenceType.MEMORY, stepId, source, ref, digest),
+                tenantId, workflowId);
     }
 
     /**
-     * 追加引用证据并刷新统计信息。
-     *
-     * @param pack 证据包
-     * @param citations 引用列表
-     * @param tenantId 租户标识
-     * @param workflowId 工作流标识
-     * @param stage 引用来源阶段
+     * 追加研究证据。
      */
-    public void addCitations(EvidencePack pack,
-                             List<Citation> citations,
-                             String tenantId,
-                             String workflowId,
-                             String stage) {
-        if (pack == null || citations == null || citations.isEmpty()) {
-            return;
-        }
-        // 写入引用列表并保证线程安全
-        synchronized (pack) {
-            if (pack.getCitations() == null) {
-                pack.setCitations(new CopyOnWriteArrayList<>());
-            }
-            pack.getCitations().addAll(citations);
-        }
-        int addedCount = citations.size();
-        // 累计新增引用数量
-        for (int i = 0; i < addedCount; i++) {
-            metricsPublisher.increment("evidence_pack_citations_added_total");
-        }
-        // 重新计算统计，确保数量一致
-        EvidenceStats stats = pack.recomputeStats();
-        int totalCount = stats != null && stats.getCitationsCount() != null ? stats.getCitationsCount() : 0;
-        // 阶段信息用于多阶段归因
-        String stageTag = stage == null || stage.isBlank() ? "unknown" : stage;
-        metricsPublisher.incrementWithTags("evidence_pack_citations_total", totalCount, "stage", stageTag);
-        log.info("evidence citations append tenantId={}, workflowId={}, citationsAddedCount={}, citationsTotalCount={}",
-                tenantId,
-                workflowId,
-                addedCount,
-                totalCount);
+    public EvidenceItem appendResearch(EvidencePack pack,
+                                       String stepId,
+                                       String source,
+                                       String ref,
+                                       String digest,
+                                       String tenantId,
+                                       String workflowId) {
+        return appendEvidence(pack, buildItem(EvidenceType.RESEARCH, stepId, source, ref, digest),
+                tenantId, workflowId);
     }
 
     /**
-     * 结束聚合并刷新统计数据。
-     *
-     * @param pack 证据包
-     * @param tenantId 租户标识
-     * @param workflowId 工作流标识
-     * @return 刷新后的证据包
+     * 追加裁剪证据。
+     */
+    public EvidenceItem appendTruncation(EvidencePack pack,
+                                         String stepId,
+                                         String source,
+                                         String ref,
+                                         String digest,
+                                         String tenantId,
+                                         String workflowId) {
+        return appendEvidence(pack, buildItem(EvidenceType.CONTEXT_TRUNCATION, stepId, source, ref, digest),
+                tenantId, workflowId);
+    }
+
+    /**
+     * 追加研究引用列表。
+     */
+    public List<EvidenceItem> appendResearchCitations(EvidencePack pack,
+                                                      String stepId,
+                                                      List<ResearchCitation> citations,
+                                                      String tenantId,
+                                                      String workflowId) {
+        List<EvidenceItem> appended = new ArrayList<>();
+        if (citations == null || citations.isEmpty()) {
+            return appended;
+        }
+        for (ResearchCitation citation : citations) {
+            if (citation == null) {
+                continue;
+            }
+            String source = trimText(citation.getSource(), 96);
+            String digest = trimText(citation.getSnippet(), 160);
+            String ref = buildCitationRef(citation);
+            EvidenceItem item = appendResearch(pack, stepId, source, ref, digest, tenantId, workflowId);
+            if (item != null) {
+                appended.add(item);
+            }
+        }
+        finalizePack(pack, tenantId, workflowId);
+        return appended;
+    }
+
+    /**
+     * 通用追加证据。
+     */
+    public EvidenceItem appendEvidence(EvidencePack pack,
+                                       EvidenceItem item,
+                                       String tenantId,
+                                       String workflowId) {
+        if (pack == null || item == null) {
+            return null;
+        }
+        synchronized (pack) {
+            if (item.getEvidenceId() == null || item.getEvidenceId().isBlank()) {
+                item.setEvidenceId(buildEvidenceId(item.getType()));
+            }
+            if (item.getCreatedAt() == null) {
+                item.setCreatedAt(Instant.now());
+            }
+            pack.append(item);
+            rebuildIndex(pack);
+            pack.recomputeStats();
+        }
+        metricsPublisher.increment("evidence_pack_append_total");
+        log.info("evidence append tenantId={}, workflowId={}, type={}, stepId={}, ref={} ",
+                tenantId, workflowId, item.getType(), item.getStepId(), item.getRef());
+        return item;
+    }
+
+    /**
+     * 完成证据包统计。
      */
     public EvidencePack finalizePack(EvidencePack pack, String tenantId, String workflowId) {
         if (pack == null) {
             return null;
         }
-        EvidenceStats stats;
-        // 统计计算需要在锁内完成，避免并发修改
         synchronized (pack) {
-            stats = pack.recomputeStats();
+            rebuildIndex(pack);
+            pack.recomputeStats();
         }
-        // 指标与日志只输出统计摘要
         metricsPublisher.increment("evidence_pack_finalize_total");
-        log.info("evidence finalize tenantId={}, workflowId={}, toolCallsCount={}, memoriesCount={}, citationsCount={}, approxChars={}",
+        log.info("evidence finalize tenantId={}, workflowId={}, totalCount={}, approxChars={}",
                 tenantId,
                 workflowId,
-                stats != null ? stats.getToolCallsCount() : null,
-                stats != null ? stats.getMemoriesCount() : null,
-                stats != null ? stats.getCitationsCount() : null,
-                stats != null ? stats.getApproxChars() : null);
+                pack.getStats() != null ? pack.getStats().getTotalCount() : null,
+                pack.getStats() != null ? pack.getStats().getApproxChars() : null);
         return pack;
     }
 
-    /**
-     * 将研究引用映射为证据引用，并做截断处理。
-     */
-    private List<Citation> mapResearchCitations(List<com.example.agent.research.ResearchCitation> citations) {
-        List<Citation> mapped = new java.util.ArrayList<>();
-        for (com.example.agent.research.ResearchCitation research : citations) {
-            if (research == null) {
-                continue;
-            }
-            // 统一截断，避免过长字段污染提示词
-            String source = trimText(research.getSource(), MAX_CITATION_SOURCE_CHARS);
-            String label = trimText(research.getSnippet(), MAX_CITATION_LABEL_CHARS);
-            // 构造稳定引用标识，便于去重
-            String refId = buildRefId(source, label);
-            Citation citation = new Citation();
-            citation.setType("RESEARCH");
-            citation.setSource(source);
-            citation.setRefId(refId);
-            if (label != null && !label.isBlank()) {
-                citation.setLabel(label);
-            }
-            // 保留原始抓取时间
-            citation.setFetchedAt(research.getFetchedAt());
-            mapped.add(citation);
-        }
-        return mapped;
+    private EvidenceItem buildItem(EvidenceType type,
+                                   String stepId,
+                                   String source,
+                                   String ref,
+                                   String digest) {
+        EvidenceItem item = new EvidenceItem();
+        item.setType(type);
+        item.setStepId(stepId);
+        item.setSource(trimText(source, 96));
+        item.setRef(trimText(ref, 180));
+        item.setDigest(trimText(digest, 240));
+        return item;
     }
 
-    private String buildRefId(String source, String label) {
-        // 优先使用可读网址作为引用标识
-        if (source != null && (source.startsWith("http://") || source.startsWith("https://"))) {
-            return trimText(source, MAX_CITATION_REF_ID_CHARS);
+    private void rebuildIndex(EvidencePack pack) {
+        if (pack == null) {
+            return;
         }
-        // 不满足网址时用来源加摘要哈希拼接
-        String base = source != null && !source.isBlank() ? source : "research";
-        String hash = label != null && !label.isBlank() ? Integer.toHexString(label.hashCode()) : "unknown";
-        return trimText(base + ":" + hash, MAX_CITATION_REF_ID_CHARS);
+        List<EvidenceItem> evidences = pack.getEvidences();
+        EvidenceIndex index = new EvidenceIndex();
+        Map<String, List<String>> byStepId = new LinkedHashMap<>();
+        Map<String, List<String>> byType = new LinkedHashMap<>();
+        if (evidences != null) {
+            for (EvidenceItem item : evidences) {
+                if (item == null || item.getEvidenceId() == null) {
+                    continue;
+                }
+                String stepId = item.getStepId() == null ? "unknown" : item.getStepId();
+                byStepId.computeIfAbsent(stepId, key -> new ArrayList<>()).add(item.getEvidenceId());
+                String type = item.getType() == null ? "UNKNOWN" : item.getType().name();
+                byType.computeIfAbsent(type, key -> new ArrayList<>()).add(item.getEvidenceId());
+            }
+        }
+        index.setByStepId(byStepId);
+        index.setByType(byType);
+        pack.setIndex(index);
+    }
+
+    private String buildEvidenceId(EvidenceType type) {
+        String prefix = type == null ? "unknown" : type.name().toLowerCase();
+        return "ev:" + prefix + ":" + UUID.randomUUID();
+    }
+
+    private String buildCitationRef(ResearchCitation citation) {
+        if (citation == null) {
+            return null;
+        }
+        if (citation.getSource() != null && !citation.getSource().isBlank()) {
+            return trimText(citation.getSource(), 180);
+        }
+        if (citation.getSnippet() != null && !citation.getSnippet().isBlank()) {
+            return "snippet:" + Integer.toHexString(citation.getSnippet().hashCode());
+        }
+        return "citation:" + UUID.randomUUID();
     }
 
     private String trimText(String text, int maxChars) {
-        // 统一处理空值与空白
         if (text == null) {
             return null;
         }
         String trimmed = text.trim();
-        // 最大长度小于等于零时不做截断
-        if (maxChars <= 0 || trimmed.length() <= maxChars) {
+        if (trimmed.length() <= maxChars) {
             return trimmed;
         }
-        // 超长直接截断
         return trimmed.substring(0, maxChars);
+    }
+
+    private String buildStoreKey(String tenantId, String workflowId) {
+        String tenant = tenantId == null ? "unknown" : tenantId;
+        String workflow = workflowId == null ? "unknown" : workflowId;
+        return tenant + ":" + workflow;
     }
 }

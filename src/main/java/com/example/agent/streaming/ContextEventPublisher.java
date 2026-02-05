@@ -227,9 +227,10 @@ public class ContextEventPublisher {
         }
         if (evidenceStats != null) {
             payload.put("evidencePackPresent", evidenceStats.isPresent());
-            payload.put("evidenceToolCallsCount", evidenceStats.getToolCallsCount());
-            payload.put("evidenceMemoriesCount", evidenceStats.getMemoriesCount());
-            payload.put("evidenceCitationsCount", evidenceStats.getCitationsCount());
+            payload.put("evidenceToolCount", evidenceStats.getToolCount());
+            payload.put("evidenceMemoryCount", evidenceStats.getMemoryCount());
+            payload.put("evidenceResearchCount", evidenceStats.getResearchCount());
+            payload.put("evidenceTruncationCount", evidenceStats.getTruncationCount());
             payload.put("evidenceApproxChars", evidenceStats.getApproxChars());
             if (evidenceStats.isPresent() && evidenceStats.getVersion() != null
                     && !evidenceStats.getVersion().isBlank()) {
@@ -289,9 +290,10 @@ public class ContextEventPublisher {
             return;
         }
         payload.setEvidencePackPresent(evidenceStats.isPresent());
-        payload.setEvidenceToolCallsCount(evidenceStats.getToolCallsCount());
-        payload.setEvidenceMemoriesCount(evidenceStats.getMemoriesCount());
-        payload.setEvidenceCitationsCount(evidenceStats.getCitationsCount());
+        payload.setEvidenceToolCount(evidenceStats.getToolCount());
+        payload.setEvidenceMemoryCount(evidenceStats.getMemoryCount());
+        payload.setEvidenceResearchCount(evidenceStats.getResearchCount());
+        payload.setEvidenceTruncationCount(evidenceStats.getTruncationCount());
         payload.setEvidenceApproxChars(evidenceStats.getApproxChars());
         payload.setEvidencePackVersion(evidenceStats.getVersion());
     }
@@ -328,14 +330,17 @@ public class ContextEventPublisher {
         if (payload.getEvidencePackPresent() != null) {
             map.put("evidencePackPresent", payload.getEvidencePackPresent());
         }
-        if (payload.getEvidenceToolCallsCount() != null) {
-            map.put("evidenceToolCallsCount", payload.getEvidenceToolCallsCount());
+        if (payload.getEvidenceToolCount() != null) {
+            map.put("evidenceToolCount", payload.getEvidenceToolCount());
         }
-        if (payload.getEvidenceMemoriesCount() != null) {
-            map.put("evidenceMemoriesCount", payload.getEvidenceMemoriesCount());
+        if (payload.getEvidenceMemoryCount() != null) {
+            map.put("evidenceMemoryCount", payload.getEvidenceMemoryCount());
         }
-        if (payload.getEvidenceCitationsCount() != null) {
-            map.put("evidenceCitationsCount", payload.getEvidenceCitationsCount());
+        if (payload.getEvidenceResearchCount() != null) {
+            map.put("evidenceResearchCount", payload.getEvidenceResearchCount());
+        }
+        if (payload.getEvidenceTruncationCount() != null) {
+            map.put("evidenceTruncationCount", payload.getEvidenceTruncationCount());
         }
         if (payload.getEvidenceApproxChars() != null) {
             map.put("evidenceApproxChars", payload.getEvidenceApproxChars());
@@ -384,7 +389,7 @@ public class ContextEventPublisher {
             summary.setPlanStepCount(resolveSize(workingMemory.getPlanSteps()));
             summary.setRecentToolCallCount(resolveSize(workingMemory.getRecentToolCalls()));
             if (workingMemory.getEvidencePack() != null) {
-                summary.setEvidenceCount(resolveSize(workingMemory.getEvidencePack().getItems()));
+                summary.setEvidenceCount(resolveSize(workingMemory.getEvidencePack().getEvidences()));
             }
         }
 
@@ -455,9 +460,10 @@ public class ContextEventPublisher {
         if (pack.getVersion() != null && !pack.getVersion().isBlank()) {
             stats.setVersion(pack.getVersion());
         }
-        stats.setToolCallsCount(resolveCount(packStats != null ? packStats.getToolCallsCount() : null));
-        stats.setMemoriesCount(resolveCount(packStats != null ? packStats.getMemoriesCount() : null));
-        stats.setCitationsCount(resolveCount(packStats != null ? packStats.getCitationsCount() : null));
+        stats.setToolCount(resolveCount(packStats != null ? packStats.getToolCount() : null));
+        stats.setMemoryCount(resolveCount(packStats != null ? packStats.getMemoryCount() : null));
+        stats.setResearchCount(resolveCount(packStats != null ? packStats.getResearchCount() : null));
+        stats.setTruncationCount(resolveCount(packStats != null ? packStats.getTruncationCount() : null));
         stats.setApproxChars(resolveCount(packStats != null ? packStats.getApproxChars() : null));
         return stats;
     }
@@ -571,8 +577,8 @@ public class ContextEventPublisher {
         EvidenceStatsSummary evidenceStats = resolveEvidenceStats(payload);
         Object snapshotId = payload != null ? payload.get("snapshotId") : null;
         log.info("上下文事件统计, tenantId={}, workflowId={}, snapshotId={}, eventType={}, usedStructuredSummary={}, "
-                        + "summaryVersion={}, summaryChars={}, workingMemoryItems={}, evidenceToolCallsCount={}, "
-                        + "evidenceMemoriesCount={}, evidenceApproxChars={}",
+                        + "summaryVersion={}, summaryChars={}, workingMemoryItems={}, evidenceToolCount={}, "
+                        + "evidenceMemoryCount={}, evidenceResearchCount={}, evidenceTruncationCount={}, evidenceApproxChars={}",
                 tenantContext.getTenantId(),
                 workflowId,
                 snapshotId,
@@ -581,8 +587,10 @@ public class ContextEventPublisher {
                 summaryStats.getSummaryVersion(),
                 summaryStats.getSummaryChars(),
                 summaryStats.getWorkingMemoryItems(),
-                evidenceStats.getToolCallsCount(),
-                evidenceStats.getMemoriesCount(),
+                evidenceStats.getToolCount(),
+                evidenceStats.getMemoryCount(),
+                evidenceStats.getResearchCount(),
+                evidenceStats.getTruncationCount(),
                 evidenceStats.getApproxChars());
         event.setPayload(payload);
         eventPublisher.publishEvent(event);
@@ -620,9 +628,10 @@ public class ContextEventPublisher {
         }
         Object present = payload.get("evidencePackPresent");
         Object version = payload.get("evidencePackVersion");
-        Object toolCallsCount = payload.get("evidenceToolCallsCount");
-        Object memoriesCount = payload.get("evidenceMemoriesCount");
-        Object citationsCount = payload.get("evidenceCitationsCount");
+        Object toolCount = payload.get("evidenceToolCount");
+        Object memoryCount = payload.get("evidenceMemoryCount");
+        Object researchCount = payload.get("evidenceResearchCount");
+        Object truncationCount = payload.get("evidenceTruncationCount");
         Object approxChars = payload.get("evidenceApproxChars");
         if (present instanceof Boolean bool) {
             stats.setPresent(bool);
@@ -630,14 +639,17 @@ public class ContextEventPublisher {
         if (version instanceof String text && !text.isBlank()) {
             stats.setVersion(text);
         }
-        if (toolCallsCount instanceof Number number) {
-            stats.setToolCallsCount(number.intValue());
+        if (toolCount instanceof Number number) {
+            stats.setToolCount(number.intValue());
         }
-        if (memoriesCount instanceof Number number) {
-            stats.setMemoriesCount(number.intValue());
+        if (memoryCount instanceof Number number) {
+            stats.setMemoryCount(number.intValue());
         }
-        if (citationsCount instanceof Number number) {
-            stats.setCitationsCount(number.intValue());
+        if (researchCount instanceof Number number) {
+            stats.setResearchCount(number.intValue());
+        }
+        if (truncationCount instanceof Number number) {
+            stats.setTruncationCount(number.intValue());
         }
         if (approxChars instanceof Number number) {
             stats.setApproxChars(number.intValue());
@@ -695,9 +707,10 @@ public class ContextEventPublisher {
 
         private boolean present;
         private String version;
-        private int toolCallsCount;
-        private int memoriesCount;
-        private int citationsCount;
+        private int toolCount;
+        private int memoryCount;
+        private int researchCount;
+        private int truncationCount;
         private int approxChars;
 
         public boolean isPresent() {
@@ -716,28 +729,36 @@ public class ContextEventPublisher {
             this.version = version;
         }
 
-        public int getToolCallsCount() {
-            return toolCallsCount;
+        public int getToolCount() {
+            return toolCount;
         }
 
-        public void setToolCallsCount(int toolCallsCount) {
-            this.toolCallsCount = toolCallsCount;
+        public void setToolCount(int toolCount) {
+            this.toolCount = toolCount;
         }
 
-        public int getMemoriesCount() {
-            return memoriesCount;
+        public int getMemoryCount() {
+            return memoryCount;
         }
 
-        public void setMemoriesCount(int memoriesCount) {
-            this.memoriesCount = memoriesCount;
+        public void setMemoryCount(int memoryCount) {
+            this.memoryCount = memoryCount;
         }
 
-        public int getCitationsCount() {
-            return citationsCount;
+        public int getResearchCount() {
+            return researchCount;
         }
 
-        public void setCitationsCount(int citationsCount) {
-            this.citationsCount = citationsCount;
+        public void setResearchCount(int researchCount) {
+            this.researchCount = researchCount;
+        }
+
+        public int getTruncationCount() {
+            return truncationCount;
+        }
+
+        public void setTruncationCount(int truncationCount) {
+            this.truncationCount = truncationCount;
         }
 
         public int getApproxChars() {

@@ -62,6 +62,12 @@ public enum EventType {
     HOOK_PRE_STEP,
     // 步骤后置钩子事件
     HOOK_POST_STEP,
+    // 记忆召回后置钩子事件
+    HOOK_POST_RECALL,
+    // 研究引用后置钩子事件
+    HOOK_POST_RESEARCH,
+    // 上下文裁剪后置钩子事件
+    HOOK_POST_TRIM,
     // 交接请求事件
     HANDOFF_REQUESTED,
     // 交接完成事件

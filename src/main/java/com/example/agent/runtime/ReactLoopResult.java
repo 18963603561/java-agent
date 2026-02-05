@@ -39,6 +39,11 @@ public class ReactLoopResult {
     private List<ReactDecision> decisions = new ArrayList<>();
 
     /**
+     * 最近一次原始输出引用。
+     */
+    private String rawRef;
+
+    /**
      * 获取是否完成循环。
      *
      * @return 是否完成
@@ -89,5 +94,13 @@ public class ReactLoopResult {
 
     public void setDecisions(List<ReactDecision> decisions) {
         this.decisions = decisions;
+    }
+
+    public String getRawRef() {
+        return rawRef;
+    }
+
+    public void setRawRef(String rawRef) {
+        this.rawRef = rawRef;
     }
 }

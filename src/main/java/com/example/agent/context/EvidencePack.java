@@ -1,17 +1,23 @@
 package com.example.agent.context;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * 证据包，用于记录一次流程或步骤的证据信息，支持审计与回放。
+ * 证据包，记录一次任务执行过程中的证据索引信息。
  */
 public class EvidencePack {
 
     /**
-     * 版本号，默认 v1。
+     * 版本号。
      */
     private String version = "v1";
+
+    /**
+     * 证据包标识。
+     */
+    private String packId;
 
     /**
      * 租户标识。
@@ -24,91 +30,85 @@ public class EvidencePack {
     private String workflowId;
 
     /**
-     * 快照标识，可为空。
+     * 快照标识。
      */
     private String snapshotId;
 
     /**
-     * 证据包创建时间。
+     * 创建时间。
      */
     private Instant createdAt;
 
     /**
-     * 工具调用证据列表。
+     * 证据项列表，仅追加不覆盖。
      */
-    private List<ToolCallEvidence> toolCalls;
+    private List<EvidenceItem> evidences;
 
     /**
-     * 记忆引用证据列表。
-     */
-    private List<MemoryEvidence> memoriesUsed;
-
-    /**
-     * 引用信息列表。
-     */
-    private List<Citation> citations;
-
-    /**
-     * 证据统计信息。
+     * 证据统计。
      */
     private EvidenceStats stats;
 
     /**
-     * 旧版证据项列表，保留用于兼容历史链路。
+     * 证据索引。
      */
-    private List<EvidenceItem> items;
+    private EvidenceIndex index;
 
     /**
-     * 重新计算统计信息并写回当前证据包，空列表按 0 处理。
+     * 重新计算统计信息。
      *
-     * @return 最新统计结果
+     * @return 计算后的统计对象
      */
     public EvidenceStats recomputeStats() {
+        int toolCount = 0;
+        int memoryCount = 0;
+        int researchCount = 0;
+        int truncationCount = 0;
+        int approxChars = 0;
+        if (evidences != null) {
+            for (EvidenceItem item : evidences) {
+                if (item == null) {
+                    continue;
+                }
+                if (item.getType() == EvidenceType.TOOL_RESULT) {
+                    toolCount++;
+                } else if (item.getType() == EvidenceType.MEMORY) {
+                    memoryCount++;
+                } else if (item.getType() == EvidenceType.RESEARCH) {
+                    researchCount++;
+                } else if (item.getType() == EvidenceType.CONTEXT_TRUNCATION) {
+                    truncationCount++;
+                }
+                approxChars += safeLength(item.getSource());
+                approxChars += safeLength(item.getRef());
+                approxChars += safeLength(item.getDigest());
+            }
+        }
         EvidenceStats computed = new EvidenceStats();
-        computed.setToolCallsCount(toolCalls == null ? 0 : toolCalls.size());
-        computed.setMemoriesCount(memoriesUsed == null ? 0 : memoriesUsed.size());
-        computed.setCitationsCount(citations == null ? 0 : citations.size());
-        computed.setApproxChars(estimateApproxChars());
+        computed.setToolCount(toolCount);
+        computed.setMemoryCount(memoryCount);
+        computed.setResearchCount(researchCount);
+        computed.setTruncationCount(truncationCount);
+        computed.setTotalCount(toolCount + memoryCount + researchCount + truncationCount);
+        computed.setApproxChars(approxChars);
         computed.setUpdatedAt(Instant.now());
         this.stats = computed;
         return computed;
     }
 
-    private int estimateApproxChars() {
-        int total = 0;
-        if (toolCalls != null) {
-            for (ToolCallEvidence call : toolCalls) {
-                if (call == null) {
-                    continue;
-                }
-                total += safeLength(call.getToolName());
-                total += safeLength(call.getArgsDigest());
-                total += safeLength(call.getResultDigest());
-                total += safeLength(call.getStatus());
-                total += safeLength(call.getErrorCode());
-                total += safeLength(call.getToolCallId());
-            }
+    /**
+     * 追加证据项。
+     *
+     * @param item 证据项
+     */
+    public void append(EvidenceItem item) {
+        if (item == null) {
+            return;
         }
-        if (memoriesUsed != null) {
-            for (MemoryEvidence memory : memoriesUsed) {
-                if (memory == null) {
-                    continue;
-                }
-                total += safeLength(memory.getMemoryId());
-                total += safeLength(memory.getSummaryVersion());
-            }
+        if (evidences == null) {
+            evidences = new ArrayList<>();
         }
-        if (citations != null) {
-            for (Citation citation : citations) {
-                if (citation == null) {
-                    continue;
-                }
-                total += safeLength(citation.getType());
-                total += safeLength(citation.getRefId());
-                total += safeLength(citation.getLabel());
-            }
-        }
-        return total;
+        evidences.add(item);
     }
 
     private int safeLength(String value) {
@@ -121,6 +121,14 @@ public class EvidencePack {
 
     public void setVersion(String version) {
         this.version = version;
+    }
+
+    public String getPackId() {
+        return packId;
+    }
+
+    public void setPackId(String packId) {
+        this.packId = packId;
     }
 
     public String getTenantId() {
@@ -155,28 +163,12 @@ public class EvidencePack {
         this.createdAt = createdAt;
     }
 
-    public List<ToolCallEvidence> getToolCalls() {
-        return toolCalls;
+    public List<EvidenceItem> getEvidences() {
+        return evidences;
     }
 
-    public void setToolCalls(List<ToolCallEvidence> toolCalls) {
-        this.toolCalls = toolCalls;
-    }
-
-    public List<MemoryEvidence> getMemoriesUsed() {
-        return memoriesUsed;
-    }
-
-    public void setMemoriesUsed(List<MemoryEvidence> memoriesUsed) {
-        this.memoriesUsed = memoriesUsed;
-    }
-
-    public List<Citation> getCitations() {
-        return citations;
-    }
-
-    public void setCitations(List<Citation> citations) {
-        this.citations = citations;
+    public void setEvidences(List<EvidenceItem> evidences) {
+        this.evidences = evidences;
     }
 
     public EvidenceStats getStats() {
@@ -187,11 +179,11 @@ public class EvidencePack {
         this.stats = stats;
     }
 
-    public List<EvidenceItem> getItems() {
-        return items;
+    public EvidenceIndex getIndex() {
+        return index;
     }
 
-    public void setItems(List<EvidenceItem> items) {
-        this.items = items;
+    public void setIndex(EvidenceIndex index) {
+        this.index = index;
     }
 }

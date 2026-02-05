@@ -8,6 +8,10 @@ public class DebateRound {
     private String roundId;
     private String topic;
     private String conclusion;
+    /**
+     * 辩论原始输出引用。
+     */
+    private String rawRef;
 
     public DebateRound() {
     }
@@ -34,5 +38,13 @@ public class DebateRound {
 
     public void setConclusion(String conclusion) {
         this.conclusion = conclusion;
+    }
+
+    public String getRawRef() {
+        return rawRef;
+    }
+
+    public void setRawRef(String rawRef) {
+        this.rawRef = rawRef;
     }
 }

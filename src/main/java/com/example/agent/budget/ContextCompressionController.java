@@ -6,11 +6,9 @@ import com.example.agent.context.DomainKnowledge;
 import com.example.agent.context.EvidenceItem;
 import com.example.agent.context.EvidencePack;
 import com.example.agent.context.LongTermMemory;
-import com.example.agent.context.MemoryEvidence;
 import com.example.agent.context.MemoryRef;
 import com.example.agent.context.RoleBoundary;
 import com.example.agent.context.TaskIntent;
-import com.example.agent.context.ToolCallEvidence;
 import com.example.agent.context.ToolCallState;
 import com.example.agent.context.ToolState;
 import com.example.agent.context.WorkingMemory;
@@ -435,23 +433,8 @@ public class ContextCompressionController {
             return 0;
         }
         int total = 0;
-        if (pack.getToolCalls() != null) {
-            for (ToolCallEvidence call : pack.getToolCalls()) {
-                total += estimateToolCallTokens(call);
-            }
-        }
-        if (pack.getMemoriesUsed() != null) {
-            for (MemoryEvidence memory : pack.getMemoriesUsed()) {
-                total += estimateMemoryEvidenceTokens(memory);
-            }
-        }
-        if (pack.getCitations() != null) {
-            for (com.example.agent.context.Citation citation : pack.getCitations()) {
-                total += estimateCitationTokens(citation);
-            }
-        }
-        if (pack.getItems() != null) {
-            for (EvidenceItem item : pack.getItems()) {
+        if (pack.getEvidences() != null) {
+            for (EvidenceItem item : pack.getEvidences()) {
                 total += estimateEvidenceItemTokens(item);
             }
         }
@@ -491,20 +474,6 @@ public class ContextCompressionController {
         return total;
     }
 
-    private int estimateToolCallTokens(ToolCallEvidence evidence) {
-        if (evidence == null) {
-            return 0;
-        }
-        int total = 0;
-        total += estimateTokens(evidence.getToolName());
-        total += estimateTokens(evidence.getArgsDigest());
-        total += estimateTokens(evidence.getResultDigest());
-        total += estimateTokens(evidence.getStatus());
-        total += estimateTokens(evidence.getErrorCode());
-        total += estimateTokens(evidence.getToolCallId());
-        return total;
-    }
-
     private int estimateToolSummaryTokens(ToolSummary tool) {
         if (tool == null) {
             return 0;
@@ -516,16 +485,6 @@ public class ContextCompressionController {
         total += estimateTokens(tool.getCostLevel());
         total += estimateTokens(tool.getLatencyLevel());
         total += estimateTokens(tool.getAuthScope());
-        return total;
-    }
-
-    private int estimateMemoryEvidenceTokens(MemoryEvidence evidence) {
-        if (evidence == null) {
-            return 0;
-        }
-        int total = 0;
-        total += estimateTokens(evidence.getMemoryId());
-        total += estimateTokens(evidence.getSummaryVersion());
         return total;
     }
 
@@ -561,12 +520,12 @@ public class ContextCompressionController {
             return 0;
         }
         int total = 0;
-        total += estimateTokens(item.getSourceType());
-        total += estimateTokens(item.getSourceId());
-        total += estimateTokens(item.getUri());
-        total += estimateTokens(item.getTitle());
-        total += estimateTokens(item.getSnippet());
-        total += estimateTokens(item.getHash());
+        total += estimateTokens(item.getType() != null ? item.getType().name() : null);
+        total += estimateTokens(item.getEvidenceId());
+        total += estimateTokens(item.getStepId());
+        total += estimateTokens(item.getSource());
+        total += estimateTokens(item.getRef());
+        total += estimateTokens(item.getDigest());
         return total;
     }
 

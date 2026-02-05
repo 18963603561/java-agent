@@ -242,6 +242,7 @@ public class LlmStepService {
 
         // 解析模型决策输出
         String rawDecision = decisionResponse != null ? decisionResponse.getContent() : null;
+        String decisionRawRef = decisionResponse != null ? decisionResponse.getRawRef() : null;
         Map<String, Object> decision = parseJsonMap(rawDecision);
         String mode = normalizeMode(readString(decision, "mode"));
 
@@ -250,7 +251,7 @@ public class LlmStepService {
         log.info("LLM 步骤决策完成, workflowId={}, mode={}, toolName={}", workflowId, mode, toolName);
 
         if (!MODE_TOOL_CALL.equals(mode)) {
-            Map<String, Object> answerOutput = buildAnswerOutput(decision, rawDecision, "llm_step");
+            Map<String, Object> answerOutput = buildAnswerOutput(decision, rawDecision, "llm_step", decisionRawRef);
             log.info("LLM 步骤完成, workflowId={}, outputKeys={}", workflowId, answerOutput.keySet());
             return answerOutput;
         }
@@ -259,13 +260,13 @@ public class LlmStepService {
         Map<String, Object> toolArguments = readMap(toolMap.get("arguments"));
         if (!StringUtils.hasText(toolName)) {
             Map<String, Object> failure = buildToolFailureOutput(decision, "工具名称为空",
-                    TOOL_INVALID_REQUEST, "llm_step");
+                    TOOL_INVALID_REQUEST, "llm_step", decisionRawRef);
             log.info("LLM 步骤工具调用失败, workflowId={}, reason={}", workflowId, "工具名称为空");
             return failure;
         }
         if (!isToolAvailable(toolName, decisionRequest.getTools())) {
             Map<String, Object> failure = buildToolFailureOutput(decision, "工具不在可用列表中",
-                    TOOL_NOT_FOUND, "llm_step");
+                    TOOL_NOT_FOUND, "llm_step", decisionRawRef);
             log.info("LLM 步骤工具调用失败, workflowId={}, reason={}", workflowId, "工具不在可用列表中");
             return failure;
         }
@@ -277,17 +278,20 @@ public class LlmStepService {
         if (resolvedSummaryMode != ToolSummaryMode.LLM_SUMMARY) {
             Map<String, Object> output = buildToolOutput(resolvedSummaryMode, toolName, toolArguments,
                     toolResult, "llm_step");
+            output.putIfAbsent("decisionRawRef", decisionRawRef);
+            mergeRef(output, "decisionRawRef", decisionRawRef);
             log.info("LLM 步骤工具调用完成, workflowId={}, summaryMode={}, toolStatus={}, outputKeys={}",
                     workflowId, resolvedSummaryMode, toolResult.status, output.keySet());
             return output;
         }
-        Map<String, Object> summaryOutput = summarizeToolResult(query, decision, toolResult,
+        ToolSummaryOutput summaryOutput = summarizeToolResult(query, decision, toolResult,
                 toolName, toolArguments, request, stepInput, tenantContext, workflowId, seqCounter);
 
-        applyToolOutputDefaults(summaryOutput, toolName, toolArguments, toolResult, "llm_step");
+        applyToolOutputDefaults(summaryOutput.output, toolName, toolArguments, toolResult,
+                "llm_step", decisionRawRef, summaryOutput.summaryRawRef);
         log.info("LLM 步骤完成, workflowId={}, toolStatus={}, outputKeys={}",
-                workflowId, toolResult.status, summaryOutput.keySet());
-        return summaryOutput;
+                workflowId, toolResult.status, summaryOutput.output.keySet());
+        return summaryOutput.output;
     }
 
     /**
@@ -307,12 +311,13 @@ public class LlmStepService {
         String query = resolveStepQuestion(stepInput, request);
         ToolCallResult toolCallResult = ToolCallResult.success(toolResult == null ? Map.of() : toolResult);
         updateToolContext(request, stepInput, toolName, toolCallResult);
-        Map<String, Object> summaryOutput = summarizeToolResult(query, null, toolCallResult,
+        ToolSummaryOutput summaryOutput = summarizeToolResult(query, null, toolCallResult,
                 toolName, toolArguments, request, stepInput, tenantContext, workflowId, seqCounter);
-        applyToolOutputDefaults(summaryOutput, toolName, toolArguments, toolCallResult, "direct_tool");
+        applyToolOutputDefaults(summaryOutput.output, toolName, toolArguments, toolCallResult,
+                "direct_tool", null, summaryOutput.summaryRawRef);
         log.info("直达工具总结完成, workflowId={}, tool={}, outputKeys={}",
-                workflowId, toolName, summaryOutput.keySet());
-        return summaryOutput;
+                workflowId, toolName, summaryOutput.output.keySet());
+        return summaryOutput.output;
     }
 
     /**
@@ -388,16 +393,16 @@ public class LlmStepService {
      * @param seqCounter 事件序列计数器
      * @return 二次总结输出
      */
-    private Map<String, Object> summarizeToolResult(String query,
-                                                    Map<String, Object> decision,
-                                                    ToolCallResult toolResult,
-                                                    String toolName,
-                                                    Map<String, Object> toolArguments,
-                                                    TaskRequest request,
-                                                    Map<String, Object> stepInput,
-                                                    TenantContext tenantContext,
-                                                    String workflowId,
-                                                    AtomicLong seqCounter) {
+    private ToolSummaryOutput summarizeToolResult(String query,
+                                                  Map<String, Object> decision,
+                                                  ToolCallResult toolResult,
+                                                  String toolName,
+                                                  Map<String, Object> toolArguments,
+                                                  TaskRequest request,
+                                                  Map<String, Object> stepInput,
+                                                  TenantContext tenantContext,
+                                                  String workflowId,
+                                                  AtomicLong seqCounter) {
         // 构造用于总结的上下文
         Map<String, Object> toolContext = new HashMap<>();
         toolContext.put("query", query);
@@ -431,6 +436,7 @@ public class LlmStepService {
                 metadata
         );
         String rawSummary = summaryResponse != null ? summaryResponse.getContent() : null;
+        String summaryRawRef = summaryResponse != null ? summaryResponse.getRawRef() : null;
         Map<String, Object> parsed = parseJsonMap(rawSummary);
         if (parsed.isEmpty()) {
             // 解析失败时回退为纯文本回答
@@ -439,9 +445,9 @@ public class LlmStepService {
             fallback.put("highlights", toolResult.status.equals(TOOL_STATUS_SUCCESS)
                     ? "工具执行成功" : "工具执行失败");
             fallback.put("confidence", toolResult.status.equals(TOOL_STATUS_SUCCESS) ? 0.5 : 0.2);
-            return fallback;
+            return new ToolSummaryOutput(fallback, summaryRawRef);
         }
-        return parsed;
+        return new ToolSummaryOutput(parsed, summaryRawRef);
     }
 
     /**
@@ -686,7 +692,8 @@ public class LlmStepService {
      */
     private Map<String, Object> buildAnswerOutput(Map<String, Object> decision,
                                                   String raw,
-                                                  String source) {
+                                                  String source,
+                                                  String rawRef) {
         Map<String, Object> output = new HashMap<>();
         String answer = readString(decision, "answer");
         if (!StringUtils.hasText(answer)) {
@@ -697,6 +704,10 @@ public class LlmStepService {
         output.put("reason", readString(decision, "reason"));
         output.put("confidence", readNumber(decision, "confidence", 0.5));
         output.put("source", source);
+        if (StringUtils.hasText(rawRef)) {
+            output.put("rawRef", rawRef);
+            mergeRef(output, "modelRawRef", rawRef);
+        }
         return output;
     }
 
@@ -712,7 +723,8 @@ public class LlmStepService {
     private Map<String, Object> buildToolFailureOutput(Map<String, Object> decision,
                                                        String message,
                                                        String errorCode,
-                                                       String source) {
+                                                       String source,
+                                                       String rawRef) {
         Map<String, Object> output = new HashMap<>();
         output.put("mode", MODE_TOOL_CALL);
         output.put("answer", message);
@@ -723,6 +735,10 @@ public class LlmStepService {
             output.put("toolDecision", decision);
         }
         output.put("source", source);
+        if (StringUtils.hasText(rawRef)) {
+            output.put("rawRef", rawRef);
+            mergeRef(output, "decisionRawRef", rawRef);
+        }
         return output;
     }
 
@@ -798,7 +814,8 @@ public class LlmStepService {
         String status = toolResult != null ? toolResult.status : TOOL_STATUS_FAILED;
         String errorCode = toolResult != null ? toolResult.errorCode : null;
         String errorMessage = toolResult != null ? toolResult.errorMessage : null;
-        return buildToolOutput(summaryMode, toolName, toolArguments, status, errorCode, errorMessage, result, source);
+        return buildToolOutput(summaryMode, toolName, toolArguments, status, errorCode, errorMessage,
+                result, source, resolveRawRefFromToolResult(result));
     }
 
     /**
@@ -811,7 +828,8 @@ public class LlmStepService {
                                                 String errorCode,
                                                 String errorMessage,
                                                 Map<String, Object> toolResult,
-                                                String source) {
+                                                String source,
+                                                String toolRawRef) {
         Map<String, Object> output = new HashMap<>();
         Map<String, Object> safeResult = toolResult == null ? Map.of() : toolResult;
         boolean success = TOOL_STATUS_SUCCESS.equals(toolStatus);
@@ -844,6 +862,10 @@ public class LlmStepService {
         output.put("rawResult", safeResult);
         output.put("source", source);
         output.put("evidence", List.of());
+        if (StringUtils.hasText(toolRawRef)) {
+            output.put("rawRef", toolRawRef);
+            mergeRef(output, "toolRawRef", toolRawRef);
+        }
         return output;
     }
 
@@ -854,13 +876,16 @@ public class LlmStepService {
                                          String toolName,
                                          Map<String, Object> toolArguments,
                                          ToolCallResult toolResult,
-                                         String source) {
+                                         String source,
+                                         String decisionRawRef,
+                                         String summaryRawRef) {
         if (output == null) {
             return;
         }
         Map<String, Object> safeResult = toolResult != null && toolResult.result != null ? toolResult.result : Map.of();
         String status = toolResult != null ? toolResult.status : TOOL_STATUS_FAILED;
         boolean success = TOOL_STATUS_SUCCESS.equals(status);
+        String toolRawRef = resolveRawRefFromToolResult(safeResult);
 
         output.putIfAbsent("mode", MODE_TOOL_CALL);
         output.putIfAbsent("toolStatus", status);
@@ -889,6 +914,22 @@ public class LlmStepService {
         }
         output.putIfAbsent("source", source);
         output.putIfAbsent("evidence", List.of());
+        if (StringUtils.hasText(toolRawRef)) {
+            output.putIfAbsent("rawRef", toolRawRef);
+            mergeRef(output, "toolRawRef", toolRawRef);
+        }
+        if (StringUtils.hasText(decisionRawRef)) {
+            mergeRef(output, "decisionRawRef", decisionRawRef);
+        }
+        if (StringUtils.hasText(summaryRawRef)) {
+            mergeRef(output, "summaryRawRef", summaryRawRef);
+        }
+        if (StringUtils.hasText(decisionRawRef) && !output.containsKey("rawRef")) {
+            output.put("rawRef", decisionRawRef);
+        }
+        if (StringUtils.hasText(summaryRawRef) && !output.containsKey("rawRef")) {
+            output.put("rawRef", summaryRawRef);
+        }
     }
 
     /**
@@ -1313,6 +1354,78 @@ private String resolveStepQuestion(Map<String, Object> stepInput, TaskRequest re
             return output;
         }
         return new HashMap<>();
+    }
+
+    /**
+     * 从工具执行输出中解析原始结果引用。
+     *
+     * @param result 工具执行输出
+     * @return 原始结果引用键
+     */
+    private String resolveRawRefFromToolResult(Map<String, Object> result) {
+        if (result == null || result.isEmpty()) {
+            return null;
+        }
+        Object direct = result.get("rawRef");
+        if (direct instanceof String text && StringUtils.hasText(text)) {
+            return text.trim();
+        }
+        Object rawResult = result.get("rawResult");
+        if (rawResult instanceof Map<?, ?> rawMap) {
+            Object nested = rawMap.get("rawRef");
+            if (nested instanceof String text && StringUtils.hasText(text)) {
+                return text.trim();
+            }
+        }
+        Object nestedResult = result.get("result");
+        if (nestedResult instanceof Map<?, ?> nestedMap) {
+            Object nested = nestedMap.get("rawRef");
+            if (nested instanceof String text && StringUtils.hasText(text)) {
+                return text.trim();
+            }
+        }
+        return null;
+    }
+
+    /**
+     * 合并引用字段到输出对象。
+     *
+     * @param output 输出对象
+     * @param key 引用键
+     * @param value 引用值
+     */
+    @SuppressWarnings("unchecked")
+    private void mergeRef(Map<String, Object> output, String key, String value) {
+        if (output == null || !StringUtils.hasText(key) || !StringUtils.hasText(value)) {
+            return;
+        }
+        Object refsObj = output.get("refs");
+        Map<String, String> refs;
+        if (refsObj instanceof Map<?, ?> rawMap) {
+            refs = new HashMap<>();
+            rawMap.forEach((mapKey, mapValue) -> {
+                if (mapKey != null && mapValue != null) {
+                    refs.put(String.valueOf(mapKey), String.valueOf(mapValue));
+                }
+            });
+        } else {
+            refs = new HashMap<>();
+        }
+        refs.put(key, value);
+        output.put("refs", refs);
+    }
+
+    /**
+     * 工具总结输出，包含总结内容与原始引用键。
+     */
+    private static final class ToolSummaryOutput {
+        private final Map<String, Object> output;
+        private final String summaryRawRef;
+
+        private ToolSummaryOutput(Map<String, Object> output, String summaryRawRef) {
+            this.output = output == null ? new HashMap<>() : output;
+            this.summaryRawRef = summaryRawRef;
+        }
     }
 
     private static final class ToolCallResult {

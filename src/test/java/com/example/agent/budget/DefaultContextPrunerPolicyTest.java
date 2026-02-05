@@ -46,11 +46,11 @@ class DefaultContextPrunerPolicyTest {
         longTermMemory.setMemoryRefs(List.of(ref1, ref2));
 
         EvidenceItem item1 = new EvidenceItem();
-        item1.setSourceId("e1");
+        item1.setEvidenceId("e1");
         EvidenceItem item2 = new EvidenceItem();
-        item2.setSourceId("e2");
+        item2.setEvidenceId("e2");
         EvidencePack pack = new EvidencePack();
-        pack.setItems(List.of(item1, item2));
+        pack.setEvidences(List.of(item1, item2));
 
         WorkingMemory workingMemory = new WorkingMemory();
         workingMemory.setEvidencePack(pack);

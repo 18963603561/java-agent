@@ -3,57 +3,83 @@ package com.example.agent.context;
 import java.time.Instant;
 
 /**
- * 证据统计信息，用于汇总证据规模与估算体量。
+ * 证据统计信息，用于汇总不同类型证据规模与体积估算。
  */
 public class EvidenceStats {
 
     /**
-     * 工具调用证据数量。
+     * 工具证据数量。
      */
-    private Integer toolCallsCount;
+    private Integer toolCount;
 
     /**
-     * 记忆引用证据数量。
+     * 记忆证据数量。
      */
-    private Integer memoriesCount;
+    private Integer memoryCount;
 
     /**
-     * 引用证据数量。
+     * 研究证据数量。
      */
-    private Integer citationsCount;
+    private Integer researchCount;
 
     /**
-     * 证据文本体积估算值，可为空。
+     * 裁剪证据数量。
+     */
+    private Integer truncationCount;
+
+    /**
+     * 证据总数。
+     */
+    private Integer totalCount;
+
+    /**
+     * 证据摘要字符数估算。
      */
     private Integer approxChars;
 
     /**
-     * 统计更新时间，可为空。
+     * 统计更新时间。
      */
     private Instant updatedAt;
 
-    public Integer getToolCallsCount() {
-        return toolCallsCount;
+    public Integer getToolCount() {
+        return toolCount;
     }
 
-    public void setToolCallsCount(Integer toolCallsCount) {
-        this.toolCallsCount = toolCallsCount;
+    public void setToolCount(Integer toolCount) {
+        this.toolCount = toolCount;
     }
 
-    public Integer getMemoriesCount() {
-        return memoriesCount;
+    public Integer getMemoryCount() {
+        return memoryCount;
     }
 
-    public void setMemoriesCount(Integer memoriesCount) {
-        this.memoriesCount = memoriesCount;
+    public void setMemoryCount(Integer memoryCount) {
+        this.memoryCount = memoryCount;
     }
 
-    public Integer getCitationsCount() {
-        return citationsCount;
+    public Integer getResearchCount() {
+        return researchCount;
     }
 
-    public void setCitationsCount(Integer citationsCount) {
-        this.citationsCount = citationsCount;
+    public void setResearchCount(Integer researchCount) {
+        this.researchCount = researchCount;
+    }
+
+    public Integer getTruncationCount() {
+        return truncationCount;
+    }
+
+    public void setTruncationCount(Integer truncationCount) {
+        this.truncationCount = truncationCount;
+    }
+
+    public Integer getTotalCount() {
+        return totalCount;
+    }
+
+    public void setTotalCount(Integer totalCount) {
+        this.totalCount = totalCount;
     }
 
     public Integer getApproxChars() {

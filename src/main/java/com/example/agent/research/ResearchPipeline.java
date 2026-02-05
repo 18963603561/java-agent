@@ -80,6 +80,22 @@ public class ResearchPipeline {
                                       TenantContext tenantContext,
                                       String workflowId,
                                       AtomicLong seqCounter) {
+        return runWithRawRef(query, tenantContext, workflowId, seqCounter).getCitations();
+    }
+
+    /**
+     * 带原始引用返回的研究入口。
+     *
+     * @param query 查询问题
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param seqCounter 事件序列计数器
+     * @return 研究执行结果
+     */
+    public ResearchRunResult runWithRawRef(String query,
+                                           TenantContext tenantContext,
+                                           String workflowId,
+                                           AtomicLong seqCounter) {
         String prompt = buildPrompt(query);
         ModelRequest request = new ModelRequest(prompt, ModelScene.RESEARCH);
         applyPromptBundle(request, prompt);
@@ -98,6 +114,7 @@ public class ResearchPipeline {
                 metadata
         );
         String rawContent = response != null ? response.getContent() : null;
+        String rawRef = response != null ? response.getRawRef() : null;
         boolean repairAttempted = false;
         boolean repairSuccess = false;
         String parseErrorType = null;
@@ -123,7 +140,7 @@ public class ResearchPipeline {
         }
         publishCitationEvents(tenantContext, workflowId, seqCounter, citations);
         log.info("研究流程完成, citations={}", citations.size());
-        return citations;
+        return new ResearchRunResult(citations, rawRef);
     }
 
     private String buildPrompt(String query) {

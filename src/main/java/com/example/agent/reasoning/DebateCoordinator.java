@@ -113,6 +113,9 @@ public class DebateCoordinator {
         round.setRoundId(UUID.randomUUID().toString());
         round.setTopic(topic);
         round.setConclusion(conclusion);
+        if (response != null && StringUtils.hasText(response.getRawRef())) {
+            round.setRawRef(response.getRawRef());
+        }
         publishDebateEvent(tenantContext, workflowId, seqCounter, round);
         log.info("辩论完成, topic={}, conclusion={}", topic, round.getConclusion());
         return round;
@@ -261,6 +264,9 @@ public class DebateCoordinator {
         }
         if (round.getConclusion() != null) {
             payload.put("conclusion", round.getConclusion());
+        }
+        if (StringUtils.hasText(round.getRawRef())) {
+            payload.put("rawRef", round.getRawRef());
         }
         event.setPayload(payload);
         eventPublisher.publishEvent(event);

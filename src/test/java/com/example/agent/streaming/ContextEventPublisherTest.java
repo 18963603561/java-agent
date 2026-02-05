@@ -1,12 +1,11 @@
 package com.example.agent.streaming;
 
 import com.example.agent.auth.TenantContext;
-import com.example.agent.context.Citation;
 import com.example.agent.context.ContextSnapshot;
+import com.example.agent.context.EvidenceItem;
 import com.example.agent.context.EvidencePack;
 import com.example.agent.context.EvidenceStats;
-import com.example.agent.context.MemoryEvidence;
-import com.example.agent.context.ToolCallEvidence;
+import com.example.agent.context.EvidenceType;
 import com.example.agent.context.WorkingMemory;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
@@ -93,30 +92,35 @@ class ContextEventPublisherTest {
         ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService,
                 new MetricsPublisher(new SimpleMeterRegistry()));
 
-        ToolCallEvidence toolCallEvidence = new ToolCallEvidence();
-        toolCallEvidence.setToolName("tool-a");
-        toolCallEvidence.setArgsDigest("args");
-        toolCallEvidence.setResultDigest("result");
-        toolCallEvidence.setStatus("SUCCESS");
-        toolCallEvidence.setErrorCode("E1");
-        toolCallEvidence.setToolCallId("call-1");
+        EvidenceItem toolCallEvidence = new EvidenceItem();
+        toolCallEvidence.setEvidenceId("ev-tool-1");
+        toolCallEvidence.setType(EvidenceType.TOOL_RESULT);
+        toolCallEvidence.setSource("tool-a");
+        toolCallEvidence.setRef("raw-1");
+        toolCallEvidence.setDigest("result");
 
-        MemoryEvidence memory1 = new MemoryEvidence();
-        memory1.setMemoryId("mem-1");
-        memory1.setSummaryVersion("v1");
+        EvidenceItem memory1 = new EvidenceItem();
+        memory1.setEvidenceId("ev-memory-1");
+        memory1.setType(EvidenceType.MEMORY);
+        memory1.setSource("memory");
+        memory1.setRef("mem-1");
+        memory1.setDigest("v1");
 
-        MemoryEvidence memory2 = new MemoryEvidence();
-        memory2.setMemoryId("mem-2");
+        EvidenceItem memory2 = new EvidenceItem();
+        memory2.setEvidenceId("ev-memory-2");
+        memory2.setType(EvidenceType.MEMORY);
+        memory2.setSource("memory");
+        memory2.setRef("mem-2");
 
-        Citation citation = new Citation();
-        citation.setType("MEMORY");
-        citation.setRefId("ref-1");
-        citation.setLabel("label");
+        EvidenceItem citation = new EvidenceItem();
+        citation.setEvidenceId("ev-research-1");
+        citation.setType(EvidenceType.RESEARCH);
+        citation.setSource("web");
+        citation.setRef("ref-1");
+        citation.setDigest("label");
 
         EvidencePack pack = new EvidencePack();
-        pack.setToolCalls(List.of(toolCallEvidence));
-        pack.setMemoriesUsed(List.of(memory1, memory2));
-        pack.setCitations(List.of(citation));
+        pack.setEvidences(List.of(toolCallEvidence, memory1, memory2, citation));
 
         WorkingMemory workingMemory = new WorkingMemory();
         workingMemory.setEvidencePack(pack);
@@ -135,9 +139,10 @@ class ContextEventPublisherTest {
         assertNotNull(stats);
         assertEquals(Boolean.TRUE, payload.get("evidencePackPresent"));
         assertEquals(pack.getVersion(), payload.get("evidencePackVersion"));
-        assertEquals(stats.getToolCallsCount(), payload.get("evidenceToolCallsCount"));
-        assertEquals(stats.getMemoriesCount(), payload.get("evidenceMemoriesCount"));
-        assertEquals(stats.getCitationsCount(), payload.get("evidenceCitationsCount"));
+        assertEquals(stats.getToolCount(), payload.get("evidenceToolCount"));
+        assertEquals(stats.getMemoryCount(), payload.get("evidenceMemoryCount"));
+        assertEquals(stats.getResearchCount(), payload.get("evidenceResearchCount"));
+        assertEquals(stats.getTruncationCount(), payload.get("evidenceTruncationCount"));
         assertEquals(stats.getApproxChars(), payload.get("evidenceApproxChars"));
     }
 
@@ -160,9 +165,10 @@ class ContextEventPublisherTest {
         assertNotNull(event);
         Map<String, Object> payload = event.getPayload();
         assertEquals(Boolean.FALSE, payload.get("evidencePackPresent"));
-        assertEquals(0, payload.get("evidenceToolCallsCount"));
-        assertEquals(0, payload.get("evidenceMemoriesCount"));
-        assertEquals(0, payload.get("evidenceCitationsCount"));
+        assertEquals(0, payload.get("evidenceToolCount"));
+        assertEquals(0, payload.get("evidenceMemoryCount"));
+        assertEquals(0, payload.get("evidenceResearchCount"));
+        assertEquals(0, payload.get("evidenceTruncationCount"));
         assertEquals(0, payload.get("evidenceApproxChars"));
         assertNull(payload.get("evidencePackVersion"));
     }

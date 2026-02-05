@@ -6,11 +6,11 @@ import com.example.agent.budget.TokenUsageRecord;
 import com.example.agent.common.ErrorCodeException;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.context.EvidencePack;
-import com.example.agent.context.EvidencePackService;
 import com.example.agent.model.ModelDefinition;
 import com.example.agent.model.ModelRouter;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.observability.TracingPublisher;
+import com.example.agent.runtime.raw.RawResultStore;
 import com.example.agent.sandbox.SandboxResult;
 import com.example.agent.tools.McpToolCallRequest;
 import com.example.agent.tools.McpToolCallResponse;
@@ -47,7 +47,7 @@ class ToolExecutorTest {
         ModelRouter modelRouter = Mockito.mock(ModelRouter.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
-        EvidencePackService evidencePackService = Mockito.mock(EvidencePackService.class);
+        RawResultStore rawResultStore = Mockito.mock(RawResultStore.class);
         ObjectProvider<StringRedisTemplate> redisProvider = Mockito.mock(ObjectProvider.class);
         when(redisProvider.getIfAvailable()).thenReturn(null);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -64,8 +64,7 @@ class ToolExecutorTest {
         when(toolRegistry.resolve("demo_tool")).thenReturn("demo_tool");
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, evidencePackService,
-                null);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, rawResultStore);
         ReflectionTestUtils.setField(executor, "cacheEnabled", true);
         ReflectionTestUtils.setField(executor, "cacheTtlSeconds", 300L);
 
@@ -93,7 +92,7 @@ class ToolExecutorTest {
         ModelRouter modelRouter = Mockito.mock(ModelRouter.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
-        EvidencePackService evidencePackService = Mockito.mock(EvidencePackService.class);
+        RawResultStore rawResultStore = Mockito.mock(RawResultStore.class);
         ObjectProvider<StringRedisTemplate> redisProvider = Mockito.mock(ObjectProvider.class);
         when(redisProvider.getIfAvailable()).thenReturn(null);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -118,8 +117,7 @@ class ToolExecutorTest {
                 .thenReturn(okResponse);
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, evidencePackService,
-                null);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, rawResultStore);
         ReflectionTestUtils.setField(executor, "cacheEnabled", false);
         ReflectionTestUtils.setField(executor, "maxAttempts", 2);
         ReflectionTestUtils.setField(executor, "baseDelayMs", 0L);
@@ -148,7 +146,7 @@ class ToolExecutorTest {
         ModelRouter modelRouter = Mockito.mock(ModelRouter.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
-        EvidencePackService evidencePackService = Mockito.mock(EvidencePackService.class);
+        RawResultStore rawResultStore = Mockito.mock(RawResultStore.class);
         ObjectProvider<StringRedisTemplate> redisProvider = Mockito.mock(ObjectProvider.class);
         when(redisProvider.getIfAvailable()).thenReturn(null);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -170,14 +168,13 @@ class ToolExecutorTest {
                 .thenReturn(new McpToolCallResponse("call-1", "SUCCESS", Map.of("value", "ok"), null));
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, evidencePackService,
-                null);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, rawResultStore);
         ReflectionTestUtils.setField(executor, "cacheEnabled", false);
 
         TaskRequest request = new TaskRequest();
         request.setQuery("ping");
         Map<String, Object> context = new java.util.HashMap<>();
-        context.put(EvidencePackService.CONTEXT_EVIDENCE_PACK, new EvidencePack());
+        context.put("evidencePack", new EvidencePack());
         context.put("EvidencePack", "internal");
         context.put("_internalEvidencePack", "internal2");
         context.put("userParam", "value");
@@ -190,7 +187,7 @@ class ToolExecutorTest {
         ArgumentCaptor<McpToolCallRequest> captor = ArgumentCaptor.forClass(McpToolCallRequest.class);
         verify(mcpToolClient, times(1)).callTool(captor.capture(), any());
         Map<String, Object> arguments = captor.getValue().getArguments();
-        assertFalse(arguments.containsKey(EvidencePackService.CONTEXT_EVIDENCE_PACK));
+        assertFalse(arguments.containsKey("evidencePack"));
         assertFalse(arguments.containsKey("EvidencePack"));
         assertFalse(arguments.containsKey("_internalEvidencePack"));
         assertEquals("value", arguments.get("userParam"));

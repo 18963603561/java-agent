@@ -125,6 +125,7 @@ public class StepRuntimeService {
      */
     public StepRecord completeStep(StepRecord record, Map<String, Object> output, AtomicLong seqCounter) {
         record.setStatus(stateMachine.transition(record.getStatus(), StepState.COMPLETED));
+        record.setCompletedAt(Instant.now());
         Map<String, Object> outputWithSummary = output;
         Map<String, Object> summary = Collections.emptyMap();
         if (stepOutputSummaryBuilder != null && stepOutputSummaryBuilder.isEnabled()) {
@@ -167,7 +168,6 @@ public class StepRuntimeService {
         }
         StepResult stepResult = buildStepResult(record, outputWithSummary, summary);
         record.setOutput(stepResult);
-        record.setCompletedAt(Instant.now());
         metricsPublisher.recordTime("step.duration.ms", calcDuration(record), resolveTraceId(null));
 
         long seq = nextSeq(new TenantContext(record.getTenantId(), null, Collections.emptyList(), null, null),

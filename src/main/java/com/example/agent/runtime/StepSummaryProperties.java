@@ -29,6 +29,25 @@ public class StepSummaryProperties {
      * 单个字段字符串的最大字符数。
      */
     private int maxFieldChars = 1000;
+    /**
+     * 是否启用原始结果受控输出。
+     */
+    private boolean rawEnable = true;
+
+    /**
+     * 原始结果快照最大字符数。
+     */
+    private int rawMaxChars = 4000;
+
+    /**
+     * 原始结果单字段最大字符数。
+     */
+    private int rawMaxFieldChars = 1000;
+
+    /**
+     * 原始结果列表最大条目数。
+     */
+    private int rawMaxListItems = 20;
 
     /**
      * 获取是否启用步骤输出摘要。
@@ -65,5 +84,37 @@ public class StepSummaryProperties {
 
     public void setMaxFieldChars(int maxFieldChars) {
         this.maxFieldChars = maxFieldChars;
+    }
+
+    public boolean isRawEnable() {
+        return rawEnable;
+    }
+
+    public void setRawEnable(boolean rawEnable) {
+        this.rawEnable = rawEnable;
+    }
+
+    public int getRawMaxChars() {
+        return rawMaxChars;
+    }
+
+    public void setRawMaxChars(int rawMaxChars) {
+        this.rawMaxChars = rawMaxChars;
+    }
+
+    public int getRawMaxFieldChars() {
+        return rawMaxFieldChars;
+    }
+
+    public void setRawMaxFieldChars(int rawMaxFieldChars) {
+        this.rawMaxFieldChars = rawMaxFieldChars;
+    }
+
+    public int getRawMaxListItems() {
+        return rawMaxListItems;
+    }
+
+    public void setRawMaxListItems(int rawMaxListItems) {
+        this.rawMaxListItems = rawMaxListItems;
     }
 }

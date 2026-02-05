@@ -9,6 +9,10 @@ import com.example.agent.model.ModelScene;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.repair.JsonOutputRepairService;
+import com.example.agent.runtime.model.result.StepResult;
+import com.example.agent.runtime.model.result.StepResultMeta;
+import com.example.agent.runtime.model.result.StepResultRaw;
+import com.example.agent.runtime.model.result.StepResultSummary;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
@@ -102,10 +106,7 @@ class FinalOutputServiceTest {
                 "evidencePack", "big",
                 "tokenUsage", "big"
         );
-        Map<String, Object> step = new java.util.HashMap<>();
-        step.put("stepId", "s-1");
-        step.put("type", "TOOL");
-        step.put("output", output);
+        StepResult step = buildStepResult("s-1", "TOOL", null, output);
 
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
                 any(), any(), any(), eq("finalize"), any()))
@@ -146,12 +147,9 @@ class FinalOutputServiceTest {
         Map<String, Object> stepSummary = new java.util.HashMap<>();
         stepSummary.put("summary", longSummary);
         stepSummary.put("status", "COMPLETED");
-        Map<String, Object> output = new java.util.HashMap<>();
-        output.put("stepSummary", stepSummary);
-        Map<String, Object> step = new java.util.HashMap<>();
-        step.put("stepId", "s-1");
-        step.put("type", "TOOL");
-        step.put("output", output);
+        StepResultSummary summary = new StepResultSummary();
+        summary.setStepSummary(stepSummary);
+        StepResult step = buildStepResult("s-1", "TOOL", summary, null);
 
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
                 any(), any(), any(), eq("finalize"), any()))
@@ -175,8 +173,8 @@ class FinalOutputServiceTest {
         String contextJson = prompt.substring(index + marker.length()).trim();
         Map<String, Object> context = new ObjectMapper().readValue(contextJson, Map.class);
         List<?> steps = (List<?>) context.get("steps");
-        Map<?, ?> summary = (Map<?, ?>) steps.get(0);
-        String summaryText = String.valueOf(summary.get("summary"));
+        Map<?, ?> summaryEntry = (Map<?, ?>) steps.get(0);
+        String summaryText = String.valueOf(summaryEntry.get("summary"));
         assertTrue(summaryText.length() <= properties.getPromptSummaryMaxChars());
         assertTrue(summaryText.endsWith("...(truncated)"));
     }
@@ -197,12 +195,9 @@ class FinalOutputServiceTest {
         Map<String, Object> stepSummary = new java.util.HashMap<>();
         stepSummary.put("summary", shortSummary);
         stepSummary.put("status", "COMPLETED");
-        Map<String, Object> output = new java.util.HashMap<>();
-        output.put("stepSummary", stepSummary);
-        Map<String, Object> step = new java.util.HashMap<>();
-        step.put("stepId", "s-1");
-        step.put("type", "TOOL");
-        step.put("output", output);
+        StepResultSummary summary = new StepResultSummary();
+        summary.setStepSummary(stepSummary);
+        StepResult step = buildStepResult("s-1", "TOOL", summary, null);
 
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
                 any(), any(), any(), eq("finalize"), any()))
@@ -226,9 +221,29 @@ class FinalOutputServiceTest {
         String contextJson = prompt.substring(index + marker.length()).trim();
         Map<String, Object> context = new ObjectMapper().readValue(contextJson, Map.class);
         List<?> steps = (List<?>) context.get("steps");
-        Map<?, ?> summary = (Map<?, ?>) steps.get(0);
-        String summaryText = String.valueOf(summary.get("summary"));
+        Map<?, ?> summaryEntry = (Map<?, ?>) steps.get(0);
+        String summaryText = String.valueOf(summaryEntry.get("summary"));
         assertEquals(shortSummary, summaryText);
         assertFalse(summaryText.endsWith("...(truncated)"));
+    }
+
+    private StepResult buildStepResult(String stepId,
+                                       String type,
+                                       StepResultSummary summary,
+                                       Map<String, Object> rawData) {
+        StepResult stepResult = new StepResult();
+        StepResultMeta meta = new StepResultMeta();
+        meta.setStepId(stepId);
+        meta.setType(type);
+        meta.setStatus(StepState.COMPLETED);
+        stepResult.setMeta(meta);
+        stepResult.setSummary(summary);
+        if (rawData != null && !rawData.isEmpty()) {
+            StepResultRaw raw = new StepResultRaw();
+            raw.setData(rawData);
+            raw.setTruncated(false);
+            stepResult.setRaw(raw);
+        }
+        return stepResult;
     }
 }

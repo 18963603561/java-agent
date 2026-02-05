@@ -19,7 +19,6 @@ import org.springframework.context.ApplicationEventPublisher;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class EvidencePackCitationWritePathTest {
 
@@ -30,8 +29,8 @@ class EvidencePackCitationWritePathTest {
 
         EvidencePack pack = service.createPack("t1", "wf-1", "snap-1");
         ResearchCitation citationA = new ResearchCitation();
-        citationA.setSource("https://example.com/" + "a".repeat(260));
-        citationA.setSnippet("b".repeat(500));
+        citationA.setSource("https://example.com/a");
+        citationA.setSnippet("a".repeat(300));
         citationA.setFetchedAt(Instant.now());
 
         ResearchCitation citationB = new ResearchCitation();
@@ -39,18 +38,12 @@ class EvidencePackCitationWritePathTest {
         citationB.setSnippet("short label");
         citationB.setFetchedAt(Instant.now());
 
-        service.addResearchCitations(pack, List.of(citationA, citationB), "t1", "wf-1", "research");
+        service.appendResearchCitations(pack, "step-r", List.of(citationA, citationB), "t1", "wf-1");
 
-        assertNotNull(pack.getCitations());
-        assertEquals(2, pack.getCitations().size());
-        assertNotNull(pack.getStats());
-        assertEquals(2, pack.getStats().getCitationsCount());
-
-        Citation mapped = pack.getCitations().get(0);
-        assertNotNull(mapped.getLabel());
-        assertTrue(mapped.getLabel().length() <= 120);
-        assertNotNull(mapped.getRefId());
-        assertTrue(mapped.getRefId().length() <= 200);
+        assertNotNull(pack.getEvidences());
+        assertEquals(2, pack.getEvidences().size());
+        assertEquals(EvidenceType.RESEARCH, pack.getEvidences().get(0).getType());
+        assertEquals(2, pack.getStats().getResearchCount());
 
         ContextSnapshot snapshot = new ContextSnapshot();
         WorkingMemory memory = new WorkingMemory();
@@ -67,7 +60,7 @@ class EvidencePackCitationWritePathTest {
 
         StreamEvent event = eventPublisher.findFirst(EventType.CONTEXT_SNAPSHOT_STAGE);
         assertNotNull(event);
-        Object countValue = event.getPayload().get("evidenceCitationsCount");
+        Object countValue = event.getPayload().get("evidenceResearchCount");
         assertNotNull(countValue);
         assertEquals(2, ((Number) countValue).intValue());
     }

@@ -12,46 +12,41 @@ class EvidencePackTest {
 
     @Test
     void recomputeStatsCounts() {
-        ToolCallEvidence toolCallA = new ToolCallEvidence();
-        toolCallA.setToolName("tool-a");
-        toolCallA.setArgsDigest("args-a");
-        toolCallA.setResultDigest("result-a");
-        toolCallA.setStatus("SUCCESS");
-        toolCallA.setDurationMs(120L);
+        EvidenceItem tool = new EvidenceItem();
+        tool.setEvidenceId("ev-tool-1");
+        tool.setType(EvidenceType.TOOL_RESULT);
+        tool.setSource("weather_tool");
+        tool.setDigest("ok");
 
-        ToolCallEvidence toolCallB = new ToolCallEvidence();
-        toolCallB.setToolName("tool-b");
-        toolCallB.setArgsDigest("args-b");
-        toolCallB.setResultDigest("result-b");
-        toolCallB.setStatus("FAILED");
-        toolCallB.setErrorCode("TOOL_ERROR");
+        EvidenceItem memory = new EvidenceItem();
+        memory.setEvidenceId("ev-memory-1");
+        memory.setType(EvidenceType.MEMORY);
+        memory.setSource("memory");
+        memory.setDigest("memory hit");
 
-        MemoryEvidence memoryEvidence = new MemoryEvidence();
-        memoryEvidence.setMemoryId("memory-1");
-        memoryEvidence.setScore(0.86);
-        memoryEvidence.setSummaryVersion("v1");
+        EvidenceItem research = new EvidenceItem();
+        research.setEvidenceId("ev-research-1");
+        research.setType(EvidenceType.RESEARCH);
+        research.setSource("example.com");
+        research.setDigest("citation");
 
-        Citation citationA = new Citation();
-        citationA.setType("MEMORY");
-        citationA.setRefId("memory-1");
-        citationA.setLabel("memory-ref");
-
-        Citation citationB = new Citation();
-        citationB.setType("URL");
-        citationB.setRefId("https://example.com");
-        citationB.setLabel("external-link");
+        EvidenceItem truncation = new EvidenceItem();
+        truncation.setEvidenceId("ev-trim-1");
+        truncation.setType(EvidenceType.CONTEXT_TRUNCATION);
+        truncation.setSource("context_trim");
+        truncation.setDigest("trimmed");
 
         EvidencePack pack = new EvidencePack();
-        pack.setToolCalls(List.of(toolCallA, toolCallB));
-        pack.setMemoriesUsed(List.of(memoryEvidence));
-        pack.setCitations(List.of(citationA, citationB));
+        pack.setEvidences(List.of(tool, memory, research, truncation));
 
         EvidenceStats stats = pack.recomputeStats();
 
         assertNotNull(stats);
-        assertEquals(2, stats.getToolCallsCount());
-        assertEquals(1, stats.getMemoriesCount());
-        assertEquals(2, stats.getCitationsCount());
+        assertEquals(1, stats.getToolCount());
+        assertEquals(1, stats.getMemoryCount());
+        assertEquals(1, stats.getResearchCount());
+        assertEquals(1, stats.getTruncationCount());
+        assertEquals(4, stats.getTotalCount());
         assertNotNull(stats.getUpdatedAt());
     }
 
@@ -59,46 +54,35 @@ class EvidencePackTest {
     void jacksonRoundTripKeepsCoreFields() throws Exception {
         ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
 
-        ToolCallEvidence toolCall = new ToolCallEvidence();
-        toolCall.setToolName("tool-a");
-        toolCall.setArgsDigest("args-a");
-        toolCall.setResultDigest("result-a");
-        toolCall.setStatus("SUCCESS");
-
-        MemoryEvidence memoryEvidence = new MemoryEvidence();
-        memoryEvidence.setMemoryId("memory-1");
-        memoryEvidence.setScore(0.91);
-        memoryEvidence.setSummaryVersion("v1");
-
-        Citation citation = new Citation();
-        citation.setType("MEMORY");
-        citation.setRefId("memory-1");
-        citation.setLabel("memory-ref");
+        EvidenceItem item = new EvidenceItem();
+        item.setEvidenceId("ev-1");
+        item.setType(EvidenceType.TOOL_RESULT);
+        item.setStepId("step-1");
+        item.setSource("weather_tool");
+        item.setRef("raw:1");
+        item.setDigest("ok");
+        item.setCreatedAt(Instant.parse("2026-01-28T00:00:00Z"));
 
         EvidencePack pack = new EvidencePack();
         pack.setVersion("v1");
+        pack.setPackId("ep-1");
         pack.setTenantId("tenant-1");
         pack.setWorkflowId("workflow-1");
         pack.setSnapshotId("snapshot-1");
         pack.setCreatedAt(Instant.parse("2026-01-28T00:00:00Z"));
-        pack.setToolCalls(List.of(toolCall));
-        pack.setMemoriesUsed(List.of(memoryEvidence));
-        pack.setCitations(List.of(citation));
+        pack.setEvidences(List.of(item));
         pack.recomputeStats();
 
         String payload = mapper.writeValueAsString(pack);
         EvidencePack restored = mapper.readValue(payload, EvidencePack.class);
 
         assertEquals("v1", restored.getVersion());
+        assertEquals("ep-1", restored.getPackId());
         assertEquals("tenant-1", restored.getTenantId());
         assertEquals("workflow-1", restored.getWorkflowId());
         assertEquals("snapshot-1", restored.getSnapshotId());
-        assertNotNull(restored.getToolCalls());
-        assertEquals(1, restored.getToolCalls().size());
-        assertNotNull(restored.getMemoriesUsed());
-        assertEquals(1, restored.getMemoriesUsed().size());
-        assertNotNull(restored.getCitations());
-        assertEquals(1, restored.getCitations().size());
+        assertNotNull(restored.getEvidences());
+        assertEquals(1, restored.getEvidences().size());
     }
 
     @Test
@@ -107,8 +91,10 @@ class EvidencePackTest {
         EvidenceStats stats = pack.recomputeStats();
 
         assertNotNull(stats);
-        assertEquals(0, stats.getToolCallsCount());
-        assertEquals(0, stats.getMemoriesCount());
-        assertEquals(0, stats.getCitationsCount());
+        assertEquals(0, stats.getToolCount());
+        assertEquals(0, stats.getMemoryCount());
+        assertEquals(0, stats.getResearchCount());
+        assertEquals(0, stats.getTruncationCount());
+        assertEquals(0, stats.getTotalCount());
     }
 }

@@ -53,19 +53,24 @@ public class ContextSnapshotEventPayload {
     private Boolean evidencePackPresent;
 
     /**
-     * 工具调用证据数量。
+     * 工具证据数量。
      */
-    private Integer evidenceToolCallsCount;
+    private Integer evidenceToolCount;
 
     /**
-     * 记忆引用证据数量。
+     * 记忆证据数量。
      */
-    private Integer evidenceMemoriesCount;
+    private Integer evidenceMemoryCount;
 
     /**
-     * 引用证据数量。
+     * 研究证据数量。
      */
-    private Integer evidenceCitationsCount;
+    private Integer evidenceResearchCount;
+
+    /**
+     * 裁剪证据数量。
+     */
+    private Integer evidenceTruncationCount;
 
     /**
      * 证据包体积估算字符数。
@@ -149,28 +154,36 @@ public class ContextSnapshotEventPayload {
         this.evidencePackPresent = evidencePackPresent;
     }
 
-    public Integer getEvidenceToolCallsCount() {
-        return evidenceToolCallsCount;
+    public Integer getEvidenceToolCount() {
+        return evidenceToolCount;
     }
 
-    public void setEvidenceToolCallsCount(Integer evidenceToolCallsCount) {
-        this.evidenceToolCallsCount = evidenceToolCallsCount;
+    public void setEvidenceToolCount(Integer evidenceToolCount) {
+        this.evidenceToolCount = evidenceToolCount;
     }
 
-    public Integer getEvidenceMemoriesCount() {
-        return evidenceMemoriesCount;
+    public Integer getEvidenceMemoryCount() {
+        return evidenceMemoryCount;
     }
 
-    public void setEvidenceMemoriesCount(Integer evidenceMemoriesCount) {
-        this.evidenceMemoriesCount = evidenceMemoriesCount;
+    public void setEvidenceMemoryCount(Integer evidenceMemoryCount) {
+        this.evidenceMemoryCount = evidenceMemoryCount;
     }
 
-    public Integer getEvidenceCitationsCount() {
-        return evidenceCitationsCount;
+    public Integer getEvidenceResearchCount() {
+        return evidenceResearchCount;
     }
 
-    public void setEvidenceCitationsCount(Integer evidenceCitationsCount) {
-        this.evidenceCitationsCount = evidenceCitationsCount;
+    public void setEvidenceResearchCount(Integer evidenceResearchCount) {
+        this.evidenceResearchCount = evidenceResearchCount;
+    }
+
+    public Integer getEvidenceTruncationCount() {
+        return evidenceTruncationCount;
+    }
+
+    public void setEvidenceTruncationCount(Integer evidenceTruncationCount) {
+        this.evidenceTruncationCount = evidenceTruncationCount;
     }
 
     public Integer getEvidenceApproxChars() {

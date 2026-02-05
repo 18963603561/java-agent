@@ -6,22 +6,17 @@ import com.example.agent.budget.TokenUsageInput;
 import com.example.agent.budget.TokenUsageRecord;
 import com.example.agent.common.ErrorCodeException;
 import com.example.agent.common.TaskRequest;
-import com.example.agent.context.EvidencePack;
-import com.example.agent.context.EvidencePackService;
-import com.example.agent.context.ContextSnapshot;
-import com.example.agent.context.ToolCallEvidence;
-import com.example.agent.context.WorkingMemory;
 import com.example.agent.model.ModelDefinition;
 import com.example.agent.model.ModelRouter;
 import com.example.agent.model.ModelScene;
+import com.example.agent.runtime.raw.RawRef;
+import com.example.agent.runtime.raw.RawResultStore;
 import com.example.agent.tools.McpToolCallRequest;
 import com.example.agent.tools.McpToolCallResponse;
 import com.example.agent.tools.McpToolClient;
 import com.example.agent.tools.McpToolDefinition;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.observability.TracingPublisher;
-import com.example.agent.streaming.ContextEventPublisher;
-import com.example.agent.streaming.ContextSnapshotStage;
 import com.example.agent.runtime.RetryPolicy;
 import com.example.agent.sandbox.SandboxResult;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -52,6 +47,7 @@ public class ToolExecutor {
 
     private static final int MAX_DIGEST_CHARS = 800;
     private static final int MAX_DIGEST_KEYS = 20;
+    private static final String CONTEXT_EVIDENCE_PACK = "evidencePack";
     private static final String INTERNAL_EVIDENCE_PACK = "EvidencePack";
     private static final String INTERNAL_EVIDENCE_PACK_ALIAS = "_internalEvidencePack";
 
@@ -92,13 +88,9 @@ public class ToolExecutor {
      */
     private final TracingPublisher tracingPublisher;
     /**
-     * 证据包聚合器。
+     * 原始结果存储器。
      */
-    private final EvidencePackService evidencePackService;
-    /**
-     * 上下文事件发布器。
-     */
-    private final ContextEventPublisher contextEventPublisher;
+    private final RawResultStore rawResultStore;
     private final ToolArgumentValidator argumentValidator = new ToolArgumentValidator();
 
     /**
@@ -152,8 +144,7 @@ public class ToolExecutor {
                         ObjectMapper objectMapper,
                         MetricsPublisher metricsPublisher,
                         TracingPublisher tracingPublisher,
-                        EvidencePackService evidencePackService,
-                        ContextEventPublisher contextEventPublisher) {
+                        RawResultStore rawResultStore) {
         this.toolRegistry = toolRegistry;
         this.mcpToolClient = mcpToolClient;
         this.toolCache = toolCache;
@@ -163,8 +154,7 @@ public class ToolExecutor {
         this.objectMapper = objectMapper;
         this.metricsPublisher = metricsPublisher;
         this.tracingPublisher = tracingPublisher;
-        this.evidencePackService = evidencePackService;
-        this.contextEventPublisher = contextEventPublisher;
+        this.rawResultStore = rawResultStore;
     }
 
     /**
@@ -220,7 +210,6 @@ public class ToolExecutor {
         // 构建缓存键与 TTL
         String cacheKey = buildCacheKey(resolvedTool, arguments);
         Duration ttl = Duration.ofSeconds(Math.max(0, cacheTtlSeconds));
-        long cacheStartNs = System.nanoTime();
 
         if (cacheEnabled) {
             // 缓存命中直接返回结果
@@ -237,9 +226,9 @@ public class ToolExecutor {
                 response.put("result", cachedOutput);
                 response.put("tokenUsage", usageRecord);
                 response.put("cacheHit", true);
-                long durationMs = Duration.ofNanos(System.nanoTime() - cacheStartNs).toMillis();
-                appendToolEvidence(request, tenantContext, resolvedTool, usageId, arguments, cachedOutput,
-                        durationMs, "SUCCESS", null);
+                RawRef rawRef = storeRawRef(resolvedTool, cachedOutput);
+                response.put("rawRef", rawRef != null ? rawRef.getKey() : null);
+                response.put("resultDigest", buildDigest(cachedOutput));
                 return response;
             }
         }
@@ -277,13 +266,14 @@ public class ToolExecutor {
                 response.put("result", merged);
                 response.put("tokenUsage", usageRecord);
                 response.put("cacheHit", false);
+                RawRef rawRef = storeRawRef(resolvedTool, merged);
+                response.put("rawRef", rawRef != null ? rawRef.getKey() : null);
+                response.put("resultDigest", buildDigest(merged));
 
                 long durationMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
                 metricsPublisher.increment("tool.call.count", resolveTraceId(tenantContext));
                 metricsPublisher.recordTime("tool.call.latency.ms", durationMs,
                         resolveTraceId(tenantContext));
-                appendToolEvidence(request, tenantContext, resolvedTool, usageId, arguments, merged,
-                        durationMs, "SUCCESS", null);
 
                 if (cacheEnabled) {
                     // 成功结果写回缓存
@@ -306,9 +296,6 @@ public class ToolExecutor {
                 log.error("工具执行失败, tenantId={}, tool={}, attempt={}, errorCode={}, traceId={}",
                         tenantContext.getTenantId(), resolvedTool, attempt, ex.getErrorCode(),
                         resolveTraceId(tenantContext), ex);
-                long durationMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
-                appendToolEvidence(request, tenantContext, resolvedTool, usageId, arguments, null,
-                        durationMs, "FAILED", ex.getErrorCode());
                 throw ex;
             } catch (Exception ex) {
                 metricsPublisher.increment("tool.call.failure.count", resolveTraceId(tenantContext));
@@ -322,9 +309,6 @@ public class ToolExecutor {
                 log.error("工具执行异常, tenantId={}, tool={}, attempt={}, traceId={}",
                         tenantContext.getTenantId(), resolvedTool, attempt,
                         resolveTraceId(tenantContext), ex);
-                long durationMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
-                appendToolEvidence(request, tenantContext, resolvedTool, usageId, arguments, null,
-                        durationMs, "FAILED", "MCP_UNAVAILABLE");
                 throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE",
                         "工具执行异常");
             }
@@ -443,7 +427,7 @@ public class ToolExecutor {
         if (arguments == null || arguments.isEmpty()) {
             return;
         }
-        arguments.remove(EvidencePackService.CONTEXT_EVIDENCE_PACK);
+        arguments.remove(CONTEXT_EVIDENCE_PACK);
         arguments.remove(INTERNAL_EVIDENCE_PACK);
         arguments.remove(INTERNAL_EVIDENCE_PACK_ALIAS);
     }
@@ -468,126 +452,13 @@ public class ToolExecutor {
     }
 
     /**
-     * 追加工具调用证据，避免影响主流程。
+     * 保存原始结果并返回引用。
      */
-    private void appendToolEvidence(TaskRequest request,
-                                    TenantContext tenantContext,
-                                    String toolName,
-                                    String usageId,
-                                    Map<String, Object> arguments,
-                                    Map<String, Object> result,
-                                    long durationMs,
-                                    String status,
-                                    String errorCode) {
-        if (evidencePackService == null || request == null || request.getContext() == null) {
-            return;
-        }
-        String tenantId = tenantContext != null ? tenantContext.getTenantId() : null;
-        Map<String, Object> context = request.getContext();
-        String workflowId = resolveWorkflowId(context);
-        String snapshotId = resolveSnapshotId(context);
-        EvidencePack pack = evidencePackService.getOrCreatePack(context, tenantId, workflowId, snapshotId);
-        ToolCallEvidence evidence = new ToolCallEvidence();
-        evidence.setToolName(toolName);
-        evidence.setToolCallId(usageId);
-        evidence.setArgsDigest(buildDigest(arguments));
-        evidence.setResultDigest(buildDigest(result));
-        evidence.setDurationMs(durationMs);
-        evidence.setStatus(status);
-        evidence.setErrorCode(errorCode);
-        evidencePackService.addToolCall(pack, evidence, tenantId, workflowId);
-        evidencePackService.finalizePack(pack, tenantId, workflowId);
-        ContextSnapshot snapshot = resolveContextSnapshot(context);
-        syncSnapshotEvidence(snapshot, pack);
-        publishToolObservedStage(tenantContext, workflowId, snapshot, snapshotId);
-    }
-
-    /**
-     * 从上下文中解析工作流标识。
-     *
-     * @param context 上下文
-     * @return 工作流标识
-     */
-    private String resolveWorkflowId(Map<String, Object> context) {
-        if (context == null) {
+    private RawRef storeRawRef(String toolName, Map<String, Object> result) {
+        if (rawResultStore == null || result == null || result.isEmpty()) {
             return null;
         }
-        Object value = context.get("workflowId");
-        if (value instanceof String text && !text.isBlank()) {
-            return text;
-        }
-        return null;
-    }
-
-    /**
-     * 从上下文中解析快照标识。
-     *
-     * @param context 上下文
-     * @return 快照标识
-     */
-    private String resolveSnapshotId(Map<String, Object> context) {
-        if (context == null) {
-            return null;
-        }
-        Object value = context.get("snapshotId");
-        if (value instanceof String text && !text.isBlank()) {
-            return text;
-        }
-        return null;
-    }
-
-    /**
-     * 从上下文中解析快照对象。
-     *
-     * @param context 上下文
-     * @return 快照对象
-     */
-    private ContextSnapshot resolveContextSnapshot(Map<String, Object> context) {
-        if (context == null) {
-            return null;
-        }
-        Object value = context.get("contextSnapshot");
-        if (value instanceof ContextSnapshot snapshot) {
-            return snapshot;
-        }
-        return null;
-    }
-
-    /**
-     * 同步证据包到快照工作记忆，避免后续阶段丢失最新工具观察。
-     */
-    private void syncSnapshotEvidence(ContextSnapshot snapshot, EvidencePack pack) {
-        if (snapshot == null || pack == null) {
-            return;
-        }
-        WorkingMemory memory = snapshot.getWorkingMemory();
-        if (memory == null) {
-            memory = new WorkingMemory();
-            snapshot.setWorkingMemory(memory);
-        }
-        memory.setEvidencePack(pack);
-    }
-
-    private void publishToolObservedStage(TenantContext tenantContext,
-                                          String workflowId,
-                                          ContextSnapshot snapshot,
-                                          String snapshotId) {
-        if (contextEventPublisher == null || tenantContext == null || workflowId == null) {
-            return;
-        }
-        contextEventPublisher.publishSnapshotStage(
-                tenantContext,
-                workflowId,
-                null,
-                snapshot,
-                snapshotId,
-                null,
-                null,
-                null,
-                null,
-                ContextSnapshotStage.TOOL_OBSERVED,
-                null,
-                null);
+        return rawResultStore.store(toolName, result, "application/json");
     }
 
     /**

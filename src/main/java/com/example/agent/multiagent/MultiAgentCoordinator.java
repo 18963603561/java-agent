@@ -82,7 +82,7 @@ public class MultiAgentCoordinator {
         String prompt = buildPrompt(inputSummary);
         ModelRequest request = new ModelRequest(prompt, ModelScene.PLANNER);
         applyPromptBundle(request, prompt, inputSummary);
-        modelToolResolver.applyTooling(request, null, step != null ? step.getInput() : null);
+        modelToolResolver.applyTooling(request, null, step != null ? step.toExecutionInput() : null);
         Map<String, Object> metadata = new HashMap<>();
         if (step != null && step.getStepType() != null) {
             metadata.put("stepType", step.getStepType());
@@ -138,8 +138,8 @@ public class MultiAgentCoordinator {
 
     private Map<String, Object> buildInputSummary(StepSpec step) {
         Map<String, Object> summary = new HashMap<>();
-        if (step != null && step.getInput() != null) {
-            Map<String, Object> input = step.getInput();
+        if (step != null) {
+            Map<String, Object> input = step.getArguments() != null ? step.getArguments() : Map.of();
             putIfNotBlank(summary, "query", input.get("query"));
             putIfNotBlank(summary, "goal", input.get("goal"));
             Object constraints = normalizeTextOrList(input.get("constraints"));

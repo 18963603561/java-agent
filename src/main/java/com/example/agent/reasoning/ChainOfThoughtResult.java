@@ -30,6 +30,11 @@ public class ChainOfThoughtResult {
      */
     private boolean completed;
 
+    /**
+     * 推理原始输出引用。
+     */
+    private String rawRef;
+
     public String getFinalAnswer() {
         return finalAnswer;
     }
@@ -68,5 +73,13 @@ public class ChainOfThoughtResult {
 
     public void setCompleted(boolean completed) {
         this.completed = completed;
+    }
+
+    public String getRawRef() {
+        return rawRef;
+    }
+
+    public void setRawRef(String rawRef) {
+        this.rawRef = rawRef;
     }
 }

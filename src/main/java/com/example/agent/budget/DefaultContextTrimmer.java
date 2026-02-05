@@ -5,12 +5,11 @@ import com.example.agent.context.ContextSnapshot;
 import com.example.agent.context.DomainKnowledge;
 import com.example.agent.context.EvidenceItem;
 import com.example.agent.context.EvidencePack;
+import com.example.agent.context.EvidenceType;
 import com.example.agent.context.LongTermMemory;
-import com.example.agent.context.MemoryEvidence;
 import com.example.agent.context.MemoryRef;
 import com.example.agent.context.RoleBoundary;
 import com.example.agent.context.TaskIntent;
-import com.example.agent.context.ToolCallEvidence;
 import com.example.agent.context.ToolCallState;
 import com.example.agent.context.ToolState;
 import com.example.agent.context.WorkingMemory;
@@ -300,64 +299,49 @@ public class DefaultContextTrimmer implements ContextTrimmer {
         if (currentTokens <= targetTokens) {
             return currentTokens;
         }
-        List<ToolCallEvidence> toolCalls = mutableCopy(pack.getToolCalls());
-        if (toolCalls != null) {
-            for (ToolCallEvidence call : toolCalls) {
-                String resultDigest = call != null ? call.getResultDigest() : null;
-                String trimmed = trimText(resultDigest, MAX_RESULT_DIGEST_CHARS);
-                if (resultDigest != null && trimmed != null && resultDigest.length() > trimmed.length()) {
-                    recordRemoved(removedBySection, ContextSection.EVIDENCE_PACK, 1,
-                            resultDigest.length() - trimmed.length(),
-                            estimateTokensByChars(resultDigest.length() - trimmed.length()));
-                    call.setResultDigest(trimmed);
-                }
-            }
-            pack.setToolCalls(toolCalls);
+        List<EvidenceItem> evidences = mutableCopy(pack.getEvidences());
+        if (evidences == null || evidences.isEmpty()) {
+            return currentTokens;
         }
+        for (EvidenceItem item : evidences) {
+            if (item == null) {
+                continue;
+            }
+            int maxDigestChars = item.getType() == EvidenceType.TOOL_RESULT
+                    ? MAX_RESULT_DIGEST_CHARS
+                    : MAX_ARGS_DIGEST_CHARS;
+            String digest = item.getDigest();
+            String trimmedDigest = trimText(digest, maxDigestChars);
+            if (digest != null && trimmedDigest != null && digest.length() > trimmedDigest.length()) {
+                int removedChars = digest.length() - trimmedDigest.length();
+                recordRemoved(removedBySection, ContextSection.EVIDENCE_PACK, 1,
+                        removedChars, estimateTokensByChars(removedChars));
+                item.setDigest(trimmedDigest);
+            }
+            String source = item.getSource();
+            String trimmedSource = trimText(source, MAX_TOOL_DESC_CHARS);
+            if (source != null && trimmedSource != null && source.length() > trimmedSource.length()) {
+                int removedChars = source.length() - trimmedSource.length();
+                recordRemoved(removedBySection, ContextSection.EVIDENCE_PACK, 1,
+                        removedChars, estimateTokensByChars(removedChars));
+                item.setSource(trimmedSource);
+            }
+        }
+        pack.setEvidences(evidences);
         currentTokens = estimateEvidencePackTokens(pack);
         if (currentTokens <= targetTokens) {
             pack.recomputeStats();
             return currentTokens;
         }
-        if (toolCalls != null) {
-            for (ToolCallEvidence call : toolCalls) {
-                String argsDigest = call != null ? call.getArgsDigest() : null;
-                String trimmed = trimText(argsDigest, MAX_ARGS_DIGEST_CHARS);
-                if (argsDigest != null && trimmed != null && argsDigest.length() > trimmed.length()) {
-                    recordRemoved(removedBySection, ContextSection.EVIDENCE_PACK, 1,
-                            argsDigest.length() - trimmed.length(),
-                            estimateTokensByChars(argsDigest.length() - trimmed.length()));
-                    call.setArgsDigest(trimmed);
-                }
-            }
-            pack.setToolCalls(toolCalls);
+        while (!evidences.isEmpty() && currentTokens > targetTokens) {
+            EvidenceItem removed = evidences.remove(0);
+            int removedChars = estimateEvidenceItemChars(removed);
+            int removedTokens = estimateEvidenceItemTokens(removed);
+            recordRemoved(removedBySection, ContextSection.EVIDENCE_PACK, 1, removedChars, removedTokens);
+            pack.setEvidences(evidences.isEmpty() ? null : evidences);
+            currentTokens = estimateEvidencePackTokens(pack);
         }
-        currentTokens = estimateEvidencePackTokens(pack);
-        if (currentTokens <= targetTokens) {
-            pack.recomputeStats();
-            return currentTokens;
-        }
-        if (toolCalls != null) {
-            while (!toolCalls.isEmpty() && currentTokens > targetTokens) {
-                ToolCallEvidence removed = toolCalls.remove(0);
-                int removedChars = estimateToolCallChars(removed);
-                int removedTokens = estimateToolCallTokens(removed);
-                recordRemoved(removedBySection, ContextSection.EVIDENCE_PACK, 1, removedChars, removedTokens);
-                currentTokens = estimateEvidencePackTokens(pack);
-            }
-            pack.setToolCalls(toolCalls.isEmpty() ? null : toolCalls);
-        }
-        List<EvidenceItem> items = mutableCopy(pack.getItems());
-        if (items != null) {
-            while (!items.isEmpty() && currentTokens > targetTokens) {
-                EvidenceItem removed = items.remove(0);
-                int removedChars = estimateEvidenceItemChars(removed);
-                int removedTokens = estimateEvidenceItemTokens(removed);
-                recordRemoved(removedBySection, ContextSection.EVIDENCE_PACK, 1, removedChars, removedTokens);
-                currentTokens = estimateEvidencePackTokens(pack);
-            }
-            pack.setItems(items.isEmpty() ? null : items);
-        }
+        pack.setEvidences(evidences.isEmpty() ? null : evidences);
         pack.recomputeStats();
         return estimateEvidencePackTokens(pack);
     }
@@ -839,23 +823,8 @@ public class DefaultContextTrimmer implements ContextTrimmer {
             return 0;
         }
         int total = 0;
-        if (pack.getToolCalls() != null) {
-            for (ToolCallEvidence call : pack.getToolCalls()) {
-                total += estimateToolCallTokens(call);
-            }
-        }
-        if (pack.getMemoriesUsed() != null) {
-            for (MemoryEvidence memory : pack.getMemoriesUsed()) {
-                total += estimateMemoryEvidenceTokens(memory);
-            }
-        }
-        if (pack.getCitations() != null) {
-            for (Citation citation : pack.getCitations()) {
-                total += estimateCitationTokens(citation);
-            }
-        }
-        if (pack.getItems() != null) {
-            for (EvidenceItem item : pack.getItems()) {
+        if (pack.getEvidences() != null) {
+            for (EvidenceItem item : pack.getEvidences()) {
                 total += estimateEvidenceItemTokens(item);
             }
         }
@@ -900,43 +869,6 @@ public class DefaultContextTrimmer implements ContextTrimmer {
         }
         int estimate = (int) Math.ceil(chars / 4.0);
         return Math.max(1, estimate);
-    }
-    private int estimateToolCallTokens(ToolCallEvidence evidence) {
-        if (evidence == null) {
-            return 0;
-        }
-        int total = 0;
-        total += estimateTokens(evidence.getToolName());
-        total += estimateTokens(evidence.getArgsDigest());
-        total += estimateTokens(evidence.getResultDigest());
-        total += estimateTokens(evidence.getStatus());
-        total += estimateTokens(evidence.getErrorCode());
-        total += estimateTokens(evidence.getToolCallId());
-        return total;
-    }
-
-    private int estimateToolCallChars(ToolCallEvidence evidence) {
-        if (evidence == null) {
-            return 0;
-        }
-        int total = 0;
-        total += safeLength(evidence.getToolName());
-        total += safeLength(evidence.getArgsDigest());
-        total += safeLength(evidence.getResultDigest());
-        total += safeLength(evidence.getStatus());
-        total += safeLength(evidence.getErrorCode());
-        total += safeLength(evidence.getToolCallId());
-        return total;
-    }
-
-    private int estimateMemoryEvidenceTokens(MemoryEvidence evidence) {
-        if (evidence == null) {
-            return 0;
-        }
-        int total = 0;
-        total += estimateTokens(evidence.getMemoryId());
-        total += estimateTokens(evidence.getSummaryVersion());
-        return total;
     }
 
     private int estimateMemoryRefTokens(MemoryRef ref) {
@@ -1030,12 +962,12 @@ public class DefaultContextTrimmer implements ContextTrimmer {
             return 0;
         }
         int total = 0;
-        total += estimateTokens(item.getSourceType());
-        total += estimateTokens(item.getSourceId());
-        total += estimateTokens(item.getUri());
-        total += estimateTokens(item.getTitle());
-        total += estimateTokens(item.getSnippet());
-        total += estimateTokens(item.getHash());
+        total += estimateTokens(item.getType() != null ? item.getType().name() : null);
+        total += estimateTokens(item.getEvidenceId());
+        total += estimateTokens(item.getStepId());
+        total += estimateTokens(item.getSource());
+        total += estimateTokens(item.getRef());
+        total += estimateTokens(item.getDigest());
         return total;
     }
 
@@ -1044,12 +976,12 @@ public class DefaultContextTrimmer implements ContextTrimmer {
             return 0;
         }
         int total = 0;
-        total += safeLength(item.getSourceType());
-        total += safeLength(item.getSourceId());
-        total += safeLength(item.getUri());
-        total += safeLength(item.getTitle());
-        total += safeLength(item.getSnippet());
-        total += safeLength(item.getHash());
+        total += safeLength(item.getType() != null ? item.getType().name() : null);
+        total += safeLength(item.getEvidenceId());
+        total += safeLength(item.getStepId());
+        total += safeLength(item.getSource());
+        total += safeLength(item.getRef());
+        total += safeLength(item.getDigest());
         return total;
     }
 

@@ -2,7 +2,6 @@ package com.example.agent.memory;
 
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
-import com.example.agent.context.EvidencePackService;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.security.RedactionProperties;
 import com.example.agent.security.RedactionService;
@@ -11,7 +10,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,8 +29,7 @@ class MemoryRecallServiceTest {
         properties.setLimit(5);
         properties.setMaxRecordChars(100);
         properties.setMaxSummaryChars(200);
-        EvidencePackService evidencePackService = Mockito.mock(EvidencePackService.class);
-        MemoryRecallService service = new MemoryRecallService(store, properties, evidencePackService,
+        MemoryRecallService service = new MemoryRecallService(store, properties,
                 buildRedactionService(), new MetricsPublisher(new SimpleMeterRegistry()));
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
@@ -59,8 +56,7 @@ class MemoryRecallServiceTest {
         MemoryStore store = buildStore(repository);
         MemoryRecallProperties properties = new MemoryRecallProperties();
         properties.setEnabled(true);
-        EvidencePackService evidencePackService = Mockito.mock(EvidencePackService.class);
-        MemoryRecallService service = new MemoryRecallService(store, properties, evidencePackService,
+        MemoryRecallService service = new MemoryRecallService(store, properties,
                 buildRedactionService(), new MetricsPublisher(new SimpleMeterRegistry()));
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
@@ -83,8 +79,7 @@ class MemoryRecallServiceTest {
         properties.setLimit(5);
         properties.setMaxRecordChars(200);
         properties.setMaxSummaryChars(200);
-        EvidencePackService evidencePackService = Mockito.mock(EvidencePackService.class);
-        MemoryRecallService service = new MemoryRecallService(store, properties, evidencePackService,
+        MemoryRecallService service = new MemoryRecallService(store, properties,
                 buildRedactionService(), new MetricsPublisher(new SimpleMeterRegistry()));
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 

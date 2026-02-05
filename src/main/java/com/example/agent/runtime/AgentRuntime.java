@@ -529,9 +529,23 @@ public class AgentRuntime {
                 }
 
                 // 反思前补充临时摘要，避免反思阶段摘要为空。
-                output = enrichOutputSummaryForReflection(step, request, record, stepInput, output);
+                // 注意：该摘要仅用于反思评估，不能回写到最终步骤输出，避免完成态结果被“STARTED 摘要”污染。
+                Map<String, Object> reflectionOutput = enrichOutputSummaryForReflection(
+                        step,
+                        request,
+                        record,
+                        stepInput,
+                        output
+                );
                 // 对步骤输出进行反思评估，可能触发重试。
-                ReflectionResult reflection = reflectWithEvents(step, tenantContext, workflowId, seqCounter, output, attempt);
+                ReflectionResult reflection = reflectWithEvents(
+                        step,
+                        tenantContext,
+                        workflowId,
+                        seqCounter,
+                        reflectionOutput,
+                        attempt
+                );
                 if (reflection != null && reflection.isRetryRequested()) {
                     Map<String, Object> details = new HashMap<>();
                     if (reflection.getReport() != null && reflection.getReport().getNotes() != null) {
@@ -1541,13 +1555,13 @@ private Map<String, Object> executeToolStep(TaskRequest request,
         if (stepResult == null) {
             return null;
         }
-        if (stepResult.getStructured() != null && stepResult.getStructured().getData() != null
-                && !stepResult.getStructured().getData().isEmpty()) {
-            return stepResult.getStructured().getData();
-        }
         if (stepResult.getRaw() != null && stepResult.getRaw().getData() != null
                 && !stepResult.getRaw().getData().isEmpty()) {
             return stepResult.getRaw().getData();
+        }
+        if (stepResult.getStructured() != null && stepResult.getStructured().getData() != null
+                && !stepResult.getStructured().getData().isEmpty()) {
+            return stepResult.getStructured().getData();
         }
         if (stepResult.getSummary() != null) {
             Map<String, Object> stepSummary = stepResult.getSummary().getStepSummary();

@@ -132,7 +132,7 @@ public class ReflectionService {
             String prompt = buildReflectionPrompt(step, output, attempt);
             ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.REFLECT);
             applyPromptBundle(modelRequest, prompt, step);
-            modelToolResolver.applyTooling(modelRequest, null, step != null ? step.getInput() : null);
+            modelToolResolver.applyTooling(modelRequest, null, step != null ? step.toExecutionInput() : null);
             Map<String, Object> metadata = new HashMap<>();
             if (step != null && step.getStepType() != null) {
                 metadata.put("stepType", step.getStepType());
@@ -444,7 +444,7 @@ public class ReflectionService {
         if (promptAssembler == null || modelRequest == null) {
             return;
         }
-        Map<String, Object> input = step != null ? step.getInput() : null;
+        Map<String, Object> input = step != null ? step.toExecutionInput() : null;
         PromptBundle bundle = promptAssembler.build(prompt, null, input);
         if (bundle != null && bundle.getMessages() != null) {
             modelRequest.setMessages(bundle.getMessages());
@@ -484,8 +484,8 @@ public class ReflectionService {
             }
         }
 
-        if (step != null && step.getInput() != null) {
-            Object critical = step.getInput().get("critical");
+        if (step != null && step.getArguments() != null) {
+            Object critical = step.getArguments().get("critical");
             if (Boolean.TRUE.equals(critical) && score < 0.8) {
                 score -= 0.05;
                 notes.add("关键步骤需更高质量");

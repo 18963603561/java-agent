@@ -4,6 +4,8 @@ import com.example.agent.auth.TenantContext;
 import com.example.agent.common.ErrorCodeException;
 import com.example.agent.domain.event.EventType;
 import com.example.agent.domain.event.StreamEvent;
+import com.example.agent.runtime.raw.RawRef;
+import com.example.agent.runtime.raw.RawResultStore;
 import com.example.agent.streaming.EventStreamService;
 import com.example.agent.model.PromptTrace;
 import java.time.Instant;
@@ -56,6 +58,11 @@ public class ModelInvocationService {
      * <p>示例：生成事件序列号。
      */
     private final EventStreamService eventStreamService;
+    /**
+     * 原始结果存储器。
+     * <p>示例：为模型原始输出生成 {@code rawRef}。
+     */
+    private final RawResultStore rawResultStore;
 
     /**
      * 构造模型调用服务。
@@ -75,11 +82,13 @@ public class ModelInvocationService {
     public ModelInvocationService(LlmClient llmClient,
                                   ModelRouter modelRouter,
                                   ApplicationEventPublisher eventPublisher,
-                                  EventStreamService eventStreamService) {
+                                  EventStreamService eventStreamService,
+                                  RawResultStore rawResultStore) {
         this.llmClient = llmClient;
         this.modelRouter = modelRouter;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
+        this.rawResultStore = rawResultStore;
     }
 
     /**
@@ -131,6 +140,8 @@ public class ModelInvocationService {
                     phase);
             // 调用模型生成结果。
             ModelResponse response = llmClient.generate(safeRequest);
+            // 统一保存模型原始输出引用，便于后续链路追踪。
+            attachRawRef(response, scene, phase);
             // 发布输出事件，记录模型返回内容与追踪信息。
             publishOutputEvent(tenantContext, workflowId, seqCounter, phase, response, runtimeMetadata);
             log.info("模型调用完成, tenantId={}, workflowId={}, scene={}, modelId={}, phase={}, latencyMs={}",
@@ -365,5 +376,37 @@ public class ModelInvocationService {
             case "json_repair" -> "repair";
             default -> phase;
         };
+    }
+
+    /**
+     * 为模型输出挂载原始结果引用。
+     *
+     * <p>输入：模型响应、场景与阶段标识。
+     * <p>输出：无。
+     * <p>边界：响应为空、内容为空或存储器为空时跳过。
+     *
+     * @param response 模型响应
+     * @param scene 调用场景
+     * @param phase 阶段标识
+     */
+    private void attachRawRef(ModelResponse response, ModelScene scene, String phase) {
+        if (response == null || rawResultStore == null) {
+            return;
+        }
+        String content = response.getContent();
+        if (content == null || content.isBlank()) {
+            return;
+        }
+        String source = "model";
+        if (scene != null) {
+            source = source + ":" + scene.name().toLowerCase();
+        }
+        if (phase != null && !phase.isBlank()) {
+            source = source + ":" + phase;
+        }
+        RawRef rawRef = rawResultStore.store(source, content, "text/plain");
+        if (rawRef != null && rawRef.getKey() != null && !rawRef.getKey().isBlank()) {
+            response.setRawRef(rawRef.getKey());
+        }
     }
 }

@@ -21,6 +21,10 @@ public class ModelResponse {
      * 输出令牌数量。
      */
     private int outputTokens;
+    /**
+     * 原始输出引用键，用于追踪模型原始结果。
+     */
+    private String rawRef;
 
     /**
      * 空构造方法，便于序列化。
@@ -73,5 +77,13 @@ public class ModelResponse {
 
     public void setOutputTokens(int outputTokens) {
         this.outputTokens = outputTokens;
+    }
+
+    public String getRawRef() {
+        return rawRef;
+    }
+
+    public void setRawRef(String rawRef) {
+        this.rawRef = rawRef;
     }
 }

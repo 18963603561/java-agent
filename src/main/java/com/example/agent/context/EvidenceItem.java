@@ -3,98 +3,98 @@ package com.example.agent.context;
 import java.time.Instant;
 
 /**
- * 证据项。
+ * 证据项，描述单条可追溯证据的最小索引信息。
  */
 public class EvidenceItem {
 
     /**
-     * 来源类型。
+     * 证据标识。
      */
-    private String sourceType;
+    private String evidenceId;
 
     /**
-     * 来源标识。
+     * 证据类型。
      */
-    private String sourceId;
+    private EvidenceType type;
 
     /**
-     * 位置标识。
+     * 关联步骤标识。
      */
-    private String uri;
+    private String stepId;
 
     /**
-     * 标题。
+     * 来源信息，例如工具名或来源域名。
      */
-    private String title;
+    private String source;
 
     /**
-     * 摘要片段。
+     * 引用信息，例如 rawRef、memoryId、citationId。
      */
-    private String snippet;
+    private String ref;
 
     /**
-     * 校验哈希。
+     * 简要摘要，用于提示词与审计展示。
      */
-    private String hash;
+    private String digest;
 
     /**
-     * 获取时间。
+     * 证据写入时间。
      */
-    private Instant retrievedAt;
+    private Instant createdAt;
 
-    public String getSourceType() {
-        return sourceType;
+    public String getEvidenceId() {
+        return evidenceId;
     }
 
-    public void setSourceType(String sourceType) {
-        this.sourceType = sourceType;
+    public void setEvidenceId(String evidenceId) {
+        this.evidenceId = evidenceId;
     }
 
-    public String getSourceId() {
-        return sourceId;
+    public EvidenceType getType() {
+        return type;
     }
 
-    public void setSourceId(String sourceId) {
-        this.sourceId = sourceId;
+    public void setType(EvidenceType type) {
+        this.type = type;
     }
 
-    public String getUri() {
-        return uri;
+    public String getStepId() {
+        return stepId;
     }
 
-    public void setUri(String uri) {
-        this.uri = uri;
+    public void setStepId(String stepId) {
+        this.stepId = stepId;
     }
 
-    public String getTitle() {
-        return title;
+    public String getSource() {
+        return source;
     }
 
-    public void setTitle(String title) {
-        this.title = title;
+    public void setSource(String source) {
+        this.source = source;
     }
 
-    public String getSnippet() {
-        return snippet;
+    public String getRef() {
+        return ref;
     }
 
-    public void setSnippet(String snippet) {
-        this.snippet = snippet;
+    public void setRef(String ref) {
+        this.ref = ref;
     }
 
-    public String getHash() {
-        return hash;
+    public String getDigest() {
+        return digest;
     }
 
-    public void setHash(String hash) {
-        this.hash = hash;
+    public void setDigest(String digest) {
+        this.digest = digest;
     }
 
-    public Instant getRetrievedAt() {
-        return retrievedAt;
+    public Instant getCreatedAt() {
+        return createdAt;
     }
 
-    public void setRetrievedAt(Instant retrievedAt) {
-        this.retrievedAt = retrievedAt;
+    public void setCreatedAt(Instant createdAt) {
+        this.createdAt = createdAt;
     }
 }

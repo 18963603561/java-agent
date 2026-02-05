@@ -7,5 +7,8 @@ public enum HookType {
     PRE_TOOL,
     POST_TOOL,
     PRE_STEP,
-    POST_STEP
+    POST_STEP,
+    POST_RECALL,
+    POST_RESEARCH,
+    POST_TRIM
 }

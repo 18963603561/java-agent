@@ -205,6 +205,7 @@ public class ChainOfThoughtService {
         String stopReason = null;
         double confidence = 0.5;
         boolean completed = false;
+        String lastRawRef = null;
 
         Map<String, Object> startedPayload = new HashMap<>();
         startedPayload.put("question", safeQuestion);
@@ -242,6 +243,9 @@ public class ChainOfThoughtService {
                         "cot",
                         metadata
                 );
+                if (response != null && StringUtils.hasText(response.getRawRef())) {
+                    lastRawRef = response.getRawRef();
+                }
                 // 解析模型输出的决策与摘要。
                 String rawContent = response != null ? response.getContent() : null;
                 boolean repairAttempted = false;
@@ -322,6 +326,7 @@ public class ChainOfThoughtService {
         result.setConfidence(confidence);
         result.setStopReason(stopReason);
         result.setCompleted(completed);
+        result.setRawRef(lastRawRef);
 
         if (completed) {
             Map<String, Object> completedPayload = new HashMap<>();

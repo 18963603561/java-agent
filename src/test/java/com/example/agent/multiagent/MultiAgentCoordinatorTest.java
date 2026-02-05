@@ -9,7 +9,7 @@ import com.example.agent.model.ModelToolResolver;
 import com.example.agent.model.PromptAssembler;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.repair.JsonOutputRepairService;
-import com.example.agent.runtime.StepRequest;
+import com.example.agent.runtime.model.plan.StepSpec;
 import com.example.agent.streaming.EventStreamService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -53,7 +53,7 @@ class MultiAgentCoordinatorTest {
                 any(), any(), any(), eq("json_repair"), any()))
                 .thenReturn(new ModelResponse("repair", repaired, 10, 10));
 
-        StepRequest step = new StepRequest("TOOL", Map.of());
+        StepSpec step = new StepSpec("TOOL", Map.of());
         Map<String, Object> result = coordinator.coordinate(step,
                 new TenantContext("t-1", "u-1", List.of(), "req", "trace"), "wf-1", new AtomicLong(0));
         @SuppressWarnings("unchecked")
@@ -85,7 +85,7 @@ class MultiAgentCoordinatorTest {
                 any(), any(), any(), eq("json_repair"), any()))
                 .thenReturn(new ModelResponse("repair", "", 10, 10));
 
-        StepRequest step = new StepRequest("TOOL", Map.of());
+        StepSpec step = new StepSpec("TOOL", Map.of());
         Map<String, Object> result = coordinator.coordinate(step,
                 new TenantContext("t-1", "u-1", List.of(), "req", "trace"), "wf-1", new AtomicLong(0));
         @SuppressWarnings("unchecked")
@@ -121,7 +121,7 @@ class MultiAgentCoordinatorTest {
                 "evidencePack", Map.of("items", List.of("a")),
                 "tokenUsage", Map.of("total", 100)
         );
-        StepRequest step = new StepRequest("TOOL", input);
+        StepSpec step = new StepSpec("TOOL", input);
 
         coordinator.coordinate(step,
                 new TenantContext("t-1", "u-1", List.of(), "req", "trace"), "wf-1", new AtomicLong(0));

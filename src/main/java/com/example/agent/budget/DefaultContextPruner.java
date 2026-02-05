@@ -180,19 +180,19 @@ public class DefaultContextPruner implements ContextPruner {
             return;
         }
         EvidencePack pack = memory.getEvidencePack();
-        if (pack.getItems() == null || pack.getItems().size() <= max) {
+        if (pack.getEvidences() == null || pack.getEvidences().size() <= max) {
             return;
         }
-        List<EvidenceItem> kept = new ArrayList<>(pack.getItems().subList(0, max));
-        for (int i = max; i < pack.getItems().size(); i++) {
-            EvidenceItem itemValue = pack.getItems().get(i);
+        List<EvidenceItem> kept = new ArrayList<>(pack.getEvidences().subList(0, max));
+        for (int i = max; i < pack.getEvidences().size(); i++) {
+            EvidenceItem itemValue = pack.getEvidences().get(i);
             PrunedItem item = new PrunedItem();
             item.setItemType("evidence");
-            item.setItemId(itemValue != null ? itemValue.getSourceId() : null);
+            item.setItemId(itemValue != null ? itemValue.getEvidenceId() : null);
             item.setReason("evidence_limit");
             removedItems.add(item);
         }
-        pack.setItems(kept);
+        pack.setEvidences(kept);
     }
 
     private void pruneCitations(DomainKnowledge knowledge, ContextPolicy policy, List<PrunedItem> removedItems) {

@@ -3,9 +3,6 @@ package com.example.agent.memory;
 import com.example.agent.auth.TenantContext;
 import com.example.agent.common.TaskRequest;
 import com.example.agent.context.ContextPolicy;
-import com.example.agent.context.EvidencePack;
-import com.example.agent.context.EvidencePackService;
-import com.example.agent.context.MemoryEvidence;
 import com.example.agent.observability.MetricsPublisher;
 import com.example.agent.security.RedactionResult;
 import com.example.agent.security.RedactionService;
@@ -49,11 +46,6 @@ public class MemoryRecallService {
     private final MemoryRecallProperties properties;
 
     /**
-     * 证据包聚合器。
-     */
-    private final EvidencePackService evidencePackService;
-
-    /**
      * 脱敏服务。
      */
     private final RedactionService redactionService;
@@ -65,12 +57,10 @@ public class MemoryRecallService {
 
     public MemoryRecallService(MemoryStore memoryStore,
                                MemoryRecallProperties properties,
-                               EvidencePackService evidencePackService,
                                RedactionService redactionService,
                                MetricsPublisher metricsPublisher) {
         this.memoryStore = memoryStore;
         this.properties = properties;
-        this.evidencePackService = evidencePackService;
         this.redactionService = redactionService;
         this.metricsPublisher = metricsPublisher;
     }
@@ -154,7 +144,6 @@ public class MemoryRecallService {
             RedactionResult summaryRedaction = applyRedactionToSummary(summary, enableSensitiveMask);
             summary = summaryRedaction.getRedactedText();
             redactionsAppliedCount += summaryRedaction.getRedactedCount();
-            appendMemoryEvidence(effectiveContext, tenantContext, trimmed);
             log.info("记忆召回完成, tenantId={}, workflowId={}, sessionId={}, count={}, summaryLength={}, "
                             + "redactionsAppliedCount={}, enabled={}, rejectOnSecrets={}, redactOnPii={}",
                     tenantContext.getTenantId(), workflowId, sessionId, trimmed.size(),
@@ -405,47 +394,6 @@ public class MemoryRecallService {
         }
         String summary = builder.toString().trim();
         return summary.isEmpty() ? null : summary;
-    }
-
-    /**
-     * 追加记忆证据到证据包，避免影响主流程。
-     */
-    private void appendMemoryEvidence(Map<String, Object> context,
-                                      TenantContext tenantContext,
-                                      List<MemoryRecord> records) {
-        if (evidencePackService == null || context == null || records == null || records.isEmpty()) {
-            return;
-        }
-        String tenantId = tenantContext != null ? tenantContext.getTenantId() : null;
-        String workflowId = readString(context, "workflowId");
-        String snapshotId = readString(context, "snapshotId");
-        EvidencePack pack = evidencePackService.getOrCreatePack(context, tenantId, workflowId, snapshotId);
-        List<MemoryEvidence> memories = new ArrayList<>();
-        for (MemoryRecord record : records) {
-            if (record == null) {
-                continue;
-            }
-            MemoryEvidence evidence = new MemoryEvidence();
-            evidence.setMemoryId(record.getMemoryId());
-            evidence.setExpiresAt(record.getExpiresAt());
-            evidence.setSummaryVersion(resolveSummaryVersion(record));
-            memories.add(evidence);
-        }
-        evidencePackService.addMemoriesUsed(pack, memories, tenantId, workflowId);
-        evidencePackService.finalizePack(pack, tenantId, workflowId);
-    }
-
-    private String resolveSummaryVersion(MemoryRecord record) {
-        if (record == null) {
-            return null;
-        }
-        String workingVersion = record.getWorkingMemorySummary() != null
-                ? record.getWorkingMemorySummary().getVersion()
-                : null;
-        String conversationVersion = record.getConversationSummary() != null
-                ? record.getConversationSummary().getVersion()
-                : null;
-        return firstNonBlank(workingVersion, conversationVersion);
     }
 
     private List<String> readStringList(Object value) {

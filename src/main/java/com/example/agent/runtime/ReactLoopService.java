@@ -107,6 +107,7 @@ public class ReactLoopService {
         List<ReactDecision> decisions = new ArrayList<>();
         ReactLoopResult result = new ReactLoopResult();
         boolean stoppedEmitted = false;
+        String lastRawRef = null;
 
         for (int iteration = 1; iteration <= maxIterations; iteration++) {
             applyExecutionControl(workflowId, tenantContext, seqCounter);
@@ -116,6 +117,9 @@ public class ReactLoopService {
             ReactDecision decision = think(request, tenantContext, workflowId, seqCounter, iteration,
                     observationBuffer.snapshot());
             decisions.add(decision);
+            if (decision != null && StringUtils.hasText(decision.getRawRef())) {
+                lastRawRef = decision.getRawRef();
+            }
 
             ReactStopDecision stopDecision = stopEvaluator.evaluate(decision, iteration, properties);
             if (stopDecision.shouldStop()) {
@@ -133,6 +137,10 @@ public class ReactLoopService {
             Map<String, Object> actOutput;
             try {
                 actOutput = act(request, tenantContext, workflowId, taskId, seqCounter, iteration, decision);
+                String actRawRef = resolveRawRef(actOutput);
+                if (StringUtils.hasText(actRawRef)) {
+                    lastRawRef = actRawRef;
+                }
             // 异常捕获：记录上下文并按当前策略处理
             } catch (RuntimeException ex) {
                 ReactLoopResult failed = new ReactLoopResult();
@@ -154,6 +162,7 @@ public class ReactLoopService {
 
         result.setDecisions(decisions);
         result.setObservations(observationBuffer.snapshot());
+        result.setRawRef(lastRawRef);
 
         if (!stoppedEmitted) {
             result.setCompleted(false);
@@ -199,6 +208,9 @@ public class ReactLoopService {
             log.warn("ReAct 决策修复失败, iteration={}", iteration);
             decision = new ReactDecision();
             decision.setAction("none");
+        }
+        if (response != null && StringUtils.hasText(response.getRawRef())) {
+            decision.setRawRef(response.getRawRef());
         }
         recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
                 response != null ? response.getModelId() : null, decision != null, parseErrorType,
@@ -572,6 +584,41 @@ public class ReactLoopService {
 
     private String toText(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+
+    /**
+     * 解析工具执行输出中的原始引用。
+     *
+     * @param output 工具执行输出
+     * @return 原始引用键，不存在时返回 {@code null}
+     */
+    private String resolveRawRef(Map<String, Object> output) {
+        if (output == null || output.isEmpty()) {
+            return null;
+        }
+        Object direct = output.get("rawRef");
+        if (direct instanceof String text && StringUtils.hasText(text)) {
+            return text.trim();
+        }
+        if (output.get("rawResult") instanceof Map<?, ?> rawResultMap) {
+            Object nested = rawResultMap.get("rawRef");
+            if (nested instanceof String text && StringUtils.hasText(text)) {
+                return text.trim();
+            }
+        }
+        if (output.get("result") instanceof Map<?, ?> resultMap) {
+            Object nested = resultMap.get("rawRef");
+            if (nested instanceof String text && StringUtils.hasText(text)) {
+                return text.trim();
+            }
+        }
+        if (output.get("raw") instanceof Map<?, ?> rawMap) {
+            Object nested = rawMap.get("rawRef");
+            if (nested instanceof String text && StringUtils.hasText(text)) {
+                return text.trim();
+            }
+        }
+        return null;
     }
 
     private static final class ObservationSummaryData {
