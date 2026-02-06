@@ -49,13 +49,21 @@ import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import com.example.agent.runtime.control.ExecutionControlService;
 import com.example.agent.runtime.control.ExecutionControlState;
+import com.example.agent.runtime.control.RuntimeApprovalGate;
+import com.example.agent.runtime.control.RuntimeExecutionGate;
 import com.example.agent.runtime.engine.AgentRuntime;
-import com.example.agent.runtime.engine.LlmStepService;
-import com.example.agent.runtime.engine.ReactLoopService;
+import com.example.agent.runtime.llm.LlmStepService;
+import com.example.agent.runtime.react.ReactLoopService;
 import com.example.agent.runtime.engine.RuntimeResult;
-import com.example.agent.runtime.engine.StepRecord;
-import com.example.agent.runtime.engine.StepRuntimeService;
-import com.example.agent.runtime.engine.StepState;
+import com.example.agent.runtime.prepare.RuntimePreparationService;
+import com.example.agent.runtime.finalize.RuntimeFinalizationService;
+import com.example.agent.runtime.recovery.StepFailureRecoveryService;
+import com.example.agent.runtime.recovery.RetryPolicy;
+import com.example.agent.runtime.step.StepExecutionDelegate;
+import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.StepRecord;
+import com.example.agent.runtime.step.StepRuntimeService;
+import com.example.agent.runtime.step.StepState;
 import com.example.agent.runtime.output.FinalOutputService;
 import com.example.agent.runtime.raw.RawOutputEnvelopeBuilder;
 import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
@@ -160,37 +168,41 @@ class AgentRuntimeApprovalIntegrationTest {
         ContextBuilder contextBuilder = mock(ContextBuilder.class);
         ContextEventPublisher contextEventPublisher = mock(ContextEventPublisher.class);
 
+        RuntimeExecutionGate runtimeExecutionGate = new RuntimeExecutionGate(executionControlService);
+        RuntimeApprovalGate runtimeApprovalGate = new RuntimeApprovalGate(executionControlService);
+        StepExecutionDelegate stepExecutionDelegate = mock(StepExecutionDelegate.class);
+        when(stepExecutionDelegate.execute(any())).thenReturn(StepExecutionOutput.fromPayload(Map.of("answer", "ok")));
+
+        RuntimePreparationService runtimePreparationService = new RuntimePreparationService(
+                memoryRecallService,
+                hookManager,
+                evidencePackService,
+                contextBuilder,
+                contextEventPublisher
+        );
+        RuntimeFinalizationService runtimeFinalizationService = new RuntimeFinalizationService(
+                finalOutputService,
+                memoryWriteService
+        );
+        StepFailureRecoveryService stepFailureRecoveryService = new StepFailureRecoveryService(stepExecutionDelegate, 1, 1);
+        RetryPolicy retryPolicy = new RetryPolicy(50L, 200L, 0.1);
+
         AgentRuntime runtime = new AgentRuntime(
                 plannerService,
                 reflectionService,
                 stepRuntimeService,
                 reflectionSummaryBuilder,
                 rawOutputEnvelopeBuilder,
-                enforcementGateway,
                 hookManager,
-                executionControlService,
-                thoughtTreeService,
-                chainOfThoughtService,
-                multiAgentCoordinator,
-                debateCoordinator,
-                researchPipeline,
-                finalOutputService,
-                llmStepService,
-                toolArgumentValidator,
-                reactLoopService,
-                memoryRecallService,
-                memoryWriteService,
-                evidencePackService,
-                contextBuilder,
-                contextEventPublisher,
+                runtimePreparationService,
+                runtimeFinalizationService,
+                runtimeExecutionGate,
+                runtimeApprovalGate,
+                stepExecutionDelegate,
+                stepFailureRecoveryService,
+                retryPolicy,
                 eventPublisher,
-                tracingPublisher,
-                1,
-                1,
-                50L,
-                200L,
-                0.1,
-                true
+                tracingPublisher
         );
 
         TaskRequest request = new TaskRequest();

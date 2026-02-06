@@ -21,19 +21,19 @@ public class ModelToolDefinition {
      */
     private JsonNode parameters;
     /**
-     * ?????
+     * 工具标签，用于分类、筛选与治理策略匹配。
      */
     private List<String> tags;
     /**
-     * ?????
+     * 工具成本等级，用于预算控制与路由策略（例如：低/中/高）。
      */
     private String costLevel;
     /**
-     * ?????
+     * 工具延迟等级，用于超时控制与路由策略（例如：低/中/高）。
      */
     private String latencyLevel;
     /**
-     * ?????
+     * 调用工具所需的鉴权范围，用于权限校验与审批策略匹配。
      */
     private String authScope;
 

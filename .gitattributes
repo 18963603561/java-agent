@@ -1,0 +1,3 @@
+# 统一文本文件换行符为 LF，避免不同平台产生 CRLF/LF 混用。
+* text=auto eol=lf
+

@@ -8,7 +8,7 @@ import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.streaming.observability.TracingPublisher;
-import com.example.agent.runtime.engine.ApprovalDecisionRequest;
+import com.example.agent.runtime.control.ApprovalDecisionRequest;
 import com.example.agent.runtime.control.ExecutionControlService;
 import com.example.agent.runtime.control.ExecutionControlState;
 import com.example.agent.runtime.control.ExecutionControlStateResponse;

@@ -9,6 +9,7 @@ import com.example.agent.capabilities.llm.ModelToolResolver;
 import com.example.agent.capabilities.llm.PromptAssembler;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.runtime.model.StepSpec;
+import com.example.agent.runtime.step.StepExecutionOutput;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -44,7 +45,7 @@ class ReflectionServiceTest {
                 modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper(), Mockito.mock(JsonOutputRepairService.class));
 
         StepSpec step = new StepSpec("TOOL", Map.of("critical", true));
-        Map<String, Object> output = Map.of("error", "failed");
+        StepExecutionOutput output = StepExecutionOutput.fromPayload(Map.of("error", "failed"));
 
         ReflectionResult result = service.reflect(step, output,
                 new TenantContext("t1", "u1", List.of(), "req", "trace"), 1);
@@ -67,7 +68,7 @@ class ReflectionServiceTest {
                 modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper(), Mockito.mock(JsonOutputRepairService.class));
 
         StepSpec step = new StepSpec("TOOL", Map.of("critical", true));
-        Map<String, Object> output = Map.of("error", "failed");
+        StepExecutionOutput output = StepExecutionOutput.fromPayload(Map.of("error", "failed"));
 
         ReflectionResult result = service.reflect(step, output,
                 new TenantContext("t1", "u1", List.of(), "req", "trace"), 1);
@@ -95,7 +96,7 @@ class ReflectionServiceTest {
                 .thenReturn(new ModelResponse("reflect", content, 10, 5));
 
         StepSpec step = new StepSpec("TOOL", Map.of("critical", true));
-        Map<String, Object> output = Map.of("result", "ok");
+        StepExecutionOutput output = StepExecutionOutput.fromPayload(Map.of("result", "ok"));
 
         ReflectionResult result = service.reflect(step, output,
                 new TenantContext("t1", "u1", List.of(), "req", "trace"), 1,
@@ -126,7 +127,8 @@ class ReflectionServiceTest {
                         new ModelResponse("repair", repaired, 10, 20));
 
         StepSpec step = new StepSpec("TOOL", Map.of());
-        ReflectionResult result = service.reflect(step, Map.of("answer", "ok"),
+        StepExecutionOutput output = StepExecutionOutput.fromPayload(Map.of("answer", "ok"));
+        ReflectionResult result = service.reflect(step, output,
                 new TenantContext("t-1", "u-1", List.of(), "req", "trace"), 1, "wf-1",
                 new java.util.concurrent.atomic.AtomicLong(0));
 
@@ -157,7 +159,8 @@ class ReflectionServiceTest {
                         new ModelResponse("repair", "", 10, 20));
 
         StepSpec step = new StepSpec("TOOL", Map.of());
-        ReflectionResult result = service.reflect(step, Map.of(),
+        StepExecutionOutput output = StepExecutionOutput.fromPayload(Map.of());
+        ReflectionResult result = service.reflect(step, output,
                 new TenantContext("t-1", "u-1", List.of(), "req", "trace"), 1, "wf-1",
                 new java.util.concurrent.atomic.AtomicLong(0));
 
@@ -186,12 +189,12 @@ class ReflectionServiceTest {
                 .thenReturn(new ModelResponse("reflect", content, 10, 5));
 
         StepSpec step = new StepSpec("TOOL", Map.of());
-        Map<String, Object> output = Map.of(
+        StepExecutionOutput output = StepExecutionOutput.fromPayload(Map.of(
                 "contextSnapshot", "big",
                 "contextBudget", "big",
                 "evidencePack", "big",
                 "tokenUsage", "big"
-        );
+        ));
 
         ReflectionResult result = service.reflect(step, output,
                 new TenantContext("t1", "u1", List.of(), "req", "trace"), 1,
@@ -231,18 +234,15 @@ class ReflectionServiceTest {
                 any(TenantContext.class), any(), any(), eq("reflect"), any()))
                 .thenReturn(new ModelResponse("reflect", content, 10, 5));
 
-        Map<String, Object> output = new java.util.HashMap<>();
-        output.put("outputSummary", new java.util.HashMap<>());
-        output.put("outputDigest", Map.of(
+        Map<String, Object> summaryView = new java.util.HashMap<>();
+        summaryView.put("outputSummary", new java.util.HashMap<>());
+        summaryView.put("outputDigest", Map.of(
                 "keyCount", 12,
                 "keys", List.of("a", "b", "c"),
                 "charCount", 2048,
                 "truncated", true
         ));
-        output.put("contextSnapshot", "big");
-        output.put("contextBudget", "big");
-        output.put("evidencePack", "big");
-        output.put("tokenUsage", "big");
+        StepExecutionOutput output = StepExecutionOutput.fromPayload(Map.of()).withSummary(summaryView);
 
         StepSpec step = new StepSpec("TOOL", Map.of());
         ReflectionResult result = service.reflect(step, output,

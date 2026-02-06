@@ -22,7 +22,7 @@ import com.example.agent.capabilities.memory.MemoryRecord;
 import com.example.agent.capabilities.memory.WorkingMemorySummary;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.capabilities.context.research.ResearchCitation;
-import com.example.agent.runtime.engine.ReactObservation;
+import com.example.agent.runtime.react.ReactObservation;
 import com.example.agent.streaming.payload.ContextEventPublisher;
 import com.example.agent.streaming.payload.ContextSnapshotStage;
 import com.example.agent.capabilities.tools.ToolCatalog;

@@ -10,6 +10,7 @@ import com.example.agent.capabilities.llm.PromptAssembler;
 import com.example.agent.capabilities.llm.PromptBundle;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.runtime.model.StepSpec;
+import com.example.agent.runtime.step.StepExecutionOutput;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.capabilities.llm.repair.JsonOutputSchema;
 import com.example.agent.capabilities.llm.PromptTrace;
@@ -67,7 +68,7 @@ public class ReflectionService {
      * @param tenantContext 租户上下文
      * @return 反思结果
      */
-    public ReflectionResult reflect(StepSpec step, Map<String, Object> output, TenantContext tenantContext) {
+    public ReflectionResult reflect(StepSpec step, StepExecutionOutput output, TenantContext tenantContext) {
         return reflect(step, output, tenantContext, 1, null, null);
     }
 
@@ -81,7 +82,7 @@ public class ReflectionService {
      * @return 反思结果
      */
     public ReflectionResult reflect(StepSpec step,
-                                    Map<String, Object> output,
+                                    StepExecutionOutput output,
                                     TenantContext tenantContext,
                                     int attempt) {
         return reflect(step, output, tenantContext, attempt, null, null);
@@ -99,7 +100,7 @@ public class ReflectionService {
      * @return 反思结果
      */
     public ReflectionResult reflect(StepSpec step,
-                                    Map<String, Object> output,
+                                    StepExecutionOutput output,
                                     TenantContext tenantContext,
                                     int attempt,
                                     String workflowId,
@@ -123,7 +124,7 @@ public class ReflectionService {
     }
 
     private ReflectionResult tryLlmReflection(StepSpec step,
-                                              Map<String, Object> output,
+                                              StepExecutionOutput output,
                                               TenantContext tenantContext,
                                               int attempt,
                                               String workflowId,
@@ -209,10 +210,12 @@ public class ReflectionService {
     }
 
     private ReflectionResult heuristicReflection(StepSpec step,
-                                                 Map<String, Object> output,
+                                                 StepExecutionOutput output,
                                                  TenantContext tenantContext,
                                                  int attempt) {
-        EvaluationResult eval = evaluate(step, output);
+        // 启发式规则仍基于“原始输出 payload”评估 requiredKeys，避免被摘要视图影响判断。
+        Map<String, Object> payload = output != null ? output.getPayload() : null;
+        EvaluationResult eval = evaluate(step, payload);
         boolean retry = eval.score < properties.getConfidenceThreshold()
                 && attempt < properties.getMaxRetries();
         if (retry) {
@@ -227,7 +230,7 @@ public class ReflectionService {
         return new ReflectionResult(retry, new ReflectionReport(eval.score, eval.notes));
     }
 
-    private String buildReflectionPrompt(StepSpec step, Map<String, Object> output, int attempt) {
+    private String buildReflectionPrompt(StepSpec step, StepExecutionOutput output, int attempt) {
         Map<String, Object> context = new HashMap<>();
         context.put("stepType", step != null ? step.getStepType() : null);
         context.put("attempt", attempt);
@@ -297,7 +300,7 @@ public class ReflectionService {
 
     private ReflectionParsingResult tryRepairReflection(String rawContent,
                                                         StepSpec step,
-                                                        Map<String, Object> output,
+                                                        StepExecutionOutput output,
                                                         int attempt) {
         if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
             return null;
@@ -328,10 +331,11 @@ public class ReflectionService {
     /**
      * 构建仅包含摘要层的输出上下文，避免注入原始输出。反思统一根据摘要进行
      */
-    private Map<String, Object> buildOutputSummaryContext(Map<String, Object> output) {
+    private Map<String, Object> buildOutputSummaryContext(StepExecutionOutput output) {
         Map<String, Object> context = new HashMap<>();
-        Map<String, Object> outputSummary = extractMap(output, "outputSummary");
-        Map<String, Object> outputDigest = extractMap(output, "outputDigest");
+        Map<String, Object> view = output != null ? output.toReflectionView() : null;
+        Map<String, Object> outputSummary = extractMap(view, "outputSummary");
+        Map<String, Object> outputDigest = extractMap(view, "outputDigest");
         if (outputSummary == null) {
             outputSummary = new HashMap<>();
         }
@@ -353,11 +357,11 @@ public class ReflectionService {
         return context;
     }
 
-    private Map<String, Object> extractMap(Map<String, Object> output, String key) {
-        if (output == null || key == null) {
+    private Map<String, Object> extractMap(Map<String, Object> mapSource, String key) {
+        if (mapSource == null || key == null) {
             return null;
         }
-        Object value = output.get(key);
+        Object value = mapSource.get(key);
         if (!(value instanceof Map<?, ?> map)) {
             return null;
         }

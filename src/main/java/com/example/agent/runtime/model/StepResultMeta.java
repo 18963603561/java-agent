@@ -1,6 +1,6 @@
 package com.example.agent.runtime.model;
 
-import com.example.agent.runtime.engine.StepState;
+import com.example.agent.runtime.step.StepState;
 
 /**
  * 步骤结果元信息。

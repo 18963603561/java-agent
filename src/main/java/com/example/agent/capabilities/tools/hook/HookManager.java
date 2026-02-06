@@ -5,7 +5,7 @@ import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.streaming.observability.MetricsPublisher;
-import com.example.agent.runtime.engine.StepRecord;
+import com.example.agent.runtime.step.StepRecord;
 import com.example.agent.streaming.sse.EventStreamService;
 import jakarta.annotation.PreDestroy;
 import java.time.Instant;

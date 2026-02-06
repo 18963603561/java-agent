@@ -2,10 +2,13 @@ package com.example.agent.runtime.recovery;
 
 import java.time.Duration;
 import java.util.concurrent.ThreadLocalRandom;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
 
 /**
  * 重试退避策略，用于计算重试等待时间并控制抖动。
  */
+@Component
 public class RetryPolicy {
 
     /**
@@ -23,7 +26,9 @@ public class RetryPolicy {
      */
     private final double jitterRatio;
 
-    public RetryPolicy(long baseDelayMillis, long maxDelayMillis, double jitterRatio) {
+    public RetryPolicy(@Value("${agent.retry.base-delay-ms:100}") long baseDelayMillis,
+                       @Value("${agent.retry.max-delay-ms:1000}") long maxDelayMillis,
+                       @Value("${agent.retry.jitter-ratio:0.2}") double jitterRatio) {
         this.baseDelayMillis = Math.max(0, baseDelayMillis);
         this.maxDelayMillis = Math.max(this.baseDelayMillis, maxDelayMillis);
         this.jitterRatio = Math.max(0, jitterRatio);

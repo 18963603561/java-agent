@@ -1,68 +1,83 @@
 package com.example.agent.runtime.engine;
 
-import com.example.agent.capabilities.tools.enforcement.EnforcementGateway;
-import com.example.agent.security.auth.TenantContext;
-import com.example.agent.common.error.ErrorCodeProvider;
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.budget.trim.ContextTrimReport;
-import com.example.agent.capabilities.context.ContextBuildRequest;
-import com.example.agent.capabilities.context.ContextBuildResult;
 import com.example.agent.capabilities.context.ContextBuilder;
-import com.example.agent.capabilities.context.ContextSnapshot;
 import com.example.agent.capabilities.context.EvidencePack;
 import com.example.agent.capabilities.context.EvidencePackService;
-import com.example.agent.streaming.domain.EventType;
-import com.example.agent.streaming.domain.StreamEvent;
-import com.example.agent.capabilities.memory.MemoryRecallResult;
+import com.example.agent.capabilities.context.research.ResearchCitation;
+import com.example.agent.capabilities.context.research.ResearchPipeline;
+import com.example.agent.capabilities.context.research.ResearchRunResult;
 import com.example.agent.capabilities.memory.MemoryRecallService;
 import com.example.agent.capabilities.memory.MemoryWriteService;
+import com.example.agent.capabilities.tools.enforcement.EnforcementGateway;
+import com.example.agent.capabilities.tools.hook.HookManager;
+import com.example.agent.capabilities.tools.validation.ToolArgumentValidatorRuntime;
+import com.example.agent.common.error.ErrorCodeProvider;
 import com.example.agent.planning.PlanResult;
 import com.example.agent.planning.PlannerService;
-import com.example.agent.reasoning.debate.DebateCoordinator;
-import com.example.agent.reasoning.debate.DebateRound;
 import com.example.agent.reasoning.cot.ChainOfThoughtResult;
 import com.example.agent.reasoning.cot.ChainOfThoughtService;
+import com.example.agent.reasoning.debate.DebateCoordinator;
+import com.example.agent.reasoning.debate.DebateRound;
 import com.example.agent.reasoning.thoughttree.ThoughtNode;
 import com.example.agent.reasoning.thoughttree.ThoughtTreeConfig;
 import com.example.agent.reasoning.thoughttree.ThoughtTreeResult;
 import com.example.agent.reasoning.thoughttree.ThoughtTreeService;
 import com.example.agent.reflection.ReflectionResult;
 import com.example.agent.reflection.ReflectionService;
-import com.example.agent.capabilities.context.research.ResearchCitation;
-import com.example.agent.capabilities.context.research.ResearchPipeline;
-import com.example.agent.capabilities.context.research.ResearchRunResult;
 import com.example.agent.orchestration.multiagent.MultiAgentCoordinator;
-import com.example.agent.runtime.model.StepSpec;
+import com.example.agent.runtime.control.ExecutionControlService;
+import com.example.agent.runtime.control.RuntimeApprovalGate;
+import com.example.agent.runtime.control.RuntimeExecutionGate;
+import com.example.agent.runtime.finalize.RuntimeFinalizationService;
 import com.example.agent.runtime.model.StepResult;
 import com.example.agent.runtime.model.StepResultDigest;
 import com.example.agent.runtime.model.StepResultSummary;
-import com.example.agent.capabilities.tools.hook.HookManager;
-import com.example.agent.capabilities.tools.validation.ToolArgumentValidatorRuntime;
+import com.example.agent.runtime.model.StepSpec;
+import com.example.agent.runtime.prepare.RuntimePreparationResult;
+import com.example.agent.runtime.prepare.RuntimePreparationService;
+import com.example.agent.runtime.raw.RawOutputEnvelopeBuilder;
+import com.example.agent.runtime.raw.RawOutputEnvelope;
+import com.example.agent.runtime.recovery.StepFailureRecoveryService;
+import com.example.agent.runtime.recovery.RetryPolicy;
+import com.example.agent.runtime.react.ReactLoopService;
+import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
+import com.example.agent.runtime.step.StepExecutionDelegate;
+import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.StepExecutionRequest;
+import com.example.agent.runtime.step.StepRecord;
+import com.example.agent.runtime.step.StepRuntimeService;
+import com.example.agent.runtime.step.RuntimeContext;
+import com.example.agent.runtime.step.executor.ChainOfThoughtStepExecutor;
+import com.example.agent.runtime.step.executor.DebateStepExecutor;
+import com.example.agent.runtime.step.executor.LlmStepExecutor;
+import com.example.agent.runtime.step.executor.MultiAgentStepExecutor;
+import com.example.agent.runtime.step.executor.ReactStepExecutor;
+import com.example.agent.runtime.step.executor.ResearchStepExecutor;
+import com.example.agent.runtime.step.executor.StepExecutorRouter;
+import com.example.agent.runtime.step.executor.StepTypeExecutor;
+import com.example.agent.runtime.step.executor.ThoughtTreeStepExecutor;
+import com.example.agent.runtime.step.executor.ToolStepExecutor;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.streaming.observability.TracingPublisher;
-import com.example.agent.common.error.ErrorCodeException;
+import com.example.agent.streaming.payload.ContextEventPublisher;
+
 import java.time.Instant;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
-import com.example.agent.streaming.payload.ContextEventPublisher;
-import com.example.agent.runtime.control.ExecutionControlService;
+import com.example.agent.runtime.llm.LlmStepService;
 import com.example.agent.runtime.output.FinalOutputService;
-import com.example.agent.runtime.raw.RawOutputEnvelopeBuilder;
-import com.example.agent.runtime.recovery.FailureClassifier;
-import com.example.agent.runtime.recovery.RecoveryStrategyManager;
-import com.example.agent.runtime.recovery.RetryPolicy;
-import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
-import com.example.agent.runtime.control.ExecutionControlState;
-import com.example.agent.runtime.recovery.FailureType;
-import com.example.agent.runtime.recovery.RecoveryStrategy;
 
 /**
  * 运行时执行器，负责驱动规划与步骤执行循环。
@@ -83,25 +98,6 @@ public class AgentRuntime {
      * <p>示例：记录规划为空或执行异常。
      */
     private static final Logger log = LoggerFactory.getLogger(AgentRuntime.class);
-    /**
-     * 工具参数中需要过滤的保留字段。
-     *
-     * <p>用途：避免将步骤控制字段误传给工具参数。</p>
-     */
-    private static final Set<String> TOOL_ARGUMENT_RESERVED_KEYS = Set.of(
-            "tool",
-            "toolName",
-            "context",
-            "query",
-            "dependsOn",
-            "requiresApproval",
-            "approvalSource",
-            "fallbackTool",
-            "evidencePack",
-            "EvidencePack",
-            "_internalEvidencePack",
-            "arguments"
-    );
 
     /**
      * 规划服务。
@@ -130,84 +126,36 @@ public class AgentRuntime {
      * 执行约束网关。
      * <p>示例：执行工具调用并应用安全策略。
      */
-    private final EnforcementGateway enforcementGateway;
     /**
      * 钩子管理器。
      * <p>示例：执行步骤前后回调。
      */
     private final HookManager hookManager;
     /**
-     * 执行控制服务，用于暂停、恢复、取消与审批阻塞。
-     * <p>示例：在流程执行前检查暂停或审批状态。
+     * 运行时准备服务。
+     * <p>示例：执行记忆召回、上下文快照构建与准备阶段 Hook。
      */
-    private final ExecutionControlService executionControlService;
+    private final RuntimePreparationService runtimePreparationService;
     /**
-     * 思维树服务。
-     * <p>示例：生成思维树步骤输出。
+     * 运行时收口服务。
+     * <p>示例：生成最终输出并安全写入记忆。
      */
-    private final ThoughtTreeService thoughtTreeService;
+    private final RuntimeFinalizationService runtimeFinalizationService;
     /**
-     * 链式推理执行器，用于处理 {@code COT} 步骤。
-     * <p>示例：执行链式推理步骤并返回摘要。
+     * 执行门禁。
+     * <p>示例：处理暂停、恢复、取消状态。
      */
-    private final ChainOfThoughtService chainOfThoughtService;
+    private final RuntimeExecutionGate runtimeExecutionGate;
     /**
-     * 多智能体协调器。
-     * <p>示例：协同多个智能体完成任务。
+     * 审批门禁。
+     * <p>示例：解析审批来源并触发审批阻塞。
      */
-    private final MultiAgentCoordinator multiAgentCoordinator;
+    private final RuntimeApprovalGate runtimeApprovalGate;
     /**
-     * 辩论协调器。
-     * <p>示例：执行辩论型推理流程。
+     * 步骤执行委托器。
+     * <p>示例：按 stepType 路由并执行步骤，或在兜底路径直接执行工具。
      */
-    private final DebateCoordinator debateCoordinator;
-    /**
-     * 研究流程管线。
-     * <p>示例：生成研究引用并写入证据包。
-     */
-    private final ResearchPipeline researchPipeline;
-    /**
-     * 最终输出服务。
-     * <p>示例：整合步骤输出生成最终答复。
-     */
-    private final FinalOutputService finalOutputService;
-    /**
-     * LLM 步骤服务，用于处理带工具注入的步骤执行。
-     */
-    private final LlmStepService llmStepService;
-    /**
-     * 工具参数校验器，用于直达工具路径。
-     */
-    private final ToolArgumentValidatorRuntime toolArgumentValidator;
-    /**
-     * {@code ReAct} 循环服务。
-     * <p>示例：执行多轮观察与行动。
-     */
-    private final ReactLoopService reactLoopService;
-    /**
-     * 记忆召回服务。
-     * <p>示例：召回历史对话摘要并注入上下文。
-     */
-    private final MemoryRecallService memoryRecallService;
-    /**
-     * 记忆写入服务。
-     * <p>示例：将任务结果写入记忆存储。
-     */
-    private final MemoryWriteService memoryWriteService;
-    /**
-     * 证据包服务，用于读取当前工作流证据索引。
-     */
-    private final EvidencePackService evidencePackService;
-    /**
-     * 上下文构建器。
-     * <p>示例：构建包含预算与裁剪信息的上下文快照。
-     */
-    private final ContextBuilder contextBuilder;
-    /**
-     * 上下文事件发布器。
-     * <p>示例：发布上下文快照与裁剪结果事件。
-     */
-    private final ContextEventPublisher contextEventPublisher;
+    private final StepExecutionDelegate stepExecutionDelegate;
     /**
      * 应用事件发布器。
      * <p>示例：发布运行时事件。
@@ -219,15 +167,10 @@ public class AgentRuntime {
      */
     private final TracingPublisher tracingPublisher;
     /**
-     * 失败分类器。
-     * <p>示例：根据异常类型选择恢复策略。
+     * 步骤失败恢复服务。
+     * <p>用途：将失败分类、策略选择与兜底执行从门面编排中抽离，确保主流程仅保留调用点。
      */
-    private final FailureClassifier failureClassifier = new FailureClassifier();
-    /**
-     * 恢复策略管理器。
-     * <p>示例：在失败时选择重试或重规划。
-     */
-    private final RecoveryStrategyManager recoveryStrategyManager;
+    private final StepFailureRecoveryService stepFailureRecoveryService;
     /**
      * 重试策略。
      * <p>示例：执行指数退避等待。
@@ -235,107 +178,41 @@ public class AgentRuntime {
     private final RetryPolicy retryPolicy;
 
     /**
-     * 是否启用直达工具路径。
-     */
-    private final boolean directToolEnabled;
-
-    /**
-     * 构造运行时执行器。
+     * 构造运行时门面。
      *
-     * <p>输入：各类服务依赖与重试配置。
-     * <p>输出：初始化后的运行时执行器。
-     * <p>示例：
-     * <pre>{@code
-     * new AgentRuntime(plannerService, reflectionService, stepRuntimeService, stepOutputSummaryBuilder,
-     *     enforcementGateway, hookManager, executionControlService, thoughtTreeService, chainOfThoughtService,
-     *     multiAgentCoordinator,
-     *     debateCoordinator, researchPipeline, finalOutputService, reactLoopService, memoryRecallService,
-     *     memoryWriteService, evidencePackService, contextBuilder, contextEventPublisher, eventPublisher,
-     *     tracingPublisher, 1, 1, 100L, 1000L, 0.2);
-     * }</pre>
-     *
-     * @param plannerService 规划服务
-     * @param reflectionService 反思服务
-     * @param stepRuntimeService 步骤运行时服务
-     * @param enforcementGateway 执行约束网关
-     * @param hookManager 钩子管理器
-     * @param executionControlService 执行控制服务
-     * @param thoughtTreeService 思维树服务
-     * @param chainOfThoughtService 链式推理服务
-     * @param multiAgentCoordinator 多智能体协调器
-     * @param debateCoordinator 辩论协调器
-     * @param researchPipeline 研究流程
-     * @param finalOutputService 最终输出服务
-     * @param reactLoopService {@code ReAct} 循环服务
-     * @param memoryRecallService 记忆召回服务
-     * @param memoryWriteService 记忆写入服务
-     * @param contextBuilder 上下文构建器
-     * @param contextEventPublisher 上下文事件发布器
-     * @param eventPublisher 应用事件发布器
-     * @param tracingPublisher 链路跟踪发布器
-     * @param maxRetries 最大重试次数
-     * @param maxDecompose 最大重规划次数
-     * @param baseDelayMs 重试基础延迟
-     * @param maxDelayMs 重试最大延迟
-     * @param jitterRatio 抖动比例
+     * <p>约定：执行器、门禁、准备/收口、失败恢复与重试策略均通过 Spring Bean 注入；
+     * 门面类只保留流程编排逻辑，不再负责组件装配。
      */
     public AgentRuntime(PlannerService plannerService,
                         ReflectionService reflectionService,
                         StepRuntimeService stepRuntimeService,
                         StepOutputSummaryBuilder stepOutputSummaryBuilder,
                         RawOutputEnvelopeBuilder rawOutputEnvelopeBuilder,
-                        EnforcementGateway enforcementGateway,
                         HookManager hookManager,
-                        ExecutionControlService executionControlService,
-                        ThoughtTreeService thoughtTreeService,
-                        ChainOfThoughtService chainOfThoughtService,
-                        MultiAgentCoordinator multiAgentCoordinator,
-                        DebateCoordinator debateCoordinator,
-                        ResearchPipeline researchPipeline,
-                        FinalOutputService finalOutputService,
-                        LlmStepService llmStepService,
-                        ToolArgumentValidatorRuntime toolArgumentValidator,
-                        ReactLoopService reactLoopService,
-                        MemoryRecallService memoryRecallService,
-                        MemoryWriteService memoryWriteService,
-                        EvidencePackService evidencePackService,
-                        ContextBuilder contextBuilder,
-                        ContextEventPublisher contextEventPublisher,
+                        RuntimePreparationService runtimePreparationService,
+                        RuntimeFinalizationService runtimeFinalizationService,
+                        RuntimeExecutionGate runtimeExecutionGate,
+                        RuntimeApprovalGate runtimeApprovalGate,
+                        StepExecutionDelegate stepExecutionDelegate,
+                        StepFailureRecoveryService stepFailureRecoveryService,
+                        RetryPolicy retryPolicy,
                         ApplicationEventPublisher eventPublisher,
-                        TracingPublisher tracingPublisher,
-                        @Value("${agent.runtime.max-retries:1}") int maxRetries,
-                        @Value("${agent.runtime.max-decompose:1}") int maxDecompose,
-                        @Value("${agent.retry.base-delay-ms:100}") long baseDelayMs,
-                        @Value("${agent.retry.max-delay-ms:1000}") long maxDelayMs,
-                        @Value("${agent.retry.jitter-ratio:0.2}") double jitterRatio,
-                        @Value("${agent.runtime.direct-tool.enabled:true}") boolean directToolEnabled) {
+                        TracingPublisher tracingPublisher) {
         this.plannerService = plannerService;
         this.reflectionService = reflectionService;
         this.stepRuntimeService = stepRuntimeService;
         this.stepOutputSummaryBuilder = stepOutputSummaryBuilder;
         this.rawOutputEnvelopeBuilder = rawOutputEnvelopeBuilder;
-        this.enforcementGateway = enforcementGateway;
         this.hookManager = hookManager;
-        this.executionControlService = executionControlService;
-        this.thoughtTreeService = thoughtTreeService;
-        this.chainOfThoughtService = chainOfThoughtService;
-        this.multiAgentCoordinator = multiAgentCoordinator;
-        this.debateCoordinator = debateCoordinator;
-        this.researchPipeline = researchPipeline;
-        this.finalOutputService = finalOutputService;
-        this.llmStepService = llmStepService;
-        this.toolArgumentValidator = toolArgumentValidator;
-        this.reactLoopService = reactLoopService;
-        this.memoryRecallService = memoryRecallService;
-        this.memoryWriteService = memoryWriteService;
-        this.evidencePackService = evidencePackService;
-        this.contextBuilder = contextBuilder;
-        this.contextEventPublisher = contextEventPublisher;
+        this.runtimePreparationService = runtimePreparationService;
+        this.runtimeFinalizationService = runtimeFinalizationService;
+        this.runtimeExecutionGate = runtimeExecutionGate;
+        this.runtimeApprovalGate = runtimeApprovalGate;
+        this.stepExecutionDelegate = stepExecutionDelegate;
         this.eventPublisher = eventPublisher;
         this.tracingPublisher = tracingPublisher;
-        this.recoveryStrategyManager = new RecoveryStrategyManager(maxRetries, maxDecompose);
-        this.retryPolicy = new RetryPolicy(baseDelayMs, maxDelayMs, jitterRatio);
-        this.directToolEnabled = directToolEnabled;
+        this.stepFailureRecoveryService = stepFailureRecoveryService;
+        this.retryPolicy = retryPolicy;
     }
 
     /**
@@ -349,40 +226,26 @@ public class AgentRuntime {
      * RuntimeResult result = run(request, tenantContext, workflowId, taskId, seqCounter);
      * }</pre>
      *
-     * @param request 任务请求
+     * @param request       任务请求
      * @param tenantContext 租户上下文
-     * @param workflowId 工作流标识
-     * @param taskId 任务标识
-     * @param seqCounter 事件序列计数器
+     * @param workflowId    工作流标识
+     * @param taskId        任务标识
+     * @param seqCounter    事件序列计数器
      */
     public RuntimeResult run(TaskRequest request,
                              TenantContext tenantContext,
                              String workflowId,
                              String taskId,
                              AtomicLong seqCounter) {
-        Map<String, Object> runtimeContext = new HashMap<>();
-        // 合并请求上下文与工具选择。
-        if (request != null && request.getContext() != null) {
-            runtimeContext.putAll(request.getContext());
-        }
-        if (request != null && request.getToolChoice() != null) {
-            runtimeContext.put("toolChoice", request.getToolChoice());
-        }
-        if (workflowId != null && !workflowId.isBlank()) {
-            runtimeContext.putIfAbsent("workflowId", workflowId);
-        }
-        // 召回记忆并注入运行上下文。
-        MemoryRecallResult recallResult = memoryRecallService.recall(request, runtimeContext, tenantContext);
-        applyMemoryContext(runtimeContext, recallResult);
-        hookManager.postRecall(tenantContext, workflowId, buildRecallHookPayload(workflowId, recallResult));
-        syncEvidencePackFromStore(runtimeContext, tenantContext, workflowId);
-        // 构建上下文快照并写入运行上下文。
-        ContextBuildResult buildResult = buildContextSnapshot(request, tenantContext, workflowId, taskId,
-                recallResult, runtimeContext, seqCounter);
-        applyContextSnapshot(runtimeContext, buildResult);
-        hookManager.postTrim(tenantContext, workflowId, buildTrimHookPayload(runtimeContext, workflowId, buildResult));
-        // 构造携带上下文的请求副本，避免修改原请求。
-        TaskRequest effectiveRequest = buildRequestWithContext(request, runtimeContext);
+        RuntimePreparationResult preparationResult = runtimePreparationService.prepare(
+                request,
+                tenantContext,
+                workflowId,
+                taskId,
+                seqCounter
+        );
+        RuntimeContext runtimeContext = preparationResult.getRuntimeContext();
+        TaskRequest effectiveRequest = preparationResult.getEffectiveRequest();
 
         List<StepResult> stepOutputs = new java.util.ArrayList<>();
         int decomposeAttempts = 0;
@@ -394,9 +257,14 @@ public class AgentRuntime {
             boolean replan = false;
             if (plan.getSteps() == null || plan.getSteps().isEmpty()) {
                 log.warn("规划为空, tenantId={}, workflowId={}", tenantContext.getTenantId(), workflowId);
-                RuntimeResult result = buildRuntimeResult(plan, stepOutputs, null);
-                persistMemorySafely(effectiveRequest, result, tenantContext, taskId);
-                return result;
+                return runtimeFinalizationService.finalizeWhenPlanEmpty(
+                        effectiveRequest,
+                        tenantContext,
+                        workflowId,
+                        taskId,
+                        plan,
+                        stepOutputs
+                );
             }
             // 顺序执行规划步骤。
             for (StepSpec step : plan.getSteps()) {
@@ -413,22 +281,15 @@ public class AgentRuntime {
                 }
             }
             if (!replan) {
-                Map<String, Object> finalOutput = resolveFinalOutputFromSteps(plan, stepOutputs, workflowId);
-                if (finalOutput == null) {
-                    // 所有步骤完成后生成最终输出。
-                    finalOutput = finalOutputService.finalizeOutput(
-                            effectiveRequest,
-                            effectiveRequest != null ? effectiveRequest.getQuery() : null,
-                            plan != null ? plan.getSummary() : null,
-                            stepOutputs,
-                            tenantContext,
-                            workflowId,
-                            seqCounter
-                    );
-                }
-                RuntimeResult result = buildRuntimeResult(plan, stepOutputs, finalOutput);
-                persistMemorySafely(effectiveRequest, result, tenantContext, taskId);
-                return result;
+                return runtimeFinalizationService.finalizeRun(
+                        effectiveRequest,
+                        tenantContext,
+                        workflowId,
+                        taskId,
+                        seqCounter,
+                        plan,
+                        stepOutputs
+                );
             }
         }
     }
@@ -450,7 +311,7 @@ public class AgentRuntime {
                                     String workflowId,
                                     String taskId,
                                     AtomicLong seqCounter,
-                                    Map<String, Object> runtimeContext,
+                                    RuntimeContext runtimeContext,
                                     int decomposeAttempts,
                                     List<StepResult> stepOutputs) {
         int attempt = 0;
@@ -459,9 +320,18 @@ public class AgentRuntime {
             // 合并步骤输入与运行时上下文。
             Map<String, Object> stepInput = mergeStepInput(step, runtimeContext);
             // 执行控制门禁：暂停、取消或审批等待。
-            applyExecutionControl(workflowId, tenantContext, seqCounter);
+            runtimeExecutionGate.apply(workflowId, tenantContext, seqCounter, this::publishEvent);
             // 根据配置触发审批并等待决策。
-            requestApprovalIfNeeded(step, request, stepInput, runtimeContext, workflowId, tenantContext, seqCounter);
+            runtimeApprovalGate.requestIfNeeded(
+                    step,
+                    request,
+                    stepInput,
+                    runtimeContext,
+                    workflowId,
+                    tenantContext,
+                    seqCounter,
+                    this::publishEvent
+            );
             StepRecord record = stepRuntimeService.startStep(
                     workflowId,
                     step.getStepType(),
@@ -469,79 +339,27 @@ public class AgentRuntime {
                     stepInput,
                     tenantContext,
                     seqCounter);
+            StepExecutionRequest executionRequest = new StepExecutionRequest(
+                    step,
+                    request,
+                    stepInput,
+                    runtimeContext,
+                    tenantContext,
+                    workflowId,
+                    taskId,
+                    seqCounter,
+                    record,
+                    this::publishEvent
+            );
 
             try {
                 // 步骤前置钩子。
                 hookManager.preStep(tenantContext, record);
-                Map<String, Object> output;
-                String stepType = step.getStepType();
-                if ("LLM".equalsIgnoreCase(stepType)
-                        || "ANSWER".equalsIgnoreCase(stepType)
-                        || "TOOL".equalsIgnoreCase(stepType)) {
-                    if ("TOOL".equalsIgnoreCase(stepType)) {
-                        applyToolChoiceForToolStep(step, request, stepInput, workflowId, record);
-                        Map<String, Object> directOutput = tryExecuteDirectToolStep(step, request, stepInput,
-                                tenantContext, workflowId, taskId, seqCounter, record);
-                        if (directOutput != null) {
-                            output = directOutput;
-                        } else {
-                            output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
-                        }
-                    } else {
-                        output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
-                    }
-                } else if ("THOUGHT_TREE".equalsIgnoreCase(stepType)) {
-                    output = executeThoughtTree(step, tenantContext, workflowId, seqCounter);
-                } else if ("CHAIN_OF_THOUGHT".equalsIgnoreCase(stepType)
-                        || "COT".equalsIgnoreCase(stepType)) {
-                    output = executeChainOfThought(request, stepInput, tenantContext, workflowId, seqCounter);
-                } else if ("REACT".equalsIgnoreCase(stepType)) {
-                    output = executeReactLoop(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
-                } else if ("MULTI_AGENT".equalsIgnoreCase(stepType)) {
-                    output = multiAgentCoordinator.coordinate(step, tenantContext, workflowId, seqCounter);
-                } else if ("DEBATE".equalsIgnoreCase(stepType)) {
-                    String topic = resolveStepTopic(request, step);
-                    DebateRound round = debateCoordinator.debate(topic, tenantContext, workflowId, seqCounter);
-                    output = new HashMap<>();
-                    output.put("roundId", round.getRoundId());
-                    output.put("topic", round.getTopic());
-                    output.put("conclusion", round.getConclusion());
-                    if (round.getRawRef() != null && !round.getRawRef().isBlank()) {
-                        output.put("rawRef", round.getRawRef());
-                        output.put("modelRawRef", round.getRawRef());
-                    }
-                } else if ("RESEARCH".equalsIgnoreCase(stepType)) {
-                    String query = resolveStepQuery(request, step);
-                    ResearchRunResult researchResult = researchPipeline.runWithRawRef(
-                            query, tenantContext, workflowId, seqCounter);
-                    List<ResearchCitation> citations = researchResult != null && researchResult.getCitations() != null
-                            ? researchResult.getCitations()
-                            : List.of();
-                    output = new HashMap<>();
-                    output.put("query", query);
-                    output.put("citations", citations);
-                    output.put("count", citations.size());
-                    output.put("workflowId", workflowId);
-                    if (researchResult != null
-                            && researchResult.getRawRef() != null
-                            && !researchResult.getRawRef().isBlank()) {
-                        output.put("rawRef", researchResult.getRawRef());
-                        output.put("modelRawRef", researchResult.getRawRef());
-                    }
-                    if (record != null) {
-                        output.put("stepId", record.getStepId());
-                    }
-                    hookManager.postResearch(tenantContext, record, output);
-                    syncEvidencePackFromStore(runtimeContext, tenantContext, workflowId);
-                } else {
-                    log.info("转为大模型步骤, 工作流={}, 任务={}, 步骤={}",
-                            workflowId, taskId, record.getStepId());
-                    output = executeLlmStep(request, stepInput, tenantContext, workflowId, taskId, seqCounter);
-                }
+                StepExecutionOutput output = stepExecutionDelegate.execute(executionRequest);
 
                 // 反思前补充临时摘要，避免反思阶段摘要为空。
                 // 注意：该摘要仅用于反思评估，不能回写到最终步骤输出，避免完成态结果被“STARTED 摘要”污染。
-                Map<String, Object> reflectionOutput = enrichOutputSummaryForReflection(
+                StepExecutionOutput reflectionOutput = enrichOutputSummaryForReflection(
                         step,
                         request,
                         record,
@@ -568,50 +386,61 @@ public class AgentRuntime {
                 }
 
                 // 正常完成步骤并更新上下文。
-                StepRecord completedRecord = stepRuntimeService.completeStep(record, output, seqCounter);
-                updateRuntimeContext(runtimeContext, completedRecord, output);
+                StepRecord completedRecord = stepRuntimeService.completeStep(record, reflectionOutput, seqCounter);
+                updateRuntimeContext(runtimeContext, completedRecord, reflectionOutput);
                 recordStepOutput(stepOutputs, completedRecord);
                 return StepOutcome.SUCCESS;
-            // 异常捕获：记录上下文并按当前策略处理
+                // 异常捕获：记录上下文并按恢复服务决策处理
             } catch (Throwable ex) {
-                String fallbackTool = resolveFallbackTool(request, step);
-                FailureType failureType = failureClassifier.classify(ex);
-                RecoveryStrategy strategy = recoveryStrategyManager.select(
-                        failureType, attempt, fallbackTool != null, decomposeAttempts);
+                StepFailureRecoveryService.StepFailureRecoveryResult recoveryResult = stepFailureRecoveryService.recover(
+                        executionRequest,
+                        attempt,
+                        decomposeAttempts,
+                        ex
+                );
+                StepFailureRecoveryService.StepFailureRecoveryResult.Action action = recoveryResult.getAction();
 
-                if (strategy == RecoveryStrategy.FALLBACK && fallbackTool != null) {
-                    try {
-                        // 使用兜底工具执行，避免当前工具失败导致整体中断。
-                        Map<String, Object> fallbackOutput = executeToolStep(request, tenantContext, workflowId,
-                                taskId, seqCounter, record, fallbackTool);
-                        fallbackOutput.put("fallbackFrom", resolveToolName(request, step));
-                        fallbackOutput.put("fallbackReason", resolveErrorMessage(ex));
-                        StepRecord completedFallbackRecord = stepRuntimeService.completeStep(record, fallbackOutput, seqCounter);
-                        updateRuntimeContext(runtimeContext, completedFallbackRecord, fallbackOutput);
-                        recordStepOutput(stepOutputs, completedFallbackRecord);
-                        return StepOutcome.SUCCESS;
-                    // 异常捕获：记录上下文并按当前策略处理
-                    } catch (Throwable fallbackEx) {
-                        ex = fallbackEx;
-                    }
+                if (action == StepFailureRecoveryService.StepFailureRecoveryResult.Action.FALLBACK_SUCCESS) {
+                    StepExecutionOutput fallbackOutput = recoveryResult.getFallbackOutput();
+                    StepRecord completedFallbackRecord = stepRuntimeService.completeStep(record, fallbackOutput, seqCounter);
+                    updateRuntimeContext(runtimeContext, completedFallbackRecord, fallbackOutput);
+                    recordStepOutput(stepOutputs, completedFallbackRecord);
+                    log.info("步骤失败后使用兜底工具完成, tenantId={}, workflowId={}, stepId={}, stepType={}, attempt={}, fallbackTool={}",
+                            tenantContext != null ? tenantContext.getTenantId() : null,
+                            workflowId,
+                            record.getStepId(),
+                            step != null ? step.getStepType() : null,
+                            attempt,
+                            recoveryResult.getFallbackTool());
+                    return StepOutcome.SUCCESS;
                 }
 
-                Map<String, Object> details = new HashMap<>();
-                details.put("message", resolveErrorMessage(ex));
-                stepRuntimeService.failStep(record, resolveErrorCode(ex), details, seqCounter);
-                log.warn("步骤异常, stepId={}, attempt={}, strategy={}",
-                        record.getStepId(), attempt, strategy, ex);
+                Throwable error = recoveryResult.getError() != null ? recoveryResult.getError() : ex;
 
-                if (strategy == RecoveryStrategy.RETRY) {
+                Map<String, Object> details = new HashMap<>();
+                details.put("message", resolveErrorMessage(error));
+                stepRuntimeService.failStep(record, resolveErrorCode(error), details, seqCounter);
+                log.warn("步骤异常, tenantId={}, workflowId={}, stepId={}, stepType={}, attempt={}, action={}, strategy={}, fallbackTool={}",
+                        tenantContext != null ? tenantContext.getTenantId() : null,
+                        workflowId,
+                        record.getStepId(),
+                        step != null ? step.getStepType() : null,
+                        attempt,
+                        action,
+                        recoveryResult.getStrategy(),
+                        recoveryResult.getFallbackTool(),
+                        error);
+
+                if (action == StepFailureRecoveryService.StepFailureRecoveryResult.Action.RETRY) {
                     // 执行重试策略。
                     retryPolicy.sleepBeforeRetry(attempt);
                     continue;
                 }
-                if (strategy == RecoveryStrategy.DECOMPOSE) {
+                if (action == StepFailureRecoveryService.StepFailureRecoveryResult.Action.REPLAN) {
                     // 触发重规划。
                     return StepOutcome.REPLAN;
                 }
-                throw ex instanceof RuntimeException runtime ? runtime : new RuntimeException(ex);
+                throw error instanceof RuntimeException runtime ? runtime : new RuntimeException(error);
             } finally {
                 // 步骤后置钩子。
                 hookManager.postStep(tenantContext, record);
@@ -626,225 +455,42 @@ public class AgentRuntime {
      * <p>输出：合并临时摘要后的输出映射。
      * <p>边界：摘要构建器未启用或已包含摘要字段时直接返回原始输出。
      *
-     * @param step 步骤定义
+     * @param step    步骤定义
      * @param request 任务请求
-     * @param record 步骤记录
-     * @param output 原始输出
+     * @param record  步骤记录
+     * @param output  原始输出
      * @return 合并摘要后的输出
      */
-    private Map<String, Object> enrichOutputSummaryForReflection(StepSpec step,
+    private StepExecutionOutput enrichOutputSummaryForReflection(StepSpec step,
                                                                  TaskRequest request,
                                                                  StepRecord record,
                                                                  Map<String, Object> stepInput,
-                                                                 Map<String, Object> output) {
-        if (output == null || output.isEmpty()) {
+                                                                 StepExecutionOutput output) {
+        if (output == null || output.getPayload() == null || output.getPayload().isEmpty()) {
             return output;
         }
         boolean summaryEnabled = stepOutputSummaryBuilder != null && stepOutputSummaryBuilder.isEnabled();
-        if (summaryEnabled) {
-            if (hasSummaryFields(output)) {
-                return output;
-            }
-            String toolName = step != null ? resolveToolName(request, step) : null;
-            Map<String, Object> summary = stepOutputSummaryBuilder.build(
-                    record,
-                    stepInput,
-                    output,
-                    toolName,
-                    null
-            );
-            if (summary == null || summary.isEmpty()) {
-                return output;
-            }
-            Map<String, Object> merged = new HashMap<>();
-            merged.putAll(output);
-            merged.putAll(summary);
-            return merged;
+        if (!summaryEnabled) {
+            return output;
         }
-        return output;
-    }
-
-    private boolean hasSummaryFields(Map<String, Object> output) {
-        return output != null
-                && (output.containsKey("outputSummary")
-                || output.containsKey("outputDigest")
-                || output.containsKey("stepSummary"));
-    }
-
-    /**
-     * 执行 LLM 步骤，走独立 LLM 分支并支持工具调用。
-     *
-     * <p>输入：任务请求、步骤输入与运行上下文。</p>
-     * <p>输出：LLM 步骤输出，可能包含工具调用与二次总结结果。</p>
-     * <p>边界：返回空或解析失败时回退为 no_response。</p>
-     */
-    private Map<String, Object> executeLlmStep(TaskRequest request,
-                                               Map<String, Object> stepInput,
-                                               TenantContext tenantContext,
-                                               String workflowId,
-                                               String taskId,
-                                               AtomicLong seqCounter) {
-        String query = request != null ? request.getQuery() : null;
-        int queryLength = query != null ? query.length() : 0;
-        boolean hasContext = stepInput != null && stepInput.get("context") != null;
-        LlmStepService.ToolSummaryMode summaryMode = llmStepService.resolveToolSummaryMode(request, stepInput);
-        // 记录步骤入口信息，便于排查上下文缺失问题
-        log.info("LLM 步骤开始, workflowId={}, queryLength={}, hasContext={}, summaryMode={}",
-                workflowId, queryLength, hasContext, summaryMode);
-        Map<String, Object> output = llmStepService.run(request, stepInput, tenantContext,
-                workflowId, taskId, seqCounter, summaryMode);
-        if (output == null || output.isEmpty()) {
-            // 模型输出为空时的兜底处理
-            output = new HashMap<>();
-            output.put("answer", "no_response");
-            output.put("source", "llm_step");
+        if (output.getSummary() != null && !output.getSummary().isEmpty()) {
+            return output;
         }
-        log.info("LLM 步骤完成, workflowId={}, outputKeys={}", workflowId, output.keySet());
-        return output;
-    }
-
-private Map<String, Object> executeToolStep(TaskRequest request,
-                                                TenantContext tenantContext,
-                                                String workflowId,
-                                                String taskId,
-                                                AtomicLong seqCounter,
-                                                StepRecord record,
-                                                String toolName) {
-        return executeToolStep(request, tenantContext, workflowId, taskId, seqCounter, record, toolName, null);
-    }
-
-    /**
-     * 执行工具步骤（支持外部传入参数覆盖）。
-     *
-     * <p>输入：任务请求、租户上下文、工具名称与工具参数。
-     * <p>输出：工具执行输出。
-     * <p>边界：参数为空时回退为默认执行路径。
-     * <p>示例：
-     * <pre>{@code
-     * Map<String, Object> output = executeToolStep(request, ctx, wfId, taskId, seq, record, "demo_tool", args);
-     * }</pre>
-     */
-    private Map<String, Object> executeToolStep(TaskRequest request,
-                                                TenantContext tenantContext,
-                                                String workflowId,
-                                                String taskId,
-                                                AtomicLong seqCounter,
-                                                StepRecord record,
-                                                String toolName,
-                                                Map<String, Object> toolArguments) {
-        // 工具执行前先检查执行控制状态。
-        applyExecutionControl(workflowId, tenantContext, seqCounter);
-        // 执行工具前置钩子。
-        hookManager.preTool(tenantContext, record, toolName);
-        Map<String, Object> output = (toolArguments == null || toolArguments.isEmpty())
-                ? enforcementGateway.execute(request, tenantContext, workflowId, taskId, seqCounter, toolName)
-                : enforcementGateway.executeWithArguments(request, tenantContext, workflowId, taskId, seqCounter,
-                toolName, toolArguments);
-        // 执行工具后置钩子。
-        hookManager.postTool(tenantContext, record, toolName, output);
-        if (request != null && request.getContext() != null) {
-            syncEvidencePackFromStore(request.getContext(), tenantContext, workflowId);
+        String toolName = output.getToolName();
+        if (toolName == null || toolName.isBlank()) {
+            toolName = step != null ? stepExecutionDelegate.resolveToolName(request, step) : null;
         }
-        return output;
-    }
-
-    /**
-     * 执行 {@code ReAct} 循环步骤。
-     *
-     * <p>输入：任务请求、步骤输入与链路信息。
-     * <p>输出：{@code ReAct} 执行摘要映射。
-     * <p>示例：
-     * <pre>{@code
-     * Map<String, Object> output = executeReactLoop(request, stepInput, ctx, wfId, taskId, seq);
-     * }</pre>
-     */
-    private Map<String, Object> executeReactLoop(TaskRequest request,
-                                                 Map<String, Object> stepInput,
-                                                 TenantContext tenantContext,
-                                                 String workflowId,
-                                                 String taskId,
-                                                 AtomicLong seqCounter) {
-        // 使用步骤输入构建反应式请求。
-        TaskRequest reactRequest = buildRequestWithContext(request, stepInput);
-        ReactLoopResult result = reactLoopService.run(reactRequest, tenantContext, workflowId, taskId, seqCounter);
-        Map<String, Object> output = new HashMap<>();
-        output.put("iterations", result.getIterations());
-        output.put("completed", result.isCompleted());
-        output.put("stopReason", result.getStopReason());
-        output.put("finalAnswer", result.getFinalAnswer());
-        output.put("observations", result.getObservations());
-        output.put("status", result.isCompleted() ? "COMPLETED" : "UNRESOLVED");
-        if (result.getRawRef() != null && !result.getRawRef().isBlank()) {
-            output.put("rawRef", result.getRawRef());
-            output.put("modelRawRef", result.getRawRef());
+        Map<String, Object> summary = stepOutputSummaryBuilder.build(
+                record,
+                stepInput,
+                output.getPayload(),
+                toolName,
+                null
+        );
+        if (summary == null || summary.isEmpty()) {
+            return output;
         }
-        return output;
-    }
-
-    /**
-     * 执行思维树步骤。
-     *
-     * <p>输入：步骤定义与链路信息。
-     * <p>输出：思维树输出映射。
-     * <p>边界：无提示时使用空字符串。
-     * <p>示例：
-     * <pre>{@code
-     * Map<String, Object> output = executeThoughtTree(step, ctx, wfId, seq);
-     * }</pre>
-     */
-    private Map<String, Object> executeThoughtTree(StepSpec step,
-                                                   TenantContext tenantContext,
-                                                   String workflowId,
-                                                   AtomicLong seqCounter) {
-        Map<String, Object> stepInput = resolveStepInput(step);
-        String prompt = stepInput != null && stepInput.get("prompt") instanceof String value
-                ? value
-                : "";
-        // 构建思维树并发布展开事件。
-        ThoughtTreeConfig config = new ThoughtTreeConfig();
-        ThoughtTreeResult result = thoughtTreeService.buildTree(prompt, config);
-        List<ThoughtNode> nodes = flattenThoughtNodes(result.getRoot());
-        publishThoughtEvents(tenantContext, workflowId, seqCounter, nodes);
-
-        Map<String, Object> output = new HashMap<>();
-        output.put("bestSolution", result.getBestSolution());
-        output.put("confidence", result.getConfidence());
-        output.put("totalThoughts", result.getTotalThoughts());
-        output.put("treeDepth", result.getTreeDepth());
-        output.put("nodes", nodes);
-        return output;
-    }
-
-    /**
-     * 链式推理步骤执行，输出结构化摘要以避免暴露推理细节。
-     *
-     * <p>输入：任务请求、步骤输入与链路信息。
-     * <p>输出：链式推理输出映射。
-     * <p>示例：
-     * <pre>{@code
-     * Map<String, Object> output = executeChainOfThought(request, stepInput, ctx, wfId, seq);
-     * }</pre>
-     */
-    private Map<String, Object> executeChainOfThought(TaskRequest request,
-                                                      Map<String, Object> stepInput,
-                                                      TenantContext tenantContext,
-                                                      String workflowId,
-                                                      AtomicLong seqCounter) {
-        // 从输入中解析问题文本并执行链式推理。
-        String question = resolveStepQuestion(stepInput, request);
-        ChainOfThoughtResult result = chainOfThoughtService.run(question, stepInput, tenantContext, workflowId,
-                seqCounter);
-        Map<String, Object> output = new HashMap<>();
-        output.put("finalAnswer", result.getFinalAnswer());
-        output.put("stepsCount", result.getStepsCount());
-        output.put("confidence", result.getConfidence());
-        output.put("stopReason", result.getStopReason());
-        output.put("status", result.isCompleted() ? "COMPLETED" : "STOPPED");
-        if (result.getRawRef() != null && !result.getRawRef().isBlank()) {
-            output.put("rawRef", result.getRawRef());
-            output.put("modelRawRef", result.getRawRef());
-        }
-        return output;
+        return output.withSummary(summary);
     }
 
     /**
@@ -862,7 +508,7 @@ private Map<String, Object> executeToolStep(TaskRequest request,
                                                TenantContext tenantContext,
                                                String workflowId,
                                                AtomicLong seqCounter,
-                                               Map<String, Object> output,
+                                               StepExecutionOutput output,
                                                int attempt) {
         Map<String, Object> startPayload = new HashMap<>();
         if (step.getStepType() != null) {
@@ -876,40 +522,10 @@ private Map<String, Object> executeToolStep(TaskRequest request,
             completedPayload.put("stepType", step.getStepType());
         }
         completedPayload.put("attempt", attempt);
-        completedPayload.put("score", result.getReport().getScore());
-        completedPayload.put("retry", result.isRetryRequested());
+        completedPayload.put("score", result != null && result.getReport() != null ? result.getReport().getScore() : null);
+        completedPayload.put("retry", result != null && result.isRetryRequested());
         publishEvent(tenantContext, workflowId, seqCounter, EventType.REFLECTION_COMPLETED, completedPayload);
         return result;
-    }
-
-    /**
-     * 发布思维树展开事件。
-     *
-     * <p>输入：租户上下文、工作流标识与思维树节点列表。
-     * <p>输出：无。
-     * <p>边界：节点为空时不发布。
-     * <p>示例：
-     * <pre>{@code
-     * publishThoughtEvents(ctx, wfId, seq, nodes);
-     * }</pre>
-     */
-    private void publishThoughtEvents(TenantContext tenantContext,
-                                      String workflowId,
-                                      AtomicLong seqCounter,
-                                      List<ThoughtNode> nodes) {
-        if (nodes == null || nodes.isEmpty()) {
-            return;
-        }
-        for (ThoughtNode node : nodes) {
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("nodeId", node.getNodeId());
-            payload.put("score", node.getScore());
-            payload.put("depth", node.getDepth());
-            if (node.getParentId() != null) {
-                payload.put("parentId", node.getParentId());
-            }
-            publishEvent(tenantContext, workflowId, seqCounter, EventType.THOUGHT_EXPANDED, payload);
-        }
     }
 
     /**
@@ -1013,241 +629,6 @@ private Map<String, Object> executeToolStep(TaskRequest request,
     }
 
     /**
-     * 将记忆召回结果注入运行上下文，供规划与工具使用。
-     *
-     * <p>输入：运行上下文与记忆召回结果。
-     * <p>输出：无。
-     * <p>边界：未使用记忆时不注入。
-     * <p>示例：
-     * <pre>{@code
-     * applyMemoryContext(runtimeContext, recallResult);
-     * }</pre>
-     *
-     * @param runtimeContext 运行上下文
-     * @param recallResult 记忆召回结果
-     */
-    private void applyMemoryContext(Map<String, Object> runtimeContext, MemoryRecallResult recallResult) {
-        if (runtimeContext == null || recallResult == null || !recallResult.isUsed()) {
-            return;
-        }
-        // 将记忆摘要与记录写入上下文。
-        Map<String, Object> memoryContext = new HashMap<>();
-        memoryContext.put("summary", recallResult.getSummary());
-        memoryContext.put("records", recallResult.getRecords());
-        memoryContext.put("count", recallResult.getCount());
-        memoryContext.put("reason", recallResult.getReason());
-        runtimeContext.put("memory", memoryContext);
-    }
-
-    /**
-     * 构建记忆召回 Hook 载荷。
-     */
-    private Map<String, Object> buildRecallHookPayload(String workflowId, MemoryRecallResult recallResult) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("workflowId", workflowId);
-        if (recallResult == null) {
-            payload.put("count", 0);
-            payload.put("reason", "recall_missing");
-            return payload;
-        }
-        payload.put("count", recallResult.getCount());
-        payload.put("reason", recallResult.getReason());
-        if (recallResult.getRecords() != null && !recallResult.getRecords().isEmpty()) {
-            payload.put("records", recallResult.getRecords());
-        }
-        return payload;
-    }
-
-    /**
-     * 构建上下文裁剪 Hook 载荷。
-     */
-    private Map<String, Object> buildTrimHookPayload(Map<String, Object> runtimeContext,
-                                                     String workflowId,
-                                                     ContextBuildResult buildResult) {
-        Map<String, Object> payload = new HashMap<>();
-        payload.put("workflowId", workflowId);
-        if (runtimeContext != null) {
-            Object snapshotId = runtimeContext.get("snapshotId");
-            if (snapshotId != null) {
-                payload.put("snapshotId", snapshotId);
-            }
-        }
-        ContextTrimReport trimReport = buildResult != null ? buildResult.getTrimReport() : null;
-        if (trimReport == null) {
-            payload.put("summary", "trim_not_triggered");
-            return payload;
-        }
-        payload.put("beforeTokens", trimReport.getTotalBeforeTokens());
-        payload.put("afterTokens", trimReport.getTotalAfterTokens());
-        payload.put("reasons", trimReport.getReasons());
-        payload.put("summary", "trimmed");
-        if (trimReport.getRemovedItemsBySection() != null) {
-            payload.put("removedBySection", trimReport.getRemovedItemsBySection());
-        }
-        return payload;
-    }
-
-    /**
-     * 从证据包服务同步当前工作流证据到运行上下文。
-     */
-    private void syncEvidencePackFromStore(Map<String, Object> runtimeContext,
-                                           TenantContext tenantContext,
-                                           String workflowId) {
-        if (runtimeContext == null || evidencePackService == null || tenantContext == null
-                || workflowId == null || workflowId.isBlank()) {
-            return;
-        }
-        EvidencePack pack = evidencePackService.getPack(tenantContext.getTenantId(), workflowId);
-        if (pack != null) {
-            runtimeContext.put("evidencePack", pack);
-        }
-    }
-
-    /**
-     * 构建上下文快照并发布事件。
-     *
-     * <p>输入：任务请求、租户上下文与运行时上下文。
-     * <p>输出：上下文构建结果。
-     * <p>边界：上下文构建器为空时返回 {@code null}。
-     * <p>示例：
-     * <pre>{@code
-     * ContextBuildResult result = buildContextSnapshot(request, ctx, wfId, taskId, recall, runtimeContext, seq);
-     * }</pre>
-     *
-     * @param request 任务请求
-     * @param tenantContext 租户上下文
-     * @param workflowId 工作流标识
-     * @param taskId 任务标识
-     * @param recallResult 记忆召回结果
-     * @param runtimeContext 运行时上下文
-     * @param seqCounter 序列计数器
-     * @return 构建结果
-     */
-    private ContextBuildResult buildContextSnapshot(TaskRequest request,
-                                                    TenantContext tenantContext,
-                                                    String workflowId,
-                                                    String taskId,
-                                                    MemoryRecallResult recallResult,
-                                                    Map<String, Object> runtimeContext,
-                                                    AtomicLong seqCounter) {
-        if (contextBuilder == null) {
-            return null;
-        }
-        // 组装上下文构建请求。
-        ContextBuildRequest buildRequest = new ContextBuildRequest();
-        buildRequest.setTaskRequest(request);
-        buildRequest.setTenantContext(tenantContext);
-        buildRequest.setWorkflowId(workflowId);
-        buildRequest.setTaskId(taskId);
-        buildRequest.setRecallResult(recallResult);
-        buildRequest.setRuntimeContext(runtimeContext);
-        ContextBuildResult result = contextBuilder.build(buildRequest);
-        if (result != null && result.getSnapshot() != null && contextEventPublisher != null) {
-            // 发布上下文快照事件，便于链路追踪。
-            contextEventPublisher.publishSnapshot(tenantContext, workflowId, seqCounter,
-                    result.getSnapshot(), result.getBudgetAllocation(), result.getPruneResult(), result.getMetrics());
-        }
-        return result;
-    }
-
-    /**
-     * 将上下文快照写入运行时上下文。
-     *
-     * <p>输入：运行时上下文与构建结果。
-     * <p>输出：无。
-     * <p>边界：输入为空时不处理。
-     * <p>示例：
-     * <pre>{@code
-     * applyContextSnapshot(runtimeContext, buildResult);
-     * }</pre>
-     *
-     * @param runtimeContext 运行时上下文
-     * @param buildResult 上下文构建结果
-     */
-    private void applyContextSnapshot(Map<String, Object> runtimeContext, ContextBuildResult buildResult) {
-        if (runtimeContext == null || buildResult == null) {
-            return;
-        }
-        if (buildResult.getSnapshot() != null) {
-            // 写入快照对象与快照标识。
-            runtimeContext.put("contextSnapshot", buildResult.getSnapshot());
-            String snapshotId = buildResult.getSnapshot().getSnapshotId();
-            if (snapshotId != null && !snapshotId.isBlank()) {
-                runtimeContext.putIfAbsent("snapshotId", snapshotId);
-                Object evidenceObj = runtimeContext.get("evidencePack");
-                if (evidenceObj instanceof EvidencePack pack
-                        && (pack.getSnapshotId() == null || pack.getSnapshotId().isBlank())) {
-                    pack.setSnapshotId(snapshotId);
-                }
-            }
-        }
-        if (buildResult.getBudgetAllocation() != null) {
-            runtimeContext.put("contextBudget", buildResult.getBudgetAllocation());
-        }
-        if (buildResult.getPruneResult() != null) {
-            runtimeContext.put("contextPrune", buildResult.getPruneResult());
-        }
-    }
-
-    /**
-     * 构造携带运行上下文的任务请求副本，避免修改原请求对象。
-     *
-     * <p>输入：任务请求与运行时上下文。
-     * <p>输出：新的任务请求对象。
-     * <p>边界：原请求为空时返回 {@code null}。
-     * <p>示例：
-     * <pre>{@code
-     * TaskRequest copy = buildRequestWithContext(request, runtimeContext);
-     * }</pre>
-     *
-     * @param request 原任务请求
-     * @param runtimeContext 运行上下文
-     * @return 新的任务请求
-     */
-    private TaskRequest buildRequestWithContext(TaskRequest request, Map<String, Object> runtimeContext) {
-        if (request == null) {
-            return null;
-        }
-        TaskRequest copy = new TaskRequest();
-        copy.setQuery(request.getQuery());
-        copy.setSessionId(request.getSessionId());
-        copy.setSkillName(request.getSkillName());
-        copy.setIdempotencyKey(request.getIdempotencyKey());
-        copy.setToolChoice(request.getToolChoice());
-        copy.setContext(runtimeContext);
-        return copy;
-    }
-
-    /**
-     * 保护性写入记忆，失败不影响主流程。
-     *
-     * <p>输入：任务请求、运行结果与租户上下文。
-     * <p>输出：无。
-     * <p>边界：写入失败仅记录日志。
-     * <p>示例：
-     * <pre>{@code
-     * persistMemorySafely(request, result, ctx, taskId);
-     * }</pre>
-     *
-     * @param request 任务请求
-     * @param result 运行结果
-     * @param tenantContext 租户上下文
-     * @param taskId 任务标识
-     */
-    private void persistMemorySafely(TaskRequest request,
-                                     RuntimeResult result,
-                                     TenantContext tenantContext,
-                                     String taskId) {
-        try {
-            memoryWriteService.saveTaskMemory(request, result, tenantContext, taskId);
-        // 异常捕获：记录上下文并按当前策略处理
-        } catch (Exception ex) {
-            log.error("记忆写入异常, tenantId={}, taskId={}",
-                    tenantContext != null ? tenantContext.getTenantId() : null, taskId, ex);
-        }
-    }
-
-    /**
      * 构建用于重规划的请求副本。
      *
      * <p>输入：原任务请求与重规划次数。
@@ -1285,10 +666,10 @@ private Map<String, Object> executeToolStep(TaskRequest request,
      * Map<String, Object> input = mergeStepInput(step, runtimeContext);
      * }</pre>
      */
-    private Map<String, Object> mergeStepInput(StepSpec step, Map<String, Object> runtimeContext) {
+    private Map<String, Object> mergeStepInput(StepSpec step, RuntimeContext runtimeContext) {
         Map<String, Object> merged = new HashMap<>();
         if (runtimeContext != null) {
-            merged.putAll(runtimeContext);
+            merged.putAll(runtimeContext.asMap());
         }
         Map<String, Object> stepInput = resolveStepInput(step);
         if (stepInput != null && !stepInput.isEmpty()) {
@@ -1353,42 +734,37 @@ private Map<String, Object> executeToolStep(TaskRequest request,
      * updateRuntimeContext(runtimeContext, record, output);
      * }</pre>
      */
-    private void updateRuntimeContext(Map<String, Object> runtimeContext,
+    private void updateRuntimeContext(RuntimeContext runtimeContext,
                                       StepRecord record,
-                                      Map<String, Object> output) {
+                                      StepExecutionOutput output) {
         if (runtimeContext == null) {
             return;
         }
-        runtimeContext.put("lastStepId", record.getStepId());
-        runtimeContext.put("lastStepType", record.getType());
-        Map<String, Object> stepSummary = buildStepOutputSummary(record, output);
-        runtimeContext.put("lastStepSummary", stepSummary);
-        runtimeContext.remove("lastStepOutput");
-        Map<String, Object> rawEnvelope = buildStepRawEnvelope(output);
-        Object rawData = rawEnvelope.get("data");
-        if (rawData != null) {
-            runtimeContext.put("lastStepRawOutput", rawData);
-        } else {
-            runtimeContext.remove("lastStepRawOutput");
-        }
-        Object rawRef = rawEnvelope.get("rawRef");
-        if (rawRef instanceof String text && !text.isBlank()) {
-            runtimeContext.put("lastStepRawRef", text);
-        } else {
-            runtimeContext.remove("lastStepRawRef");
-        }
-        Object rawTruncated = rawEnvelope.get("truncated");
-        runtimeContext.put("lastStepRawTruncated", rawTruncated instanceof Boolean value && value);
-        if (rawEnvelope.get("refs") instanceof Map<?, ?> refsMap && !refsMap.isEmpty()) {
+        runtimeContext.setLastStepId(record != null ? record.getStepId() : null);
+        runtimeContext.setLastStepType(record != null ? record.getType() : null);
+
+        Map<String, Object> stepSummary = record != null
+                && record.getOutput() != null
+                && record.getOutput().getSummary() != null
+                ? record.getOutput().getSummary().getStepSummary()
+                : null;
+        runtimeContext.setLastStepSummary(stepSummary);
+        runtimeContext.asMap().remove("lastStepOutput");
+
+        Map<String, Object> rawPayload = output != null ? output.getPayload() : null;
+        RawOutputEnvelope rawEnvelope = buildStepRawEnvelope(rawPayload);
+        runtimeContext.setLastStepRawOutput(rawEnvelope != null ? rawEnvelope.getData() : null);
+        runtimeContext.setLastStepRawRef(rawEnvelope != null ? rawEnvelope.getRawRef() : null);
+        runtimeContext.setLastStepRawTruncated(rawEnvelope != null && rawEnvelope.isTruncated());
+        if (rawEnvelope != null && rawEnvelope.getRefs() != null && !rawEnvelope.getRefs().isEmpty()) {
             Map<String, Object> refs = new HashMap<>();
-            refsMap.forEach((key, value) -> refs.put(String.valueOf(key), value));
-            runtimeContext.put("lastStepRawRefs", refs);
+            rawEnvelope.getRefs().forEach((key, value) -> refs.put(String.valueOf(key), value));
+            runtimeContext.setLastStepRawRefs(refs);
         } else {
-            runtimeContext.remove("lastStepRawRefs");
+            runtimeContext.setLastStepRawRefs(null);
         }
-        if (output != null) {
-            runtimeContext.put("lastOutputSize", output.size());
-        }
+
+        runtimeContext.setLastOutputSize(rawPayload != null ? rawPayload.size() : null);
     }
 
     /**
@@ -1410,22 +786,15 @@ private Map<String, Object> executeToolStep(TaskRequest request,
         stepOutputs.add(record.getOutput());
     }
 
-    private Map<String, Object> buildStepRawEnvelope(Map<String, Object> output) {
+    private RawOutputEnvelope buildStepRawEnvelope(Map<String, Object> output) {
         if (output == null || output.isEmpty()) {
-            return Map.of();
+            return RawOutputEnvelope.empty();
         }
         if (rawOutputEnvelopeBuilder != null) {
-            Map<String, Object> envelope = rawOutputEnvelopeBuilder.build(output);
-            return envelope == null ? Map.of() : envelope;
+            RawOutputEnvelope envelope = rawOutputEnvelopeBuilder.build(output);
+            return envelope == null ? RawOutputEnvelope.empty() : envelope;
         }
-        Map<String, Object> envelope = new HashMap<>();
-        String rawRef = resolveRawRef(output);
-        if (rawRef != null && !rawRef.isBlank()) {
-            envelope.put("rawRef", rawRef);
-        }
-        envelope.put("data", output);
-        envelope.put("truncated", false);
-        return envelope;
+        return RawOutputEnvelope.of(resolveRawRef(output), Map.of(), new HashMap<>(output), false);
     }
 
     private String resolveRawRef(Map<String, Object> output) {
@@ -1517,465 +886,6 @@ private Map<String, Object> executeToolStep(TaskRequest request,
     }
 
     /**
-     * LLM 步骤服务，用于处理带工具注入的步骤执行。
-     *
-     * <p>输入：规划与步骤输出列表。
-     * <p>输出：最终答复映射；不满足条件时返回 {@code null}。
-     * <p>边界：无步骤或输出为空时不处理。
-     */
-    private Map<String, Object> resolveFinalOutputFromSteps(PlanResult plan,
-                                                            List<StepResult> stepOutputs,
-                                                            String workflowId) {
-        if (plan == null || plan.getSteps() == null || plan.getSteps().isEmpty()) {
-            return null;
-        }
-        StepSpec lastStep = plan.getSteps().get(plan.getSteps().size() - 1);
-        if (lastStep == null || lastStep.getStepType() == null) {
-            return null;
-        }
-        String stepType = lastStep.getStepType();
-        if (!"LLM".equalsIgnoreCase(stepType) && !"ANSWER".equalsIgnoreCase(stepType)) {
-            return null;
-        }
-        if (stepOutputs == null || stepOutputs.isEmpty()) {
-            return null;
-        }
-        StepResult lastStepResult = stepOutputs.get(stepOutputs.size() - 1);
-        if (lastStepResult == null) {
-            return null;
-        }
-        Object output = extractFinalOutput(lastStepResult);
-        if (output == null) {
-            return null;
-        }
-        Map<String, Object> result = new HashMap<>();
-        if (output instanceof Map<?, ?> map) {
-            map.forEach((key, value) -> result.put(String.valueOf(key), value));
-        } else {
-            result.put("answer", output.toString());
-        }
-        if (!result.containsKey("answer") && result.get("finalAnswer") != null) {
-            result.put("answer", result.get("finalAnswer"));
-        }
-        log.info("大模型步骤已产出最终结果, 工作流={}, 步骤类型={}, 输出字段={}",
-                workflowId, stepType, result.keySet());
-        return result;
-    }
-
-    private Object extractFinalOutput(StepResult stepResult) {
-        if (stepResult == null) {
-            return null;
-        }
-        if (stepResult.getRaw() != null && stepResult.getRaw().getData() != null
-                && !stepResult.getRaw().getData().isEmpty()) {
-            return stepResult.getRaw().getData();
-        }
-        if (stepResult.getStructured() != null && stepResult.getStructured().getData() != null
-                && !stepResult.getStructured().getData().isEmpty()) {
-            return stepResult.getStructured().getData();
-        }
-        if (stepResult.getSummary() != null) {
-            Map<String, Object> stepSummary = stepResult.getSummary().getStepSummary();
-            if (stepSummary != null && stepSummary.get("summary") != null) {
-                return Map.of("answer", String.valueOf(stepSummary.get("summary")));
-            }
-        }
-        return null;
-    }
-
-    /**
-     * TOOL 步骤补齐 toolChoice，保证规划工具能被模型决策流程识别。
-     *
-     * <p>输入：步骤定义、任务请求与合并后的步骤输入。
-     * <p>输出：在 stepInput 中注入 toolChoice（若缺失）。
-     * <p>边界：未提供 tool/toolName 时不做注入，仅记录告警。
-     */
-    private void applyToolChoiceForToolStep(StepSpec step,
-                                            TaskRequest request,
-                                            Map<String, Object> stepInput,
-                                            String workflowId,
-                                            StepRecord record) {
-        if (stepInput == null || hasToolChoice(stepInput)) {
-            return;
-        }
-        String toolName = resolveToolNameForToolStep(request, step, stepInput);
-        if (toolName == null || toolName.isBlank()) {
-            log.warn("TOOL 步骤缺少 toolName, 无法补齐 toolChoice, workflowId={}, stepId={}",
-                    workflowId, record != null ? record.getStepId() : null);
-            return;
-        }
-        Map<String, Object> toolChoice = new HashMap<>();
-        toolChoice.put("mode", "specified");
-        toolChoice.put("toolName", toolName);
-        stepInput.put("toolChoice", toolChoice);
-        log.info("TOOL 步骤补齐 toolChoice, workflowId={}, stepId={}, tool={}",
-                workflowId, record != null ? record.getStepId() : null, toolName);
-    }
-
-    /**
-     * 尝试走直达工具路径，满足条件时跳过 LLM 决策。
-     *
-     * <p>输入：步骤定义、任务请求与步骤输入。
-     * <p>输出：直达工具路径的输出；不满足条件时返回 {@code null}。
-     */
-    private Map<String, Object> tryExecuteDirectToolStep(StepSpec step,
-                                                 TaskRequest request,
-                                                 Map<String, Object> stepInput,
-                                                 TenantContext tenantContext,
-                                                 String workflowId,
-                                                 String taskId,
-                                                 AtomicLong seqCounter,
-                                                 StepRecord record) {
-        if (!directToolEnabled) {
-            return null;
-        }
-        String toolName = resolveToolNameForToolStep(request, step, stepInput);
-        if (toolName == null || toolName.isBlank()) {
-            log.info("直达工具跳过, toolName 缺失, workflowId={}, stepId={}",
-                    workflowId, record != null ? record.getStepId() : null);
-            return null;
-        }
-        Map<String, Object> toolArguments = resolveDirectToolArguments(stepInput);
-        if (toolArguments == null || toolArguments.isEmpty()) {
-            log.info("直达工具跳过, 参数缺失, workflowId={}, stepId={}, tool={}",
-                    workflowId, record != null ? record.getStepId() : null, toolName);
-            return null;
-        }
-        if (toolArgumentValidator != null) {
-            ToolArgumentValidatorRuntime.ValidationResult validation = toolArgumentValidator.validate(toolName, toolArguments);
-            if (!validation.isValid()) {
-                log.info("直达工具跳过, 参数校验失败, workflowId={}, stepId={}, tool={}, reason={}, missing={}",
-                        workflowId,
-                        record != null ? record.getStepId() : null,
-                        toolName,
-                        validation.getReason(),
-                        validation.getMissingFields());
-                return null;
-            }
-        }
-        try {
-            log.info("直达工具执行, workflowId={}, stepId={}, tool={}, argKeys={}",
-                    workflowId, record != null ? record.getStepId() : null, toolName, toolArguments.keySet());
-            Map<String, Object> toolResult = executeToolStep(request, tenantContext, workflowId, taskId,
-                    seqCounter, record, toolName, toolArguments);
-            LlmStepService.ToolSummaryMode summaryMode = llmStepService.resolveToolSummaryMode(request, stepInput);
-            if (summaryMode != LlmStepService.ToolSummaryMode.LLM_SUMMARY) {
-                Map<String, Object> output = llmStepService.buildDirectToolOutput(summaryMode, toolName,
-                        toolArguments, toolResult);
-                log.info("直达工具执行完成, workflowId={}, stepId={}, summaryMode={}, outputKeys={}",
-                        workflowId, record != null ? record.getStepId() : null, summaryMode, output.keySet());
-                return output;
-            }
-            Map<String, Object> summaryOutput = llmStepService.summarizeDirectToolResult(request, stepInput,
-                    tenantContext, workflowId, seqCounter, toolName, toolArguments, toolResult);
-            log.info("直达工具总结完成, workflowId={}, stepId={}, outputKeys={}",
-                    workflowId, record != null ? record.getStepId() : null, summaryOutput.keySet());
-            return summaryOutput;
-        } catch (Throwable ex) {
-            log.warn("直达工具执行失败, 回退 LLM 决策, workflowId={}, stepId={}, tool={}",
-                    workflowId, record != null ? record.getStepId() : null, toolName, ex);
-            return null;
-        }
-    }
-
-private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepInput) {
-        if (stepInput == null) {
-            return null;
-        }
-        Object raw = stepInput.get("arguments");
-        if (!(raw instanceof Map<?, ?> rawMap)) {
-            return null;
-        }
-        Map<String, Object> arguments = new HashMap<>();
-        rawMap.forEach((key, value) -> arguments.put(String.valueOf(key), value));
-        return arguments;
-    }
-
-    /**
-     * 判断步骤输入是否已携带 toolChoice。
-     *
-     * <p>输入：合并后的步骤输入。
-     * <p>输出：是否存在 toolChoice（含 context 内）。
-     */
-    private boolean hasToolChoice(Map<String, Object> stepInput) {
-        if (stepInput == null) {
-            return false;
-        }
-        if (stepInput.get("toolChoice") != null) {
-            return true;
-        }
-        Object context = stepInput.get("context");
-        if (context instanceof Map<?, ?> contextMap) {
-            return contextMap.get("toolChoice") != null;
-        }
-        return false;
-    }
-
-    /**
-     * 解析 TOOL 步骤使用的工具名称，优先使用步骤显式配置。
-     *
-     * <p>输入：任务请求、步骤定义与步骤输入。
-     * <p>输出：工具名称；不存在时返回 {@code null}。
-     * <p>边界：仅做字符串化处理，不校验可用性。
-     */
-    private String resolveToolNameForToolStep(TaskRequest request,
-                                              StepSpec step,
-                                              Map<String, Object> stepInput) {
-        String toolName = resolveToolName(request, step);
-        if (toolName != null && !toolName.isBlank()) {
-            return toolName;
-        }
-        if (stepInput == null) {
-            return null;
-        }
-        Object tool = stepInput.get("tool");
-        if (tool != null && !tool.toString().isBlank()) {
-            return tool.toString();
-        }
-        Object toolNameObj = stepInput.get("toolName");
-        if (toolNameObj != null && !toolNameObj.toString().isBlank()) {
-            return toolNameObj.toString();
-        }
-        return null;
-    }
-
-    /**
-     * 将思维树节点展平为列表。
-     *
-     * <p>输入：思维树根节点。
-     * <p>输出：节点列表。
-     * <p>边界：根节点为空时返回空列表。
-     * <p>示例：
-     * <pre>{@code
-     * List<ThoughtNode> nodes = flattenThoughtNodes(root);
-     * }</pre>
-     */
-    private List<ThoughtNode> flattenThoughtNodes(ThoughtNode root) {
-        if (root == null) {
-            return List.of();
-        }
-        List<ThoughtNode> nodes = new java.util.ArrayList<>();
-        java.util.ArrayDeque<ThoughtNode> queue = new java.util.ArrayDeque<>();
-        queue.add(root);
-        while (!queue.isEmpty()) {
-            ThoughtNode node = queue.poll();
-            nodes.add(node);
-            if (node.getChildren() != null) {
-                queue.addAll(node.getChildren());
-            }
-        }
-        return nodes;
-    }
-
-    /**
-     * 解析步骤需要使用的工具名称。
-     *
-     * <p>输入：任务请求与步骤定义。
-     * <p>输出：工具名称字符串。
-     * <p>边界：未指定时返回默认工具名称。
-     * <p>示例：
-     * <pre>{@code
-     * String tool = resolveToolName(request, step);
-     * }</pre>
-     */
-    private String resolveToolName(TaskRequest request, StepSpec step) {
-        Map<String, Object> stepInput = resolveStepInput(step);
-        if (stepInput != null) {
-            Object tool = stepInput.get("tool");
-            if (tool instanceof String toolName && !toolName.isBlank()) {
-                return toolName;
-            }
-            Object toolName = stepInput.get("toolName");
-            if (toolName instanceof String name && !name.isBlank()) {
-                return name;
-            }
-        }
-        if (request != null && request.getContext() != null) {
-            Object tool = request.getContext().get("tool");
-            if (tool instanceof String toolName && !toolName.isBlank()) {
-                return toolName;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 解析工具步骤参数。
-     *
-     * <p>输入：步骤定义。
-     * <p>输出：工具参数映射；未提供时返回 {@code null}。
-     * <p>边界：参数非对象时记录告警并忽略。
-     */
-    private Map<String, Object> resolveToolArguments(StepSpec step) {
-        Map<String, Object> stepInput = resolveStepInput(step);
-        if (stepInput == null || stepInput.isEmpty()) {
-            return null;
-        }
-        Object raw = stepInput.get("arguments");
-        if (raw == null) {
-            return resolveFlatToolArguments(step);
-        }
-        if (raw instanceof Map<?, ?> rawMap) {
-            Map<String, Object> arguments = new HashMap<>();
-            rawMap.forEach((key, value) -> arguments.put(String.valueOf(key), value));
-            filterReservedToolArguments(arguments);
-            return arguments;
-        }
-        log.warn("步骤工具参数格式非法, stepType={}, valueType={}",
-                step.getStepType(), raw.getClass().getSimpleName());
-        return resolveFlatToolArguments(step);
-    }
-
-    /**
-     * 过滤步骤控制类字段，避免污染工具参数。
-     *
-     * @param arguments 工具参数映射
-     */
-    private void filterReservedToolArguments(Map<String, Object> arguments) {
-        if (arguments == null || arguments.isEmpty()) {
-            return;
-        }
-        for (String key : TOOL_ARGUMENT_RESERVED_KEYS) {
-            arguments.remove(key);
-        }
-    }
-
-    /**
-     * 从步骤输入平铺字段中提取工具参数。
-     *
-     * <p>用途：兼容规划结果未包裹 arguments 的场景。</p>
-     *
-     * @param step 步骤定义
-     * @return 工具参数映射；为空时返回 {@code null}
-     */
-    private Map<String, Object> resolveFlatToolArguments(StepSpec step) {
-        Map<String, Object> input = resolveStepInput(step);
-        if (input == null || input.isEmpty()) {
-            return null;
-        }
-        Map<String, Object> arguments = new HashMap<>();
-        input.forEach((key, value) -> arguments.put(String.valueOf(key), value));
-        filterReservedToolArguments(arguments);
-        if (arguments.isEmpty()) {
-            return null;
-        }
-        log.debug("工具步骤使用扁平参数, stepType={}, argKeys={}", step.getStepType(), arguments.keySet());
-        return arguments;
-    }
-
-    /**
-     * 解析步骤的兜底工具名称。
-     *
-     * <p>输入：任务请求与步骤定义。
-     * <p>输出：兜底工具名称或 {@code null}。
-     * <p>示例：
-     * <pre>{@code
-     * String tool = resolveFallbackTool(request, step);
-     * }</pre>
-     */
-    private String resolveFallbackTool(TaskRequest request, StepSpec step) {
-        Map<String, Object> stepInput = resolveStepInput(step);
-        if (stepInput != null) {
-            Object tool = stepInput.get("fallbackTool");
-            if (tool instanceof String fallback && !fallback.isBlank()) {
-                return fallback;
-            }
-        }
-        if (request != null && request.getContext() != null) {
-            Object tool = request.getContext().get("fallbackTool");
-            if (tool instanceof String fallback && !fallback.isBlank()) {
-                return fallback;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 解析步骤查询文本。
-     *
-     * <p>输入：任务请求与步骤定义。
-     * <p>输出：查询文本。
-     * <p>边界：无内容时返回空字符串。
-     * <p>示例：
-     * <pre>{@code
-     * String query = resolveStepQuery(request, step);
-     * }</pre>
-     */
-    private String resolveStepQuery(TaskRequest request, StepSpec step) {
-        Map<String, Object> stepInput = resolveStepInput(step);
-        return resolveStepQuery(request, stepInput);
-    }
-
-    /**
-     * 基于步骤输入映射解析查询文本。
-     *
-     * <p>输入：任务请求与步骤输入映射。
-     * <p>输出：查询文本。
-     * <p>边界：无内容时返回空字符串。
-     *
-     * @param request 任务请求
-     * @param stepInput 步骤输入映射
-     * @return 查询文本
-     */
-    private String resolveStepQuery(TaskRequest request, Map<String, Object> stepInput) {
-        if (stepInput != null) {
-            Object query = stepInput.get("query");
-            if (query instanceof String value && !value.isBlank()) {
-                return value;
-            }
-        }
-        if (request != null && request.getQuery() != null) {
-            return request.getQuery();
-        }
-        return "";
-    }
-
-    /**
-     * 解析链式推理的问题文本。
-     *
-     * <p>输入：步骤输入与任务请求。
-     * <p>输出：问题文本。
-     * <p>示例：
-     * <pre>{@code
-     * String question = resolveStepQuestion(stepInput, request);
-     * }</pre>
-     */
-    private String resolveStepQuestion(Map<String, Object> stepInput, TaskRequest request) {
-        if (stepInput != null) {
-            Object question = stepInput.get("question");
-            if (question instanceof String value && !value.isBlank()) {
-                return value;
-            }
-            Object topic = stepInput.get("topic");
-            if (topic instanceof String value && !value.isBlank()) {
-                return value;
-            }
-        }
-        return resolveStepQuery(request, stepInput);
-    }
-
-    /**
-     * 解析辩论步骤的主题。
-     *
-     * <p>输入：任务请求与步骤定义。
-     * <p>输出：主题文本。
-     * <p>示例：
-     * <pre>{@code
-     * String topic = resolveStepTopic(request, step);
-     * }</pre>
-     */
-    private String resolveStepTopic(TaskRequest request, StepSpec step) {
-        Map<String, Object> stepInput = resolveStepInput(step);
-        if (stepInput != null) {
-            Object topic = stepInput.get("topic");
-            if (topic instanceof String value && !value.isBlank()) {
-                return value;
-            }
-        }
-        return resolveStepQuery(request, step);
-    }
-
-    /**
      * 解析异常对应的错误码。
      *
      * <p>输入：异常对象。
@@ -2009,429 +919,6 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
     }
 
     /**
-     * 执行控制门禁：处理暂停、审批等待与取消。
-     *
-     * <p>输入：工作流标识与租户上下文。
-     * <p>输出：无。
-     * <p>边界：被取消时抛出异常并发布取消事件。
-     * <p>示例：
-     * <pre>{@code
-     * applyExecutionControl(workflowId, ctx, seqCounter);
-     * }</pre>
-     *
-     * @param runtimeContext 运行时上下文
-     * @param workflowId 工作流标识
-     * @param tenantContext 租户上下文
-     * @param seqCounter 序列计数器
-     */
-    private void applyExecutionControl(String workflowId,
-                                       TenantContext tenantContext,
-                                       AtomicLong seqCounter) {
-        ExecutionControlState state = executionControlService.getState(workflowId);
-        if (state == ExecutionControlState.RUNNING) {
-            return;
-        }
-        if (state == ExecutionControlState.PAUSED) {
-            log.info("执行控制命中暂停, tenantId={}, workflowId={}",
-                    tenantContext.getTenantId(), workflowId);
-            publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_PAUSED,
-                    Map.of("state", ExecutionControlState.PAUSED.name()));
-        } else if (state == ExecutionControlState.WAIT_APPROVAL) {
-            log.info("执行控制等待审批, tenantId={}, workflowId={}",
-                    tenantContext.getTenantId(), workflowId);
-        }
-
-        try {
-            executionControlService.awaitIfBlocked(workflowId);
-        // 异常捕获：记录上下文并按当前策略处理
-        } catch (ErrorCodeException ex) {
-            if (isCancelled(ex)) {
-                publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_CANCELLED,
-                        Map.of("state", ExecutionControlState.CANCELLED.name()));
-            }
-            throw ex;
-        }
-
-        if (state == ExecutionControlState.PAUSED) {
-            publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_RESUMED,
-                    Map.of("state", ExecutionControlState.RUNNING.name()));
-        }
-    }
-
-    /**
-     * 触发审批并等待决策。
-     *
-     * <p>输入：步骤定义、任务请求与步骤输入。
-     * <p>输出：无。
-     * <p>边界：审批被取消时抛出异常。
-     * <p>示例：
-     * <pre>{@code
-     * requestApprovalIfNeeded(step, request, stepInput, runtimeContext, wfId, ctx, seq);
-     * }</pre>
-     *
-     * @param step 步骤定义
-     * @param request 任务请求
-     * @param stepInput 步骤输入
-     * @param workflowId 工作流标识
-     * @param tenantContext 租户上下文
-     * @param seqCounter 序列计数器
-     */
-    private void requestApprovalIfNeeded(StepSpec step,
-                                         TaskRequest request,
-                                         Map<String, Object> stepInput,
-                                         Map<String, Object> runtimeContext,
-                                         String workflowId,
-                                         TenantContext tenantContext,
-                                         AtomicLong seqCounter) {
-        ApprovalDecision decision = resolveApprovalDecision(step, request, stepInput);
-        if (!decision.explicit || !decision.required) {
-            return;
-        }
-        if (isEvaluationApprovalResolved(decision, runtimeContext)) {
-            return;
-        }
-        ExecutionControlState state = executionControlService.getState(workflowId);
-        if (state != ExecutionControlState.WAIT_APPROVAL) {
-            Map<String, Object> payload = buildApprovalPayload(step, request, stepInput, decision.source);
-            executionControlService.requestApproval(workflowId, payload);
-            publishEvent(tenantContext, workflowId, seqCounter, EventType.APPROVAL_REQUESTED, payload);
-            log.info("触发审批, tenantId={}, workflowId={}, source={}, stepType={}",
-                    tenantContext != null ? tenantContext.getTenantId() : null,
-                    workflowId,
-                    decision.source,
-                    step != null ? step.getStepType() : null);
-        }
-        try {
-            executionControlService.awaitIfBlocked(workflowId);
-        // 异常捕获：记录上下文并按当前策略处理
-        } catch (ErrorCodeException ex) {
-            if (isCancelled(ex)) {
-                publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_CANCELLED,
-                        Map.of("state", ExecutionControlState.CANCELLED.name()));
-            }
-            throw ex;
-        }
-        if ("evaluation".equalsIgnoreCase(decision.source) && runtimeContext != null) {
-            runtimeContext.put("evaluationApprovalGranted", true);
-        }
-    }
-
-    /**
-     * 将布尔值或字符串转换为审批标记。
-     *
-     * <p>输入：原始值。
-     * <p>输出：是否为真。
-     * <p>示例：
-     * <pre>{@code
-     * boolean required = isTruthy("true");
-     * }</pre>
-     *
-     * @param value 原始值
-     * @return 是否为真
-     */
-    private boolean isTruthy(Object value) {
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        if (value instanceof String text) {
-            return "true".equalsIgnoreCase(text.trim());
-        }
-        return false;
-    }
-
-    /**
-     * 判断评估审批是否已被处理。
-     *
-     * <p>输入：审批决策与运行时上下文。
-     * <p>输出：是否已处理。
-     * <p>示例：
-     * <pre>{@code
-     * boolean resolved = isEvaluationApprovalResolved(decision, runtimeContext);
-     * }</pre>
-     */
-    private boolean isEvaluationApprovalResolved(ApprovalDecision decision, Map<String, Object> runtimeContext) {
-        if (decision == null || runtimeContext == null) {
-            return false;
-        }
-        if (!"evaluation".equalsIgnoreCase(decision.source)) {
-            return false;
-        }
-        Object resolved = runtimeContext.get("evaluationApprovalGranted");
-        return isTruthy(resolved);
-    }
-
-    /**
-     * 解析审批决策来源。
-     *
-     * <p>输入：步骤定义、任务请求与步骤输入。
-     * <p>输出：审批决策对象。
-     * <p>示例：
-     * <pre>{@code
-     * ApprovalDecision decision = resolveApprovalDecision(step, request, stepInput);
-     * }</pre>
-     */
-    private ApprovalDecision resolveApprovalDecision(StepSpec step,
-                                                     TaskRequest request,
-                                                     Map<String, Object> stepInput) {
-        ApprovalDecision userDecision = resolveApprovalFromUser(request);
-        if (userDecision.explicit) {
-            return userDecision;
-        }
-        ApprovalDecision stepDecision = resolveApprovalFromStep(step);
-        if (stepDecision.explicit) {
-            return stepDecision;
-        }
-        ApprovalDecision evaluationDecision = resolveApprovalFromEvaluation(step, stepInput);
-        if (evaluationDecision.explicit) {
-            return evaluationDecision;
-        }
-        return ApprovalDecision.none();
-    }
-
-    /**
-     * 从任务请求中解析审批决策。
-     *
-     * <p>输入：任务请求对象。
-     * <p>输出：审批决策对象。
-     * <p>示例：
-     * <pre>{@code
-     * ApprovalDecision decision = resolveApprovalFromUser(request);
-     * }</pre>
-     */
-    private ApprovalDecision resolveApprovalFromUser(TaskRequest request) {
-        if (request == null || request.getContext() == null) {
-            return ApprovalDecision.none();
-        }
-        Map<String, Object> context = request.getContext();
-        if (!context.containsKey("requiresApproval")) {
-            return ApprovalDecision.none();
-        }
-        boolean required = isTruthy(context.get("requiresApproval"));
-        return new ApprovalDecision(true, required, "user");
-    }
-
-    /**
-     * 从步骤定义中解析审批决策。
-     *
-     * <p>输入：步骤定义对象。
-     * <p>输出：审批决策对象。
-     * <p>示例：
-     * <pre>{@code
-     * ApprovalDecision decision = resolveApprovalFromStep(step);
-     * }</pre>
-     */
-    private ApprovalDecision resolveApprovalFromStep(StepSpec step) {
-        if (step == null) {
-            return ApprovalDecision.none();
-        }
-        if (step.getRequiresApproval() != null) {
-            String source = normalizeApprovalSource(step.getApprovalSource(), "step");
-            if (isEvaluationSource(source)) {
-                return ApprovalDecision.none();
-            }
-            return new ApprovalDecision(true, step.getRequiresApproval(), source);
-        }
-        Map<String, Object> input = resolveStepInput(step);
-        if (input != null && input.containsKey("requiresApproval")) {
-            String source = normalizeApprovalSource(input.get("approvalSource"), "step");
-            if (isEvaluationSource(source)) {
-                return ApprovalDecision.none();
-            }
-            boolean required = isTruthy(input.get("requiresApproval"));
-            return new ApprovalDecision(true, required, source);
-        }
-        return ApprovalDecision.none();
-    }
-
-    /**
-     * 从评估上下文中解析审批决策。
-     *
-     * <p>输入：步骤定义与步骤输入。
-     * <p>输出：审批决策对象。
-     * <p>示例：
-     * <pre>{@code
-     * ApprovalDecision decision = resolveApprovalFromEvaluation(step, stepInput);
-     * }</pre>
-     */
-    private ApprovalDecision resolveApprovalFromEvaluation(StepSpec step, Map<String, Object> stepInput) {
-        Object value = null;
-        String source = null;
-        Map<String, Object> input = resolveStepInput(step);
-        if (step != null && step.getRequiresApproval() != null) {
-            String stepSource = normalizeApprovalSource(step.getApprovalSource(), "evaluation");
-            if (isEvaluationSource(stepSource)) {
-                value = step.getRequiresApproval();
-                source = stepSource;
-            }
-        }
-        if (source == null && input != null && input.containsKey("requiresApproval")) {
-            String inputSource = normalizeApprovalSource(input.get("approvalSource"), "evaluation");
-            if (isEvaluationSource(inputSource)) {
-                value = input.get("requiresApproval");
-                source = inputSource;
-            }
-        }
-        if (source == null && stepInput != null && stepInput.containsKey("requiresApproval")) {
-            value = stepInput.get("requiresApproval");
-            source = normalizeApprovalSource(stepInput.get("approvalSource"), "evaluation");
-        }
-        if (source == null && stepInput != null && stepInput.get("context") instanceof Map<?, ?> contextMap
-                && contextMap.containsKey("requiresApproval")) {
-            value = contextMap.get("requiresApproval");
-            source = normalizeApprovalSource(contextMap.get("approvalSource"), "evaluation");
-        }
-        if (source == null) {
-            return ApprovalDecision.none();
-        }
-        boolean required = isTruthy(value);
-        return new ApprovalDecision(true, required, source);
-    }
-
-    /**
-     * 判断是否为评估来源标记。
-     *
-     * <p>输入：来源字符串。
-     * <p>输出：是否为评估来源。
-     * <p>示例：
-     * <pre>{@code
-     * boolean match = isEvaluationSource("evaluation");
-     * }</pre>
-     */
-    private boolean isEvaluationSource(String source) {
-        return "evaluation".equalsIgnoreCase(source);
-    }
-
-    /**
-     * 规整审批来源字符串。
-     *
-     * <p>输入：来源对象与默认值。
-     * <p>输出：规整后的来源字符串。
-     * <p>示例：
-     * <pre>{@code
-     * String source = normalizeApprovalSource("user", "step");
-     * }</pre>
-     */
-    private String normalizeApprovalSource(Object source, String fallback) {
-        if (source instanceof String text && !text.isBlank()) {
-            return text.trim().toLowerCase(Locale.ROOT);
-        }
-        return fallback;
-    }
-
-    /**
-     * 构造审批事件载荷摘要。
-     *
-     * <p>输入：步骤定义、任务请求与步骤输入。
-     * <p>输出：审批事件载荷映射。
-     * <p>边界：输入为空时按可用信息构建。
-     * <p>示例：
-     * <pre>{@code
-     * Map<String, Object> payload = buildApprovalPayload(step, request, input, "evaluation");
-     * }</pre>
-     *
-     * @param step 步骤定义
-     * @param request 任务请求
-     * @param stepInput 步骤输入
-     * @param approvalSource 审批来源
-     * @return 审批事件载荷
-     */
-    private Map<String, Object> buildApprovalPayload(StepSpec step,
-                                                     TaskRequest request,
-                                                     Map<String, Object> stepInput,
-                                                     String approvalSource) {
-        Map<String, Object> payload = new HashMap<>();
-        if (step != null && step.getStepType() != null) {
-            payload.put("stepType", step.getStepType());
-        }
-        if (stepInput != null) {
-            Object toolName = stepInput.get("tool");
-            if (toolName == null) {
-                toolName = stepInput.get("toolName");
-            }
-            if (toolName instanceof String value && !value.isBlank()) {
-                payload.put("toolName", value);
-            }
-            payload.put("inputKeys", stepInput.keySet());
-            payload.put("inputSize", stepInput.size());
-            Object query = stepInput.get("query");
-            if (query instanceof String value && !value.isBlank()) {
-                payload.put("query", truncate(value, 200));
-            }
-        } else if (request != null && request.getQuery() != null) {
-            payload.put("query", truncate(request.getQuery(), 200));
-        }
-        payload.put("approval", "required");
-        payload.put("approvalSource", approvalSource);
-        payload.put("status", "PENDING_APPROVAL");
-        return payload;
-    }
-
-    /**
-     * 截断长文本，避免事件载荷过大。
-     *
-     * <p>输入：原始文本与最大长度。
-     * <p>输出：截断后的文本。
-     * <p>边界：文本为空时返回 {@code null}。
-     * <p>示例：
-     * <pre>{@code
-     * String shortText = truncate(text, 200);
-     * }</pre>
-     *
-     * @param value 原始文本
-     * @param maxLength 最大长度
-     * @return 截断后的文本
-     */
-    private String truncate(String value, int maxLength) {
-        if (value == null) {
-            return null;
-        }
-        if (value.length() <= maxLength) {
-            return value;
-        }
-        return value.substring(0, maxLength);
-    }
-
-    /**
-     * 判断异常是否为取消错误。
-     *
-     * <p>输入：异常对象。
-     * <p>输出：是否为取消异常。
-     * <p>示例：
-     * <pre>{@code
-     * boolean cancelled = isCancelled(ex);
-     * }</pre>
-     *
-     * @param ex 异常
-     * @return 是否取消
-     */
-    private boolean isCancelled(ErrorCodeException ex) {
-        return ex != null && "CANCELLED".equals(ex.getErrorCode());
-    }
-
-    /**
-     * 组装运行时结果对象。
-     *
-     * <p>输入：规划结果、步骤输出与最终输出。
-     * <p>输出：运行时结果对象。
-     * <p>示例：
-     * <pre>{@code
-     * RuntimeResult result = buildRuntimeResult(plan, outputs, finalOutput);
-     * }</pre>
-     */
-    private RuntimeResult buildRuntimeResult(PlanResult plan,
-                                             List<StepResult> stepOutputs,
-                                             Map<String, Object> finalOutput) {
-        RuntimeResult result = new RuntimeResult();
-        if (plan != null) {
-            result.setPlanId(plan.getPlanId());
-            result.setPlanSummary(plan.getSummary());
-        }
-        result.setSteps(stepOutputs);
-        result.setFinalOutput(finalOutput);
-        return result;
-    }
-
-    /**
      * 步骤执行结果枚举。
      *
      * <p>用途：标记步骤成功或触发重规划。
@@ -2442,28 +929,4 @@ private Map<String, Object> resolveDirectToolArguments(Map<String, Object> stepI
         REPLAN
     }
 
-    /**
-     * 审批决策记录对象。
-     *
-     * <p>用途：描述审批是否明确与是否需要。
-     * <p>示例：{@code new ApprovalDecision(true, true, "user")}。
-     */
-    private record ApprovalDecision(boolean explicit, boolean required, String source) {
-
-        /**
-         * 构造空审批决策。
-         *
-         * <p>输入：无。
-         * <p>输出：空决策对象。
-         * <p>示例：
-         * <pre>{@code
-         * ApprovalDecision decision = ApprovalDecision.none();
-         * }</pre>
-         *
-         * @return 空审批决策
-         */
-        private static ApprovalDecision none() {
-            return new ApprovalDecision(false, false, null);
-        }
-    }
 }

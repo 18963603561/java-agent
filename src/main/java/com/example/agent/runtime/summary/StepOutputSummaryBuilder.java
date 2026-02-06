@@ -10,7 +10,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
-import com.example.agent.runtime.engine.StepRecord;
+import com.example.agent.runtime.step.StepRecord;
 
 /**
  * 步骤输出摘要构建器，用于生成步骤输出的摘要层与指纹层数据。

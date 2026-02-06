@@ -31,30 +31,26 @@ public class RawOutputEnvelopeBuilder {
      * @param rawOutput 步骤原始输出
      * @return 原始输出封装
      */
-    public Map<String, Object> build(Map<String, Object> rawOutput) {
+    public RawOutputEnvelope build(Map<String, Object> rawOutput) {
         if (rawOutput == null || rawOutput.isEmpty()) {
-            return Map.of();
+            return RawOutputEnvelope.empty();
         }
-        Map<String, Object> envelope = new LinkedHashMap<>();
         String rawRef = resolveRawRef(rawOutput);
-        if (StringUtils.hasText(rawRef)) {
-            envelope.put("rawRef", rawRef);
-        }
         Map<String, String> refs = resolveRefs(rawOutput);
-        if (!refs.isEmpty()) {
-            envelope.put("refs", refs);
-        }
         if (!isRawEnabled()) {
-            envelope.put("truncated", false);
-            return envelope;
+            return RawOutputEnvelope.of(rawRef, refs, null, false);
         }
 
         Limits limits = resolveLimits();
         TruncationState truncationState = new TruncationState();
         Object sanitized = sanitizeValue(rawOutput, limits, truncationState, 3, new IdentityHashMap<>());
-        envelope.put("data", sanitized);
-        envelope.put("truncated", truncationState.truncated);
-        return envelope;
+        Map<String, Object> data = null;
+        if (sanitized instanceof Map<?, ?> map && !map.isEmpty()) {
+            Map<String, Object> copied = new LinkedHashMap<>();
+            map.forEach((key, value) -> copied.put(String.valueOf(key), value));
+            data = copied;
+        }
+        return RawOutputEnvelope.of(rawRef, refs, data, truncationState.truncated);
     }
 
     /**

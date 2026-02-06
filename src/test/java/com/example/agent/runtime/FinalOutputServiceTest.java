@@ -22,7 +22,7 @@ import org.mockito.Mockito;
 import org.mockito.ArgumentCaptor;
 import com.example.agent.runtime.output.FinalOutputProperties;
 import com.example.agent.runtime.output.FinalOutputService;
-import com.example.agent.runtime.engine.StepState;
+import com.example.agent.runtime.step.StepState;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

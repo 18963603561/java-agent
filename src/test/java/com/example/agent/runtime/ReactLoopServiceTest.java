@@ -26,10 +26,10 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import com.example.agent.runtime.control.ExecutionControlService;
-import com.example.agent.runtime.engine.ReactLoopService;
-import com.example.agent.runtime.engine.ReactRuntimeProperties;
+import com.example.agent.runtime.react.ReactLoopService;
+import com.example.agent.runtime.react.ReactRuntimeProperties;
 import com.example.agent.runtime.control.ExecutionControlState;
-import com.example.agent.runtime.engine.ReactLoopResult;
+import com.example.agent.runtime.react.ReactLoopResult;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
