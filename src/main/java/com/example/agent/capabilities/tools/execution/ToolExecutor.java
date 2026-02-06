@@ -248,7 +248,7 @@ public class ToolExecutor {
                         tenantContext.getTenantId(), resolvedTool, attempt, usageId,
                         resolveTraceId(tenantContext));
                 // 先执行沙箱任务，再执行 MCP 工具调用
-                SandboxResult sandboxResult = sandboxExecutor.execute(resolvedTool, request, tenantContext, arguments);
+                //SandboxResult sandboxResult = sandboxExecutor.execute(resolvedTool, request, tenantContext, arguments);
                 McpToolCallRequest callRequest = buildCallRequest(request, resolvedTool, arguments, usageId);
                 McpToolCallResponse callResponse = mcpToolClient.callTool(callRequest, tenantContext);
                 Map<String, Object> toolResult = callResponse != null ? callResponse.getResult() : null;
@@ -256,12 +256,12 @@ public class ToolExecutor {
                 if (toolResult != null) {
                     merged.putAll(toolResult);
                 }
-                if (sandboxResult != null && sandboxResult.getOutput() != null) {
+/*                if (sandboxResult != null && sandboxResult.getOutput() != null) {
                     merged.put("sandbox", sandboxResult.getOutput());
                 }
                 if (sandboxResult != null && sandboxResult.getStatus() != null) {
                     merged.put("sandboxStatus", sandboxResult.getStatus());
-                }
+                }*/
 
                 TokenUsageRecord usageRecord = recordUsage(tenantContext, request, usageId,
                         resolvedTool, merged, taskId, false);

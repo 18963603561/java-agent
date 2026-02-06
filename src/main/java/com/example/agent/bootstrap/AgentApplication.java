@@ -8,7 +8,7 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 /**
  * 应用启动入口，初始化 Spring Boot 运行环境。
  */
-@SpringBootApplication
+@SpringBootApplication(scanBasePackages = "com.example.agent")
 public class AgentApplication {
 
     private static final Logger log = LoggerFactory.getLogger(AgentApplication.class);
