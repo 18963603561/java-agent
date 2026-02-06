@@ -5,6 +5,7 @@ import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import com.example.agent.runtime.output.OutputFieldExtractor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 import com.example.agent.runtime.summary.StepSummaryProperties;
@@ -60,32 +61,7 @@ public class RawOutputEnvelopeBuilder {
      * @return 原始引用键
      */
     public String resolveRawRef(Map<String, Object> rawOutput) {
-        if (rawOutput == null || rawOutput.isEmpty()) {
-            return null;
-        }
-        String direct = readString(rawOutput.get("rawRef"));
-        if (StringUtils.hasText(direct)) {
-            return direct;
-        }
-        if (rawOutput.get("rawResult") instanceof Map<?, ?> rawResultMap) {
-            String nested = readString(rawResultMap.get("rawRef"));
-            if (StringUtils.hasText(nested)) {
-                return nested;
-            }
-        }
-        if (rawOutput.get("result") instanceof Map<?, ?> resultMap) {
-            String nested = readString(resultMap.get("rawRef"));
-            if (StringUtils.hasText(nested)) {
-                return nested;
-            }
-        }
-        if (rawOutput.get("raw") instanceof Map<?, ?> rawMap) {
-            String nested = readString(rawMap.get("rawRef"));
-            if (StringUtils.hasText(nested)) {
-                return nested;
-            }
-        }
-        return null;
+        return OutputFieldExtractor.resolveRawRef(rawOutput);
     }
 
     /**
@@ -95,19 +71,7 @@ public class RawOutputEnvelopeBuilder {
      * @return 引用集合
      */
     public Map<String, String> resolveRefs(Map<String, Object> rawOutput) {
-        if (rawOutput == null || rawOutput.isEmpty()) {
-            return Map.of();
-        }
-        Map<String, String> refs = new LinkedHashMap<>();
-        mergeRefs(refs, rawOutput.get("refs"));
-        mergeRefValue(refs, "decisionRawRef", rawOutput.get("decisionRawRef"));
-        mergeRefValue(refs, "summaryRawRef", rawOutput.get("summaryRawRef"));
-        mergeRefValue(refs, "toolRawRef", rawOutput.get("toolRawRef"));
-        mergeRefValue(refs, "modelRawRef", rawOutput.get("modelRawRef"));
-        if (rawOutput.get("raw") instanceof Map<?, ?> rawMap) {
-            mergeRefs(refs, rawMap.get("refs"));
-        }
-        return refs.isEmpty() ? Map.of() : refs;
+        return OutputFieldExtractor.resolveRefs(rawOutput);
     }
 
     private boolean isRawEnabled() {
@@ -246,24 +210,6 @@ public class RawOutputEnvelopeBuilder {
         }
         truncationState.totalChars += text.length();
         return text;
-    }
-
-    private void mergeRefs(Map<String, String> target, Object refsObj) {
-        if (!(refsObj instanceof Map<?, ?> map)) {
-            return;
-        }
-        map.forEach((key, value) -> {
-            if (key != null && value != null) {
-                target.put(String.valueOf(key), String.valueOf(value));
-            }
-        });
-    }
-
-    private void mergeRefValue(Map<String, String> target, String key, Object value) {
-        String text = readString(value);
-        if (StringUtils.hasText(text)) {
-            target.put(key, text);
-        }
     }
 
     private String readString(Object value) {

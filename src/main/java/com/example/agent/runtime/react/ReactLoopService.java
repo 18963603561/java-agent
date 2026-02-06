@@ -37,6 +37,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import com.example.agent.runtime.control.ExecutionControlService;
 import com.example.agent.runtime.control.ExecutionControlState;
+import com.example.agent.runtime.output.OutputFieldExtractor;
 
 /**
  * ReAct 循环执行器，负责 Think/Act/Observe 三阶段循环。
@@ -140,7 +141,7 @@ public class ReactLoopService {
             Map<String, Object> actOutput;
             try {
                 actOutput = act(request, tenantContext, workflowId, taskId, seqCounter, iteration, decision);
-                String actRawRef = resolveRawRef(actOutput);
+                String actRawRef = OutputFieldExtractor.resolveRawRef(actOutput);
                 if (StringUtils.hasText(actRawRef)) {
                     lastRawRef = actRawRef;
                 }
@@ -429,7 +430,7 @@ public class ReactLoopService {
 
             Map<String, Object> outputMap = parseObservationOutput(content);
             if (!StringUtils.hasText(tool)) {
-                tool = resolveToolFromOutput(outputMap);
+                tool = OutputFieldExtractor.resolveToolName(outputMap);
             }
             if (StringUtils.hasText(tool)) {
                 summary.put("tool", tool);
@@ -460,17 +461,6 @@ public class ReactLoopService {
         } catch (Exception ex) {
             return Map.of();
         }
-    }
-
-    private String resolveToolFromOutput(Map<String, Object> output) {
-        if (output == null) {
-            return null;
-        }
-        String tool = toText(output.get("tool"));
-        if (!StringUtils.hasText(tool)) {
-            tool = toText(output.get("toolName"));
-        }
-        return tool;
     }
 
     private ObservationSummaryData resolveObservationSummary(Map<String, Object> output) {
@@ -587,41 +577,6 @@ public class ReactLoopService {
 
     private String toText(Object value) {
         return value == null ? null : String.valueOf(value);
-    }
-
-    /**
-     * 解析工具执行输出中的原始引用。
-     *
-     * @param output 工具执行输出
-     * @return 原始引用键，不存在时返回 {@code null}
-     */
-    private String resolveRawRef(Map<String, Object> output) {
-        if (output == null || output.isEmpty()) {
-            return null;
-        }
-        Object direct = output.get("rawRef");
-        if (direct instanceof String text && StringUtils.hasText(text)) {
-            return text.trim();
-        }
-        if (output.get("rawResult") instanceof Map<?, ?> rawResultMap) {
-            Object nested = rawResultMap.get("rawRef");
-            if (nested instanceof String text && StringUtils.hasText(text)) {
-                return text.trim();
-            }
-        }
-        if (output.get("result") instanceof Map<?, ?> resultMap) {
-            Object nested = resultMap.get("rawRef");
-            if (nested instanceof String text && StringUtils.hasText(text)) {
-                return text.trim();
-            }
-        }
-        if (output.get("raw") instanceof Map<?, ?> rawMap) {
-            Object nested = rawMap.get("rawRef");
-            if (nested instanceof String text && StringUtils.hasText(text)) {
-                return text.trim();
-            }
-        }
-        return null;
     }
 
     private static final class ObservationSummaryData {

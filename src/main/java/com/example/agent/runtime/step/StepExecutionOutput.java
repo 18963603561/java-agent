@@ -4,6 +4,8 @@ import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
+import com.example.agent.runtime.output.OutputFieldExtractor;
+import com.example.agent.runtime.summary.StepOutputSummaryView;
 
 /**
  * 步骤执行输出对象。
@@ -93,9 +95,9 @@ public final class StepExecutionOutput {
                 : Collections.unmodifiableMap(new LinkedHashMap<>(payload));
         String toolName = hasText(explicitToolName)
                 ? explicitToolName
-                : resolveToolName(copied);
-        String rawRef = resolveRawRef(copied);
-        Map<String, String> refs = resolveRefs(copied);
+                : OutputFieldExtractor.resolveToolName(copied);
+        String rawRef = OutputFieldExtractor.resolveRawRef(copied);
+        Map<String, String> refs = OutputFieldExtractor.resolveRefs(copied);
         return new StepExecutionOutput(copied, toolName, rawRef, refs, Map.of(), null, null);
     }
 
@@ -160,95 +162,10 @@ public final class StepExecutionOutput {
      *
      * <p>反思阶段应优先使用摘要视图，避免注入原始输出。</p>
      *
-     * @return 反思视图映射
+     * @return 反思视图对象
      */
-    public Map<String, Object> toReflectionView() {
-        return summary == null ? Map.of() : summary;
-    }
-
-    private static String resolveToolName(Map<String, Object> payload) {
-        if (payload == null || payload.isEmpty()) {
-            return null;
-        }
-        Object tool = payload.get("tool");
-        if (tool == null) {
-            tool = payload.get("toolName");
-        }
-        if (tool instanceof String text && hasText(text)) {
-            return text.trim();
-        }
-        return null;
-    }
-
-    private static String resolveRawRef(Map<String, Object> payload) {
-        if (payload == null || payload.isEmpty()) {
-            return null;
-        }
-        Object direct = payload.get("rawRef");
-        String ref = toNonBlankString(direct);
-        if (ref != null) {
-            return ref;
-        }
-        ref = readNestedRawRef(payload.get("rawResult"));
-        if (ref != null) {
-            return ref;
-        }
-        ref = readNestedRawRef(payload.get("result"));
-        if (ref != null) {
-            return ref;
-        }
-        ref = readNestedRawRef(payload.get("raw"));
-        return ref;
-    }
-
-    private static String readNestedRawRef(Object value) {
-        if (!(value instanceof Map<?, ?> map) || map.isEmpty()) {
-            return null;
-        }
-        Object nested = map.get("rawRef");
-        return toNonBlankString(nested);
-    }
-
-    private static Map<String, String> resolveRefs(Map<String, Object> payload) {
-        if (payload == null || payload.isEmpty()) {
-            return Map.of();
-        }
-        Map<String, String> refs = new LinkedHashMap<>();
-        mergeRefs(refs, payload.get("refs"));
-        mergeRefValue(refs, "decisionRawRef", payload.get("decisionRawRef"));
-        mergeRefValue(refs, "summaryRawRef", payload.get("summaryRawRef"));
-        mergeRefValue(refs, "toolRawRef", payload.get("toolRawRef"));
-        mergeRefValue(refs, "modelRawRef", payload.get("modelRawRef"));
-        if (payload.get("raw") instanceof Map<?, ?> rawMap) {
-            mergeRefs(refs, rawMap.get("refs"));
-        }
-        return refs.isEmpty() ? Map.of() : Collections.unmodifiableMap(refs);
-    }
-
-    private static void mergeRefs(Map<String, String> target, Object refsObj) {
-        if (!(refsObj instanceof Map<?, ?> map) || target == null) {
-            return;
-        }
-        map.forEach((key, value) -> {
-            if (key != null && value != null) {
-                target.put(String.valueOf(key), String.valueOf(value));
-            }
-        });
-    }
-
-    private static void mergeRefValue(Map<String, String> target, String key, Object value) {
-        String text = toNonBlankString(value);
-        if (text != null) {
-            target.put(key, text);
-        }
-    }
-
-    private static String toNonBlankString(Object value) {
-        if (!(value instanceof String text)) {
-            return null;
-        }
-        String trimmed = text.trim();
-        return hasText(trimmed) ? trimmed : null;
+    public StepOutputSummaryView toReflectionView() {
+        return StepOutputSummaryView.from(summary);
     }
 
     private static boolean hasText(String value) {

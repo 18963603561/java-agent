@@ -1,5 +1,6 @@
 package com.example.agent.capabilities.llm;
 
+import java.util.Map;
 import java.util.Locale;
 
 /**
@@ -85,6 +86,58 @@ public class ModelToolChoice {
             return required();
         }
         return null;
+    }
+
+    /**
+     * 从任意对象解析工具选择策略。
+     *
+     * <p>用途：统一承接字符串/对象映射等输入形态，避免消费方散落对 {@code Map} 的硬编码键访问。</p>
+     *
+     * @param raw 输入对象
+     * @return 工具选择策略
+     */
+    public static ModelToolChoice fromRaw(Object raw) {
+        if (raw instanceof ModelToolChoice choice) {
+            return choice;
+        }
+        if (raw instanceof String value) {
+            return fromString(value);
+        }
+        if (!(raw instanceof Map<?, ?> map) || map.isEmpty()) {
+            return null;
+        }
+        String mode = readString(map, "mode");
+        if (!hasText(mode)) {
+            mode = readString(map, "type");
+        }
+        String name = readString(map, "toolName");
+        if (!hasText(name)) {
+            name = readString(map, "name");
+        }
+        if (hasText(mode) && "specified".equalsIgnoreCase(mode)) {
+            return specified(name);
+        }
+        ModelToolChoice parsed = fromString(mode);
+        if (parsed != null && parsed.getMode() == Mode.SPECIFIED && hasText(name)) {
+            parsed.setToolName(name);
+        }
+        return parsed;
+    }
+
+    private static String readString(Map<?, ?> map, String key) {
+        if (map == null || key == null) {
+            return null;
+        }
+        Object value = map.get(key);
+        if (value == null) {
+            return null;
+        }
+        String text = value.toString();
+        return text == null ? null : text.trim();
+    }
+
+    private static boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
     }
 
     public Mode getMode() {

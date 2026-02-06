@@ -8,6 +8,7 @@ import com.example.agent.capabilities.tools.hook.HookManager;
 import com.example.agent.capabilities.tools.validation.ToolArgumentValidatorRuntime;
 import com.example.agent.runtime.control.RuntimeExecutionGate;
 import com.example.agent.runtime.llm.LlmStepService;
+import com.example.agent.runtime.output.OutputKeys;
 import com.example.agent.runtime.step.StepExecutionOutput;
 import com.example.agent.runtime.step.StepExecutionRequest;
 import com.example.agent.runtime.step.StepRecord;
@@ -118,17 +119,17 @@ public class ToolStepExecutor implements StepTypeExecutor {
     public String resolveToolName(TaskRequest request, com.example.agent.runtime.model.StepSpec step) {
         Map<String, Object> stepInput = resolveStepInput(step);
         if (stepInput != null) {
-            Object tool = stepInput.get("tool");
+            Object tool = stepInput.get(OutputKeys.TOOL);
             if (tool instanceof String toolName && !toolName.isBlank()) {
                 return toolName;
             }
-            Object toolName = stepInput.get("toolName");
+            Object toolName = stepInput.get(OutputKeys.TOOL_NAME);
             if (toolName instanceof String name && !name.isBlank()) {
                 return name;
             }
         }
         if (request != null && request.getContext() != null) {
-            Object tool = request.getContext().get("tool");
+            Object tool = request.getContext().get(OutputKeys.TOOL);
             if (tool instanceof String toolName && !toolName.isBlank()) {
                 return toolName;
             }
@@ -261,11 +262,11 @@ public class ToolStepExecutor implements StepTypeExecutor {
         if (stepInput == null) {
             return null;
         }
-        Object tool = stepInput.get("tool");
+        Object tool = stepInput.get(OutputKeys.TOOL);
         if (tool != null && !tool.toString().isBlank()) {
             return tool.toString();
         }
-        Object toolNameObj = stepInput.get("toolName");
+        Object toolNameObj = stepInput.get(OutputKeys.TOOL_NAME);
         if (toolNameObj != null && !toolNameObj.toString().isBlank()) {
             return toolNameObj.toString();
         }

@@ -294,7 +294,7 @@ public class ModelToolResolver {
         if (raw == null) {
             return null;
         }
-        return parseToolChoice(raw);
+        return ModelToolChoice.fromRaw(raw);
     }
 
     private List<ModelToolDefinition> filterTools(List<ModelToolDefinition> tools, List<String> allowedTools) {
@@ -508,12 +508,12 @@ public class ModelToolResolver {
     }
 
     private ModelToolChoice resolveToolChoice(TaskRequest taskRequest, Map<String, Object> stepInput) {
-        ModelToolChoice fromStep = parseToolChoice(stepInput != null ? stepInput.get("toolChoice") : null);
+        ModelToolChoice fromStep = ModelToolChoice.fromRaw(stepInput != null ? stepInput.get("toolChoice") : null);
         if (fromStep != null) {
             return fromStep;
         }
         if (stepInput != null && stepInput.get("context") instanceof Map<?, ?> contextMap) {
-            ModelToolChoice fromContext = parseToolChoice(contextMap.get("toolChoice"));
+            ModelToolChoice fromContext = ModelToolChoice.fromRaw(contextMap.get("toolChoice"));
             if (fromContext != null) {
                 return fromContext;
             }
@@ -523,7 +523,7 @@ public class ModelToolResolver {
                 return taskRequest.getToolChoice();
             }
             if (taskRequest.getContext() != null) {
-                return parseToolChoice(taskRequest.getContext().get("toolChoice"));
+                return ModelToolChoice.fromRaw(taskRequest.getContext().get("toolChoice"));
             }
         }
         return null;
@@ -537,34 +537,6 @@ public class ModelToolResolver {
             return "true".equalsIgnoreCase(text.trim());
         }
         return false;
-    }
-
-    private ModelToolChoice parseToolChoice(Object raw) {
-        if (raw instanceof ModelToolChoice choice) {
-            return choice;
-        }
-        if (raw instanceof String value) {
-            return ModelToolChoice.fromString(value);
-        }
-        if (raw instanceof Map<?, ?> map) {
-            String mode = map.get("mode") != null ? map.get("mode").toString() : null;
-            if (!StringUtils.hasText(mode) && map.get("type") != null) {
-                mode = map.get("type").toString();
-            }
-            String name = map.get("toolName") != null ? map.get("toolName").toString() : null;
-            if (!StringUtils.hasText(name) && map.get("name") != null) {
-                name = map.get("name").toString();
-            }
-            if (StringUtils.hasText(mode) && "specified".equalsIgnoreCase(mode)) {
-                return ModelToolChoice.specified(name);
-            }
-            ModelToolChoice parsed = ModelToolChoice.fromString(mode);
-            if (parsed != null && parsed.getMode() == ModelToolChoice.Mode.SPECIFIED) {
-                parsed.setToolName(name);
-            }
-            return parsed;
-        }
-        return null;
     }
 
     /**

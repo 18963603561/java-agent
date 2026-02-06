@@ -30,6 +30,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import com.example.agent.runtime.recovery.RetryPolicy;
+import com.example.agent.runtime.output.OutputFieldExtractor;
+import com.example.agent.runtime.output.OutputKeys;
 
 /**
  * LLM 步骤执行服务，负责决策提示、工具调用与二次总结输出。
@@ -279,8 +281,8 @@ public class LlmStepService {
         if (resolvedSummaryMode != ToolSummaryMode.LLM_SUMMARY) {
             Map<String, Object> output = buildToolOutput(resolvedSummaryMode, toolName, toolArguments,
                     toolResult, "llm_step");
-            output.putIfAbsent("decisionRawRef", decisionRawRef);
-            mergeRef(output, "decisionRawRef", decisionRawRef);
+            output.putIfAbsent(OutputKeys.DECISION_RAW_REF, decisionRawRef);
+            mergeRef(output, OutputKeys.DECISION_RAW_REF, decisionRawRef);
             log.info("LLM 步骤工具调用完成, workflowId={}, summaryMode={}, toolStatus={}, outputKeys={}",
                     workflowId, resolvedSummaryMode, toolResult.status, output.keySet());
             return output;
@@ -706,8 +708,8 @@ public class LlmStepService {
         output.put("confidence", readNumber(decision, "confidence", 0.5));
         output.put("source", source);
         if (StringUtils.hasText(rawRef)) {
-            output.put("rawRef", rawRef);
-            mergeRef(output, "modelRawRef", rawRef);
+            output.put(OutputKeys.RAW_REF, rawRef);
+            mergeRef(output, OutputKeys.MODEL_RAW_REF, rawRef);
         }
         return output;
     }
@@ -737,8 +739,8 @@ public class LlmStepService {
         }
         output.put("source", source);
         if (StringUtils.hasText(rawRef)) {
-            output.put("rawRef", rawRef);
-            mergeRef(output, "decisionRawRef", rawRef);
+            output.put(OutputKeys.RAW_REF, rawRef);
+            mergeRef(output, OutputKeys.DECISION_RAW_REF, rawRef);
         }
         return output;
     }
@@ -816,7 +818,7 @@ public class LlmStepService {
         String errorCode = toolResult != null ? toolResult.errorCode : null;
         String errorMessage = toolResult != null ? toolResult.errorMessage : null;
         return buildToolOutput(summaryMode, toolName, toolArguments, status, errorCode, errorMessage,
-                result, source, resolveRawRefFromToolResult(result));
+                result, source, OutputFieldExtractor.resolveRawRef(result));
     }
 
     /**
@@ -850,6 +852,9 @@ public class LlmStepService {
         output.put("highlights", highlights);
         output.put("confidence", confidence);
         output.put("toolStatus", toolStatus);
+        if (StringUtils.hasText(toolName)) {
+            output.putIfAbsent(OutputKeys.TOOL_NAME, toolName);
+        }
         if (errorCode != null) {
             output.put("toolErrorCode", errorCode);
         }
@@ -860,12 +865,12 @@ public class LlmStepService {
         toolPayload.put("name", toolName);
         toolPayload.put("arguments", toolArguments == null ? Map.of() : toolArguments);
         output.put("tool", toolPayload);
-        output.put("rawResult", safeResult);
+        output.put(OutputKeys.RAW_RESULT, safeResult);
         output.put("source", source);
         output.put("evidence", List.of());
         if (StringUtils.hasText(toolRawRef)) {
-            output.put("rawRef", toolRawRef);
-            mergeRef(output, "toolRawRef", toolRawRef);
+            output.put(OutputKeys.RAW_REF, toolRawRef);
+            mergeRef(output, OutputKeys.TOOL_RAW_REF, toolRawRef);
         }
         return output;
     }
@@ -886,17 +891,20 @@ public class LlmStepService {
         Map<String, Object> safeResult = toolResult != null && toolResult.result != null ? toolResult.result : Map.of();
         String status = toolResult != null ? toolResult.status : TOOL_STATUS_FAILED;
         boolean success = TOOL_STATUS_SUCCESS.equals(status);
-        String toolRawRef = resolveRawRefFromToolResult(safeResult);
+        String toolRawRef = OutputFieldExtractor.resolveRawRef(safeResult);
 
         output.putIfAbsent("mode", MODE_TOOL_CALL);
         output.putIfAbsent("toolStatus", status);
+        if (StringUtils.hasText(toolName)) {
+            output.putIfAbsent(OutputKeys.TOOL_NAME, toolName);
+        }
         if (!output.containsKey("tool")) {
             Map<String, Object> toolPayload = new HashMap<>();
             toolPayload.put("name", toolName);
             toolPayload.put("arguments", toolArguments == null ? Map.of() : toolArguments);
             output.put("tool", toolPayload);
         }
-        output.putIfAbsent("rawResult", safeResult);
+        output.putIfAbsent(OutputKeys.RAW_RESULT, safeResult);
         if (!output.containsKey("answer")) {
             output.put("answer", buildDefaultAnswer(success, safeResult));
         }
@@ -916,20 +924,20 @@ public class LlmStepService {
         output.putIfAbsent("source", source);
         output.putIfAbsent("evidence", List.of());
         if (StringUtils.hasText(toolRawRef)) {
-            output.putIfAbsent("rawRef", toolRawRef);
-            mergeRef(output, "toolRawRef", toolRawRef);
+            output.putIfAbsent(OutputKeys.RAW_REF, toolRawRef);
+            mergeRef(output, OutputKeys.TOOL_RAW_REF, toolRawRef);
         }
         if (StringUtils.hasText(decisionRawRef)) {
-            mergeRef(output, "decisionRawRef", decisionRawRef);
+            mergeRef(output, OutputKeys.DECISION_RAW_REF, decisionRawRef);
         }
         if (StringUtils.hasText(summaryRawRef)) {
-            mergeRef(output, "summaryRawRef", summaryRawRef);
+            mergeRef(output, OutputKeys.SUMMARY_RAW_REF, summaryRawRef);
         }
-        if (StringUtils.hasText(decisionRawRef) && !output.containsKey("rawRef")) {
-            output.put("rawRef", decisionRawRef);
+        if (StringUtils.hasText(decisionRawRef) && !output.containsKey(OutputKeys.RAW_REF)) {
+            output.put(OutputKeys.RAW_REF, decisionRawRef);
         }
-        if (StringUtils.hasText(summaryRawRef) && !output.containsKey("rawRef")) {
-            output.put("rawRef", summaryRawRef);
+        if (StringUtils.hasText(summaryRawRef) && !output.containsKey(OutputKeys.RAW_REF)) {
+            output.put(OutputKeys.RAW_REF, summaryRawRef);
         }
     }
 
@@ -1358,37 +1366,6 @@ private String resolveStepQuestion(Map<String, Object> stepInput, TaskRequest re
     }
 
     /**
-     * 从工具执行输出中解析原始结果引用。
-     *
-     * @param result 工具执行输出
-     * @return 原始结果引用键
-     */
-    private String resolveRawRefFromToolResult(Map<String, Object> result) {
-        if (result == null || result.isEmpty()) {
-            return null;
-        }
-        Object direct = result.get("rawRef");
-        if (direct instanceof String text && StringUtils.hasText(text)) {
-            return text.trim();
-        }
-        Object rawResult = result.get("rawResult");
-        if (rawResult instanceof Map<?, ?> rawMap) {
-            Object nested = rawMap.get("rawRef");
-            if (nested instanceof String text && StringUtils.hasText(text)) {
-                return text.trim();
-            }
-        }
-        Object nestedResult = result.get("result");
-        if (nestedResult instanceof Map<?, ?> nestedMap) {
-            Object nested = nestedMap.get("rawRef");
-            if (nested instanceof String text && StringUtils.hasText(text)) {
-                return text.trim();
-            }
-        }
-        return null;
-    }
-
-    /**
      * 合并引用字段到输出对象。
      *
      * @param output 输出对象
@@ -1400,7 +1377,7 @@ private String resolveStepQuestion(Map<String, Object> stepInput, TaskRequest re
         if (output == null || !StringUtils.hasText(key) || !StringUtils.hasText(value)) {
             return;
         }
-        Object refsObj = output.get("refs");
+        Object refsObj = output.get(OutputKeys.REFS);
         Map<String, String> refs;
         if (refsObj instanceof Map<?, ?> rawMap) {
             refs = new HashMap<>();
@@ -1413,7 +1390,7 @@ private String resolveStepQuestion(Map<String, Object> stepInput, TaskRequest re
             refs = new HashMap<>();
         }
         refs.put(key, value);
-        output.put("refs", refs);
+        output.put(OutputKeys.REFS, refs);
     }
 
     /**

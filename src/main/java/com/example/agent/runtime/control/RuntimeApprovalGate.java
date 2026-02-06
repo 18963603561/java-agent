@@ -6,6 +6,7 @@ import com.example.agent.runtime.model.StepSpec;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.runtime.step.RuntimeContext;
+import com.example.agent.runtime.output.OutputKeys;
 import java.util.HashMap;
 import java.util.Locale;
 import java.util.Map;
@@ -221,12 +222,12 @@ public class RuntimeApprovalGate {
             payload.put("stepType", step.getStepType());
         }
         if (stepInput != null) {
-            Object toolName = stepInput.get("tool");
+            Object toolName = stepInput.get(OutputKeys.TOOL);
             if (toolName == null) {
-                toolName = stepInput.get("toolName");
+                toolName = stepInput.get(OutputKeys.TOOL_NAME);
             }
             if (toolName instanceof String value && !value.isBlank()) {
-                payload.put("toolName", value);
+                payload.put(OutputKeys.TOOL_NAME, value);
             }
             payload.put("inputKeys", stepInput.keySet());
             payload.put("inputSize", stepInput.size());

@@ -20,6 +20,8 @@ import com.example.agent.runtime.raw.RawOutputEnvelope;
 import com.example.agent.runtime.structured.StructuredExtractorRegistry;
 import com.example.agent.runtime.structured.StructuredRefs;
 import com.example.agent.runtime.structured.StructuredResult;
+import com.example.agent.runtime.output.OutputFieldExtractor;
+import com.example.agent.runtime.output.OutputKeys;
 import com.example.agent.streaming.sse.EventStreamService;
 import java.time.Duration;
 import java.time.Instant;
@@ -144,18 +146,18 @@ public class StepRuntimeService {
             );
             long summaryMs = (System.nanoTime() - summaryStart) / 1_000_000;
                 if (summary != null && !summary.isEmpty()) {
-                Map<String, Object> digest = summary.get("outputDigest") instanceof Map<?, ?> map
+                Map<String, Object> digest = summary.get(OutputKeys.OUTPUT_DIGEST) instanceof Map<?, ?> map
                         ? new HashMap<>(map.size())
                         : null;
-                if (summary.get("outputDigest") instanceof Map<?, ?> map) {
+                if (summary.get(OutputKeys.OUTPUT_DIGEST) instanceof Map<?, ?> map) {
                     map.forEach((key, value) -> digest.put(String.valueOf(key), value));
                 }
-                Integer charCount = digest != null ? resolveInt(digest.get("charCount")) : null;
-                Integer keyCount = digest != null ? resolveInt(digest.get("keyCount")) : null;
-                Boolean truncated = summary.get("truncated") instanceof Boolean value ? value : null;
+                Integer charCount = digest != null ? resolveInt(digest.get(OutputKeys.CHAR_COUNT)) : null;
+                Integer keyCount = digest != null ? resolveInt(digest.get(OutputKeys.KEY_COUNT)) : null;
+                Boolean truncated = summary.get(OutputKeys.TRUNCATED) instanceof Boolean value ? value : null;
                 String toolName = null;
-                if (summary.get("stepSummary") instanceof Map<?, ?> stepSummary) {
-                    Object tool = stepSummary.get("tool");
+                if (summary.get(OutputKeys.STEP_SUMMARY) instanceof Map<?, ?> stepSummary) {
+                    Object tool = stepSummary.get(OutputKeys.TOOL_NAME);
                     if (tool != null) {
                         toolName = String.valueOf(tool);
                     }
@@ -345,7 +347,7 @@ public class StepRuntimeService {
         result.setMeta(buildMeta(record, output));
         result.setRawRef(resolveRawRef(output));
         result.setRaw(resolveRaw(rawOutput));
-        result.setStructured(resolveStructured(record, rawOutput, result.getRawRef()));
+        result.setStructured(resolveStructured(record, output, rawOutput, result.getRawRef()));
         result.setSummary(resolveSummary(summaryMap));
         result.setRefs(resolveRefs(output, result.getRawRef()));
         result.setErrors(List.of());
@@ -413,10 +415,10 @@ public class StepRuntimeService {
         }
         Map<String, String> extracted = output != null ? output.getRefs() : null;
         if (extracted != null && !extracted.isEmpty()) {
-            refs.setDecisionRawRef(extracted.get("decisionRawRef"));
-            refs.setSummaryRawRef(extracted.get("summaryRawRef"));
-            refs.setToolRawRef(extracted.get("toolRawRef"));
-            refs.setModelRawRef(extracted.get("modelRawRef"));
+            refs.setDecisionRawRef(extracted.get(OutputKeys.DECISION_RAW_REF));
+            refs.setSummaryRawRef(extracted.get(OutputKeys.SUMMARY_RAW_REF));
+            refs.setToolRawRef(extracted.get(OutputKeys.TOOL_RAW_REF));
+            refs.setModelRawRef(extracted.get(OutputKeys.MODEL_RAW_REF));
         }
         if (!StringUtils.hasText(refs.getRawRef())
                 && !StringUtils.hasText(refs.getDecisionRawRef())
@@ -428,20 +430,26 @@ public class StepRuntimeService {
         return refs;
     }
 
-    private StructuredResult resolveStructured(StepRecord record, Map<String, Object> rawOutput, RawRef rawRef) {
+    private StructuredResult resolveStructured(StepRecord record,
+                                               StepExecutionOutput output,
+                                               Map<String, Object> rawOutput,
+                                               RawRef rawRef) {
         if (structuredExtractorRegistry == null) {
             return null;
         }
         Map<String, Object> resultMap = new HashMap<>();
         if (rawOutput != null) {
-            Object result = rawOutput.get("result");
+            Object result = rawOutput.get(OutputKeys.RESULT);
             if (result instanceof Map<?, ?> map) {
                 map.forEach((key, value) -> resultMap.put(String.valueOf(key), value));
             } else {
                 resultMap.putAll(rawOutput);
             }
         }
-        String toolName = rawOutput != null && rawOutput.get("tool") != null ? String.valueOf(rawOutput.get("tool")) : null;
+        String toolName = output != null ? output.getToolName() : null;
+        if (!StringUtils.hasText(toolName) && rawOutput != null && !rawOutput.isEmpty()) {
+            toolName = OutputFieldExtractor.resolveToolName(rawOutput);
+        }
         String rawRefKey = rawRef != null ? rawRef.getKey() : null;
         StructuredResult structured = structuredExtractorRegistry.extract(record.getType(), toolName, resultMap, rawRefKey);
         if (structured == null) {
@@ -459,16 +467,16 @@ public class StepRuntimeService {
             Map<String, String> extracted = rawOutputEnvelopeBuilder.resolveRefs(rawOutput);
             if (extracted != null && !extracted.isEmpty()) {
                 if (!StringUtils.hasText(refs.getDecisionRawRef())) {
-                    refs.setDecisionRawRef(extracted.get("decisionRawRef"));
+                    refs.setDecisionRawRef(extracted.get(OutputKeys.DECISION_RAW_REF));
                 }
                 if (!StringUtils.hasText(refs.getSummaryRawRef())) {
-                    refs.setSummaryRawRef(extracted.get("summaryRawRef"));
+                    refs.setSummaryRawRef(extracted.get(OutputKeys.SUMMARY_RAW_REF));
                 }
                 if (!StringUtils.hasText(refs.getToolRawRef())) {
-                    refs.setToolRawRef(extracted.get("toolRawRef"));
+                    refs.setToolRawRef(extracted.get(OutputKeys.TOOL_RAW_REF));
                 }
                 if (!StringUtils.hasText(refs.getModelRawRef())) {
-                    refs.setModelRawRef(extracted.get("modelRawRef"));
+                    refs.setModelRawRef(extracted.get(OutputKeys.MODEL_RAW_REF));
                 }
             }
         }
@@ -480,29 +488,29 @@ public class StepRuntimeService {
             return null;
         }
         StepResultSummary summary = new StepResultSummary();
-        if (summaryMap.get("stepSummary") instanceof Map<?, ?> stepSummaryMap) {
-            Object text = stepSummaryMap.get("summary");
+        if (summaryMap.get(OutputKeys.STEP_SUMMARY) instanceof Map<?, ?> stepSummaryMap) {
+            Object text = stepSummaryMap.get(OutputKeys.SUMMARY);
             if (text != null) {
                 summary.setText(String.valueOf(text));
             }
             summary.setStepSummary(copyObjectMap(stepSummaryMap));
         }
-        if (summaryMap.get("outputSummary") instanceof Map<?, ?> outputSummaryMap) {
+        if (summaryMap.get(OutputKeys.OUTPUT_SUMMARY) instanceof Map<?, ?> outputSummaryMap) {
             summary.setOutputSummary(copyObjectMap(outputSummaryMap));
         }
-        if (summaryMap.get("toolResultSummary") instanceof Map<?, ?> toolSummaryMap) {
+        if (summaryMap.get(OutputKeys.TOOL_RESULT_SUMMARY) instanceof Map<?, ?> toolSummaryMap) {
             summary.setToolResultSummary(copyObjectMap(toolSummaryMap));
         }
-        if (summaryMap.get("inputSummary") instanceof Map<?, ?> inputSummaryMap) {
+        if (summaryMap.get(OutputKeys.INPUT_SUMMARY) instanceof Map<?, ?> inputSummaryMap) {
             summary.setInputSummary(copyObjectMap(inputSummaryMap));
         }
-        if (summaryMap.get("inputDigest") instanceof Map<?, ?> inputDigestMap) {
+        if (summaryMap.get(OutputKeys.INPUT_DIGEST) instanceof Map<?, ?> inputDigestMap) {
             summary.setInputDigest(toDigest(inputDigestMap));
         }
-        if (summaryMap.get("outputDigest") instanceof Map<?, ?> outputDigestMap) {
+        if (summaryMap.get(OutputKeys.OUTPUT_DIGEST) instanceof Map<?, ?> outputDigestMap) {
             summary.setOutputDigest(toDigest(outputDigestMap));
         }
-        boolean truncated = summaryMap.get("truncated") instanceof Boolean value && value;
+        boolean truncated = summaryMap.get(OutputKeys.TRUNCATED) instanceof Boolean value && value;
         summary.setTruncated(truncated);
         summary.setReason(truncated ? "summary_limit" : null);
         return summary;
@@ -510,10 +518,10 @@ public class StepRuntimeService {
 
     private StepResultDigest toDigest(Map<?, ?> map) {
         StepResultDigest digest = new StepResultDigest();
-        if (map.get("keyCount") instanceof Number number) {
+        if (map.get(OutputKeys.KEY_COUNT) instanceof Number number) {
             digest.setKeyCount(number.intValue());
         }
-        if (map.get("keys") instanceof List<?> list) {
+        if (map.get(OutputKeys.KEYS) instanceof List<?> list) {
             List<String> keys = new ArrayList<>();
             for (Object item : list) {
                 if (item != null) {
@@ -522,10 +530,10 @@ public class StepRuntimeService {
             }
             digest.setKeys(keys);
         }
-        if (map.get("charCount") instanceof Number number) {
+        if (map.get(OutputKeys.CHAR_COUNT) instanceof Number number) {
             digest.setCharCount(number.intValue());
         }
-        if (map.get("truncated") instanceof Boolean value) {
+        if (map.get(OutputKeys.TRUNCATED) instanceof Boolean value) {
             digest.setTruncated(value);
         }
         return digest;

@@ -11,6 +11,7 @@ import com.example.agent.capabilities.llm.PromptBundle;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.runtime.model.StepSpec;
 import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.summary.StepOutputSummaryView;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.capabilities.llm.repair.JsonOutputSchema;
 import com.example.agent.capabilities.llm.PromptTrace;
@@ -34,7 +35,6 @@ public class ReflectionService {
 
     private static final Logger log = LoggerFactory.getLogger(ReflectionService.class);
     private static final int SUMMARY_MAX_CHARS = 1000;
-    private static final String SUMMARY_TRUNCATED_SUFFIX = "...(truncated)";
 
     private final ReflectionProperties properties;
     private final MetricsPublisher metricsPublisher;
@@ -332,85 +332,8 @@ public class ReflectionService {
      * 构建仅包含摘要层的输出上下文，避免注入原始输出。反思统一根据摘要进行
      */
     private Map<String, Object> buildOutputSummaryContext(StepExecutionOutput output) {
-        Map<String, Object> context = new HashMap<>();
-        Map<String, Object> view = output != null ? output.toReflectionView() : null;
-        Map<String, Object> outputSummary = extractMap(view, "outputSummary");
-        Map<String, Object> outputDigest = extractMap(view, "outputDigest");
-        if (outputSummary == null) {
-            outputSummary = new HashMap<>();
-        }
-        Object summaryValue = outputSummary.get("summary");
-        String summaryText = summaryValue == null ? null : summaryValue.toString();
-        if (!StringUtils.hasText(summaryText)) {
-            summaryText = buildDigestSummary(outputDigest);
-            if (!StringUtils.hasText(summaryText)) {
-                summaryText = "(summary disabled)";
-            }
-        }
-        if (StringUtils.hasText(summaryText)) {
-            outputSummary.put("summary", truncateSummary(summaryText, SUMMARY_MAX_CHARS));
-        }
-        context.put("outputSummary", outputSummary);
-        if (outputDigest != null && !outputDigest.isEmpty()) {
-            context.put("outputDigest", outputDigest);
-        }
-        return context;
-    }
-
-    private Map<String, Object> extractMap(Map<String, Object> mapSource, String key) {
-        if (mapSource == null || key == null) {
-            return null;
-        }
-        Object value = mapSource.get(key);
-        if (!(value instanceof Map<?, ?> map)) {
-            return null;
-        }
-        Map<String, Object> result = new HashMap<>();
-        map.forEach((k, v) -> result.put(String.valueOf(k), v));
-        return result;
-    }
-
-    private String buildDigestSummary(Map<String, Object> digest) {
-        if (digest == null || digest.isEmpty()) {
-            return null;
-        }
-        StringBuilder builder = new StringBuilder("digest:");
-        appendDigestField(builder, "keyCount", digest.get("keyCount"));
-        appendDigestField(builder, "keys", digest.get("keys"));
-        Object charCount = digest.get("charCount");
-        if (charCount != null) {
-            boolean truncated = Boolean.TRUE.equals(digest.get("truncated"));
-            String field = truncated ? "charCount<=" : "charCount";
-            appendDigestField(builder, field, charCount);
-        }
-        appendDigestField(builder, "truncated", digest.get("truncated"));
-        return builder.toString();
-    }
-
-    private void appendDigestField(StringBuilder builder, String field, Object value) {
-        if (builder == null || value == null) {
-            return;
-        }
-        if (builder.length() > 0 && builder.charAt(builder.length() - 1) != ':') {
-            builder.append(", ");
-        } else {
-            builder.append(' ');
-        }
-        builder.append(field).append('=').append(value);
-    }
-
-    private String truncateSummary(String text, int maxChars) {
-        if (!StringUtils.hasText(text) || maxChars <= 0 || text.length() <= maxChars) {
-            return text;
-        }
-        if (maxChars <= SUMMARY_TRUNCATED_SUFFIX.length()) {
-            return text.substring(0, maxChars);
-        }
-        int endIndex = maxChars - SUMMARY_TRUNCATED_SUFFIX.length();
-        if (endIndex <= 0) {
-            return text.substring(0, maxChars);
-        }
-        return text.substring(0, endIndex) + SUMMARY_TRUNCATED_SUFFIX;
+        StepOutputSummaryView view = output != null ? output.toReflectionView() : StepOutputSummaryView.empty();
+        return view.toReflectionContext(SUMMARY_MAX_CHARS);
     }
 
     private void recordPromptTrace(Map<String, Object> metadata,

@@ -6,6 +6,8 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import com.example.agent.runtime.output.OutputFieldExtractor;
+import com.example.agent.runtime.output.OutputKeys;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -115,7 +117,7 @@ public class StepOutputSummaryBuilder {
         // 构建工具结果摘要层。
         Map<String, Object> toolResultSummary = new LinkedHashMap<>();
         if (StringUtils.hasText(resolvedToolName)) {
-            toolResultSummary.put("tool", resolvedToolName);
+            toolResultSummary.put(OutputKeys.TOOL_NAME, resolvedToolName);
         }
         if (!snapshot.keys.isEmpty()) {
             toolResultSummary.put("resultKeys", snapshot.keys);
@@ -133,7 +135,7 @@ public class StepOutputSummaryBuilder {
             stepSummary.put("attempt", attempt);
         }
         if (StringUtils.hasText(resolvedToolName)) {
-            stepSummary.put("tool", resolvedToolName);
+            stepSummary.put(OutputKeys.TOOL_NAME, resolvedToolName);
         }
         // 生成简短摘要文本。
         String summaryText = buildStepSummaryText(stepType, status, resolvedToolName, snapshot, limits, truncation);
@@ -147,31 +149,31 @@ public class StepOutputSummaryBuilder {
                 stepInput != null ? "stepInput" : "record");
         OutputSnapshot inputSnapshot = buildSnapshot(effectiveInput, limits, inputTruncation);
         Map<String, Object> inputDigest = new LinkedHashMap<>();
-        inputDigest.put("keyCount", inputSnapshot.keyCount);
-        inputDigest.put("keys", inputSnapshot.keys);
-        inputDigest.put("charCount", inputSnapshot.charCount);
-        inputDigest.put("truncated", inputTruncation.truncated);
+        inputDigest.put(OutputKeys.KEY_COUNT, inputSnapshot.keyCount);
+        inputDigest.put(OutputKeys.KEYS, inputSnapshot.keys);
+        inputDigest.put(OutputKeys.CHAR_COUNT, inputSnapshot.charCount);
+        inputDigest.put(OutputKeys.TRUNCATED, inputTruncation.truncated);
 
         // 构建指纹摘要层。
         Map<String, Object> outputDigest = new LinkedHashMap<>();
-        outputDigest.put("keyCount", snapshot.keyCount);
-        outputDigest.put("keys", snapshot.keys);
-        outputDigest.put("charCount", snapshot.charCount);
-        outputDigest.put("truncated", truncation.truncated);
+        outputDigest.put(OutputKeys.KEY_COUNT, snapshot.keyCount);
+        outputDigest.put(OutputKeys.KEYS, snapshot.keys);
+        outputDigest.put(OutputKeys.CHAR_COUNT, snapshot.charCount);
+        outputDigest.put(OutputKeys.TRUNCATED, truncation.truncated);
 
         // 汇总所有摘要层级。
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put("outputSummary", outputSummary);
-        result.put("toolResultSummary", toolResultSummary);
-        result.put("stepSummary", stepSummary);
+        result.put(OutputKeys.OUTPUT_SUMMARY, outputSummary);
+        result.put(OutputKeys.TOOL_RESULT_SUMMARY, toolResultSummary);
+        result.put(OutputKeys.STEP_SUMMARY, stepSummary);
         if (inputSummary != null && !inputSummary.isEmpty()) {
-            result.put("inputSummary", inputSummary);
+            result.put(OutputKeys.INPUT_SUMMARY, inputSummary);
         }
         if (inputSnapshot.keyCount > 0 || inputSnapshot.charCount > 0) {
-            result.put("inputDigest", inputDigest);
+            result.put(OutputKeys.INPUT_DIGEST, inputDigest);
         }
-        result.put("outputDigest", outputDigest);
-        result.put("truncated", truncation.truncated);
+        result.put(OutputKeys.OUTPUT_DIGEST, outputDigest);
+        result.put(OutputKeys.TRUNCATED, truncation.truncated);
         return result;
     }
 
@@ -242,14 +244,10 @@ public class StepOutputSummaryBuilder {
             return toolName;
         }
         if (output instanceof Map<?, ?> map) {
-            // 从输出中尝试读取工具字段。
-            Object value = map.get("tool");
-            if (value == null) {
-                value = map.get("toolName");
-            }
-            if (value != null) {
-                return safeToString(value);
-            }
+            // 从输出中尝试读取工具字段（集中到权威解析器，避免多处实现产生微差异）。
+            @SuppressWarnings("unchecked")
+            Map<String, Object> typed = (Map<String, Object>) map;
+            return OutputFieldExtractor.resolveToolName(typed);
         }
         return null;
     }
@@ -349,7 +347,7 @@ public class StepOutputSummaryBuilder {
         Map<String, Object> summary = new LinkedHashMap<>();
         String resolvedToolName = resolveToolName(toolName, input);
         if (StringUtils.hasText(resolvedToolName)) {
-            summary.put("tool", resolvedToolName);
+            summary.put(OutputKeys.TOOL_NAME, resolvedToolName);
         }
         if (input != null && !input.isEmpty()) {
             putTextSummary(summary, "query", input.get("query"), limits, truncation);

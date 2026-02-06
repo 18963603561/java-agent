@@ -414,6 +414,11 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
             // 路由进入运行时执行。
             RuntimeResult runtimeResult = workflowRouter.route(request, tenantContext, workflowId,
                     record.getTaskId(), seqCounter);
+            if (runtimeResult == null) {
+                // 路由返回空结果属于非预期情况，记录告警便于排查。
+                log.warn("任务路由返回空结果, tenantId={}, taskId={}, workflowId={}, traceId={}",
+                        tenantContext.getTenantId(), record.getTaskId(), workflowId, resolveTraceId(tenantContext));
+            }
             // 执行成功后写入最终结果。
             updateTaskStatus(latest, "COMPLETED", buildResultPayload(runtimeResult));
         } catch (RuntimeException ex) {
@@ -540,6 +545,11 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         record.setUpdatedAt(Instant.now());
         if (result != null) {
             record.setResult(result);
+            if ("COMPLETED".equalsIgnoreCase(status)) {
+                // 仅记录结果键集合，避免输出敏感内容或大对象。
+                log.info("任务结果已写入, tenantId={}, taskId={}, workflowId={}, resultKeys={}",
+                        record.getTenantId(), record.getTaskId(), record.getWorkflowId(), result.keySet());
+            }
         }
         taskRepository.save(record);
     }

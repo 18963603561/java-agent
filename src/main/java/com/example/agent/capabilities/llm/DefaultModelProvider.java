@@ -23,6 +23,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
 import reactor.core.scheduler.Schedulers;
+import com.example.agent.runtime.api.RuntimeContextView;
 
 /**
  * 默认模型提供商实现，支持本地规则输出与兼容接口调用。
@@ -997,28 +998,7 @@ public class DefaultModelProvider implements ModelProvider {
     }
 
     private String resolvePlanToolName(Map<String, Object> context) {
-        if (context == null) {
-            return null;
-        }
-        Object tool = context.get("tool");
-        if (tool instanceof String value && StringUtils.hasText(value)) {
-            return value;
-        }
-        Object toolName = context.get("toolName");
-        if (toolName instanceof String value && StringUtils.hasText(value)) {
-            return value;
-        }
-        if (context.get("context") instanceof Map<?, ?> inner) {
-            Object innerTool = inner.get("tool");
-            if (innerTool instanceof String value && StringUtils.hasText(value)) {
-                return value;
-            }
-            Object innerToolName = inner.get("toolName");
-            if (innerToolName instanceof String value && StringUtils.hasText(value)) {
-                return value;
-            }
-        }
-        return null;
+        return RuntimeContextView.of(context).resolveToolName();
     }
 
     private boolean isToolsDisabled(Map<String, Object> context) {
@@ -1031,39 +1011,11 @@ public class DefaultModelProvider implements ModelProvider {
         if (context.get("context") instanceof Map<?, ?> inner && isTruthy(inner.get("disableTools"))) {
             return true;
         }
-        ModelToolChoice choice = parseToolChoice(context.get("toolChoice"));
+        ModelToolChoice choice = ModelToolChoice.fromRaw(context.get("toolChoice"));
         if (choice == null && context.get("context") instanceof Map<?, ?> inner) {
-            choice = parseToolChoice(inner.get("toolChoice"));
+            choice = ModelToolChoice.fromRaw(inner.get("toolChoice"));
         }
         return choice != null && choice.getMode() == ModelToolChoice.Mode.NONE;
-    }
-
-    private ModelToolChoice parseToolChoice(Object raw) {
-        if (raw instanceof ModelToolChoice choice) {
-            return choice;
-        }
-        if (raw instanceof String value) {
-            return ModelToolChoice.fromString(value);
-        }
-        if (raw instanceof Map<?, ?> map) {
-            String mode = map.get("mode") != null ? map.get("mode").toString() : null;
-            if (!StringUtils.hasText(mode) && map.get("type") != null) {
-                mode = map.get("type").toString();
-            }
-            String name = map.get("toolName") != null ? map.get("toolName").toString() : null;
-            if (!StringUtils.hasText(name) && map.get("name") != null) {
-                name = map.get("name").toString();
-            }
-            if (StringUtils.hasText(mode) && "specified".equalsIgnoreCase(mode)) {
-                return ModelToolChoice.specified(name);
-            }
-            ModelToolChoice parsed = ModelToolChoice.fromString(mode);
-            if (parsed != null && parsed.getMode() == ModelToolChoice.Mode.SPECIFIED) {
-                parsed.setToolName(name);
-            }
-            return parsed;
-        }
-        return null;
     }
 
     private boolean isTruthy(Object value) {
