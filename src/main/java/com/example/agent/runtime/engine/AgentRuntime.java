@@ -65,6 +65,7 @@ import com.example.agent.streaming.observability.TracingPublisher;
 import com.example.agent.streaming.payload.ContextEventPublisher;
 
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -76,8 +77,10 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 import com.example.agent.runtime.llm.LlmStepService;
 import com.example.agent.runtime.output.FinalOutputService;
+import com.example.agent.runtime.output.OutputKeys;
 
 /**
  * 运行时执行器，负责驱动规划与步骤执行循环。
@@ -386,8 +389,9 @@ public class AgentRuntime {
                 }
 
                 // 正常完成步骤并更新上下文。
-                StepRecord completedRecord = stepRuntimeService.completeStep(record, reflectionOutput, seqCounter);
-                updateRuntimeContext(runtimeContext, completedRecord, reflectionOutput);
+                // 注意：反思阶段补充的临时摘要只用于评估，不应回写到最终步骤输出，避免完成态摘要被“STARTED 状态”污染。
+                StepRecord completedRecord = stepRuntimeService.completeStep(record, output, seqCounter);
+                updateRuntimeContext(runtimeContext, completedRecord, output);
                 recordStepOutput(stepOutputs, completedRecord);
                 return StepOutcome.SUCCESS;
                 // 异常捕获：记录上下文并按恢复服务决策处理
@@ -765,6 +769,92 @@ public class AgentRuntime {
         }
 
         runtimeContext.setLastOutputSize(rawPayload != null ? rawPayload.size() : null);
+
+        // 维护“已执行步骤”历史列表，为后续 LLM_STEP/FINAL 合并提供可用证据。
+        appendExecutedSteps(runtimeContext, record, output, rawEnvelope);
+    }
+
+    /**
+     * 维护已执行步骤列表（steps），用于后续步骤在上下文中访问历史结果。
+     *
+     * <p>设计要点：
+     * <ul>
+     *   <li>只保留必要字段（stepId/type/status/toolName/answer/highlights/toolStatus），避免注入原始大对象。</li>
+     *   <li>限制条目数与字段长度，避免上下文无限膨胀。</li>
+     * </ul>
+     */
+    private void appendExecutedSteps(RuntimeContext runtimeContext,
+                                     StepRecord record,
+                                     StepExecutionOutput output,
+                                     RawOutputEnvelope rawEnvelope) {
+        if (runtimeContext == null || record == null) {
+            return;
+        }
+        Map<String, Object> item = new HashMap<>();
+        item.put("stepId", record.getStepId());
+        item.put("type", record.getType());
+        item.put("status", record.getStatus() != null ? record.getStatus().name() : null);
+        if (record.getAttempt() > 0) {
+            item.put("attempt", record.getAttempt());
+        }
+        String toolName = output != null ? output.getToolName() : null;
+        if (StringUtils.hasText(toolName)) {
+            item.put(OutputKeys.TOOL_NAME, toolName);
+        }
+        if (rawEnvelope != null && StringUtils.hasText(rawEnvelope.getRawRef())) {
+            item.put(OutputKeys.RAW_REF, rawEnvelope.getRawRef());
+        }
+        Map<String, Object> data = rawEnvelope != null ? rawEnvelope.getData() : null;
+        if (data != null && !data.isEmpty()) {
+            Object answer = data.get("answer");
+            if (answer != null) {
+                item.put("answer", truncateText(String.valueOf(answer), 800));
+            }
+            Object highlights = data.get("highlights");
+            if (highlights != null) {
+                item.put("highlights", truncateText(String.valueOf(highlights), 400));
+            }
+            Object toolStatus = data.get("toolStatus");
+            if (toolStatus != null) {
+                item.put("toolStatus", String.valueOf(toolStatus));
+            }
+            Object mode = data.get("mode");
+            if (mode != null) {
+                item.put("mode", String.valueOf(mode));
+            }
+            if (!item.containsKey(OutputKeys.TOOL_NAME)) {
+                Object toolNameValue = data.get(OutputKeys.TOOL_NAME);
+                if (toolNameValue != null && StringUtils.hasText(toolNameValue.toString())) {
+                    item.put(OutputKeys.TOOL_NAME, toolNameValue.toString());
+                }
+            }
+        }
+
+        Map<String, Object> extensions = runtimeContext.asMap();
+        Object existing = extensions.get("steps");
+        List<Map<String, Object>> steps = new ArrayList<>();
+        if (existing instanceof List<?> list && !list.isEmpty()) {
+            for (Object value : list) {
+                if (value instanceof Map<?, ?> map) {
+                    Map<String, Object> copied = new HashMap<>();
+                    map.forEach((k, v) -> copied.put(String.valueOf(k), v));
+                    steps.add(copied);
+                }
+            }
+        }
+        steps.add(item);
+        int maxItems = 20;
+        if (steps.size() > maxItems) {
+            steps = new ArrayList<>(steps.subList(Math.max(0, steps.size() - maxItems), steps.size()));
+        }
+        extensions.put("steps", steps);
+    }
+
+    private String truncateText(String text, int maxChars) {
+        if (!StringUtils.hasText(text) || maxChars <= 0 || text.length() <= maxChars) {
+            return text;
+        }
+        return text.substring(0, maxChars);
     }
 
     /**

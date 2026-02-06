@@ -228,7 +228,7 @@ public class ToolExecutor {
                 Map<String, Object> response = new HashMap<>();
                 response.put("tool", resolvedTool);
                 response.put("result", cachedOutput);
-                response.put("tokenUsage", usageRecord);
+                response.put("tokenUsage", toTokenUsagePayload(usageRecord));
                 response.put("cacheHit", true);
                 RawRef rawRef = storeRawRef(resolvedTool, cachedOutput);
                 response.put("rawRef", rawRef != null ? rawRef.getKey() : null);
@@ -268,7 +268,7 @@ public class ToolExecutor {
                 Map<String, Object> response = new HashMap<>();
                 response.put("tool", resolvedTool);
                 response.put("result", merged);
-                response.put("tokenUsage", usageRecord);
+                response.put("tokenUsage", toTokenUsagePayload(usageRecord));
                 response.put("cacheHit", false);
                 RawRef rawRef = storeRawRef(resolvedTool, merged);
                 response.put("rawRef", rawRef != null ? rawRef.getKey() : null);
@@ -317,6 +317,34 @@ public class ToolExecutor {
                         "工具执行异常");
             }
         }
+    }
+
+    /**
+     * 将计量记录转换为可序列化的输出结构。
+     *
+     * <p>用途：避免直接透传对象导致 {@code toString()} 结果出现在 raw 输出中（例如 {@code TokenUsageRecord@xxxx}）。</p>
+     *
+     * @param record 计量记录
+     * @return 可序列化映射
+     */
+    private Map<String, Object> toTokenUsagePayload(TokenUsageRecord record) {
+        if (record == null) {
+            return Map.of();
+        }
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("recordId", record.getRecordId());
+        payload.put("usageId", record.getUsageId());
+        payload.put("taskId", record.getTaskId());
+        payload.put("agentId", record.getAgentId());
+        payload.put("model", record.getModel());
+        payload.put("provider", record.getProvider());
+        payload.put("inputTokens", record.getInputTokens());
+        payload.put("outputTokens", record.getOutputTokens());
+        payload.put("totalTokens", record.getTotalTokens());
+        payload.put("costUsd", record.getCostUsd());
+        payload.put("createdAt", record.getCreatedAt() != null ? record.getCreatedAt().toString() : null);
+        payload.put("tenantId", record.getTenantId());
+        return payload;
     }
 
     /**

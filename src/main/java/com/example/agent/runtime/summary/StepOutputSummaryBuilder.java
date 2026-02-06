@@ -115,15 +115,19 @@ public class StepOutputSummaryBuilder {
         }
 
         // 构建工具结果摘要层。
+        Object toolResultPayload = extractToolResultPayload(output);
+        OutputSnapshot toolSnapshot = toolResultPayload != null
+                ? buildSnapshot(toolResultPayload, limits, truncation)
+                : snapshot;
         Map<String, Object> toolResultSummary = new LinkedHashMap<>();
         if (StringUtils.hasText(resolvedToolName)) {
             toolResultSummary.put(OutputKeys.TOOL_NAME, resolvedToolName);
         }
-        if (!snapshot.keys.isEmpty()) {
-            toolResultSummary.put("resultKeys", snapshot.keys);
+        if (!toolSnapshot.keys.isEmpty()) {
+            toolResultSummary.put("resultKeys", toolSnapshot.keys);
         }
-        if (StringUtils.hasText(snapshot.sample)) {
-            toolResultSummary.put("sample", snapshot.sample);
+        if (StringUtils.hasText(toolSnapshot.sample) && !toolSnapshot.sample.equals(snapshot.sample)) {
+            toolResultSummary.put("sample", toolSnapshot.sample);
         }
 
         // 构建步骤摘要层。
@@ -175,6 +179,29 @@ public class StepOutputSummaryBuilder {
         result.put(OutputKeys.OUTPUT_DIGEST, outputDigest);
         result.put(OutputKeys.TRUNCATED, truncation.truncated);
         return result;
+    }
+
+    /**
+     * 尝试从输出中提取更贴近“工具原始结果”的载荷，用于生成 toolResultSummary。
+     *
+     * <p>优先级：rawResult > result。</p>
+     *
+     * @param output 原始输出
+     * @return 工具结果载荷（可能为空）
+     */
+    private Object extractToolResultPayload(Object output) {
+        if (!(output instanceof Map<?, ?> map) || map.isEmpty()) {
+            return null;
+        }
+        Object rawResult = map.get(OutputKeys.RAW_RESULT);
+        if (rawResult != null) {
+            return rawResult;
+        }
+        Object result = map.get(OutputKeys.RESULT);
+        if (result != null) {
+            return result;
+        }
+        return null;
     }
 
     /**

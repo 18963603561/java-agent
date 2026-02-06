@@ -135,7 +135,14 @@ public class StepRuntimeService {
         Map<String, Object> rawOutput = output != null ? output.getPayload() : null;
         Map<String, Object> summary = output != null ? output.getSummary() : Collections.emptyMap();
         boolean summaryEnabled = stepOutputSummaryBuilder != null && stepOutputSummaryBuilder.isEnabled();
-        if (summaryEnabled && (summary == null || summary.isEmpty())) {
+        if (summaryEnabled && (summary == null || summary.isEmpty() || isSummaryStatusMismatch(summary, record.getStatus()))) {
+            if (summary != null && !summary.isEmpty()) {
+                log.debug("步骤摘要状态不一致, 重新生成摘要, tenantId={}, workflowId={}, stepId={}, expectedStatus={}",
+                        record.getTenantId(),
+                        record.getWorkflowId(),
+                        record.getStepId(),
+                        record.getStatus() != null ? record.getStatus().name() : null);
+            }
             long summaryStart = System.nanoTime();
             summary = stepOutputSummaryBuilder.build(
                     record,
@@ -188,6 +195,37 @@ public class StepRuntimeService {
         log.info("步骤完成, tenantId={}, workflowId={}, stepId={}, seq={}",
                 record.getTenantId(), record.getWorkflowId(), record.getStepId(), record.getStepSeq());
         return record;
+    }
+
+    /**
+     * 判断输出中已存在的摘要状态是否与当前记录状态一致。
+     *
+     * <p>用途：避免在步骤完成前生成的 “STARTED 摘要” 被写入完成态结果，导致下游判断误差。</p>
+     *
+     * @param summary 摘要映射
+     * @param expected 期望状态
+     * @return 是否不一致
+     */
+    private boolean isSummaryStatusMismatch(Map<String, Object> summary, StepState expected) {
+        if (summary == null || summary.isEmpty() || expected == null) {
+            return false;
+        }
+        String expectedText = expected.name();
+        Object stepSummaryObj = summary.get(OutputKeys.STEP_SUMMARY);
+        if (stepSummaryObj instanceof Map<?, ?> stepSummary) {
+            Object status = stepSummary.get("status");
+            if (status != null) {
+                return !expectedText.equalsIgnoreCase(String.valueOf(status));
+            }
+        }
+        Object outputSummaryObj = summary.get(OutputKeys.OUTPUT_SUMMARY);
+        if (outputSummaryObj instanceof Map<?, ?> outputSummary) {
+            Object status = outputSummary.get("status");
+            if (status != null) {
+                return !expectedText.equalsIgnoreCase(String.valueOf(status));
+            }
+        }
+        return false;
     }
 
     /**
