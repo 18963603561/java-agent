@@ -5,6 +5,9 @@ import com.example.agent.streaming.observability.TracingPublisher;
 import com.example.agent.runtime.model.StepResult;
 import com.example.agent.runtime.structured.extractor.GenericStructuredExtractor;
 import com.example.agent.runtime.structured.StructuredExtractorRegistry;
+import com.example.agent.runtime.step.StepRuntimeEventService;
+import com.example.agent.runtime.step.StepSummaryRegenerationService;
+import com.example.agent.runtime.step.StepEventPayloadFactory;
 import com.example.agent.streaming.sse.EventStreamService;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicLong;
@@ -14,6 +17,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import com.example.agent.runtime.step.StepRecord;
 import com.example.agent.runtime.step.repository.StepRecordRepository;
 import com.example.agent.runtime.step.StepRuntimeService;
+import com.example.agent.runtime.step.StepResultAssembler;
 import com.example.agent.runtime.step.StepState;
 import com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder;
 import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
@@ -25,7 +29,6 @@ import com.example.agent.runtime.summary.StepSummaryTextService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class StepRuntimeServiceTest {
 
@@ -46,14 +49,19 @@ class StepRuntimeServiceTest {
         RawOutputEnvelopeBuilder rawBuilder = new RawOutputEnvelopeBuilder(properties);
 
         StepRuntimeService service = new StepRuntimeService(
-                Mockito.mock(ApplicationEventPublisher.class),
-                Mockito.mock(EventStreamService.class),
                 Mockito.mock(MetricsPublisher.class),
-                Mockito.mock(TracingPublisher.class),
                 Mockito.mock(StepRecordRepository.class),
-                builder,
-                rawBuilder,
-                new StructuredExtractorRegistry(java.util.List.of(new GenericStructuredExtractor()))
+                new StepRuntimeEventService(
+                        Mockito.mock(ApplicationEventPublisher.class),
+                        Mockito.mock(EventStreamService.class),
+                        Mockito.mock(TracingPublisher.class)
+                ),
+                new StepSummaryRegenerationService(builder),
+                new StepEventPayloadFactory(),
+                new StepResultAssembler(
+                        rawBuilder,
+                        new StructuredExtractorRegistry(java.util.List.of(new GenericStructuredExtractor()))
+                )
         );
 
         StepRecord record = new StepRecord();
