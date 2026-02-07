@@ -91,6 +91,19 @@ public class SizeAwareRawResultStore implements RawResultStore {
         return null;
     }
 
+    /**
+     * 按存储键读取内存分支文本。
+     *
+     * @param key 存储键
+     * @return 文本内容，不存在返回 null
+     */
+    public String loadByKey(String key) {
+        if (key == null || key.isBlank()) {
+            return null;
+        }
+        return memStore.get(key.trim());
+    }
+
     private RawRef storeToMem(String source, String text, String mediaType, long bytes) {
         String key = "raw:" + normalizeSource(source) + ":" + UUID.randomUUID();
         memStore.put(key, text);
@@ -153,4 +166,3 @@ public class SizeAwareRawResultStore implements RawResultStore {
         }
     }
 }
-

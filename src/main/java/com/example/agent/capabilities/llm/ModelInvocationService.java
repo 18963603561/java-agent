@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -83,12 +84,15 @@ public class ModelInvocationService {
                                   ModelRouter modelRouter,
                                   ApplicationEventPublisher eventPublisher,
                                   EventStreamService eventStreamService,
-                                  RawResultStore rawResultStore) {
+                                  ObjectProvider<RawResultStore> rawResultStoreProvider) {
         this.llmClient = llmClient;
         this.modelRouter = modelRouter;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
-        this.rawResultStore = rawResultStore;
+        this.rawResultStore = rawResultStoreProvider.getIfAvailable();
+        if (this.rawResultStore == null) {
+            log.warn("未检测到 RawResultStore 实现，模型输出将跳过 rawRef 挂载");
+        }
     }
 
     /**
@@ -405,6 +409,10 @@ public class ModelInvocationService {
             source = source + ":" + phase;
         }
         RawRef rawRef = rawResultStore.store(source, content, "text/plain");
+        if (rawRef != null && rawRef.getRefId() != null && !rawRef.getRefId().isBlank()) {
+            response.setRawRef(rawRef.getRefId());
+            return;
+        }
         if (rawRef != null && rawRef.getKey() != null && !rawRef.getKey().isBlank()) {
             response.setRawRef(rawRef.getKey());
         }

@@ -11,6 +11,7 @@ import com.example.agent.capabilities.llm.ModelRouter;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.streaming.observability.TracingPublisher;
 import com.example.agent.runtime.raw.store.RawResultStore;
+import com.example.agent.runtime.raw.ref.RawRef;
 import com.example.agent.capabilities.tools.sandbox.SandboxResult;
 import com.example.agent.capabilities.tools.mcp.McpToolCallRequest;
 import com.example.agent.capabilities.tools.mcp.McpToolCallResponse;
@@ -52,6 +53,9 @@ class ToolExecutorTest {
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
         RawResultStore rawResultStore = Mockito.mock(RawResultStore.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<RawResultStore> rawResultStoreProvider = Mockito.mock(ObjectProvider.class);
+        when(rawResultStoreProvider.getIfAvailable()).thenReturn(rawResultStore);
         ObjectProvider<StringRedisTemplate> redisProvider = Mockito.mock(ObjectProvider.class);
         when(redisProvider.getIfAvailable()).thenReturn(null);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -68,7 +72,8 @@ class ToolExecutorTest {
         when(toolRegistry.resolve("demo_tool")).thenReturn("demo_tool");
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, rawResultStore);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher,
+                rawResultStoreProvider);
         ReflectionTestUtils.setField(executor, "cacheEnabled", true);
         ReflectionTestUtils.setField(executor, "cacheTtlSeconds", 300L);
 
@@ -97,6 +102,9 @@ class ToolExecutorTest {
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
         RawResultStore rawResultStore = Mockito.mock(RawResultStore.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<RawResultStore> rawResultStoreProvider = Mockito.mock(ObjectProvider.class);
+        when(rawResultStoreProvider.getIfAvailable()).thenReturn(rawResultStore);
         ObjectProvider<StringRedisTemplate> redisProvider = Mockito.mock(ObjectProvider.class);
         when(redisProvider.getIfAvailable()).thenReturn(null);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -121,7 +129,8 @@ class ToolExecutorTest {
                 .thenReturn(okResponse);
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, rawResultStore);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher,
+                rawResultStoreProvider);
         ReflectionTestUtils.setField(executor, "cacheEnabled", false);
         ReflectionTestUtils.setField(executor, "maxAttempts", 2);
         ReflectionTestUtils.setField(executor, "baseDelayMs", 0L);
@@ -151,6 +160,9 @@ class ToolExecutorTest {
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
         RawResultStore rawResultStore = Mockito.mock(RawResultStore.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<RawResultStore> rawResultStoreProvider = Mockito.mock(ObjectProvider.class);
+        when(rawResultStoreProvider.getIfAvailable()).thenReturn(rawResultStore);
         ObjectProvider<StringRedisTemplate> redisProvider = Mockito.mock(ObjectProvider.class);
         when(redisProvider.getIfAvailable()).thenReturn(null);
         ObjectMapper objectMapper = new ObjectMapper();
@@ -172,7 +184,8 @@ class ToolExecutorTest {
                 .thenReturn(new McpToolCallResponse("call-1", "SUCCESS", Map.of("value", "ok"), null));
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
-                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher, rawResultStore);
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher,
+                rawResultStoreProvider);
         ReflectionTestUtils.setField(executor, "cacheEnabled", false);
 
         TaskRequest request = new TaskRequest();
@@ -196,5 +209,56 @@ class ToolExecutorTest {
         assertFalse(arguments.containsKey("_internalEvidencePack"));
         assertEquals("value", arguments.get("userParam"));
         assertEquals("ping", arguments.get("query"));
+    }
+
+    @Test
+    void outputRawRefPrefersRefId() {
+        ToolRegistry toolRegistry = Mockito.mock(ToolRegistry.class);
+        McpToolClient mcpToolClient = Mockito.mock(McpToolClient.class);
+        SandboxExecutor sandboxExecutor = Mockito.mock(SandboxExecutor.class);
+        TokenBudgetManager tokenBudgetManager = Mockito.mock(TokenBudgetManager.class);
+        ModelRouter modelRouter = Mockito.mock(ModelRouter.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
+        RawResultStore rawResultStore = Mockito.mock(RawResultStore.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<RawResultStore> rawResultStoreProvider = Mockito.mock(ObjectProvider.class);
+        when(rawResultStoreProvider.getIfAvailable()).thenReturn(rawResultStore);
+        ObjectProvider<StringRedisTemplate> redisProvider = Mockito.mock(ObjectProvider.class);
+        when(redisProvider.getIfAvailable()).thenReturn(null);
+        ObjectMapper objectMapper = new ObjectMapper();
+        ToolCache toolCache = new ToolCache(redisProvider, objectMapper);
+
+        ModelDefinition definition = new ModelDefinition();
+        definition.setModelId("mock");
+        definition.setProvider("mock");
+        when(modelRouter.route(any())).thenReturn(definition);
+
+        TokenUsageRecord usageRecord = new TokenUsageRecord();
+        usageRecord.setTotalTokens(1);
+        when(tokenBudgetManager.recordUsage(any(), any())).thenReturn(usageRecord);
+        when(toolRegistry.resolve("demo_tool")).thenReturn("demo_tool");
+        when(sandboxExecutor.execute(eq("demo_tool"), any(), any(), any()))
+                .thenReturn(new SandboxResult("SKIPPED", Map.of(), null));
+        when(mcpToolClient.callTool(any(McpToolCallRequest.class), any()))
+                .thenReturn(new McpToolCallResponse("call-1", "SUCCESS", Map.of("value", "ok"), null));
+
+        RawRef rawRef = new RawRef();
+        rawRef.setRefId("rawref:v1:redis:raw:demo:1");
+        rawRef.setKey("raw:legacy:1");
+        when(rawResultStore.store(any(), any(), any())).thenReturn(rawRef);
+
+        ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher,
+                rawResultStoreProvider);
+        ReflectionTestUtils.setField(executor, "cacheEnabled", false);
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        Map<String, Object> result = executor.execute(request,
+                new TenantContext("t1", "u1", List.of(), "req", "trace"),
+                "usage-4", "demo_tool", "task-4");
+
+        assertEquals("rawref:v1:redis:raw:demo:1", result.get("rawRef"));
     }
 }

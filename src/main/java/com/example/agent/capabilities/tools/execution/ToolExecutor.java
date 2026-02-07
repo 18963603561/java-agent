@@ -29,6 +29,7 @@ import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
@@ -147,7 +148,7 @@ public class ToolExecutor {
                         ObjectMapper objectMapper,
                         MetricsPublisher metricsPublisher,
                         TracingPublisher tracingPublisher,
-                        RawResultStore rawResultStore) {
+                        ObjectProvider<RawResultStore> rawResultStoreProvider) {
         this.toolRegistry = toolRegistry;
         this.mcpToolClient = mcpToolClient;
         this.toolCache = toolCache;
@@ -157,7 +158,10 @@ public class ToolExecutor {
         this.objectMapper = objectMapper;
         this.metricsPublisher = metricsPublisher;
         this.tracingPublisher = tracingPublisher;
-        this.rawResultStore = rawResultStore;
+        this.rawResultStore = rawResultStoreProvider.getIfAvailable();
+        if (this.rawResultStore == null) {
+            log.warn("未检测到 RawResultStore 实现，工具执行输出将跳过 rawRef 存储");
+        }
     }
 
     /**
@@ -230,7 +234,7 @@ public class ToolExecutor {
                 response.put("tokenUsage", toTokenUsagePayload(usageRecord));
                 response.put("cacheHit", true);
                 RawRef rawRef = storeRawRef(resolvedTool, cachedOutput);
-                response.put("rawRef", rawRef != null ? rawRef.getKey() : null);
+                response.put("rawRef", resolveOutputRawRef(rawRef));
                 response.put("resultDigest", buildDigest(cachedOutput));
                 return response;
             }
@@ -270,7 +274,7 @@ public class ToolExecutor {
                 response.put("tokenUsage", toTokenUsagePayload(usageRecord));
                 response.put("cacheHit", false);
                 RawRef rawRef = storeRawRef(resolvedTool, merged);
-                response.put("rawRef", rawRef != null ? rawRef.getKey() : null);
+                response.put("rawRef", resolveOutputRawRef(rawRef));
                 response.put("resultDigest", buildDigest(merged));
 
                 long durationMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
@@ -490,6 +494,27 @@ public class ToolExecutor {
             return null;
         }
         return rawResultStore.store(toolName, result, "application/json");
+    }
+
+    /**
+     * 解析输出使用的 rawRef 字段值。
+     *
+     * <p>优先返回 refId，兼容回退 key。
+     *
+     * @param rawRef 原始引用对象
+     * @return 输出引用
+     */
+    private String resolveOutputRawRef(RawRef rawRef) {
+        if (rawRef == null) {
+            return null;
+        }
+        if (rawRef.getRefId() != null && !rawRef.getRefId().isBlank()) {
+            return rawRef.getRefId();
+        }
+        if (rawRef.getKey() != null && !rawRef.getKey().isBlank()) {
+            return rawRef.getKey();
+        }
+        return null;
     }
 
     /**

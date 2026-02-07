@@ -420,8 +420,12 @@ public class StepRuntimeService {
             return null;
         }
         RawRef rawRef = new RawRef();
-        rawRef.setStore("memory");
-        rawRef.setKey(rawRefText);
+        if (rawRefText.startsWith("rawref:")) {
+            rawRef.setRefId(rawRefText);
+        } else {
+            rawRef.setKey(rawRefText);
+        }
+        rawRef.setStore("mem");
         rawRef.setMediaType("application/json");
         rawRef.setCreatedAt(Instant.now().toString());
         return rawRef;
@@ -448,7 +452,9 @@ public class StepRuntimeService {
 
     private StepResultRefSet resolveRefs(StepExecutionOutput output, RawRef rawRef) {
         StepResultRefSet refs = new StepResultRefSet();
-        if (rawRef != null && StringUtils.hasText(rawRef.getKey())) {
+        if (rawRef != null && StringUtils.hasText(rawRef.getRefId())) {
+            refs.setRawRef(rawRef.getRefId());
+        } else if (rawRef != null && StringUtils.hasText(rawRef.getKey())) {
             refs.setRawRef(rawRef.getKey());
         }
         Map<String, String> extracted = output != null ? output.getRefs() : null;
@@ -488,7 +494,12 @@ public class StepRuntimeService {
         if (!StringUtils.hasText(toolName) && rawOutput != null && !rawOutput.isEmpty()) {
             toolName = OutputFieldExtractor.resolveToolName(rawOutput);
         }
-        String rawRefKey = rawRef != null ? rawRef.getKey() : null;
+        String rawRefKey = null;
+        if (rawRef != null && StringUtils.hasText(rawRef.getRefId())) {
+            rawRefKey = rawRef.getRefId();
+        } else if (rawRef != null && StringUtils.hasText(rawRef.getKey())) {
+            rawRefKey = rawRef.getKey();
+        }
         StructuredResult<? extends StructuredData> structured = structuredExtractorRegistry.extract(record.getType(),
                 toolName,
                 resultMap,
