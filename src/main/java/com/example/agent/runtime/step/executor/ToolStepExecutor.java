@@ -8,6 +8,7 @@ import com.example.agent.capabilities.tools.hook.HookManager;
 import com.example.agent.capabilities.tools.validation.ToolArgumentValidatorRuntime;
 import com.example.agent.runtime.control.RuntimeExecutionGate;
 import com.example.agent.runtime.llm.LlmStepService;
+import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.output.OutputKeys;
 import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.step.contract.StepExecutionRequest;
@@ -117,7 +118,8 @@ public class ToolStepExecutor implements StepTypeExecutor {
      * <p>用途：用于兜底输出补充 fallbackFrom 字段。
      */
     public String resolveToolName(TaskRequest request, com.example.agent.runtime.model.StepSpec step) {
-        Map<String, Object> stepInput = resolveStepInput(step);
+        StepInputView stepInputView = StepInputView.from(step, null);
+        Map<String, Object> stepInput = stepInputView.toExecutionMap();
         if (stepInput != null) {
             Object tool = stepInput.get(OutputKeys.TOOL);
             if (tool instanceof String toolName && !toolName.isBlank()) {
@@ -361,12 +363,4 @@ public class ToolStepExecutor implements StepTypeExecutor {
         }
     }
 
-    private Map<String, Object> resolveStepInput(com.example.agent.runtime.model.StepSpec step) {
-        if (step == null) {
-            return null;
-        }
-        Map<String, Object> input = step.toExecutionInput();
-        return input == null || input.isEmpty() ? null : input;
-    }
 }
-

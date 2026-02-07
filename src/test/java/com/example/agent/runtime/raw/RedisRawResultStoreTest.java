@@ -68,5 +68,7 @@ class RedisRawResultStoreTest {
 
         String value = store.loadByRefId("rawref:v1:redis:raw:model:planner:1");
         assertEquals("stored-json", value);
+        assertEquals("stored-json", store.loadByStoreId("raw:model:planner:1"));
+        assertEquals(RawStoreType.REDIS, store.storeType());
     }
 }

@@ -86,4 +86,24 @@ class RawResultControllerTest {
                 .expectHeader().valueEquals("Content-Type", "text/plain")
                 .expectBody(String.class).isEqualTo("hello");
     }
+
+    @Test
+    void downloadByRefShouldReturnResolvedPayload() {
+        RawResultResolveResult result = new RawResultResolveResult();
+        result.setResolvedRefId("rawref:v1:mem:raw:1");
+        result.setStoreType("mem");
+        result.setPayload("{\"x\":1}");
+        when(rawResultResolveService.resolve("rawref:v1:mem:raw:1")).thenReturn(result);
+
+        webTestClient.get()
+                .uri(uriBuilder -> uriBuilder.path("/api/v1/raw/download")
+                        .queryParam("ref", "rawref:v1:mem:raw:1")
+                        .build())
+                .header("X-API-Key", "test-key")
+                .header("X-Tenant-Id", "tenant-a")
+                .exchange()
+                .expectStatus().isOk()
+                .expectHeader().valueEquals("Content-Type", "text/plain")
+                .expectBody(String.class).isEqualTo("{\"x\":1}");
+    }
 }

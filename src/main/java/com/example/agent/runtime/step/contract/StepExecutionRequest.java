@@ -2,10 +2,12 @@ package com.example.agent.runtime.step.contract;
 
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.runtime.control.RuntimeControlEventPublisher;
+import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.model.StepSpec;
 import com.example.agent.runtime.step.RuntimeContext;
 import com.example.agent.runtime.step.StepRecord;
 import com.example.agent.security.auth.TenantContext;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -33,6 +35,11 @@ public class StepExecutionRequest {
      * 合并后的步骤输入视图。
      */
     private final Map<String, Object> stepInput;
+
+    /**
+     * 步骤输入类型化视图。
+     */
+    private final StepInputView stepInputView;
 
     /**
      * 运行上下文（跨步骤共享）。
@@ -72,6 +79,7 @@ public class StepExecutionRequest {
     public StepExecutionRequest(StepSpec step,
                                 TaskRequest taskRequest,
                                 Map<String, Object> stepInput,
+                                StepInputView stepInputView,
                                 RuntimeContext runtimeContext,
                                 TenantContext tenantContext,
                                 String workflowId,
@@ -81,7 +89,15 @@ public class StepExecutionRequest {
                                 RuntimeControlEventPublisher eventPublisher) {
         this.step = step;
         this.taskRequest = taskRequest;
-        this.stepInput = stepInput;
+        this.stepInputView = stepInputView == null ? StepInputView.from(step, runtimeContext) : stepInputView;
+        Map<String, Object> mergedStepInput = this.stepInputView.toExecutionMap();
+        if (stepInput != null && !stepInput.isEmpty()) {
+            Map<String, Object> copied = new LinkedHashMap<>(mergedStepInput);
+            copied.putAll(stepInput);
+            this.stepInput = copied;
+        } else {
+            this.stepInput = new LinkedHashMap<>(mergedStepInput);
+        }
         this.runtimeContext = runtimeContext;
         this.tenantContext = tenantContext;
         this.workflowId = workflowId;
@@ -101,6 +117,10 @@ public class StepExecutionRequest {
 
     public Map<String, Object> getStepInput() {
         return stepInput;
+    }
+
+    public StepInputView getStepInputView() {
+        return stepInputView;
     }
 
     public RuntimeContext getRuntimeContext() {

@@ -3,6 +3,7 @@ package com.example.agent.runtime.engine;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.common.error.ErrorCodeProvider;
 import com.example.agent.runtime.model.StepSpec;
+import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.recovery.StepFailureRecoveryService;
 import com.example.agent.runtime.step.StepExecutionDelegate;
 import com.example.agent.runtime.step.contract.StepExecutionOutput;
@@ -119,11 +120,14 @@ class StepFailureRecoveryServiceTest {
         }
         TaskRequest request = new TaskRequest();
         request.setQuery("q");
+        RuntimeContext runtimeContext = new RuntimeContext(new HashMap<>());
+        StepInputView stepInputView = step.toInputView(runtimeContext);
         return new StepExecutionRequest(
                 step,
                 request,
                 Map.of(),
-                new RuntimeContext(new HashMap<>()),
+                stepInputView,
+                runtimeContext,
                 null,
                 "wf-1",
                 "task-1",
@@ -148,4 +152,3 @@ class StepFailureRecoveryServiceTest {
         }
     }
 }
-

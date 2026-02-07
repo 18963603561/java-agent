@@ -1,5 +1,8 @@
 package com.example.agent.runtime.model;
 
+import com.example.agent.runtime.model.input.ApprovalInput;
+import com.example.agent.runtime.model.input.StepInputView;
+import com.example.agent.runtime.step.RuntimeContext;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -115,6 +118,25 @@ public class StepSpec {
     }
 
     /**
+     * 获取步骤审批输入。
+     *
+     * @return 审批输入对象
+     */
+    public ApprovalInput approvalInput() {
+        return ApprovalInput.of(getRequiresApproval(), getApprovalSource());
+    }
+
+    /**
+     * 生成步骤输入类型化视图。
+     *
+     * @param runtimeContext 运行时上下文
+     * @return 类型化输入视图
+     */
+    public StepInputView toInputView(RuntimeContext runtimeContext) {
+        return StepInputView.from(this, runtimeContext);
+    }
+
+    /**
      * 将强类型步骤规格转换为执行输入映射。
      *
      * <p>注意：该方法仅用于运行时执行边界，避免业务代码直接依赖动态结构。
@@ -123,22 +145,13 @@ public class StepSpec {
      */
     public Map<String, Object> toExecutionInput() {
         Map<String, Object> merged = new HashMap<>();
-        if (arguments != null && !arguments.isEmpty()) {
-            merged.putAll(arguments);
+        StepInputView inputView = toInputView(null);
+        Map<String, Object> executionMap = inputView.toExecutionMap();
+        if (executionMap != null && !executionMap.isEmpty()) {
+            merged.putAll(executionMap);
         }
-        if (context != null && !context.isEmpty()) {
-            merged.put("context", context);
-        }
-        if (dependsOn != null && !dependsOn.isEmpty()) {
+        if (dependsOn != null && !dependsOn.isEmpty() && !merged.containsKey("dependsOn")) {
             merged.put("dependsOn", new ArrayList<>(dependsOn));
-        }
-        if (policy != null) {
-            if (policy.getRequiresApproval() != null) {
-                merged.put("requiresApproval", policy.getRequiresApproval());
-            }
-            if (policy.getApprovalSource() != null) {
-                merged.put("approvalSource", policy.getApprovalSource());
-            }
         }
         return merged;
     }

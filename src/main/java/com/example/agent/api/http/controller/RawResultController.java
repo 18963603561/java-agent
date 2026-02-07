@@ -95,6 +95,44 @@ public class RawResultController {
                 .body(new ByteArrayResource(bytes));
     }
 
+    /**
+     * 统一按引用下载原始结果。
+     *
+     * @param ref 原始引用
+     * @param apiKey API Key
+     * @param exchange 请求上下文
+     * @return 文件下载响应
+     */
+    @GetMapping("/api/v1/raw/download")
+    public ResponseEntity<ByteArrayResource> downloadByRef(@RequestParam("ref") String ref,
+                                                           @RequestHeader(value = "X-API-Key", required = false) String apiKey,
+                                                           ServerWebExchange exchange) {
+        UserContext userContext = authService.authenticate(apiKey, exchange);
+        TenantContext tenantContext = getTenantContext(exchange);
+        tenantContext.applyUserContext(userContext);
+        RawResultResolveResult result = rawResultResolveService.resolve(ref);
+        if (result == null || result.getPayload() == null) {
+            throw new ErrorCodeException(HttpStatus.NOT_FOUND, "RAW_REF_NOT_FOUND", "原始结果不存在");
+        }
+        byte[] bytes = result.getPayload().getBytes(StandardCharsets.UTF_8);
+        String filename = "raw-result.txt";
+        if (result.getResolvedRefId() != null && result.getResolvedRefId().contains(":")) {
+            String normalized = result.getResolvedRefId().replace(':', '_').replace('/', '_');
+            filename = normalized + ".txt";
+        }
+        log.info("原始结果统一下载完成, tenantId={}, userId={}, ref={}, storeType={}, bytes={}",
+                tenantContext.getTenantId(),
+                tenantContext.getUserId(),
+                ref,
+                result.getStoreType(),
+                bytes.length);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.TEXT_PLAIN)
+                .contentLength(bytes.length)
+                .body(new ByteArrayResource(bytes));
+    }
+
     private TenantContext getTenantContext(ServerWebExchange exchange) {
         TenantContext context = exchange.getAttribute(TenantContext.CONTEXT_KEY);
         if (context == null) {

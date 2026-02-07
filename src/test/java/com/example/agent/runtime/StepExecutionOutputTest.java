@@ -68,5 +68,23 @@ class StepExecutionOutputTest {
         output = StepExecutionOutput.fromPayload(payload);
         assertNull(output.getRawRef());
     }
-}
 
+    @Test
+    void typedGettersReturnExpectedValues() {
+        StepExecutionOutput output = StepExecutionOutput.fromPayload(Map.of(
+                "answer", "done",
+                "mode", "tool_call",
+                "toolStatus", "ok",
+                "refs", Map.of(
+                        "decisionRawRef", "rawref:v1:mem:decision",
+                        "summaryRawRef", "rawref:v1:mem:summary"
+                )
+        ));
+
+        assertEquals("done", output.getAnswerText());
+        assertEquals("tool_call", output.getMode());
+        assertEquals("ok", output.getToolStatus());
+        assertEquals("rawref:v1:mem:decision", output.getDecisionRawRef());
+        assertEquals("rawref:v1:mem:summary", output.getSummaryRawRef());
+    }
+}

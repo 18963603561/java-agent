@@ -71,12 +71,18 @@ public class SizeAwareRawResultStore implements RawResultStore {
         return ref;
     }
 
+    @Override
+    public RawStoreType storeType() {
+        return RawStoreType.MEM;
+    }
+
     /**
      * 按统一引用读取内容。
      *
      * @param refId 统一引用标识
      * @return 文本内容，不存在返回 null
      */
+    @Override
     public String loadByRefId(String refId) {
         if (refId == null || refId.isBlank() || !rawRefCodec.isRawRef(refId)) {
             return null;
@@ -102,6 +108,23 @@ public class SizeAwareRawResultStore implements RawResultStore {
             return null;
         }
         return memStore.get(key.trim());
+    }
+
+    @Override
+    public boolean supports(RawStoreType storeType) {
+        return RawStoreType.MEM == storeType || RawStoreType.FILE == storeType || RawStoreType.TXT == storeType;
+    }
+
+    @Override
+    public String loadByStoreId(String storeId) {
+        if (storeId == null || storeId.isBlank()) {
+            return null;
+        }
+        String normalized = storeId.trim();
+        if (normalized.endsWith(".txt")) {
+            return fileRawStorageSupport.readText(properties.getFileBaseDir(), normalized);
+        }
+        return loadByKey(normalized);
     }
 
     private RawRef storeToMem(String source, String text, String mediaType, long bytes) {

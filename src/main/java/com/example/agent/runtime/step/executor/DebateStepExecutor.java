@@ -3,6 +3,7 @@ package com.example.agent.runtime.step.executor;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.reasoning.debate.DebateCoordinator;
 import com.example.agent.reasoning.debate.DebateRound;
+import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.HashMap;
@@ -47,7 +48,8 @@ public class DebateStepExecutor implements StepTypeExecutor {
     }
 
     private String resolveStepTopic(TaskRequest request, com.example.agent.runtime.model.StepSpec step) {
-        Map<String, Object> stepInput = resolveStepInput(step);
+        StepInputView stepInputView = StepInputView.from(step, null);
+        Map<String, Object> stepInput = stepInputView.toExecutionMap();
         if (stepInput != null) {
             Object topic = stepInput.get("topic");
             if (topic instanceof String value && !value.isBlank()) {
@@ -69,13 +71,4 @@ public class DebateStepExecutor implements StepTypeExecutor {
         }
         return "";
     }
-
-    private Map<String, Object> resolveStepInput(com.example.agent.runtime.model.StepSpec step) {
-        if (step == null) {
-            return null;
-        }
-        Map<String, Object> input = step.toExecutionInput();
-        return input == null || input.isEmpty() ? null : input;
-    }
 }
-

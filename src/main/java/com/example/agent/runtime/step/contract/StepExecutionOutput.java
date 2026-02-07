@@ -1,6 +1,7 @@
 package com.example.agent.runtime.step.contract;
 
 import com.example.agent.runtime.output.OutputFieldExtractor;
+import com.example.agent.runtime.output.OutputKeys;
 import com.example.agent.runtime.summary.StepOutputSummaryView;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -137,6 +138,54 @@ public final class StepExecutionOutput {
 
     public Map<String, String> getRefs() {
         return refs;
+    }
+
+    /**
+     * 获取答案文本。
+     *
+     * @return 答案文本
+     */
+    public String getAnswerText() {
+        Object value = payload.get("answer");
+        return value == null ? null : String.valueOf(value);
+    }
+
+    /**
+     * 获取运行模式。
+     *
+     * @return 运行模式
+     */
+    public String getMode() {
+        Object value = payload.get("mode");
+        return value == null ? null : String.valueOf(value);
+    }
+
+    /**
+     * 获取工具执行状态。
+     *
+     * @return 工具状态
+     */
+    public String getToolStatus() {
+        Object value = payload.get("toolStatus");
+        return value == null ? null : String.valueOf(value);
+    }
+
+    /**
+     * 获取决策阶段原始引用。
+     *
+     * @return 决策原始引用
+     */
+    public String getDecisionRawRef() {
+        return refs.get(OutputKeys.DECISION_RAW_REF);
+    }
+
+    /**
+     * 获取摘要阶段原始引用。
+     *
+     * @return 摘要原始引用
+     */
+    public String getSummaryRawRef() {
+        return refs.get(OutputKeys.SUMMARY_RAW_REF);
     }
 
     public Map<String, Object> getSummary() {

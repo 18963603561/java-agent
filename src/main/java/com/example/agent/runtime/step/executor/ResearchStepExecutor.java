@@ -7,6 +7,7 @@ import com.example.agent.capabilities.context.research.ResearchCitation;
 import com.example.agent.capabilities.context.research.ResearchPipeline;
 import com.example.agent.capabilities.context.research.ResearchRunResult;
 import com.example.agent.capabilities.tools.hook.HookManager;
+import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.HashMap;
@@ -79,7 +80,8 @@ public class ResearchStepExecutor implements StepTypeExecutor {
     }
 
     private String resolveStepQuery(TaskRequest request, com.example.agent.runtime.model.StepSpec step) {
-        Map<String, Object> stepInput = resolveStepInput(step);
+        StepInputView stepInputView = StepInputView.from(step, null);
+        Map<String, Object> stepInput = stepInputView.toExecutionMap();
         if (stepInput != null) {
             Object query = stepInput.get("query");
             if (query instanceof String value && !value.isBlank()) {
@@ -90,14 +92,6 @@ public class ResearchStepExecutor implements StepTypeExecutor {
             return request.getQuery();
         }
         return "";
-    }
-
-    private Map<String, Object> resolveStepInput(com.example.agent.runtime.model.StepSpec step) {
-        if (step == null) {
-            return null;
-        }
-        Map<String, Object> input = step.toExecutionInput();
-        return input == null || input.isEmpty() ? null : input;
     }
 
     /**
@@ -116,4 +110,3 @@ public class ResearchStepExecutor implements StepTypeExecutor {
         }
     }
 }
-

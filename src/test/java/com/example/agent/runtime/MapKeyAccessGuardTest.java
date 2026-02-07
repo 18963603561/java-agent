@@ -9,6 +9,7 @@ import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Pattern;
 import org.junit.jupiter.api.Test;
 
@@ -37,12 +38,42 @@ class MapKeyAccessGuardTest {
             "stepSummary",
             "toolResultSummary",
             "inputSummary",
-            "inputDigest"
+            "inputDigest",
+            "requiresApproval",
+            "approvalSource",
+            "lastStepId",
+            "lastStepType",
+            "lastStepSummary",
+            "lastStepRawOutput",
+            "lastStepRawRef",
+            "lastStepRawRefs",
+            "lastStepRawTruncated"
     );
 
     private static final List<String> METHODS = List.of(
             "get",
             "containsKey"
+    );
+
+    /**
+     * 权威读取点白名单。
+     *
+     * <p>说明：这些类负责边界解包或上下文规范化，允许出现受控的键访问。
+     */
+    private static final Map<String, List<String>> AUTHORITY_KEY_WHITELIST = Map.of(
+            "src/main/java/com/example/agent/runtime/control/RuntimeApprovalGate.java",
+            List.of("requiresApproval", "approvalSource"),
+            "src/main/java/com/example/agent/runtime/model/input/ApprovalInput.java",
+            List.of("requiresApproval", "approvalSource"),
+            "src/main/java/com/example/agent/runtime/model/input/LastStepInput.java",
+            List.of("lastStepId", "lastStepType", "lastStepSummary", "lastStepRawOutput",
+                    "lastStepRawRef", "lastStepRawRefs", "lastStepRawTruncated"),
+            "src/main/java/com/example/agent/runtime/step/RuntimeContext.java",
+            List.of("requiresApproval", "approvalSource"),
+            "src/main/java/com/example/agent/runtime/llm/LlmDecisionService.java",
+            List.of("lastStepSummary"),
+            "src/main/java/com/example/agent/capabilities/context/DefaultContextBuilder.java",
+            List.of("requiresApproval")
     );
 
     @Test
@@ -96,6 +127,9 @@ class MapKeyAccessGuardTest {
                     }
                     for (GuardPattern pattern : patterns) {
                         if (pattern.pattern.matcher(line).find()) {
+                            if (isWhitelisted(file, pattern.key)) {
+                                continue;
+                            }
                             violations.add(file + ":" + (i + 1) + " [" + pattern.method + ":" + pattern.key + "] " + line.trim());
                         }
                     }
@@ -105,7 +139,21 @@ class MapKeyAccessGuardTest {
         });
     }
 
+    private static boolean isWhitelisted(Path file, String key) {
+        if (file == null || key == null) {
+            return false;
+        }
+        String normalized = file.toString().replace('\\', '/');
+        for (Map.Entry<String, List<String>> entry : AUTHORITY_KEY_WHITELIST.entrySet()) {
+            if (!normalized.endsWith(entry.getKey())) {
+                continue;
+            }
+            List<String> keys = entry.getValue();
+            return keys != null && keys.contains(key);
+        }
+        return false;
+    }
+
     private record GuardPattern(String method, String key, Pattern pattern) {
     }
 }
-

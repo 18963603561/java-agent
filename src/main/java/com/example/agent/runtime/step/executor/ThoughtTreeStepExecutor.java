@@ -4,6 +4,7 @@ import com.example.agent.reasoning.thoughttree.ThoughtNode;
 import com.example.agent.reasoning.thoughttree.ThoughtTreeConfig;
 import com.example.agent.reasoning.thoughttree.ThoughtTreeResult;
 import com.example.agent.reasoning.thoughttree.ThoughtTreeService;
+import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import com.example.agent.streaming.domain.EventType;
@@ -36,7 +37,8 @@ public class ThoughtTreeStepExecutor implements StepTypeExecutor {
 
     @Override
     public StepExecutionOutput execute(StepExecutionRequest request) {
-        Map<String, Object> input = resolveStepInput(request.getStep());
+        StepInputView stepInputView = StepInputView.from(request.getStep(), request.getRuntimeContext());
+        Map<String, Object> input = stepInputView.toExecutionMap();
         String prompt = input != null && input.get("prompt") instanceof String value ? value : "";
         ThoughtTreeConfig config = new ThoughtTreeConfig();
         ThoughtTreeResult result = thoughtTreeService.buildTree(prompt, config);
@@ -91,12 +93,4 @@ public class ThoughtTreeStepExecutor implements StepTypeExecutor {
         return nodes;
     }
 
-    private Map<String, Object> resolveStepInput(com.example.agent.runtime.model.StepSpec step) {
-        if (step == null) {
-            return null;
-        }
-        Map<String, Object> input = step.toExecutionInput();
-        return input == null || input.isEmpty() ? null : input;
-    }
 }
-

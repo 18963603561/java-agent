@@ -35,7 +35,7 @@ public class RawResultStoreFallbackConfiguration {
     public RawResultStore fallbackRawResultStore(ObjectMapper objectMapper,
                                                  RawRefCodec rawRefCodec,
                                                  RawStoreProperties properties) {
-        log.warn("未检测到可用 RawResultStore 实现，已启用内存兜底存储, configuredMode={}",
+        log.warn("未检测到可用 RawResultStore 实现，已启用内存兜底读写存储, configuredMode={}",
                 properties != null ? properties.getStoreMode() : null);
         return new InMemoryRawResultStore(objectMapper, rawRefCodec);
     }

@@ -2,6 +2,8 @@ package com.example.agent.runtime.control;
 
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.common.error.ErrorCodeException;
+import com.example.agent.runtime.model.input.ApprovalInput;
+import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.model.StepSpec;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
@@ -46,13 +48,13 @@ public class RuntimeApprovalGate {
      */
     public void requestIfNeeded(StepSpec step,
                                 TaskRequest request,
-                                Map<String, Object> stepInput,
+                                StepInputView stepInputView,
                                 RuntimeContext runtimeContext,
                                 String workflowId,
                                 TenantContext tenantContext,
                                 AtomicLong seqCounter,
                                 RuntimeControlEventPublisher eventPublisher) {
-        RuntimeApprovalDecision decision = resolveApprovalDecision(step, request, stepInput);
+        RuntimeApprovalDecision decision = resolveApprovalDecision(step, request, stepInputView, runtimeContext);
         if (!decision.isExplicit() || !decision.isRequired()) {
             return;
         }
@@ -60,6 +62,7 @@ public class RuntimeApprovalGate {
             return;
         }
         ExecutionControlState state = executionControlService.getState(workflowId);
+        Map<String, Object> stepInput = stepInputView != null ? stepInputView.toExecutionMap() : Map.of();
         if (state != ExecutionControlState.WAIT_APPROVAL) {
             Map<String, Object> payload = buildApprovalPayload(step, request, stepInput, decision.getSource());
             executionControlService.requestApproval(workflowId, payload);
@@ -96,7 +99,8 @@ public class RuntimeApprovalGate {
 
     private RuntimeApprovalDecision resolveApprovalDecision(StepSpec step,
                                                            TaskRequest request,
-                                                           Map<String, Object> stepInput) {
+                                                           StepInputView stepInputView,
+                                                           RuntimeContext runtimeContext) {
         RuntimeApprovalDecision userDecision = resolveApprovalFromUser(request);
         if (userDecision.isExplicit()) {
             return userDecision;
@@ -105,7 +109,7 @@ public class RuntimeApprovalGate {
         if (stepDecision.isExplicit()) {
             return stepDecision;
         }
-        RuntimeApprovalDecision evaluationDecision = resolveApprovalFromEvaluation(step, stepInput);
+        RuntimeApprovalDecision evaluationDecision = resolveApprovalFromEvaluation(stepInputView, runtimeContext);
         if (evaluationDecision.isExplicit()) {
             return evaluationDecision;
         }
@@ -128,65 +132,34 @@ public class RuntimeApprovalGate {
         if (step == null) {
             return RuntimeApprovalDecision.none();
         }
-        if (step.getRequiresApproval() != null) {
-            String source = normalizeApprovalSource(step.getApprovalSource(), "step");
+        ApprovalInput stepApproval = step.approvalInput();
+        if (stepApproval != null && stepApproval.isExplicit()) {
+            String source = normalizeApprovalSource(stepApproval.getApprovalSource(), "step");
             if (isEvaluationSource(source)) {
                 return RuntimeApprovalDecision.none();
             }
-            return new RuntimeApprovalDecision(true, step.getRequiresApproval(), source);
-        }
-        Map<String, Object> input = resolveStepInput(step);
-        if (input != null && input.containsKey("requiresApproval")) {
-            String source = normalizeApprovalSource(input.get("approvalSource"), "step");
-            if (isEvaluationSource(source)) {
-                return RuntimeApprovalDecision.none();
-            }
-            boolean required = isTruthy(input.get("requiresApproval"));
-            return new RuntimeApprovalDecision(true, required, source);
+            return new RuntimeApprovalDecision(true, stepApproval.isRequired(), source);
         }
         return RuntimeApprovalDecision.none();
     }
 
-    private RuntimeApprovalDecision resolveApprovalFromEvaluation(StepSpec step, Map<String, Object> stepInput) {
-        Object value = null;
-        String source = null;
-        Map<String, Object> input = resolveStepInput(step);
-        if (step != null && step.getRequiresApproval() != null) {
-            String stepSource = normalizeApprovalSource(step.getApprovalSource(), "evaluation");
-            if (isEvaluationSource(stepSource)) {
-                value = step.getRequiresApproval();
-                source = stepSource;
+    private RuntimeApprovalDecision resolveApprovalFromEvaluation(StepInputView stepInputView,
+                                                                  RuntimeContext runtimeContext) {
+        ApprovalInput stepApproval = stepInputView != null ? stepInputView.approvalInput() : ApprovalInput.empty();
+        if (stepApproval != null && stepApproval.isExplicit()) {
+            String source = normalizeApprovalSource(stepApproval.getApprovalSource(), "evaluation");
+            if (isEvaluationSource(source)) {
+                return new RuntimeApprovalDecision(true, stepApproval.isRequired(), source);
             }
         }
-        if (source == null && input != null && input.containsKey("requiresApproval")) {
-            String inputSource = normalizeApprovalSource(input.get("approvalSource"), "evaluation");
-            if (isEvaluationSource(inputSource)) {
-                value = input.get("requiresApproval");
-                source = inputSource;
+        ApprovalInput runtimeApproval = runtimeContext != null ? runtimeContext.getApprovalInput() : ApprovalInput.empty();
+        if (runtimeApproval != null && runtimeApproval.isExplicit()) {
+            String source = normalizeApprovalSource(runtimeApproval.getApprovalSource(), "evaluation");
+            if (isEvaluationSource(source)) {
+                return new RuntimeApprovalDecision(true, runtimeApproval.isRequired(), source);
             }
         }
-        if (source == null && stepInput != null && stepInput.containsKey("requiresApproval")) {
-            value = stepInput.get("requiresApproval");
-            source = normalizeApprovalSource(stepInput.get("approvalSource"), "evaluation");
-        }
-        if (source == null && stepInput != null && stepInput.get("context") instanceof Map<?, ?> contextMap
-                && contextMap.containsKey("requiresApproval")) {
-            value = contextMap.get("requiresApproval");
-            source = normalizeApprovalSource(contextMap.get("approvalSource"), "evaluation");
-        }
-        if (source == null) {
-            return RuntimeApprovalDecision.none();
-        }
-        boolean required = isTruthy(value);
-        return new RuntimeApprovalDecision(true, required, source);
-    }
-
-    private Map<String, Object> resolveStepInput(StepSpec step) {
-        if (step == null) {
-            return null;
-        }
-        Map<String, Object> input = step.toExecutionInput();
-        return input == null || input.isEmpty() ? null : input;
+        return RuntimeApprovalDecision.none();
     }
 
     private boolean isEvaluationSource(String source) {

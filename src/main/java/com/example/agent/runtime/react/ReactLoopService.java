@@ -5,6 +5,8 @@ import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.runtime.control.RuntimeApprovalGate;
 import com.example.agent.runtime.control.RuntimeExecutionGate;
+import com.example.agent.runtime.model.input.ApprovalInput;
+import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.step.StepRecord;
 import com.example.agent.runtime.step.RuntimeContext;
 import com.example.agent.runtime.model.StepSpec;
@@ -115,6 +117,7 @@ public class ReactLoopService {
         RuntimeContext runtimeContext = new RuntimeContext(new HashMap<>());
         if (request != null && request.getContext() != null && !request.getContext().isEmpty()) {
             runtimeContext.asMap().putAll(request.getContext());
+            runtimeContext.setApprovalInput(ApprovalInput.fromMap(request.getContext()));
         }
 
         List<ReactDecision> decisions = new ArrayList<>();
@@ -685,31 +688,27 @@ public class ReactLoopService {
                                             AtomicLong seqCounter,
                                             int iteration,
                                             RuntimeContext runtimeContext) {
-        Map<String, Object> stepInput = new HashMap<>();
-        stepInput.put("iteration", iteration);
-        stepInput.put("mode", "react");
-        if (request != null && StringUtils.hasText(request.getQuery())) {
-            stepInput.put("query", request.getQuery());
-        }
-        if (StringUtils.hasText(toolName)) {
-            stepInput.put(OutputKeys.TOOL_NAME, toolName);
-            stepInput.put(OutputKeys.TOOL, toolName);
-        }
-        if (request != null && request.getContext() != null && !request.getContext().isEmpty()) {
-            stepInput.put("context", request.getContext());
-            if (request.getContext().containsKey("requiresApproval")) {
-                stepInput.put("requiresApproval", request.getContext().get("requiresApproval"));
-            }
-            if (request.getContext().containsKey("approvalSource")) {
-                stepInput.put("approvalSource", request.getContext().get("approvalSource"));
-            }
-        }
         StepSpec stepSpec = new StepSpec();
         stepSpec.setStepType("REACT_ACT");
+        Map<String, Object> arguments = new HashMap<>();
+        arguments.put("iteration", iteration);
+        arguments.put("mode", "react");
+        if (request != null && StringUtils.hasText(request.getQuery())) {
+            arguments.put("query", request.getQuery());
+        }
+        if (StringUtils.hasText(toolName)) {
+            arguments.put(OutputKeys.TOOL_NAME, toolName);
+            arguments.put(OutputKeys.TOOL, toolName);
+        }
+        stepSpec.setArguments(arguments);
+        if (request != null && request.getContext() != null && !request.getContext().isEmpty()) {
+            stepSpec.setContext(request.getContext());
+        }
+        StepInputView stepInputView = stepSpec.toInputView(runtimeContext);
         runtimeApprovalGate.requestIfNeeded(
                 stepSpec,
                 request,
-                stepInput,
+                stepInputView,
                 runtimeContext,
                 workflowId,
                 tenantContext,

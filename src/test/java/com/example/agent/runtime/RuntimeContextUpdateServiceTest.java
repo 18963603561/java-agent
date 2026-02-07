@@ -24,7 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 class RuntimeContextUpdateServiceTest {
 
     @Test
-    void mergeStepInputPromotesApprovalFieldsFromContext() {
+    void mergeStepInputResolvesApprovalFieldsFromTypedView() {
         StepSummaryProperties properties = new StepSummaryProperties();
         RawOutputEnvelopeBuilder envelopeBuilder = new RawOutputEnvelopeBuilder(properties);
         RuntimeContextUpdateService service = new RuntimeContextUpdateService(envelopeBuilder);
@@ -121,4 +121,3 @@ class RuntimeContextUpdateServiceTest {
         assertNull(service.resolveStepInput(step));
     }
 }
-

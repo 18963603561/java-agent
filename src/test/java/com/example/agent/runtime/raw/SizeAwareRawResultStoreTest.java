@@ -45,6 +45,7 @@ class SizeAwareRawResultStoreTest {
         String loaded = store.loadByRefId(ref.getRefId());
         assertNotNull(loaded);
         assertTrue(loaded.contains("\"k\":\"v\""));
+        assertEquals(RawStoreType.MEM, store.storeType());
     }
 
     @Test
@@ -74,6 +75,9 @@ class SizeAwareRawResultStoreTest {
         String loaded = store.loadByRefId(ref.getRefId());
         assertNotNull(loaded);
         assertTrue(loaded.contains(large));
+
+        String loadedByStoreId = store.loadByStoreId(ref.getKey());
+        assertNotNull(loadedByStoreId);
+        assertTrue(loadedByStoreId.contains(large));
     }
 }
-

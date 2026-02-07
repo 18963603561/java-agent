@@ -63,6 +63,11 @@ public class InMemoryRawResultStore implements RawResultStore {
         return ref;
     }
 
+    @Override
+    public RawStoreType storeType() {
+        return RawStoreType.MEM;
+    }
+
     /**
      * 按 key 读取内存存储文本。
      *
@@ -70,10 +75,7 @@ public class InMemoryRawResultStore implements RawResultStore {
      * @return 文本内容，不存在返回 null
      */
     public String load(String key) {
-        if (key == null || key.isBlank()) {
-            return null;
-        }
-        return store.get(key.trim());
+        return loadByStoreId(key);
     }
 
     /**
@@ -82,6 +84,7 @@ public class InMemoryRawResultStore implements RawResultStore {
      * @param refId 统一引用标识
      * @return 文本内容，不存在返回 null
      */
+    @Override
     public String loadByRefId(String refId) {
         if (refId == null || refId.isBlank()) {
             return null;
@@ -94,6 +97,14 @@ public class InMemoryRawResultStore implements RawResultStore {
             return null;
         }
         return store.get(parsed.id());
+    }
+
+    @Override
+    public String loadByStoreId(String storeId) {
+        if (storeId == null || storeId.isBlank()) {
+            return null;
+        }
+        return store.get(storeId.trim());
     }
 
     private String normalizeSource(String source) {
@@ -124,4 +135,3 @@ public class InMemoryRawResultStore implements RawResultStore {
         }
     }
 }
-

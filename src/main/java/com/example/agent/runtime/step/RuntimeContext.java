@@ -1,8 +1,12 @@
 package com.example.agent.runtime.step;
 
+import com.example.agent.runtime.model.input.ApprovalInput;
+import com.example.agent.runtime.model.input.LastStepInput;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -24,6 +28,7 @@ public class RuntimeContext {
     private static final String KEY_LAST_STEP_RAW_TRUNCATED = "lastStepRawTruncated";
     private static final String KEY_LAST_OUTPUT_SIZE = "lastOutputSize";
     private static final String KEY_EVALUATION_APPROVAL_GRANTED = "evaluationApprovalGranted";
+    private static final String KEY_STEPS = "steps";
 
     /**
      * 扩展字段映射（可变）。
@@ -36,6 +41,66 @@ public class RuntimeContext {
 
     public RuntimeContext(Map<String, Object> extensions) {
         this.extensions = extensions == null ? new HashMap<>() : extensions;
+    }
+
+    /**
+     * 获取审批输入对象。
+     *
+     * @return 审批输入对象
+     */
+    public ApprovalInput getApprovalInput() {
+        Object requiresApproval = extensions.get("requiresApproval");
+        Object approvalSource = extensions.get("approvalSource");
+        return ApprovalInput.fromValues(requiresApproval, approvalSource);
+    }
+
+    /**
+     * 设置审批输入对象。
+     *
+     * @param approvalInput 审批输入对象
+     */
+    public void setApprovalInput(ApprovalInput approvalInput) {
+        if (approvalInput == null || !approvalInput.isExplicit()) {
+            extensions.remove("requiresApproval");
+            extensions.remove("approvalSource");
+            return;
+        }
+        if (approvalInput.getRequiresApproval() == null) {
+            extensions.remove("requiresApproval");
+        } else {
+            extensions.put("requiresApproval", approvalInput.getRequiresApproval());
+        }
+        if (approvalInput.getApprovalSource() == null || approvalInput.getApprovalSource().isBlank()) {
+            extensions.remove("approvalSource");
+        } else {
+            extensions.put("approvalSource", approvalInput.getApprovalSource());
+        }
+    }
+
+    /**
+     * 获取上一步输入快照。
+     *
+     * @return 上一步快照
+     */
+    public LastStepInput getLastStepInput() {
+        return LastStepInput.fromMap(extensions);
+    }
+
+    /**
+     * 设置上一步输入快照。
+     *
+     * @param snapshot 上一步快照
+     */
+    public void setLastStepInput(LastStepInput snapshot) {
+        removeLastStepFields();
+        if (snapshot == null) {
+            return;
+        }
+        Map<String, Object> values = snapshot.toMap();
+        if (values.isEmpty()) {
+            return;
+        }
+        extensions.putAll(values);
     }
 
     /**
@@ -158,6 +223,61 @@ public class RuntimeContext {
         extensions.put(KEY_EVALUATION_APPROVAL_GRANTED, granted);
     }
 
+    /**
+     * 获取步骤历史列表。
+     *
+     * @return 步骤历史
+     */
+    public List<Map<String, Object>> getSteps() {
+        Object raw = extensions.get(KEY_STEPS);
+        if (!(raw instanceof List<?> list) || list.isEmpty()) {
+            return new ArrayList<>();
+        }
+        List<Map<String, Object>> items = new ArrayList<>();
+        for (Object item : list) {
+            if (item instanceof Map<?, ?> map) {
+                Map<String, Object> copied = new LinkedHashMap<>();
+                map.forEach((k, v) -> copied.put(String.valueOf(k), v));
+                items.add(copied);
+            }
+        }
+        return items;
+    }
+
+    /**
+     * 设置步骤历史列表。
+     *
+     * @param steps 步骤历史
+     */
+    public void setSteps(List<Map<String, Object>> steps) {
+        if (steps == null || steps.isEmpty()) {
+            extensions.remove(KEY_STEPS);
+            return;
+        }
+        List<Map<String, Object>> copied = new ArrayList<>();
+        for (Map<String, Object> step : steps) {
+            if (step != null && !step.isEmpty()) {
+                copied.add(new LinkedHashMap<>(step));
+            }
+        }
+        if (copied.isEmpty()) {
+            extensions.remove(KEY_STEPS);
+            return;
+        }
+        extensions.put(KEY_STEPS, copied);
+    }
+
+    private void removeLastStepFields() {
+        extensions.remove(KEY_LAST_STEP_ID);
+        extensions.remove(KEY_LAST_STEP_TYPE);
+        extensions.remove(KEY_LAST_STEP_SUMMARY);
+        extensions.remove(KEY_LAST_STEP_RAW_OUTPUT);
+        extensions.remove(KEY_LAST_STEP_RAW_REF);
+        extensions.remove(KEY_LAST_STEP_RAW_REFS);
+        extensions.remove(KEY_LAST_STEP_RAW_TRUNCATED);
+        extensions.remove(KEY_LAST_OUTPUT_SIZE);
+    }
+
     private void putOrRemove(String key, String value) {
         if (value == null || value.isBlank()) {
             extensions.remove(key);
@@ -186,4 +306,3 @@ public class RuntimeContext {
         return result;
     }
 }
-

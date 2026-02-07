@@ -37,6 +37,9 @@ class InMemoryRawResultStoreTest {
 
         String textByRef = store.loadByRefId(ref.getRefId());
         assertEquals(text, textByRef);
+
+        String textByStoreId = store.loadByStoreId(ref.getKey());
+        assertEquals(text, textByStoreId);
+        assertEquals(RawStoreType.MEM, store.storeType());
     }
 }
-
