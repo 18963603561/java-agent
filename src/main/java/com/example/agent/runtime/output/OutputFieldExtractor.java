@@ -1,7 +1,6 @@
 package com.example.agent.runtime.output;
 
-import java.util.Collections;
-import java.util.LinkedHashMap;
+import com.example.agent.runtime.contract.RuntimeOutputFieldExtractor;
 import java.util.Map;
 
 /**
@@ -25,22 +24,7 @@ public final class OutputFieldExtractor {
      * @return 工具名称或 {@code null}
      */
     public static String resolveToolName(Map<String, Object> payload) {
-        if (payload == null || payload.isEmpty()) {
-            return null;
-        }
-        String toolName = toNonBlankString(payload.get(OutputKeys.TOOL_NAME));
-        if (toolName != null) {
-            return toolName;
-        }
-        Object tool = payload.get(OutputKeys.TOOL);
-        String legacy = toNonBlankString(tool);
-        if (legacy != null) {
-            return legacy;
-        }
-        if (tool instanceof Map<?, ?> toolMap) {
-            return toNonBlankString(toolMap.get("name"));
-        }
-        return null;
+        return RuntimeOutputFieldExtractor.resolveToolName(payload);
     }
 
     /**
@@ -52,22 +36,7 @@ public final class OutputFieldExtractor {
      * @return 原始引用键或 {@code null}
      */
     public static String resolveRawRef(Map<String, Object> payload) {
-        if (payload == null || payload.isEmpty()) {
-            return null;
-        }
-        String direct = toNonBlankString(payload.get(OutputKeys.RAW_REF));
-        if (direct != null) {
-            return direct;
-        }
-        String nested = readNestedRawRef(payload.get(OutputKeys.RAW_RESULT));
-        if (nested != null) {
-            return nested;
-        }
-        nested = readNestedRawRef(payload.get(OutputKeys.RESULT));
-        if (nested != null) {
-            return nested;
-        }
-        return readNestedRawRef(payload.get(OutputKeys.RAW));
+        return RuntimeOutputFieldExtractor.resolveRawRef(payload);
     }
 
     /**
@@ -79,54 +48,6 @@ public final class OutputFieldExtractor {
      * @return 引用集合（不可变视图）
      */
     public static Map<String, String> resolveRefs(Map<String, Object> payload) {
-        if (payload == null || payload.isEmpty()) {
-            return Map.of();
-        }
-        Map<String, String> refs = new LinkedHashMap<>();
-        mergeRefs(refs, payload.get(OutputKeys.REFS));
-        mergeRefValue(refs, OutputKeys.DECISION_RAW_REF, payload.get(OutputKeys.DECISION_RAW_REF));
-        mergeRefValue(refs, OutputKeys.SUMMARY_RAW_REF, payload.get(OutputKeys.SUMMARY_RAW_REF));
-        mergeRefValue(refs, OutputKeys.TOOL_RAW_REF, payload.get(OutputKeys.TOOL_RAW_REF));
-        mergeRefValue(refs, OutputKeys.MODEL_RAW_REF, payload.get(OutputKeys.MODEL_RAW_REF));
-        if (payload.get(OutputKeys.RAW) instanceof Map<?, ?> rawMap) {
-            mergeRefs(refs, rawMap.get(OutputKeys.REFS));
-        }
-        return refs.isEmpty() ? Map.of() : Collections.unmodifiableMap(refs);
-    }
-
-    private static String readNestedRawRef(Object value) {
-        if (!(value instanceof Map<?, ?> map) || map.isEmpty()) {
-            return null;
-        }
-        return toNonBlankString(map.get(OutputKeys.RAW_REF));
-    }
-
-    private static void mergeRefs(Map<String, String> target, Object refsObj) {
-        if (target == null || !(refsObj instanceof Map<?, ?> map) || map.isEmpty()) {
-            return;
-        }
-        map.forEach((key, value) -> {
-            if (key != null && value != null) {
-                target.put(String.valueOf(key), String.valueOf(value));
-            }
-        });
-    }
-
-    private static void mergeRefValue(Map<String, String> target, String key, Object value) {
-        if (target == null || key == null) {
-            return;
-        }
-        String text = toNonBlankString(value);
-        if (text != null) {
-            target.put(key, text);
-        }
-    }
-
-    private static String toNonBlankString(Object value) {
-        if (!(value instanceof String text)) {
-            return null;
-        }
-        String trimmed = text.trim();
-        return trimmed.isEmpty() ? null : trimmed;
+        return RuntimeOutputFieldExtractor.resolveRefs(payload);
     }
 }

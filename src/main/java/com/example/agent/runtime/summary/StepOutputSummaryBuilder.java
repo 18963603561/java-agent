@@ -1,7 +1,6 @@
 package com.example.agent.runtime.summary;
 
-import com.example.agent.runtime.output.OutputKeys;
-import com.example.agent.runtime.step.StepRecord;
+import com.example.agent.runtime.contract.RuntimeOutputKeys;
 import com.example.agent.runtime.summary.SummaryComputationModels.OutputSnapshot;
 import com.example.agent.runtime.summary.SummaryComputationModels.SummaryLimits;
 import com.example.agent.runtime.summary.SummaryComputationModels.TruncationState;
@@ -15,7 +14,7 @@ import org.springframework.util.StringUtils;
  * 步骤输出摘要构建门面。
  *
  * <p>用途：编排摘要构建流程，聚合输出摘要、工具摘要、步骤摘要、输入摘要与 digest。
- * <p>输入：步骤记录、步骤输入、输出对象、工具名与异常。
+ * <p>输入：摘要输入契约、输出对象、工具名与异常。
  * <p>输出：统一摘要结构映射。
  * <p>边界：摘要开关关闭时返回空映射。
  */
@@ -71,27 +70,25 @@ public class StepOutputSummaryBuilder {
     /**
      * 构建摘要。
      *
-     * @param record 步骤记录
-     * @param stepInput 步骤输入
-     * @param output 输出
-     * @param toolName 工具名称
-     * @param error 错误对象
+     * @param input 摘要输入契约
      * @return 摘要结果
      */
-    public Map<String, Object> build(StepRecord record,
-                                     Map<String, Object> stepInput,
-                                     Object output,
-                                     String toolName,
-                                     Object error) {
+    public Map<String, Object> build(StepSummaryBuildInput input) {
         if (!isEnabled()) {
             return Collections.emptyMap();
         }
 
-        String stepId = record != null ? record.getStepId() : null;
-        String stepType = record != null ? record.getType() : null;
-        String status = record != null && record.getStatus() != null ? record.getStatus().name() : null;
-        Integer attempt = record != null ? record.getAttempt() : null;
-        Map<String, Object> effectiveInput = stepInput != null ? stepInput : record != null ? record.getInput() : null;
+        StepSummaryBuildInput safeInput = input == null ? StepSummaryBuildInput.builder().build() : input;
+
+        String stepId = safeInput.getStepId();
+        String stepType = safeInput.getStepType();
+        String status = safeInput.getStatus();
+        Integer attempt = safeInput.getAttempt();
+        Map<String, Object> effectiveInput = safeInput.getStepInput();
+        Object output = safeInput.getOutput();
+        String toolName = safeInput.getToolName();
+        Object error = safeInput.getError();
+        String inputSource = safeInput.getInputSource();
 
         SummaryLimits limits = SummaryLimits.from(properties);
         TruncationState truncation = new TruncationState();
@@ -128,7 +125,7 @@ public class StepOutputSummaryBuilder {
 
         Map<String, Object> toolResultSummary = new LinkedHashMap<>();
         if (StringUtils.hasText(resolvedToolName)) {
-            toolResultSummary.put(OutputKeys.TOOL_NAME, resolvedToolName);
+            toolResultSummary.put(RuntimeOutputKeys.TOOL_NAME, resolvedToolName);
         }
         if (toolSnapshot.getKeys() != null && !toolSnapshot.getKeys().isEmpty()) {
             toolResultSummary.put("resultKeys", toolSnapshot.getKeys());
@@ -145,7 +142,7 @@ public class StepOutputSummaryBuilder {
             stepSummary.put("attempt", attempt);
         }
         if (StringUtils.hasText(resolvedToolName)) {
-            stepSummary.put(OutputKeys.TOOL_NAME, resolvedToolName);
+            stepSummary.put(RuntimeOutputKeys.TOOL_NAME, resolvedToolName);
         }
         String summaryText = stepSummaryTextService.buildStepSummaryText(
                 stepType,
@@ -165,34 +162,34 @@ public class StepOutputSummaryBuilder {
                 resolvedToolName,
                 limits,
                 inputTruncation,
-                stepInput != null ? "stepInput" : "record"
+                inputSource
         );
         OutputSnapshot inputSnapshot = summarySnapshotService.buildSnapshot(effectiveInput, limits, inputTruncation);
 
         Map<String, Object> inputDigest = new LinkedHashMap<>();
-        inputDigest.put(OutputKeys.KEY_COUNT, inputSnapshot.getKeyCount());
-        inputDigest.put(OutputKeys.KEYS, inputSnapshot.getKeys());
-        inputDigest.put(OutputKeys.CHAR_COUNT, inputSnapshot.getCharCount());
-        inputDigest.put(OutputKeys.TRUNCATED, inputTruncation.isTruncated());
+        inputDigest.put(RuntimeOutputKeys.KEY_COUNT, inputSnapshot.getKeyCount());
+        inputDigest.put(RuntimeOutputKeys.KEYS, inputSnapshot.getKeys());
+        inputDigest.put(RuntimeOutputKeys.CHAR_COUNT, inputSnapshot.getCharCount());
+        inputDigest.put(RuntimeOutputKeys.TRUNCATED, inputTruncation.isTruncated());
 
         Map<String, Object> outputDigest = new LinkedHashMap<>();
-        outputDigest.put(OutputKeys.KEY_COUNT, snapshot.getKeyCount());
-        outputDigest.put(OutputKeys.KEYS, snapshot.getKeys());
-        outputDigest.put(OutputKeys.CHAR_COUNT, snapshot.getCharCount());
-        outputDigest.put(OutputKeys.TRUNCATED, truncation.isTruncated());
+        outputDigest.put(RuntimeOutputKeys.KEY_COUNT, snapshot.getKeyCount());
+        outputDigest.put(RuntimeOutputKeys.KEYS, snapshot.getKeys());
+        outputDigest.put(RuntimeOutputKeys.CHAR_COUNT, snapshot.getCharCount());
+        outputDigest.put(RuntimeOutputKeys.TRUNCATED, truncation.isTruncated());
 
         Map<String, Object> result = new LinkedHashMap<>();
-        result.put(OutputKeys.OUTPUT_SUMMARY, outputSummary);
-        result.put(OutputKeys.TOOL_RESULT_SUMMARY, toolResultSummary);
-        result.put(OutputKeys.STEP_SUMMARY, stepSummary);
+        result.put(RuntimeOutputKeys.OUTPUT_SUMMARY, outputSummary);
+        result.put(RuntimeOutputKeys.TOOL_RESULT_SUMMARY, toolResultSummary);
+        result.put(RuntimeOutputKeys.STEP_SUMMARY, stepSummary);
         if (inputSummary != null && !inputSummary.isEmpty()) {
-            result.put(OutputKeys.INPUT_SUMMARY, inputSummary);
+            result.put(RuntimeOutputKeys.INPUT_SUMMARY, inputSummary);
         }
         if (inputSnapshot.getKeyCount() > 0 || inputSnapshot.getCharCount() > 0) {
-            result.put(OutputKeys.INPUT_DIGEST, inputDigest);
+            result.put(RuntimeOutputKeys.INPUT_DIGEST, inputDigest);
         }
-        result.put(OutputKeys.OUTPUT_DIGEST, outputDigest);
-        result.put(OutputKeys.TRUNCATED, truncation.isTruncated());
+        result.put(RuntimeOutputKeys.OUTPUT_DIGEST, outputDigest);
+        result.put(RuntimeOutputKeys.TRUNCATED, truncation.isTruncated());
         return result;
     }
 
@@ -200,11 +197,11 @@ public class StepOutputSummaryBuilder {
         if (!(output instanceof Map<?, ?> map) || map.isEmpty()) {
             return null;
         }
-        Object rawResult = map.get(OutputKeys.RAW_RESULT);
+        Object rawResult = map.get(RuntimeOutputKeys.RAW_RESULT);
         if (rawResult != null) {
             return rawResult;
         }
-        Object result = map.get(OutputKeys.RESULT);
+        Object result = map.get(RuntimeOutputKeys.RESULT);
         if (result != null) {
             return result;
         }
@@ -222,7 +219,7 @@ public class StepOutputSummaryBuilder {
         Map<String, Object> summary = new LinkedHashMap<>();
         String resolvedToolName = stepSummaryTextService.resolveToolName(toolName, input);
         if (StringUtils.hasText(resolvedToolName)) {
-            summary.put(OutputKeys.TOOL_NAME, resolvedToolName);
+            summary.put(RuntimeOutputKeys.TOOL_NAME, resolvedToolName);
         }
         if (input != null && !input.isEmpty()) {
             summaryDigestService.putTextSummary(summary, "query", input.get("query"), limits, truncation);

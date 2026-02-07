@@ -1,6 +1,6 @@
 package com.example.agent.runtime.summary;
 
-import com.example.agent.runtime.output.OutputFieldExtractor;
+import com.example.agent.runtime.contract.RuntimeOutputFieldExtractor;
 import com.example.agent.runtime.summary.SummaryComputationModels.OutputSnapshot;
 import com.example.agent.runtime.summary.SummaryComputationModels.SummaryLimits;
 import com.example.agent.runtime.summary.SummaryComputationModels.TruncationState;
@@ -36,7 +36,7 @@ public class StepSummaryTextService {
         if (output instanceof Map<?, ?> map) {
             @SuppressWarnings("unchecked")
             Map<String, Object> typed = (Map<String, Object>) map;
-            return OutputFieldExtractor.resolveToolName(typed);
+            return RuntimeOutputFieldExtractor.resolveToolName(typed);
         }
         return null;
     }

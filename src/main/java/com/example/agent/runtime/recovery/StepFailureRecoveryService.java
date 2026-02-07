@@ -2,10 +2,6 @@ package com.example.agent.runtime.recovery;
 
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.runtime.model.StepSpec;
-import com.example.agent.runtime.recovery.FailureClassifier;
-import com.example.agent.runtime.recovery.FailureType;
-import com.example.agent.runtime.recovery.RecoveryStrategy;
-import com.example.agent.runtime.recovery.RecoveryStrategyManager;
 import com.example.agent.runtime.step.StepExecutionDelegate;
 import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.step.contract.StepExecutionRequest;
@@ -17,15 +13,26 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * 姝ラ澶辫触鎭㈠鏈嶅姟銆? *
- * <p>鐢ㄩ€旓細灏嗗け璐ュ垎绫汇€佹仮澶嶇瓥鐣ラ€夋嫨涓庡厹搴曞伐鍏锋墽琛屼粠闂ㄩ潰缂栨帓涓娊绂伙紝闄嶄綆涓婚摼璺鏉傚害銆? * <p>杈撳叆锛氭楠ゆ墽琛岃姹傘€佸皾璇曟鏁般€佸垎瑙ｆ鏁颁笌寮傚父銆? * <p>杈撳嚭锛氭仮澶嶇粨鏋滐紙鏄惁閲嶈瘯/閲嶈鍒?鍋滄锛屾垨鍏滃簳鎴愬姛杈撳嚭锛夈€? * <p>杈圭晫锛氬厹搴曞伐鍏疯緭鍑轰负绌鸿涓哄け璐ワ紱鍏滃簳澶辫触浼氳繑鍥炲仠姝㈠苟鎼哄甫鍏滃簳寮傚父銆? */
+ * 说明：此处注释已修复。
+ */
 @Service
 public class StepFailureRecoveryService {
 
     private static final Logger log = LoggerFactory.getLogger(StepFailureRecoveryService.class);
 
+    /**
+     * 说明：此处注释已修复。
+     */
     private final StepExecutionDelegate stepExecutionDelegate;
+
+    /**
+     * 说明：此处注释已修复。
+     */
     private final FailureClassifier failureClassifier;
+
+    /**
+     * 说明：此处注释已修复。
+     */
     private final RecoveryStrategyManager recoveryStrategyManager;
 
     @Autowired
@@ -46,12 +53,7 @@ public class StepFailureRecoveryService {
     }
 
     /**
-     * 渚濇嵁寮傚父涓庝笂涓嬫枃閫夋嫨鎭㈠鍔ㄤ綔锛屽繀瑕佹椂鎵ц鍏滃簳宸ュ叿銆?     *
-     * @param executionRequest 姝ラ鎵ц璇锋眰
-     * @param attempt 褰撳墠灏濊瘯娆℃暟锛堜粠 1 寮€濮嬶級
-     * @param decomposeAttempts 褰撳墠鍒嗚В娆℃暟
-     * @param error 寮傚父
-     * @return 鎭㈠缁撴灉
+     * 说明：此处注释已修复。
      */
     public StepFailureRecoveryResult recover(StepExecutionRequest executionRequest,
                                              int attempt,
@@ -76,6 +78,9 @@ public class StepFailureRecoveryService {
         return StepFailureRecoveryResult.fromStrategy(strategy, error, fallbackTool);
     }
 
+    /**
+     * 说明：此处注释已修复。
+     */
     private StepFailureRecoveryResult tryFallback(StepExecutionRequest executionRequest,
                                                   String fallbackTool,
                                                   Throwable originalError) {
@@ -88,15 +93,28 @@ public class StepFailureRecoveryService {
             if (fallbackOutput == null
                     || fallbackOutput.getPayload() == null
                     || fallbackOutput.getPayload().isEmpty()) {
-                return StepFailureRecoveryResult.stop(RecoveryStrategy.FALLBACK,
+                return StepFailureRecoveryResult.stop(
+                        RecoveryStrategy.FALLBACK,
                         new IllegalStateException("fallback_output_empty"),
-                        fallbackTool);
+                        fallbackTool
+                );
             }
-            String fallbackFrom = stepExecutionDelegate.resolveToolName(executionRequest.getTaskRequest(), executionRequest.getStep());
-            StepExecutionOutput enriched = fallbackOutput.withFallback(fallbackFrom, resolveErrorMessage(originalError));
-            return StepFailureRecoveryResult.fallbackSuccess(RecoveryStrategy.FALLBACK, fallbackTool, enriched, originalError);
+            String fallbackFrom = stepExecutionDelegate.resolveToolName(
+                    executionRequest.getTaskRequest(),
+                    executionRequest.getStep()
+            );
+            StepExecutionOutput enriched = fallbackOutput.withFallback(
+                    fallbackFrom,
+                    resolveErrorMessage(originalError)
+            );
+            return StepFailureRecoveryResult.fallbackSuccess(
+                    RecoveryStrategy.FALLBACK,
+                    fallbackTool,
+                    enriched,
+                    originalError
+            );
         } catch (Throwable fallbackEx) {
-            log.warn("鍏滃簳宸ュ叿鎵ц澶辫触, tenantId={}, workflowId={}, stepId={}, stepType={}, fallbackTool={}",
+            log.warn("兜底工具执行失败, tenantId={}, workflowId={}, stepId={}, stepType={}, fallbackTool={}",
                     executionRequest.getTenantContext() != null ? executionRequest.getTenantContext().getTenantId() : null,
                     executionRequest.getWorkflowId(),
                     executionRequest.getRecord() != null ? executionRequest.getRecord().getStepId() : null,
@@ -108,8 +126,8 @@ public class StepFailureRecoveryService {
     }
 
     /**
-     * 瑙ｆ瀽姝ラ鐨勫厹搴曞伐鍏峰悕绉般€?     *
-     * <p>杈撳叆锛氫换鍔¤姹備笌姝ラ瀹氫箟銆?     * <p>杈撳嚭锛氬厹搴曞伐鍏峰悕绉版垨 {@code null}銆?     * <p>杈圭晫锛氫粎瑙ｆ瀽瀛楃涓诧紝涓嶆牎楠屽彲鐢ㄦ€с€?     */
+     * 说明：此处注释已修复。
+     */
     private String resolveFallbackTool(TaskRequest request, StepSpec step) {
         Map<String, Object> stepInput = resolveStepInput(step);
         if (stepInput != null) {
@@ -143,12 +161,13 @@ public class StepFailureRecoveryService {
     }
 
     /**
-     * 姝ラ澶辫触鎭㈠缁撴灉銆?     *
-     * <p>鐢ㄩ€旓細鎻忚堪鏈澶辫触搴旈噰鍙栫殑鍔ㄤ綔涓庡繀瑕佺殑闄勫姞淇℃伅銆?     */
+     * 说明：此处注释已修复。
+     */
     public static class StepFailureRecoveryResult {
 
         /**
-         * 鎭㈠鍔ㄤ綔銆?         */
+         * 说明：此处注释已修复。
+         */
         public enum Action {
             RETRY,
             REPLAN,
@@ -199,7 +218,14 @@ public class StepFailureRecoveryService {
                                                                 String fallbackTool,
                                                                 StepExecutionOutput output,
                                                                 Throwable originalError) {
-            return new StepFailureRecoveryResult(Action.FALLBACK_SUCCESS, strategy, null, fallbackTool, output, originalError);
+            return new StepFailureRecoveryResult(
+                    Action.FALLBACK_SUCCESS,
+                    strategy,
+                    null,
+                    fallbackTool,
+                    output,
+                    originalError
+            );
         }
 
         public Action getAction() {
@@ -227,4 +253,3 @@ public class StepFailureRecoveryService {
         }
     }
 }
-

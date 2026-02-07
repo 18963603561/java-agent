@@ -1,6 +1,6 @@
 package com.example.agent.runtime.summary;
 
-import com.example.agent.runtime.output.OutputKeys;
+import com.example.agent.runtime.contract.RuntimeOutputKeys;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.util.StringUtils;
@@ -55,8 +55,8 @@ public final class StepOutputSummaryView {
      */
     public Map<String, Object> toReflectionContext(int maxSummaryChars) {
         Map<String, Object> context = new HashMap<>();
-        Map<String, Object> outputSummary = copyObjectMap(summaryView.get(OutputKeys.OUTPUT_SUMMARY));
-        Map<String, Object> outputDigest = copyObjectMap(summaryView.get(OutputKeys.OUTPUT_DIGEST));
+        Map<String, Object> outputSummary = copyObjectMap(summaryView.get(RuntimeOutputKeys.OUTPUT_SUMMARY));
+        Map<String, Object> outputDigest = copyObjectMap(summaryView.get(RuntimeOutputKeys.OUTPUT_DIGEST));
 
         String summaryText = readSummaryText(outputSummary);
         if (!StringUtils.hasText(summaryText)) {
@@ -65,10 +65,10 @@ public final class StepOutputSummaryView {
                 summaryText = "(summary disabled)";
             }
         }
-        outputSummary.put(OutputKeys.SUMMARY, truncateSummary(summaryText, maxSummaryChars));
-        context.put(OutputKeys.OUTPUT_SUMMARY, outputSummary);
+        outputSummary.put(RuntimeOutputKeys.SUMMARY, truncateSummary(summaryText, maxSummaryChars));
+        context.put(RuntimeOutputKeys.OUTPUT_SUMMARY, outputSummary);
         if (!outputDigest.isEmpty()) {
-            context.put(OutputKeys.OUTPUT_DIGEST, outputDigest);
+            context.put(RuntimeOutputKeys.OUTPUT_DIGEST, outputDigest);
         }
         return context;
     }
@@ -77,7 +77,7 @@ public final class StepOutputSummaryView {
         if (outputSummary == null || outputSummary.isEmpty()) {
             return null;
         }
-        Object value = outputSummary.get(OutputKeys.SUMMARY);
+        Object value = outputSummary.get(RuntimeOutputKeys.SUMMARY);
         return value == null ? null : value.toString();
     }
 
@@ -95,15 +95,15 @@ public final class StepOutputSummaryView {
             return null;
         }
         StringBuilder builder = new StringBuilder("digest:");
-        appendDigestField(builder, OutputKeys.KEY_COUNT, digest.get(OutputKeys.KEY_COUNT));
-        appendDigestField(builder, OutputKeys.KEYS, digest.get(OutputKeys.KEYS));
-        Object charCount = digest.get(OutputKeys.CHAR_COUNT);
+        appendDigestField(builder, RuntimeOutputKeys.KEY_COUNT, digest.get(RuntimeOutputKeys.KEY_COUNT));
+        appendDigestField(builder, RuntimeOutputKeys.KEYS, digest.get(RuntimeOutputKeys.KEYS));
+        Object charCount = digest.get(RuntimeOutputKeys.CHAR_COUNT);
         if (charCount != null) {
-            boolean truncated = Boolean.TRUE.equals(digest.get(OutputKeys.TRUNCATED));
-            String field = truncated ? OutputKeys.CHAR_COUNT + "<=" : OutputKeys.CHAR_COUNT;
+            boolean truncated = Boolean.TRUE.equals(digest.get(RuntimeOutputKeys.TRUNCATED));
+            String field = truncated ? RuntimeOutputKeys.CHAR_COUNT + "<=" : RuntimeOutputKeys.CHAR_COUNT;
             appendDigestField(builder, field, charCount);
         }
-        appendDigestField(builder, OutputKeys.TRUNCATED, digest.get(OutputKeys.TRUNCATED));
+        appendDigestField(builder, RuntimeOutputKeys.TRUNCATED, digest.get(RuntimeOutputKeys.TRUNCATED));
         return builder.toString();
     }
 
@@ -133,4 +133,3 @@ public final class StepOutputSummaryView {
         return text.substring(0, endIndex) + SUMMARY_TRUNCATED_SUFFIX;
     }
 }
-

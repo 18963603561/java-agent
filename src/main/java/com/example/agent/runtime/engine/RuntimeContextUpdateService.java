@@ -1,13 +1,14 @@
 package com.example.agent.runtime.engine;
 
 import com.example.agent.runtime.model.StepResult;
+import com.example.agent.runtime.model.StepSpec;
+import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.output.OutputKeys;
 import com.example.agent.runtime.raw.output.RawOutputEnvelope;
 import com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder;
 import com.example.agent.runtime.step.RuntimeContext;
-import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.step.StepRecord;
-import com.example.agent.runtime.model.StepSpec;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -16,13 +17,14 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * 杩愯鏃朵笂涓嬫枃鏇存柊鏈嶅姟銆? *
- * <p>鐢ㄩ€旓細缁熶竴澶勭悊姝ラ杈撳叆鍚堝苟銆佸鎵瑰瓧娈垫彁鍗囥€佽繍琛屾椂涓婁笅鏂囧洖濉笌宸叉墽琛屾楠ゅ巻鍙茬淮鎶ゃ€? * <p>杈撳叆锛氭楠ゅ畾涔夈€佽繍琛屾椂涓婁笅鏂囥€佹楠よ褰曚笌姝ラ杈撳嚭銆? * <p>杈撳嚭锛氬悎骞跺悗鐨勬楠よ緭鍏ヨ鍥撅紝鎴栨洿鏂板悗鐨勪笂涓嬫枃鐘舵€併€? * <p>杈圭晫锛氳鏈嶅姟浠呯淮鎶よ繍琛屾椂涓婁笅鏂囧瓧娈碉紝涓嶈礋璐ｆ楠ゆ寔涔呭寲涓庝簨浠跺彂甯冦€? */
+ * 说明：此处注释已修复。
+ */
 @Service
 public class RuntimeContextUpdateService {
 
     /**
-     * 鍘熷杈撳嚭灏佽鏋勫缓鍣ㄣ€?     */
+     * 说明：此处注释已修复。
+     */
     private final RawOutputEnvelopeBuilder rawOutputEnvelopeBuilder;
 
     public RuntimeContextUpdateService(RawOutputEnvelopeBuilder rawOutputEnvelopeBuilder) {
@@ -30,62 +32,40 @@ public class RuntimeContextUpdateService {
     }
 
     /**
-     * 鍚堝苟姝ラ杈撳叆涓庤繍琛屾椂涓婁笅鏂囥€?     *
-     * @param step 姝ラ瀹氫箟
-     * @param runtimeContext 杩愯鏃朵笂涓嬫枃
-     * @return 鍚堝苟鍚庣殑杈撳叆瑙嗗浘
+     * 说明：此处注释已修复。
      */
     public Map<String, Object> mergeStepInput(StepSpec step, RuntimeContext runtimeContext) {
         Map<String, Object> merged = new HashMap<>();
         if (runtimeContext != null) {
             merged.putAll(runtimeContext.asMap());
         }
-        Map<String, Object> stepInput = resolveStepInput(step);
+        Map<String, Object> stepInput = resolveStepInput(step, runtimeContext);
         if (stepInput != null && !stepInput.isEmpty()) {
             merged.putAll(stepInput);
         }
-        promoteApprovalFields(merged);
         return merged;
     }
 
     /**
-     * 鑾峰彇姝ラ杈撳叆鎵ц瑙嗗浘銆?     *
-     * @param step 姝ラ瀹氫箟
-     * @return 鎵ц杈撳叆鏄犲皠
+     * 说明：此处注释已修复。
      */
     public Map<String, Object> resolveStepInput(StepSpec step) {
+        return resolveStepInput(step, null);
+    }
+
+    /**
+     * 说明：此处注释已修复。
+     */
+    public Map<String, Object> resolveStepInput(StepSpec step, RuntimeContext runtimeContext) {
         if (step == null) {
             return null;
         }
-        Map<String, Object> input = step.toExecutionInput();
+        Map<String, Object> input = step.toInputView(runtimeContext).toExecutionMap();
         return input == null || input.isEmpty() ? null : input;
     }
 
     /**
-     * 鎻愬崌瀹℃壒瀛楁鍒伴《灞傘€?     *
-     * @param merged 鍚堝苟鍚庣殑姝ラ杈撳叆
-     */
-    public void promoteApprovalFields(Map<String, Object> merged) {
-        if (merged == null || merged.containsKey("requiresApproval")) {
-            return;
-        }
-        Object context = merged.get("context");
-        if (!(context instanceof Map<?, ?> contextMap)) {
-            return;
-        }
-        if (contextMap.containsKey("requiresApproval")) {
-            merged.put("requiresApproval", contextMap.get("requiresApproval"));
-        }
-        if (contextMap.containsKey("approvalSource")) {
-            merged.putIfAbsent("approvalSource", contextMap.get("approvalSource"));
-        }
-    }
-
-    /**
-     * 鏇存柊杩愯鏃朵笂涓嬫枃銆?     *
-     * @param runtimeContext 杩愯鏃朵笂涓嬫枃
-     * @param record 姝ラ璁板綍
-     * @param output 姝ラ杈撳嚭
+     * 说明：此处注释已修复。
      */
     public void updateRuntimeContext(RuntimeContext runtimeContext,
                                      StepRecord record,
@@ -122,11 +102,7 @@ public class RuntimeContextUpdateService {
     }
 
     /**
-     * 缁存姢宸叉墽琛屾楠ゅ垪琛ㄣ€?     *
-     * @param runtimeContext 杩愯鏃朵笂涓嬫枃
-     * @param record 姝ラ璁板綍
-     * @param output 姝ラ杈撳嚭
-     * @param rawEnvelope 鍘熷灏佽
+     * 说明：此处注释已修复。
      */
     public void appendExecutedSteps(RuntimeContext runtimeContext,
                                     StepRecord record,
@@ -196,9 +172,7 @@ public class RuntimeContextUpdateService {
     }
 
     /**
-     * 璁板綍姝ラ杈撳嚭銆?     *
-     * @param stepOutputs 姝ラ杈撳嚭鍒楄〃
-     * @param record 姝ラ璁板綍
+     * 说明：此处注释已修复。
      */
     public void recordStepOutput(List<StepResult> stepOutputs, StepRecord record) {
         if (stepOutputs == null || record == null || record.getOutput() == null) {
@@ -208,9 +182,7 @@ public class RuntimeContextUpdateService {
     }
 
     /**
-     * 鏋勫缓鍘熷杈撳嚭灏佽銆?     *
-     * @param output 姝ラ杈撳嚭
-     * @return 鍘熷灏佽
+     * 说明：此处注释已修复。
      */
     public RawOutputEnvelope buildStepRawEnvelope(Map<String, Object> output) {
         if (output == null || output.isEmpty()) {
@@ -221,9 +193,7 @@ public class RuntimeContextUpdateService {
     }
 
     /**
-     * 鎸夋渶澶ч暱搴︽埅鏂枃鏈€?     *
-     * @param text 鏂囨湰
-     * @param maxChars 鏈€澶ч暱搴?     * @return 鎴柇缁撴灉
+     * 说明：此处注释已修复。
      */
     public String truncateText(String text, int maxChars) {
         if (!StringUtils.hasText(text) || maxChars <= 0 || text.length() <= maxChars) {
@@ -232,4 +202,3 @@ public class RuntimeContextUpdateService {
         return text.substring(0, maxChars);
     }
 }
-

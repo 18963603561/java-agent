@@ -4,14 +4,14 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
 
 /**
- * 鏈€缁堣緭鍑烘彁绀鸿瘝閰嶇疆锛岀敤浜庢帶鍒舵姽瑕佸瓧绗︽暟涓婇檺銆?
+ * 最终输出提示词配置，用于控制摘要字符数上限。
  */
 @Component
 @ConfigurationProperties(prefix = "agent.final-output")
 public class FinalOutputProperties {
 
     /**
-     * 鏈€缁堣緭鍑烘彁绀鸿瘝涓憳瑕佹湁鏁堝瓧绗︽暟涓婇檺銆?
+     * 最终输出提示词中摘要有效字符数上限。
      */
     private int promptSummaryMaxChars = 800;
 

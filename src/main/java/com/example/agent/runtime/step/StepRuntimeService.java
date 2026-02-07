@@ -42,6 +42,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder;
 import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
+import com.example.agent.runtime.summary.StepSummaryBuildInput;
 
 /**
  * 步骤运行时服务，负责步骤记录落地与事件发布。
@@ -145,13 +146,16 @@ public class StepRuntimeService {
                         record.getStatus() != null ? record.getStatus().name() : null);
             }
             long summaryStart = System.nanoTime();
-            summary = stepOutputSummaryBuilder.build(
-                    record,
-                    null,
-                    rawOutput,
-                    output != null ? output.getToolName() : null,
-                    null
-            );
+            summary = stepOutputSummaryBuilder.build(StepSummaryBuildInput.builder()
+                    .stepId(record.getStepId())
+                    .stepType(record.getType())
+                    .status(record.getStatus() != null ? record.getStatus().name() : null)
+                    .attempt(record.getAttempt())
+                    .stepInput(record.getInput())
+                    .inputSource("record")
+                    .output(rawOutput)
+                    .toolName(output != null ? output.getToolName() : null)
+                    .build());
             long summaryMs = (System.nanoTime() - summaryStart) / 1_000_000;
                 if (summary != null && !summary.isEmpty()) {
                 Map<String, Object> digest = summary.get(OutputKeys.OUTPUT_DIGEST) instanceof Map<?, ?> map
