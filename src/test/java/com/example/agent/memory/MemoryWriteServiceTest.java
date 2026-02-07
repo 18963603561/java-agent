@@ -2,7 +2,7 @@ package com.example.agent.memory;
 
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.runtime.engine.RuntimeResult;
+import com.example.agent.runtime.model.RuntimeResult;
 import com.example.agent.security.redaction.RedactionProperties;
 import com.example.agent.security.redaction.RedactionService;
 import com.fasterxml.jackson.databind.ObjectMapper;

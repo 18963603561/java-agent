@@ -9,7 +9,7 @@ import com.example.agent.capabilities.llm.ModelToolResolver;
 import com.example.agent.capabilities.llm.PromptAssembler;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.runtime.model.StepSpec;
-import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -119,7 +119,7 @@ class ReflectionServiceTest {
         ReflectionService service = new ReflectionService(properties, metricsPublisher,
                 modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper(), repairService);
 
-        String badContent = "说明:{\"score\":0.9,\"retry\":false,\"notes\":\"ok\"}后缀";
+        String badContent = "璇存槑:{\"score\":0.9,\"retry\":false,\"notes\":\"ok\"}鍚庣紑";
         String repaired = "{\"score\":0.9,\"retry\":false,\"notes\":\"ok\"}";
         when(modelInvocationService.invoke(any(ModelRequest.class), any(ModelScene.class),
                 any(), any(), any(), any(), any()))
@@ -152,7 +152,7 @@ class ReflectionServiceTest {
         ReflectionService service = new ReflectionService(properties, metricsPublisher,
                 modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper(), repairService);
 
-        String badContent = "无法解析";
+        String badContent = "鏃犳硶瑙ｆ瀽";
         when(modelInvocationService.invoke(any(ModelRequest.class), any(ModelScene.class),
                 any(), any(), any(), any(), any()))
                 .thenReturn(new ModelResponse("reflect", badContent, 10, 20),
@@ -275,3 +275,4 @@ class ReflectionServiceTest {
         assertTrue(summary.contains("truncated=true"));
     }
 }
+

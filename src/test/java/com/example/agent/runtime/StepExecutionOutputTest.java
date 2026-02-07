@@ -1,6 +1,6 @@
 package com.example.agent.runtime;
 
-import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -69,3 +69,4 @@ class StepExecutionOutputTest {
         assertNull(output.getRawRef());
     }
 }
+

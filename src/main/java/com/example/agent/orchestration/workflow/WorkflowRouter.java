@@ -3,7 +3,7 @@ package com.example.agent.orchestration.workflow;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.runtime.engine.AgentRuntime;
-import com.example.agent.runtime.engine.RuntimeResult;
+import com.example.agent.runtime.model.RuntimeResult;
 import java.util.concurrent.atomic.AtomicLong;
 import org.springframework.stereotype.Service;
 

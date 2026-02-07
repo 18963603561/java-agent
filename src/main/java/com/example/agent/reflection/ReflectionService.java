@@ -10,7 +10,7 @@ import com.example.agent.capabilities.llm.PromptAssembler;
 import com.example.agent.capabilities.llm.PromptBundle;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.runtime.model.StepSpec;
-import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.summary.StepOutputSummaryView;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.capabilities.llm.repair.JsonOutputSchema;

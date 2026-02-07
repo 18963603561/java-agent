@@ -3,8 +3,8 @@ package com.example.agent.runtime.step.executor;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.reasoning.cot.ChainOfThoughtResult;
 import com.example.agent.reasoning.cot.ChainOfThoughtService;
-import com.example.agent.runtime.step.StepExecutionRequest;
-import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.stereotype.Component;
@@ -12,10 +12,10 @@ import org.springframework.stereotype.Component;
 /**
  * 链式推理步骤执行器。
  *
- * <p>用途：封装 {@code CHAIN_OF_THOUGHT}/{@code COT} 步骤执行逻辑，输出结构化摘要以避免暴露推理细节。
- * <p>输入：任务请求、步骤输入与链路上下文。
- * <p>输出：链式推理输出映射。
- * <p>边界：异常由上层捕获并按恢复策略处理。
+ * <p>用途：封装 {@code CHAIN_OF_THOUGHT}/{@code COT} 步骤执行逻辑，输出结构化摘要结果。
+ * <p>输入：任务请求、步骤输入与运行上下文。
+ * <p>输出：链式推理结果映射。
+ * <p>边界：异常由上层统一捕获并按恢复策略处理。
  */
 @Component
 public class ChainOfThoughtStepExecutor implements StepTypeExecutor {
@@ -46,6 +46,7 @@ public class ChainOfThoughtStepExecutor implements StepTypeExecutor {
                 request.getWorkflowId(),
                 request.getSeqCounter()
         );
+
         Map<String, Object> output = new HashMap<>();
         output.put("finalAnswer", result.getFinalAnswer());
         output.put("stepsCount", result.getStepsCount());
@@ -86,3 +87,4 @@ public class ChainOfThoughtStepExecutor implements StepTypeExecutor {
         return "";
     }
 }
+

@@ -1,8 +1,10 @@
-package com.example.agent.runtime.step;
+package com.example.agent.runtime.step.contract;
 
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.runtime.control.RuntimeControlEventPublisher;
 import com.example.agent.runtime.model.StepSpec;
+import com.example.agent.runtime.step.RuntimeContext;
+import com.example.agent.runtime.step.StepRecord;
 import com.example.agent.security.auth.TenantContext;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
@@ -10,10 +12,10 @@ import java.util.concurrent.atomic.AtomicLong;
 /**
  * 步骤执行请求对象。
  *
- * <p>用途：为步骤执行器提供显式输入，避免在组件间透传大量参数。
- * <p>输入：步骤定义、任务请求、合并后的步骤输入、运行上下文与链路上下文。
- * <p>输出：供步骤执行器生成输出映射，并由上层统一完成记录/反思/恢复。
- * <p>边界：{@code stepInput} 为本次执行的临时合并视图；{@code runtimeContext} 为跨步骤共享的运行上下文。
+ * <p>用途：为步骤执行器提供统一的执行入参，集中承载步骤定义、任务上下文与链路信息。
+ * <p>输入：步骤定义、任务请求、步骤输入、运行时上下文、租户与链路标识。
+ * <p>输出：作为执行器执行过程中的只读上下文载体。
+ * <p>边界：{@code stepInput} 是本次执行的临时合并视图，{@code runtimeContext} 是跨步骤共享上下文。
  */
 public class StepExecutionRequest {
 
@@ -63,7 +65,7 @@ public class StepExecutionRequest {
     private final StepRecord record;
 
     /**
-     * 运行时事件发布器（由门面注入）。
+     * 运行时事件发布器。
      */
     private final RuntimeControlEventPublisher eventPublisher;
 

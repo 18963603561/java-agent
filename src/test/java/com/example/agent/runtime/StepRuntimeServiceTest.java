@@ -18,6 +18,10 @@ import com.example.agent.runtime.step.StepState;
 import com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder;
 import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
 import com.example.agent.runtime.summary.StepSummaryProperties;
+import com.example.agent.runtime.summary.SummaryDigestService;
+import com.example.agent.runtime.summary.SummaryInputSanitizer;
+import com.example.agent.runtime.summary.SummarySnapshotService;
+import com.example.agent.runtime.summary.StepSummaryTextService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -32,7 +36,13 @@ class StepRuntimeServiceTest {
         properties.setMaxChars(200);
         properties.setMaxListItems(5);
         properties.setMaxFieldChars(50);
-        StepOutputSummaryBuilder builder = new StepOutputSummaryBuilder(properties);
+        StepOutputSummaryBuilder builder = new StepOutputSummaryBuilder(
+                properties,
+                new SummarySnapshotService(),
+                new SummaryInputSanitizer(),
+                new StepSummaryTextService(),
+                new SummaryDigestService()
+        );
         RawOutputEnvelopeBuilder rawBuilder = new RawOutputEnvelopeBuilder(properties);
 
         StepRuntimeService service = new StepRuntimeService(

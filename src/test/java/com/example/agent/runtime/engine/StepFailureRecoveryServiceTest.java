@@ -5,8 +5,8 @@ import com.example.agent.common.error.ErrorCodeProvider;
 import com.example.agent.runtime.model.StepSpec;
 import com.example.agent.runtime.recovery.StepFailureRecoveryService;
 import com.example.agent.runtime.step.StepExecutionDelegate;
-import com.example.agent.runtime.step.StepExecutionOutput;
-import com.example.agent.runtime.step.StepExecutionRequest;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import com.example.agent.runtime.step.RuntimeContext;
 import java.util.HashMap;
 import java.util.Map;
@@ -148,3 +148,4 @@ class StepFailureRecoveryServiceTest {
         }
     }
 }
+

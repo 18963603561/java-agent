@@ -52,15 +52,18 @@ import com.example.agent.runtime.control.ExecutionControlState;
 import com.example.agent.runtime.control.RuntimeApprovalGate;
 import com.example.agent.runtime.control.RuntimeExecutionGate;
 import com.example.agent.runtime.engine.AgentRuntime;
+import com.example.agent.runtime.engine.RuntimeContextUpdateService;
+import com.example.agent.runtime.engine.RuntimeEventDispatchService;
+import com.example.agent.runtime.engine.StepExecutionCoordinator;
 import com.example.agent.runtime.llm.LlmStepService;
 import com.example.agent.runtime.react.ReactLoopService;
-import com.example.agent.runtime.engine.RuntimeResult;
+import com.example.agent.runtime.model.RuntimeResult;
 import com.example.agent.runtime.prepare.RuntimePreparationService;
 import com.example.agent.runtime.finalize.RuntimeFinalizationService;
 import com.example.agent.runtime.recovery.StepFailureRecoveryService;
 import com.example.agent.runtime.recovery.RetryPolicy;
 import com.example.agent.runtime.step.StepExecutionDelegate;
-import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.step.StepRecord;
 import com.example.agent.runtime.step.StepRuntimeService;
 import com.example.agent.runtime.step.StepState;
@@ -186,23 +189,31 @@ class AgentRuntimeApprovalIntegrationTest {
         );
         StepFailureRecoveryService stepFailureRecoveryService = new StepFailureRecoveryService(stepExecutionDelegate, 1, 1);
         RetryPolicy retryPolicy = new RetryPolicy(50L, 200L, 0.1);
-
-        AgentRuntime runtime = new AgentRuntime(
-                plannerService,
-                reflectionService,
+        RuntimeEventDispatchService runtimeEventDispatchService = new RuntimeEventDispatchService(
+                eventPublisher,
+                tracingPublisher
+        );
+        RuntimeContextUpdateService runtimeContextUpdateService = new RuntimeContextUpdateService(rawOutputEnvelopeBuilder);
+        StepExecutionCoordinator stepExecutionCoordinator = new StepExecutionCoordinator(
                 stepRuntimeService,
                 reflectionSummaryBuilder,
-                rawOutputEnvelopeBuilder,
-                hookManager,
-                runtimePreparationService,
-                runtimeFinalizationService,
                 runtimeExecutionGate,
                 runtimeApprovalGate,
                 stepExecutionDelegate,
+                hookManager,
                 stepFailureRecoveryService,
                 retryPolicy,
-                eventPublisher,
-                tracingPublisher
+                reflectionService,
+                runtimeEventDispatchService,
+                runtimeContextUpdateService
+        );
+
+        AgentRuntime runtime = new AgentRuntime(
+                plannerService,
+                runtimePreparationService,
+                runtimeFinalizationService,
+                runtimeEventDispatchService,
+                stepExecutionCoordinator
         );
 
         TaskRequest request = new TaskRequest();
@@ -266,7 +277,8 @@ class AgentRuntimeApprovalIntegrationTest {
 
         @Override
         public void publishEvent(ApplicationEvent event) {
-            // 娑撳秴顦╅悶?ApplicationEvent 閸掑棙鏁?
+            // 濞戞挸绉撮ˇ鈺呮偠?ApplicationEvent 闁告帒妫欓弫?
         }
     }
 }
+

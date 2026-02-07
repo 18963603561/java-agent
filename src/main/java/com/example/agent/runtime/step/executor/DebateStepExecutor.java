@@ -3,8 +3,8 @@ package com.example.agent.runtime.step.executor;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.reasoning.debate.DebateCoordinator;
 import com.example.agent.reasoning.debate.DebateRound;
-import com.example.agent.runtime.step.StepExecutionRequest;
-import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.stereotype.Component;
@@ -13,9 +13,9 @@ import org.springframework.stereotype.Component;
  * 辩论步骤执行器。
  *
  * <p>用途：封装 {@code DEBATE} 步骤执行逻辑，生成稳定输出结构。
- * <p>输入：任务请求、步骤定义与链路上下文。
+ * <p>输入：任务请求、步骤定义与运行上下文。
  * <p>输出：辩论轮次摘要映射。
- * <p>边界：异常由上层捕获并按恢复策略处理。
+ * <p>边界：异常由上层统一捕获并按恢复策略处理。
  */
 @Component
 public class DebateStepExecutor implements StepTypeExecutor {
@@ -78,3 +78,4 @@ public class DebateStepExecutor implements StepTypeExecutor {
         return input == null || input.isEmpty() ? null : input;
     }
 }
+

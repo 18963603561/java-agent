@@ -12,7 +12,7 @@ import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.streaming.observability.TracingPublisher;
-import com.example.agent.runtime.engine.RuntimeResult;
+import com.example.agent.runtime.model.RuntimeResult;
 import com.example.agent.streaming.sse.EventStreamService;
 import java.time.Duration;
 import java.time.Instant;

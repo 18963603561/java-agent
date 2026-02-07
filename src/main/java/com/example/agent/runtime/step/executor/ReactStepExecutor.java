@@ -3,8 +3,8 @@ package com.example.agent.runtime.step.executor;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.runtime.react.ReactLoopResult;
 import com.example.agent.runtime.react.ReactLoopService;
-import com.example.agent.runtime.step.StepExecutionRequest;
-import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.HashMap;
 import java.util.Map;
 import org.springframework.stereotype.Component;
@@ -13,9 +13,9 @@ import org.springframework.stereotype.Component;
  * {@code ReAct} 步骤执行器。
  *
  * <p>用途：封装 {@code REACT} 步骤执行逻辑，输出稳定摘要结构。
- * <p>输入：任务请求、步骤输入与链路上下文。
+ * <p>输入：任务请求、步骤输入与运行上下文。
  * <p>输出：{@code ReAct} 执行结果映射。
- * <p>边界：异常由上层捕获并按恢复策略处理。
+ * <p>边界：异常由上层统一捕获并按恢复策略处理。
  */
 @Component
 public class ReactStepExecutor implements StepTypeExecutor {
@@ -75,3 +75,4 @@ public class ReactStepExecutor implements StepTypeExecutor {
         return copy;
     }
 }
+

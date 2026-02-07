@@ -3,7 +3,7 @@ package com.example.agent.runtime.finalize;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.memory.MemoryWriteService;
 import com.example.agent.planning.PlanResult;
-import com.example.agent.runtime.engine.RuntimeResult;
+import com.example.agent.runtime.model.RuntimeResult;
 import com.example.agent.runtime.model.StepResult;
 import com.example.agent.runtime.output.FinalOutputService;
 import com.example.agent.security.auth.TenantContext;

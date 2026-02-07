@@ -1,17 +1,36 @@
-package com.example.agent.runtime.engine;
+package com.example.agent.runtime.model;
 
-import com.example.agent.runtime.model.StepResult;
 import java.util.List;
 import java.util.Map;
 
 /**
- * 运行时结果，汇总规划、步骤与最终输出。
+ * 运行时结果对象。
+ *
+ * <p>用途：汇总规划标识、规划摘要、步骤结果与最终输出。
+ * <p>输入：由运行时收口阶段组装填充。
+ * <p>输出：供任务编排、记忆写入与接口层返回使用。
+ * <p>边界：字段均允许为空以覆盖空规划或执行失败场景。
  */
 public class RuntimeResult {
 
+    /**
+     * 规划标识。
+     */
     private String planId;
+
+    /**
+     * 规划摘要。
+     */
     private String planSummary;
+
+    /**
+     * 步骤结果列表。
+     */
     private List<StepResult> steps;
+
+    /**
+     * 最终输出。
+     */
     private Map<String, Object> finalOutput;
 
     public String getPlanId() {

@@ -22,6 +22,7 @@ import com.example.agent.runtime.structured.result.StructuredRefs;
 import com.example.agent.runtime.structured.result.StructuredResult;
 import com.example.agent.runtime.output.OutputFieldExtractor;
 import com.example.agent.runtime.output.OutputKeys;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.streaming.sse.EventStreamService;
 import java.time.Duration;
 import java.time.Instant;

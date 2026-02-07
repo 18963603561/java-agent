@@ -1,19 +1,19 @@
-package com.example.agent.runtime.step;
+package com.example.agent.runtime.step.contract;
 
+import com.example.agent.runtime.output.OutputFieldExtractor;
+import com.example.agent.runtime.summary.StepOutputSummaryView;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Objects;
-import com.example.agent.runtime.output.OutputFieldExtractor;
-import com.example.agent.runtime.summary.StepOutputSummaryView;
 
 /**
  * 步骤执行输出对象。
  *
- * <p>用途：作为步骤执行器的统一返回类型，承载原始输出快照与关键字段（rawRef/toolName 等）的显式化结果。
- * <p>输入：执行器产出的原始输出映射与可选的工具名称。
- * <p>输出：可用于反思、落库与上下文更新的输出对象。
- * <p>边界：{@code payload} 为外部/动态数据承载容器，允许包含任意键；主链路应优先使用本对象的显式字段。
+ * <p>用途：作为步骤执行器统一返回类型，承载原始输出、引用信息与摘要信息。
+ * <p>输入：执行器产生的原始输出映射与可选工具名。
+ * <p>输出：可用于反思、落库与上下文更新的稳定输出对象。
+ * <p>边界：{@code payload} 作为动态承载容器允许保留扩展字段，主流程应优先读取显式属性。
  */
 public final class StepExecutionOutput {
 
@@ -23,34 +23,32 @@ public final class StepExecutionOutput {
     private final Map<String, Object> payload;
 
     /**
-     * 工具名称（若为工具步骤或可解析时可填充）。
+     * 工具名称。
      */
     private final String toolName;
 
     /**
-     * 原始引用键（可解析时填充）。
+     * 原始数据引用键。
      */
     private final String rawRef;
 
     /**
-     * 引用集合（可解析时填充）。
+     * 引用集合。
      */
     private final Map<String, String> refs;
 
     /**
-     * 输出摘要（不可变视图）。
-     *
-     * <p>约定：该摘要为 {@code StepOutputSummaryBuilder.build(...)} 的返回值，用于反思与可观测性。
+     * 输出摘要。
      */
     private final Map<String, Object> summary;
 
     /**
-     * 兜底来源工具（可选）。
+     * 兜底来源工具。
      */
     private final String fallbackFrom;
 
     /**
-     * 兜底原因（可选）。
+     * 兜底原因。
      */
     private final String fallbackReason;
 
@@ -73,8 +71,6 @@ public final class StepExecutionOutput {
     /**
      * 使用原始输出映射构造输出对象。
      *
-     * <p>该方法会复制一份浅拷贝并转为不可变视图，避免跨层修改导致的副作用。</p>
-     *
      * @param payload 原始输出映射
      * @return 输出对象
      */
@@ -83,10 +79,10 @@ public final class StepExecutionOutput {
     }
 
     /**
-     * 使用原始输出映射与显式工具名构造输出对象。
+     * 使用原始输出映射与工具名构造输出对象。
      *
      * @param payload 原始输出映射
-     * @param explicitToolName 显式工具名（可选）
+     * @param explicitToolName 显式工具名
      * @return 输出对象
      */
     public static StepExecutionOutput fromPayload(Map<String, Object> payload, String explicitToolName) {
@@ -102,10 +98,10 @@ public final class StepExecutionOutput {
     }
 
     /**
-     * 为输出补充摘要信息。
+     * 为输出补充摘要。
      *
      * @param summary 摘要映射
-     * @return 新的输出对象
+     * @return 新输出对象
      */
     public StepExecutionOutput withSummary(Map<String, Object> summary) {
         Map<String, Object> copied = summary == null || summary.isEmpty()
@@ -116,13 +112,11 @@ public final class StepExecutionOutput {
     }
 
     /**
-     * 为兜底输出补充来源与原因。
+     * 为输出补充兜底信息。
      *
-     * <p>注意：兜底字段不应写回 {@code payload}，避免污染原始输出快照。</p>
-     *
-     * @param fallbackFrom 来源工具
+     * @param fallbackFrom 兜底来源
      * @param fallbackReason 兜底原因
-     * @return 新的输出对象
+     * @return 新输出对象
      */
     public StepExecutionOutput withFallback(String fallbackFrom, String fallbackReason) {
         return new StepExecutionOutput(this.payload, this.toolName, this.rawRef, this.refs, this.summary,
@@ -158,11 +152,9 @@ public final class StepExecutionOutput {
     }
 
     /**
-     * 生成用于反思与提示词输入的输出视图。
+     * 生成用于反思阶段的摘要视图。
      *
-     * <p>反思阶段应优先使用摘要视图，避免注入原始输出。</p>
-     *
-     * @return 反思视图对象
+     * @return 反思视图
      */
     public StepOutputSummaryView toReflectionView() {
         return StepOutputSummaryView.from(summary);
@@ -173,11 +165,11 @@ public final class StepExecutionOutput {
     }
 
     @Override
-    public boolean equals(Object o) {
-        if (this == o) {
+    public boolean equals(Object object) {
+        if (this == object) {
             return true;
         }
-        if (!(o instanceof StepExecutionOutput other)) {
+        if (!(object instanceof StepExecutionOutput other)) {
             return false;
         }
         return Objects.equals(payload, other.payload)

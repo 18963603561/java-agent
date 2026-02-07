@@ -7,8 +7,8 @@ import com.example.agent.runtime.recovery.FailureType;
 import com.example.agent.runtime.recovery.RecoveryStrategy;
 import com.example.agent.runtime.recovery.RecoveryStrategyManager;
 import com.example.agent.runtime.step.StepExecutionDelegate;
-import com.example.agent.runtime.step.StepExecutionOutput;
-import com.example.agent.runtime.step.StepExecutionRequest;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,13 +17,8 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * 步骤失败恢复服务。
- *
- * <p>用途：将失败分类、恢复策略选择与兜底工具执行从门面编排中抽离，降低主链路复杂度。
- * <p>输入：步骤执行请求、尝试次数、分解次数与异常。
- * <p>输出：恢复结果（是否重试/重规划/停止，或兜底成功输出）。
- * <p>边界：兜底工具输出为空视为失败；兜底失败会返回停止并携带兜底异常。
- */
+ * 姝ラ澶辫触鎭㈠鏈嶅姟銆? *
+ * <p>鐢ㄩ€旓細灏嗗け璐ュ垎绫汇€佹仮澶嶇瓥鐣ラ€夋嫨涓庡厹搴曞伐鍏锋墽琛屼粠闂ㄩ潰缂栨帓涓娊绂伙紝闄嶄綆涓婚摼璺鏉傚害銆? * <p>杈撳叆锛氭楠ゆ墽琛岃姹傘€佸皾璇曟鏁般€佸垎瑙ｆ鏁颁笌寮傚父銆? * <p>杈撳嚭锛氭仮澶嶇粨鏋滐紙鏄惁閲嶈瘯/閲嶈鍒?鍋滄锛屾垨鍏滃簳鎴愬姛杈撳嚭锛夈€? * <p>杈圭晫锛氬厹搴曞伐鍏疯緭鍑轰负绌鸿涓哄け璐ワ紱鍏滃簳澶辫触浼氳繑鍥炲仠姝㈠苟鎼哄甫鍏滃簳寮傚父銆? */
 @Service
 public class StepFailureRecoveryService {
 
@@ -51,13 +46,12 @@ public class StepFailureRecoveryService {
     }
 
     /**
-     * 依据异常与上下文选择恢复动作，必要时执行兜底工具。
-     *
-     * @param executionRequest 步骤执行请求
-     * @param attempt 当前尝试次数（从 1 开始）
-     * @param decomposeAttempts 当前分解次数
-     * @param error 异常
-     * @return 恢复结果
+     * 渚濇嵁寮傚父涓庝笂涓嬫枃閫夋嫨鎭㈠鍔ㄤ綔锛屽繀瑕佹椂鎵ц鍏滃簳宸ュ叿銆?     *
+     * @param executionRequest 姝ラ鎵ц璇锋眰
+     * @param attempt 褰撳墠灏濊瘯娆℃暟锛堜粠 1 寮€濮嬶級
+     * @param decomposeAttempts 褰撳墠鍒嗚В娆℃暟
+     * @param error 寮傚父
+     * @return 鎭㈠缁撴灉
      */
     public StepFailureRecoveryResult recover(StepExecutionRequest executionRequest,
                                              int attempt,
@@ -102,7 +96,7 @@ public class StepFailureRecoveryService {
             StepExecutionOutput enriched = fallbackOutput.withFallback(fallbackFrom, resolveErrorMessage(originalError));
             return StepFailureRecoveryResult.fallbackSuccess(RecoveryStrategy.FALLBACK, fallbackTool, enriched, originalError);
         } catch (Throwable fallbackEx) {
-            log.warn("兜底工具执行失败, tenantId={}, workflowId={}, stepId={}, stepType={}, fallbackTool={}",
+            log.warn("鍏滃簳宸ュ叿鎵ц澶辫触, tenantId={}, workflowId={}, stepId={}, stepType={}, fallbackTool={}",
                     executionRequest.getTenantContext() != null ? executionRequest.getTenantContext().getTenantId() : null,
                     executionRequest.getWorkflowId(),
                     executionRequest.getRecord() != null ? executionRequest.getRecord().getStepId() : null,
@@ -114,12 +108,8 @@ public class StepFailureRecoveryService {
     }
 
     /**
-     * 解析步骤的兜底工具名称。
-     *
-     * <p>输入：任务请求与步骤定义。
-     * <p>输出：兜底工具名称或 {@code null}。
-     * <p>边界：仅解析字符串，不校验可用性。
-     */
+     * 瑙ｆ瀽姝ラ鐨勫厹搴曞伐鍏峰悕绉般€?     *
+     * <p>杈撳叆锛氫换鍔¤姹備笌姝ラ瀹氫箟銆?     * <p>杈撳嚭锛氬厹搴曞伐鍏峰悕绉版垨 {@code null}銆?     * <p>杈圭晫锛氫粎瑙ｆ瀽瀛楃涓诧紝涓嶆牎楠屽彲鐢ㄦ€с€?     */
     private String resolveFallbackTool(TaskRequest request, StepSpec step) {
         Map<String, Object> stepInput = resolveStepInput(step);
         if (stepInput != null) {
@@ -153,15 +143,12 @@ public class StepFailureRecoveryService {
     }
 
     /**
-     * 步骤失败恢复结果。
-     *
-     * <p>用途：描述本次失败应采取的动作与必要的附加信息。
-     */
+     * 姝ラ澶辫触鎭㈠缁撴灉銆?     *
+     * <p>鐢ㄩ€旓細鎻忚堪鏈澶辫触搴旈噰鍙栫殑鍔ㄤ綔涓庡繀瑕佺殑闄勫姞淇℃伅銆?     */
     public static class StepFailureRecoveryResult {
 
         /**
-         * 恢复动作。
-         */
+         * 鎭㈠鍔ㄤ綔銆?         */
         public enum Action {
             RETRY,
             REPLAN,
@@ -240,3 +227,4 @@ public class StepFailureRecoveryService {
         }
     }
 }
+

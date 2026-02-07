@@ -8,6 +8,10 @@ import com.example.agent.runtime.step.StepRecord;
 import com.example.agent.runtime.step.StepState;
 import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
 import com.example.agent.runtime.summary.StepSummaryProperties;
+import com.example.agent.runtime.summary.SummaryDigestService;
+import com.example.agent.runtime.summary.SummaryInputSanitizer;
+import com.example.agent.runtime.summary.SummarySnapshotService;
+import com.example.agent.runtime.summary.StepSummaryTextService;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -31,7 +35,7 @@ class StepOutputSummaryBuilderTest {
         properties.setMaxChars(50);
         properties.setMaxListItems(2);
         properties.setMaxFieldChars(10);
-        StepOutputSummaryBuilder builder = new StepOutputSummaryBuilder(properties);
+        StepOutputSummaryBuilder builder = buildBuilder(properties);
 
         Map<String, Object> output = new LinkedHashMap<>();
         output.put("items", List.of("item-1", "item-2", "item-3", "item-4"));
@@ -54,7 +58,7 @@ class StepOutputSummaryBuilderTest {
         properties.setMaxChars(1000);
         properties.setMaxListItems(2);
         properties.setMaxFieldChars(1000);
-        StepOutputSummaryBuilder builder = new StepOutputSummaryBuilder(properties);
+        StepOutputSummaryBuilder builder = buildBuilder(properties);
 
         List<String> output = List.of("a", "b", "c", "d");
         Map<String, Object> summary = builder.build(record("s-2"), null, output, null, null);
@@ -78,7 +82,7 @@ class StepOutputSummaryBuilderTest {
         properties.setMaxChars(200);
         properties.setMaxListItems(1);
         properties.setMaxFieldChars(50);
-        StepOutputSummaryBuilder builder = new StepOutputSummaryBuilder(properties);
+        StepOutputSummaryBuilder builder = buildBuilder(properties);
 
         Object[] array = new Object[2];
         array[0] = array;
@@ -104,7 +108,7 @@ class StepOutputSummaryBuilderTest {
         properties.setMaxChars(200);
         properties.setMaxListItems(5);
         properties.setMaxFieldChars(100);
-        StepOutputSummaryBuilder builder = new StepOutputSummaryBuilder(properties);
+        StepOutputSummaryBuilder builder = buildBuilder(properties);
 
         Map<String, Object> output = new LinkedHashMap<>();
         output.put("bad", new BadToString());
@@ -127,6 +131,16 @@ class StepOutputSummaryBuilderTest {
         public String toString() {
             return "explosive";
         }
+    }
+
+    private StepOutputSummaryBuilder buildBuilder(StepSummaryProperties properties) {
+        return new StepOutputSummaryBuilder(
+                properties,
+                new SummarySnapshotService(),
+                new SummaryInputSanitizer(),
+                new StepSummaryTextService(),
+                new SummaryDigestService()
+        );
     }
 
     private static final class BadToString {

@@ -7,8 +7,8 @@ import com.example.agent.capabilities.context.research.ResearchCitation;
 import com.example.agent.capabilities.context.research.ResearchPipeline;
 import com.example.agent.capabilities.context.research.ResearchRunResult;
 import com.example.agent.capabilities.tools.hook.HookManager;
-import com.example.agent.runtime.step.StepExecutionRequest;
-import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -18,9 +18,9 @@ import org.springframework.stereotype.Component;
  * 研究步骤执行器。
  *
  * <p>用途：封装 {@code RESEARCH} 步骤执行逻辑，输出引用列表与统计信息。
- * <p>输入：任务请求、步骤定义与链路上下文。
+ * <p>输入：任务请求、步骤定义与运行上下文。
  * <p>输出：研究结果映射。
- * <p>边界：异常由上层捕获并按恢复策略处理。
+ * <p>边界：异常由上层统一捕获并按恢复策略处理。
  */
 @Component
 public class ResearchStepExecutor implements StepTypeExecutor {
@@ -116,3 +116,4 @@ public class ResearchStepExecutor implements StepTypeExecutor {
         }
     }
 }
+

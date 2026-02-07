@@ -1,7 +1,7 @@
 package com.example.agent.runtime.step.executor;
 
-import com.example.agent.runtime.step.StepExecutionRequest;
-import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -10,10 +10,10 @@ import org.springframework.stereotype.Component;
 /**
  * 步骤执行路由器。
  *
- * <p>用途：根据步骤类型选择对应执行器，避免门面类持有大量分支判断。
+ * <p>用途：根据步骤类型选择对应执行器，避免编排层维护大规模分支判断。
  * <p>输入：步骤执行请求对象。
- * <p>输出：步骤输出映射。
- * <p>边界：未匹配到执行器时使用默认执行器。
+ * <p>输出：步骤执行输出对象。
+ * <p>边界：当未匹配执行器时使用默认执行器兜底。
  */
 @Component
 public class StepExecutorRouter {
@@ -29,10 +29,10 @@ public class StepExecutorRouter {
     }
 
     /**
-     * 执行步骤并返回输出映射。
+     * 执行步骤并返回输出。
      *
      * @param request 执行请求
-     * @return 输出对象
+     * @return 执行输出
      */
     public StepExecutionOutput execute(StepExecutionRequest request) {
         if (request == null || request.getStep() == null) {
@@ -57,3 +57,4 @@ public class StepExecutorRouter {
         return defaultExecutor.execute(request);
     }
 }
+

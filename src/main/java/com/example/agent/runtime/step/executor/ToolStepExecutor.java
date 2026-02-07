@@ -9,9 +9,8 @@ import com.example.agent.capabilities.tools.validation.ToolArgumentValidatorRunt
 import com.example.agent.runtime.control.RuntimeExecutionGate;
 import com.example.agent.runtime.llm.LlmStepService;
 import com.example.agent.runtime.output.OutputKeys;
-import com.example.agent.runtime.step.StepExecutionOutput;
-import com.example.agent.runtime.step.StepExecutionRequest;
-import com.example.agent.runtime.step.StepRecord;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
@@ -26,7 +25,7 @@ import org.springframework.stereotype.Component;
  * <p>用途：封装 {@code TOOL} 步骤执行逻辑，包含 toolChoice 补齐与直达工具路径。
  * <p>输入：任务请求、步骤输入与链路上下文。
  * <p>输出：工具执行结果映射（可能为直达工具输出或 LLM 工具调用输出）。
- * <p>边界：直达工具执行失败会回退为 LLM 决策路径。
+ * <p>边界：直达工具执行失败会回退到 LLM 决策路径。
  */
 @Component
 public class ToolStepExecutor implements StepTypeExecutor {
@@ -34,9 +33,9 @@ public class ToolStepExecutor implements StepTypeExecutor {
     private static final Logger log = LoggerFactory.getLogger(ToolStepExecutor.class);
 
     /**
-     * 工具参数中需要过滤的保留字段。
+     * 工具参数中的保留字段。
      *
-     * <p>用途：避免将步骤控制字段误传给工具参数。</p>
+     * <p>用途：避免将步骤控制字段误传给工具参数。
      */
     private static final Set<String> TOOL_ARGUMENT_RESERVED_KEYS = Set.of(
             "tool",
@@ -87,12 +86,13 @@ public class ToolStepExecutor implements StepTypeExecutor {
 
     @Override
     public StepExecutionOutput execute(StepExecutionRequest request) {
+        String stepId = request.getRecord() != null ? request.getRecord().getStepId() : null;
         applyToolChoiceForToolStep(
                 request.getStep(),
                 request.getTaskRequest(),
                 request.getStepInput(),
                 request.getWorkflowId(),
-                request.getRecord()
+                stepId
         );
         StepExecutionOutput directOutput = tryExecuteDirectToolStep(request);
         if (directOutput != null) {
@@ -112,9 +112,9 @@ public class ToolStepExecutor implements StepTypeExecutor {
     }
 
     /**
-     * 解析步骤需要使用的工具名称。
+     * 解析步骤关联的工具名称。
      *
-     * <p>用途：用于兜底输出补充 fallbackFrom 字段。</p>
+     * <p>用途：用于兜底输出补充 fallbackFrom 字段。
      */
     public String resolveToolName(TaskRequest request, com.example.agent.runtime.model.StepSpec step) {
         Map<String, Object> stepInput = resolveStepInput(step);
@@ -142,19 +142,20 @@ public class ToolStepExecutor implements StepTypeExecutor {
             return null;
         }
         TaskRequest taskRequest = request.getTaskRequest();
+        String stepId = request.getRecord() != null ? request.getRecord().getStepId() : null;
         Map<String, Object> stepInput = request.getStepInput();
         String toolName = resolveToolNameForToolStep(taskRequest, request.getStep(), stepInput);
         if (toolName == null || toolName.isBlank()) {
             log.info("直达工具跳过, toolName 缺失, workflowId={}, stepId={}",
                     request.getWorkflowId(),
-                    request.getRecord() != null ? request.getRecord().getStepId() : null);
+                    stepId);
             return null;
         }
         Map<String, Object> toolArguments = resolveDirectToolArguments(stepInput);
         if (toolArguments == null || toolArguments.isEmpty()) {
             log.info("直达工具跳过, 参数缺失, workflowId={}, stepId={}, tool={}",
                     request.getWorkflowId(),
-                    request.getRecord() != null ? request.getRecord().getStepId() : null,
+                    stepId,
                     toolName);
             return null;
         }
@@ -163,7 +164,7 @@ public class ToolStepExecutor implements StepTypeExecutor {
             if (!validation.isValid()) {
                 log.info("直达工具跳过, 参数校验失败, workflowId={}, stepId={}, tool={}, reason={}, missing={}",
                         request.getWorkflowId(),
-                        request.getRecord() != null ? request.getRecord().getStepId() : null,
+                        stepId,
                         toolName,
                         validation.getReason(),
                         validation.getMissingFields());
@@ -173,7 +174,7 @@ public class ToolStepExecutor implements StepTypeExecutor {
         try {
             log.info("直达工具执行, workflowId={}, stepId={}, tool={}, argKeys={}",
                     request.getWorkflowId(),
-                    request.getRecord() != null ? request.getRecord().getStepId() : null,
+                    stepId,
                     toolName,
                     toolArguments.keySet());
             Map<String, Object> toolResult = executeToolInternal(request, toolName, toolArguments);
@@ -183,7 +184,7 @@ public class ToolStepExecutor implements StepTypeExecutor {
                         toolArguments, toolResult);
                 log.info("直达工具执行完成, workflowId={}, stepId={}, summaryMode={}, outputKeys={}",
                         request.getWorkflowId(),
-                        request.getRecord() != null ? request.getRecord().getStepId() : null,
+                        stepId,
                         summaryMode,
                         output.keySet());
                 return StepExecutionOutput.fromPayload(output, toolName);
@@ -198,15 +199,15 @@ public class ToolStepExecutor implements StepTypeExecutor {
                     toolArguments,
                     toolResult
             );
-            log.info("直达工具总结完成, workflowId={}, stepId={}, outputKeys={}",
+            log.info("直达工具摘要完成, workflowId={}, stepId={}, outputKeys={}",
                     request.getWorkflowId(),
-                    request.getRecord() != null ? request.getRecord().getStepId() : null,
+                    stepId,
                     summaryOutput.keySet());
             return StepExecutionOutput.fromPayload(summaryOutput, toolName);
         } catch (Throwable ex) {
             log.warn("直达工具执行失败, 回退 LLM 决策, workflowId={}, stepId={}, tool={}",
                     request.getWorkflowId(),
-                    request.getRecord() != null ? request.getRecord().getStepId() : null,
+                    stepId,
                     toolName,
                     ex);
             return null;
@@ -214,20 +215,20 @@ public class ToolStepExecutor implements StepTypeExecutor {
     }
 
     /**
-     * TOOL 步骤补齐 toolChoice，保证规划工具能被模型决策流程识别。
+     * TOOL 步骤补齐 toolChoice，确保规划工具可被决策流程识别。
      */
     private void applyToolChoiceForToolStep(com.example.agent.runtime.model.StepSpec step,
                                             TaskRequest request,
                                             Map<String, Object> stepInput,
                                             String workflowId,
-                                            StepRecord record) {
+                                            String stepId) {
         if (stepInput == null || hasToolChoice(stepInput)) {
             return;
         }
         String toolName = resolveToolNameForToolStep(request, step, stepInput);
         if (toolName == null || toolName.isBlank()) {
             log.warn("TOOL 步骤缺少 toolName, 无法补齐 toolChoice, workflowId={}, stepId={}",
-                    workflowId, record != null ? record.getStepId() : null);
+                    workflowId, stepId);
             return;
         }
         Map<String, Object> toolChoice = new HashMap<>();
@@ -235,7 +236,7 @@ public class ToolStepExecutor implements StepTypeExecutor {
         toolChoice.put("toolName", toolName);
         stepInput.put("toolChoice", toolChoice);
         log.info("TOOL 步骤补齐 toolChoice, workflowId={}, stepId={}, tool={}",
-                workflowId, record != null ? record.getStepId() : null, toolName);
+                workflowId, stepId, toolName);
     }
 
     private boolean hasToolChoice(Map<String, Object> stepInput) {
@@ -368,3 +369,4 @@ public class ToolStepExecutor implements StepTypeExecutor {
         return input == null || input.isEmpty() ? null : input;
     }
 }
+

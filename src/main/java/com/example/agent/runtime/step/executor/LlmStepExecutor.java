@@ -2,8 +2,8 @@ package com.example.agent.runtime.step.executor;
 
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.runtime.llm.LlmStepService;
-import com.example.agent.runtime.step.StepExecutionRequest;
-import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.HashMap;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -11,12 +11,12 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * 大模型步骤执行器。
+ * LLM 步骤执行器。
  *
- * <p>用途：统一封装 LLM/ANSWER 步骤执行入口，保持输出结构与日志一致。
- * <p>输入：任务请求、步骤输入与链路上下文。
- * <p>输出：大模型输出映射；输出为空时回退为 {@code no_response}。
- * <p>边界：异常由上层捕获并按恢复策略处理。
+ * <p>用途：处理 {@code LLM}/{@code ANSWER} 类型步骤并调用 LLM 服务产出结果。
+ * <p>输入：任务请求、步骤输入、租户上下文与链路信息。
+ * <p>输出：步骤执行输出对象。
+ * <p>边界：当 LLM 无输出时返回兜底响应，避免主流程中断。
  */
 @Component
 public class LlmStepExecutor implements StepTypeExecutor {
@@ -48,14 +48,12 @@ public class LlmStepExecutor implements StepTypeExecutor {
         int queryLength = query != null ? query.length() : 0;
         boolean hasContext = stepInput != null && stepInput.get("context") != null;
         LlmStepService.ToolSummaryMode summaryMode = llmStepService.resolveToolSummaryMode(taskRequest, stepInput);
-        // 记录步骤入口信息，便于排查上下文缺失问题
         log.info("LLM 步骤开始, workflowId={}, queryLength={}, hasContext={}, summaryMode={}",
                 workflowId, queryLength, hasContext, summaryMode);
 
         Map<String, Object> output = llmStepService.run(taskRequest, stepInput, request.getTenantContext(),
                 workflowId, taskId, request.getSeqCounter(), summaryMode);
         if (output == null || output.isEmpty()) {
-            // 模型输出为空时的兜底处理
             output = new HashMap<>();
             output.put("answer", "no_response");
             output.put("source", "llm_step");
@@ -64,3 +62,4 @@ public class LlmStepExecutor implements StepTypeExecutor {
         return StepExecutionOutput.fromPayload(output);
     }
 }
+

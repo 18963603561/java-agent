@@ -4,8 +4,8 @@ import com.example.agent.reasoning.thoughttree.ThoughtNode;
 import com.example.agent.reasoning.thoughttree.ThoughtTreeConfig;
 import com.example.agent.reasoning.thoughttree.ThoughtTreeResult;
 import com.example.agent.reasoning.thoughttree.ThoughtTreeService;
-import com.example.agent.runtime.step.StepExecutionRequest;
-import com.example.agent.runtime.step.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
+import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import com.example.agent.streaming.domain.EventType;
 import java.util.HashMap;
 import java.util.List;
@@ -16,9 +16,9 @@ import org.springframework.stereotype.Component;
  * 思维树步骤执行器。
  *
  * <p>用途：封装 {@code THOUGHT_TREE} 步骤执行逻辑，并发布思维节点展开事件。
- * <p>输入：步骤定义与链路上下文。
+ * <p>输入：步骤定义与运行上下文。
  * <p>输出：思维树结果映射。
- * <p>边界：节点为空时不发布事件；异常由上层捕获并按恢复策略处理。
+ * <p>边界：当节点为空时不发布事件，异常由上层统一捕获并按恢复策略处理。
  */
 @Component
 public class ThoughtTreeStepExecutor implements StepTypeExecutor {
@@ -99,3 +99,4 @@ public class ThoughtTreeStepExecutor implements StepTypeExecutor {
         return input == null || input.isEmpty() ? null : input;
     }
 }
+
