@@ -1,4 +1,4 @@
-package com.example.agent.runtime.structured;
+package com.example.agent.runtime.structured.result;
 
 import java.util.List;
 

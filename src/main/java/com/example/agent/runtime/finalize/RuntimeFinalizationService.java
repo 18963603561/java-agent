@@ -11,6 +11,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
+import com.example.agent.runtime.structured.result.StructuredResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -173,8 +174,9 @@ public class RuntimeFinalizationService {
             return stepResult.getRaw().getData();
         }
         if (stepResult.getStructured() != null && stepResult.getStructured().getData() != null
-                && !stepResult.getStructured().getData().isEmpty()) {
-            return stepResult.getStructured().getData();
+                && !stepResult.getStructured().dataAsMap().isEmpty()) {
+            StructuredResult<?> structured = stepResult.getStructured();
+            return structured.dataAsMap();
         }
         if (stepResult.getSummary() != null) {
             Map<String, Object> stepSummary = stepResult.getSummary().getStepSummary();

@@ -9,7 +9,6 @@ import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.streaming.observability.TracingPublisher;
 import com.example.agent.runtime.model.StepResult;
 import com.example.agent.runtime.model.StepResultDigest;
-import com.example.agent.runtime.model.StepResultError;
 import com.example.agent.runtime.model.StepResultMeta;
 import com.example.agent.runtime.model.StepResultRaw;
 import com.example.agent.runtime.model.StepResultRefSet;
@@ -18,8 +17,9 @@ import com.example.agent.runtime.model.StepResultTiming;
 import com.example.agent.runtime.raw.RawRef;
 import com.example.agent.runtime.raw.RawOutputEnvelope;
 import com.example.agent.runtime.structured.StructuredExtractorRegistry;
-import com.example.agent.runtime.structured.StructuredRefs;
-import com.example.agent.runtime.structured.StructuredResult;
+import com.example.agent.runtime.structured.data.StructuredData;
+import com.example.agent.runtime.structured.result.StructuredRefs;
+import com.example.agent.runtime.structured.result.StructuredResult;
 import com.example.agent.runtime.output.OutputFieldExtractor;
 import com.example.agent.runtime.output.OutputKeys;
 import com.example.agent.streaming.sse.EventStreamService;
@@ -468,10 +468,10 @@ public class StepRuntimeService {
         return refs;
     }
 
-    private StructuredResult resolveStructured(StepRecord record,
-                                               StepExecutionOutput output,
-                                               Map<String, Object> rawOutput,
-                                               RawRef rawRef) {
+    private StructuredResult<? extends StructuredData> resolveStructured(StepRecord record,
+                                                                         StepExecutionOutput output,
+                                                                         Map<String, Object> rawOutput,
+                                                                         RawRef rawRef) {
         if (structuredExtractorRegistry == null) {
             return null;
         }
@@ -489,7 +489,10 @@ public class StepRuntimeService {
             toolName = OutputFieldExtractor.resolveToolName(rawOutput);
         }
         String rawRefKey = rawRef != null ? rawRef.getKey() : null;
-        StructuredResult structured = structuredExtractorRegistry.extract(record.getType(), toolName, resultMap, rawRefKey);
+        StructuredResult<? extends StructuredData> structured = structuredExtractorRegistry.extract(record.getType(),
+                toolName,
+                resultMap,
+                rawRefKey);
         if (structured == null) {
             return null;
         }

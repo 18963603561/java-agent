@@ -1,7 +1,8 @@
 package com.example.agent.runtime.model;
 
 import com.example.agent.runtime.raw.RawRef;
-import com.example.agent.runtime.structured.StructuredResult;
+import com.example.agent.runtime.structured.data.StructuredData;
+import com.example.agent.runtime.structured.result.StructuredResult;
 import java.util.List;
 
 /**
@@ -27,7 +28,7 @@ public class StepResult {
     /**
      * 结构化结果。
      */
-    private StructuredResult structured;
+    private StructuredResult<? extends StructuredData> structured;
 
     /**
      * 摘要信息。
@@ -68,11 +69,11 @@ public class StepResult {
         this.raw = raw;
     }
 
-    public StructuredResult getStructured() {
+    public StructuredResult<? extends StructuredData> getStructured() {
         return structured;
     }
 
-    public void setStructured(StructuredResult structured) {
+    public void setStructured(StructuredResult<? extends StructuredData> structured) {
         this.structured = structured;
     }
 
@@ -100,3 +101,4 @@ public class StepResult {
         this.errors = errors;
     }
 }
+

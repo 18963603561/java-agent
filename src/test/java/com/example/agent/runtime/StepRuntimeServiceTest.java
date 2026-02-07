@@ -3,7 +3,7 @@ package com.example.agent.runtime;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.streaming.observability.TracingPublisher;
 import com.example.agent.runtime.model.StepResult;
-import com.example.agent.runtime.structured.GenericStructuredExtractor;
+import com.example.agent.runtime.structured.extractor.GenericStructuredExtractor;
 import com.example.agent.runtime.structured.StructuredExtractorRegistry;
 import com.example.agent.streaming.sse.EventStreamService;
 import java.time.Instant;
