@@ -2,9 +2,12 @@ package com.example.agent.runtime.react;
 
 import com.example.agent.capabilities.tools.enforcement.EnforcementGateway;
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.runtime.control.RuntimeApprovalGate;
+import com.example.agent.runtime.control.RuntimeExecutionGate;
 import com.example.agent.runtime.step.StepRecord;
+import com.example.agent.runtime.step.RuntimeContext;
+import com.example.agent.runtime.model.StepSpec;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.capabilities.memory.MemoryWriteService;
@@ -35,9 +38,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import com.example.agent.runtime.control.ExecutionControlService;
-import com.example.agent.runtime.control.ExecutionControlState;
 import com.example.agent.runtime.output.OutputFieldExtractor;
+import com.example.agent.runtime.output.OutputKeys;
 
 /**
  * ReAct 循环执行器，负责 Think/Act/Observe 三阶段循环。
@@ -52,7 +54,8 @@ public class ReactLoopService {
     private final PromptAssembler promptAssembler;
     private final EnforcementGateway enforcementGateway;
     private final MemoryWriteService memoryWriteService;
-    private final ExecutionControlService executionControlService;
+    private final RuntimeExecutionGate runtimeExecutionGate;
+    private final RuntimeApprovalGate runtimeApprovalGate;
     private final HookManager hookManager;
     private final ApplicationEventPublisher eventPublisher;
     private final TracingPublisher tracingPublisher;
@@ -67,7 +70,8 @@ public class ReactLoopService {
                             PromptAssembler promptAssembler,
                             EnforcementGateway enforcementGateway,
                             MemoryWriteService memoryWriteService,
-                            ExecutionControlService executionControlService,
+                            RuntimeExecutionGate runtimeExecutionGate,
+                            RuntimeApprovalGate runtimeApprovalGate,
                             HookManager hookManager,
                             ApplicationEventPublisher eventPublisher,
                             TracingPublisher tracingPublisher,
@@ -80,7 +84,8 @@ public class ReactLoopService {
         this.promptAssembler = promptAssembler;
         this.enforcementGateway = enforcementGateway;
         this.memoryWriteService = memoryWriteService;
-        this.executionControlService = executionControlService;
+        this.runtimeExecutionGate = runtimeExecutionGate;
+        this.runtimeApprovalGate = runtimeApprovalGate;
         this.hookManager = hookManager;
         this.eventPublisher = eventPublisher;
         this.tracingPublisher = tracingPublisher;
@@ -107,6 +112,10 @@ public class ReactLoopService {
                                AtomicLong seqCounter) {
         int maxIterations = Math.max(1, properties.getMaxIterations());
         ObservationWindowBuffer observationBuffer = new ObservationWindowBuffer(properties.getObservationWindow());
+        RuntimeContext runtimeContext = new RuntimeContext(new HashMap<>());
+        if (request != null && request.getContext() != null && !request.getContext().isEmpty()) {
+            runtimeContext.asMap().putAll(request.getContext());
+        }
 
         List<ReactDecision> decisions = new ArrayList<>();
         ReactLoopResult result = new ReactLoopResult();
@@ -114,7 +123,8 @@ public class ReactLoopService {
         String lastRawRef = null;
 
         for (int iteration = 1; iteration <= maxIterations; iteration++) {
-            applyExecutionControl(workflowId, tenantContext, seqCounter);
+            log.debug("ReAct 执行门禁检查, workflowId={}, iteration={}", workflowId, iteration);
+            runtimeExecutionGate.apply(workflowId, tenantContext, seqCounter, this::publishEvent);
             publishEvent(tenantContext, workflowId, seqCounter, EventType.REACT_ITERATION_STARTED,
                     Map.of("iteration", iteration, "maxIterations", maxIterations));
 
@@ -140,7 +150,8 @@ public class ReactLoopService {
 
             Map<String, Object> actOutput;
             try {
-                actOutput = act(request, tenantContext, workflowId, taskId, seqCounter, iteration, decision);
+                actOutput = act(request, tenantContext, workflowId, taskId, seqCounter, iteration, decision,
+                        runtimeContext);
                 String actRawRef = OutputFieldExtractor.resolveRawRef(actOutput);
                 if (StringUtils.hasText(actRawRef)) {
                     lastRawRef = actRawRef;
@@ -240,7 +251,8 @@ public class ReactLoopService {
                                     String taskId,
                                     AtomicLong seqCounter,
                                     int iteration,
-                                    ReactDecision decision) {
+                                    ReactDecision decision,
+                                    RuntimeContext runtimeContext) {
         String toolName = resolveToolName(request, decision);
         Map<String, Object> actStartPayload = new HashMap<>();
         actStartPayload.put("iteration", iteration);
@@ -257,7 +269,9 @@ public class ReactLoopService {
             return output;
         }
 
-        requestApprovalIfNeeded(request, toolName, workflowId, tenantContext, seqCounter, iteration);
+        log.debug("ReAct 审批门禁检查, workflowId={}, iteration={}, toolName={}", workflowId, iteration, toolName);
+        requestApprovalThroughGate(request, toolName, workflowId, tenantContext, seqCounter, iteration,
+                runtimeContext);
         TaskRequest actRequest = buildActRequest(request, decision);
         StepRecord hookRecord = buildReactHookRecord(workflowId, tenantContext, iteration);
         hookManager.preTool(tenantContext, hookRecord, toolName);
@@ -651,6 +665,59 @@ public class ReactLoopService {
         return copy;
     }
 
+    /**
+     * 通过统一审批门禁触发 ReAct 工具执行审批。
+     *
+     * <p>用途：复用运行时统一审批逻辑，避免 ReAct 链路维护独立审批分支。</p>
+     *
+     * @param request 任务请求
+     * @param toolName 当前工具名称
+     * @param workflowId 工作流标识
+     * @param tenantContext 租户上下文
+     * @param seqCounter 事件序列
+     * @param iteration 当前迭代轮次
+     * @param runtimeContext ReAct 运行时上下文
+     */
+    private void requestApprovalThroughGate(TaskRequest request,
+                                            String toolName,
+                                            String workflowId,
+                                            TenantContext tenantContext,
+                                            AtomicLong seqCounter,
+                                            int iteration,
+                                            RuntimeContext runtimeContext) {
+        Map<String, Object> stepInput = new HashMap<>();
+        stepInput.put("iteration", iteration);
+        stepInput.put("mode", "react");
+        if (request != null && StringUtils.hasText(request.getQuery())) {
+            stepInput.put("query", request.getQuery());
+        }
+        if (StringUtils.hasText(toolName)) {
+            stepInput.put(OutputKeys.TOOL_NAME, toolName);
+            stepInput.put(OutputKeys.TOOL, toolName);
+        }
+        if (request != null && request.getContext() != null && !request.getContext().isEmpty()) {
+            stepInput.put("context", request.getContext());
+            if (request.getContext().containsKey("requiresApproval")) {
+                stepInput.put("requiresApproval", request.getContext().get("requiresApproval"));
+            }
+            if (request.getContext().containsKey("approvalSource")) {
+                stepInput.put("approvalSource", request.getContext().get("approvalSource"));
+            }
+        }
+        StepSpec stepSpec = new StepSpec();
+        stepSpec.setStepType("REACT_ACT");
+        runtimeApprovalGate.requestIfNeeded(
+                stepSpec,
+                request,
+                stepInput,
+                runtimeContext,
+                workflowId,
+                tenantContext,
+                seqCounter,
+                this::publishEvent
+        );
+    }
+
     private String serializeObservation(Map<String, Object> output) {
         if (output == null) {
             return null;
@@ -661,81 +728,6 @@ public class ReactLoopService {
         } catch (Exception ex) {
             return String.valueOf(output);
         }
-    }
-
-    private void applyExecutionControl(String workflowId,
-                                       TenantContext tenantContext,
-                                       AtomicLong seqCounter) {
-        ExecutionControlState state = executionControlService.getState(workflowId);
-        if (state == ExecutionControlState.RUNNING) {
-            return;
-        }
-        if (state == ExecutionControlState.PAUSED) {
-            publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_PAUSED,
-                    Map.of("state", ExecutionControlState.PAUSED.name()));
-        }
-        try {
-            executionControlService.awaitIfBlocked(workflowId);
-        // 异常捕获：记录上下文并按当前策略处理
-        } catch (ErrorCodeException ex) {
-            if ("CANCELLED".equals(ex.getErrorCode())) {
-                publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_CANCELLED,
-                        Map.of("state", ExecutionControlState.CANCELLED.name()));
-            }
-            throw ex;
-        }
-        if (state == ExecutionControlState.PAUSED) {
-            publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_RESUMED,
-                    Map.of("state", ExecutionControlState.RUNNING.name()));
-        }
-    }
-
-    private void requestApprovalIfNeeded(TaskRequest request,
-                                         String toolName,
-                                         String workflowId,
-                                         TenantContext tenantContext,
-                                         AtomicLong seqCounter,
-                                         int iteration) {
-        if (!isApprovalRequired(request)) {
-            return;
-        }
-        ExecutionControlState state = executionControlService.getState(workflowId);
-        if (state != ExecutionControlState.WAIT_APPROVAL) {
-            Map<String, Object> payload = new HashMap<>();
-            payload.put("iteration", iteration);
-            payload.put("tool", toolName);
-            payload.put("mode", "react");
-            executionControlService.requestApproval(workflowId, payload);
-            publishEvent(tenantContext, workflowId, seqCounter, EventType.APPROVAL_REQUESTED, payload);
-        }
-        try {
-            executionControlService.awaitIfBlocked(workflowId);
-        // 异常捕获：记录上下文并按当前策略处理
-        } catch (ErrorCodeException ex) {
-            if ("CANCELLED".equals(ex.getErrorCode())) {
-                publishEvent(tenantContext, workflowId, seqCounter, EventType.WORKFLOW_CANCELLED,
-                        Map.of("state", ExecutionControlState.CANCELLED.name()));
-            }
-            throw ex;
-        }
-    }
-
-    private boolean isApprovalRequired(TaskRequest request) {
-        if (request != null && request.getContext() != null) {
-            Object requiresApproval = request.getContext().get("requiresApproval");
-            return isTruthy(requiresApproval);
-        }
-        return false;
-    }
-
-    private boolean isTruthy(Object value) {
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        if (value instanceof String text) {
-            return "true".equalsIgnoreCase(text.trim());
-        }
-        return false;
     }
 
     private StepRecord buildReactHookRecord(String workflowId,

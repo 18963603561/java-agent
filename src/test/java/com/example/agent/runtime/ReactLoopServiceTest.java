@@ -26,6 +26,8 @@ import org.mockito.ArgumentCaptor;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import com.example.agent.runtime.control.ExecutionControlService;
+import com.example.agent.runtime.control.RuntimeApprovalGate;
+import com.example.agent.runtime.control.RuntimeExecutionGate;
 import com.example.agent.runtime.react.ReactLoopService;
 import com.example.agent.runtime.react.ReactRuntimeProperties;
 import com.example.agent.runtime.control.ExecutionControlState;
@@ -148,6 +150,35 @@ class ReactLoopServiceTest {
     }
 
     @Test
+    void executionGatePublishesPauseAndResumeEvents() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
+                .thenReturn(new ModelResponse("planner", "{\"action\":\"none\",\"shouldStop\":false}", 1, 1));
+
+        ReactRuntimeProperties props = new ReactRuntimeProperties();
+        props.setMaxIterations(1);
+        props.setMinIterations(1);
+        props.setObservationWindow(1);
+
+        TestEventPublisher eventPublisher = new TestEventPublisher();
+        ExecutionControlService executionControlService = Mockito.mock(ExecutionControlService.class);
+        ReactLoopService service = buildService(modelInvocationService, props, eventPublisher, executionControlService,
+                Mockito.mock(HookManager.class));
+        when(executionControlService.getState(any())).thenReturn(ExecutionControlState.PAUSED);
+        when(executionControlService.awaitIfBlocked(any())).thenReturn(ExecutionControlState.RUNNING);
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+        request.setContext(Map.of());
+        TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
+
+        service.run(request, tenantContext, "wf-1", "task-1", new AtomicLong(0));
+
+        assertTrue(eventPublisher.events.stream().anyMatch(event -> event.getType() == EventType.WORKFLOW_PAUSED));
+        assertTrue(eventPublisher.events.stream().anyMatch(event -> event.getType() == EventType.WORKFLOW_RESUMED));
+    }
+
+    @Test
     void hookManagerInvokedForAct() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         when(modelInvocationService.invoke(any(), any(), any(), any(), any(), any(), any()))
@@ -228,6 +259,8 @@ class ReactLoopServiceTest {
         ExecutionControlService executionControlService = Mockito.mock(ExecutionControlService.class);
         when(executionControlService.getState(any())).thenReturn(ExecutionControlState.RUNNING);
         when(executionControlService.awaitIfBlocked(any())).thenReturn(ExecutionControlState.RUNNING);
+        RuntimeExecutionGate runtimeExecutionGate = new RuntimeExecutionGate(executionControlService);
+        RuntimeApprovalGate runtimeApprovalGate = new RuntimeApprovalGate(executionControlService);
 
         HookManager hookManager = Mockito.mock(HookManager.class);
         TestEventPublisher eventPublisher = new TestEventPublisher();
@@ -244,7 +277,8 @@ class ReactLoopServiceTest {
                 promptAssembler,
                 enforcementGateway,
                 memoryWriteService,
-                executionControlService,
+                runtimeExecutionGate,
+                runtimeApprovalGate,
                 hookManager,
                 eventPublisher,
                 tracingPublisher,
@@ -284,6 +318,8 @@ class ReactLoopServiceTest {
         ExecutionControlService executionControlService = Mockito.mock(ExecutionControlService.class);
         when(executionControlService.getState(any())).thenReturn(ExecutionControlState.RUNNING);
         when(executionControlService.awaitIfBlocked(any())).thenReturn(ExecutionControlState.RUNNING);
+        RuntimeExecutionGate runtimeExecutionGate = new RuntimeExecutionGate(executionControlService);
+        RuntimeApprovalGate runtimeApprovalGate = new RuntimeApprovalGate(executionControlService);
 
         HookManager hookManager = Mockito.mock(HookManager.class);
         TestEventPublisher eventPublisher = new TestEventPublisher();
@@ -300,7 +336,8 @@ class ReactLoopServiceTest {
                 promptAssembler,
                 enforcementGateway,
                 memoryWriteService,
-                executionControlService,
+                runtimeExecutionGate,
+                runtimeApprovalGate,
                 hookManager,
                 eventPublisher,
                 tracingPublisher,
@@ -346,6 +383,8 @@ class ReactLoopServiceTest {
         ExecutionControlService executionControlService = Mockito.mock(ExecutionControlService.class);
         when(executionControlService.getState(any())).thenReturn(ExecutionControlState.RUNNING);
         when(executionControlService.awaitIfBlocked(any())).thenReturn(ExecutionControlState.RUNNING);
+        RuntimeExecutionGate runtimeExecutionGate = new RuntimeExecutionGate(executionControlService);
+        RuntimeApprovalGate runtimeApprovalGate = new RuntimeApprovalGate(executionControlService);
         HookManager hookManager = Mockito.mock(HookManager.class);
         TestEventPublisher eventPublisher = new TestEventPublisher();
         TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
@@ -361,7 +400,8 @@ class ReactLoopServiceTest {
                 promptAssembler,
                 enforcementGateway,
                 memoryWriteService,
-                executionControlService,
+                runtimeExecutionGate,
+                runtimeApprovalGate,
                 hookManager,
                 eventPublisher,
                 tracingPublisher,
@@ -409,6 +449,8 @@ class ReactLoopServiceTest {
         MemoryWriteService memoryWriteService = Mockito.mock(MemoryWriteService.class);
         when(executionControlService.getState(any())).thenReturn(ExecutionControlState.RUNNING);
         when(executionControlService.awaitIfBlocked(any())).thenReturn(ExecutionControlState.RUNNING);
+        RuntimeExecutionGate runtimeExecutionGate = new RuntimeExecutionGate(executionControlService);
+        RuntimeApprovalGate runtimeApprovalGate = new RuntimeApprovalGate(executionControlService);
 
         TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
         when(tracingPublisher.currentTraceId()).thenReturn("trace");
@@ -424,7 +466,8 @@ class ReactLoopServiceTest {
                 promptAssembler,
                 enforcementGateway,
                 memoryWriteService,
-                executionControlService,
+                runtimeExecutionGate,
+                runtimeApprovalGate,
                 hookManager,
                 eventPublisher,
                 tracingPublisher,

@@ -5,6 +5,8 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -15,6 +17,11 @@ import org.springframework.util.StringUtils;
  */
 @Component
 public class StepResultJsonCodec {
+
+    /**
+     * 日志记录器。
+     */
+    private static final Logger log = LoggerFactory.getLogger(StepResultJsonCodec.class);
 
     private final ObjectMapper objectMapper;
 
@@ -35,6 +42,7 @@ public class StepResultJsonCodec {
         try {
             return objectMapper.writeValueAsString(payload);
         } catch (JsonProcessingException ex) {
+            log.warn("步骤结果JSON序列化失败, payloadType={}", payload.getClass().getName(), ex);
             return null;
         }
     }
@@ -53,6 +61,7 @@ public class StepResultJsonCodec {
             return objectMapper.readValue(json, new TypeReference<Map<String, Object>>() {
             });
         } catch (JsonProcessingException ex) {
+            log.warn("步骤输入JSON反序列化失败, jsonLength={}", safeLength(json), ex);
             return null;
         }
     }
@@ -70,7 +79,19 @@ public class StepResultJsonCodec {
         try {
             return objectMapper.readValue(json, StepResult.class);
         } catch (JsonProcessingException ex) {
+            log.warn("步骤结果JSON反序列化失败, targetType={}, jsonLength={}",
+                    StepResult.class.getSimpleName(), safeLength(json), ex);
             return null;
         }
+    }
+
+    /**
+     * 计算字符串长度。
+     *
+     * @param text 文本
+     * @return 长度，空值返回 0
+     */
+    private int safeLength(String text) {
+        return text == null ? 0 : text.length();
     }
 }
