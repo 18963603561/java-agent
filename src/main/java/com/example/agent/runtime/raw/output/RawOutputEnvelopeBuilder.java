@@ -1,4 +1,4 @@
-package com.example.agent.runtime.raw;
+package com.example.agent.runtime.raw.output;
 
 import java.util.ArrayList;
 import java.util.IdentityHashMap;

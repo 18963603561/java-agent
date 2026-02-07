@@ -89,6 +89,19 @@ agent:
     minIterations: 1
     # 说明: 观测窗口大小 可选项: - 正整数 默认项: - 3
     observationWindow: 3
+    raw:
+      # 说明: 原始结果存储模式 可选项: - redis - size-aware - mem 默认项: - redis
+      store-mode: redis
+      # 说明: Redis 原始结果 key 前缀 可选项: - 任意字符串 默认项: - raw
+      redis-key-prefix: raw
+      # 说明: Redis 原始结果 TTL 秒数 可选项: - 正整数 默认项: - 604800
+      redis-ttl-seconds: 604800
+      # 说明: 阈值模式内存上限字节 可选项: - 正整数 默认项: - 1048576
+      size-aware-threshold-bytes: 1048576
+      # 说明: 阈值模式文件存储目录 可选项: - 有效目录 默认项: - ./data/raw
+      file-base-dir: ./data/raw
+      # 说明: 阈值模式文件下载基础地址 可选项: - 有效URL 默认项: - http://127.0.0.1:8080/api/v1/raw/files
+      file-public-base-url: http://127.0.0.1:8080/api/v1/raw/files
   summary:
     # 说明: 是否启用步骤输出摘要，默认关闭便于灰度回滚 可选项: - true - false 默认值: - false
     enable: true

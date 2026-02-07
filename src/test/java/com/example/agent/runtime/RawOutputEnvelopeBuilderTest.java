@@ -1,6 +1,6 @@
 package com.example.agent.runtime;
 
-import com.example.agent.runtime.raw.RawOutputEnvelopeBuilder;
+import com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder;
 import com.example.agent.runtime.summary.StepSummaryProperties;
 import java.util.HashMap;
 import java.util.Map;

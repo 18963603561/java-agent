@@ -14,10 +14,10 @@ import com.example.agent.runtime.model.StepResultRaw;
 import com.example.agent.runtime.model.StepResultRefSet;
 import com.example.agent.runtime.model.StepResultSummary;
 import com.example.agent.runtime.model.StepResultTiming;
-import com.example.agent.runtime.raw.RawRef;
-import com.example.agent.runtime.raw.RawOutputEnvelope;
+import com.example.agent.runtime.raw.ref.RawRef;
+import com.example.agent.runtime.raw.output.RawOutputEnvelope;
 import com.example.agent.runtime.structured.StructuredExtractorRegistry;
-import com.example.agent.runtime.structured.data.StructuredData;
+import com.example.agent.runtime.structured.structured.StructuredData;
 import com.example.agent.runtime.structured.result.StructuredRefs;
 import com.example.agent.runtime.structured.result.StructuredResult;
 import com.example.agent.runtime.output.OutputFieldExtractor;
@@ -39,7 +39,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import com.example.agent.runtime.raw.RawOutputEnvelopeBuilder;
+import com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder;
 import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
 
 /**

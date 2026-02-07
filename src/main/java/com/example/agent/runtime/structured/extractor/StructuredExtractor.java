@@ -1,6 +1,6 @@
 package com.example.agent.runtime.structured.extractor;
 
-import com.example.agent.runtime.structured.data.StructuredData;
+import com.example.agent.runtime.structured.structured.StructuredData;
 import com.example.agent.runtime.structured.result.StructuredResult;
 
 import java.util.Map;

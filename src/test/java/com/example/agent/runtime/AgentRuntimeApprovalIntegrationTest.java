@@ -65,7 +65,7 @@ import com.example.agent.runtime.step.StepRecord;
 import com.example.agent.runtime.step.StepRuntimeService;
 import com.example.agent.runtime.step.StepState;
 import com.example.agent.runtime.output.FinalOutputService;
-import com.example.agent.runtime.raw.RawOutputEnvelopeBuilder;
+import com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder;
 import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

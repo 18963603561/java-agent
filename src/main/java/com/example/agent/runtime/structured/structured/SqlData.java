@@ -1,4 +1,4 @@
-package com.example.agent.runtime.structured.data;
+package com.example.agent.runtime.structured.structured;
 
 import java.util.LinkedHashMap;
 import java.util.Map;

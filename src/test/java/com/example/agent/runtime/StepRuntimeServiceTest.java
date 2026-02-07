@@ -15,7 +15,7 @@ import com.example.agent.runtime.step.StepRecord;
 import com.example.agent.runtime.step.repository.StepRecordRepository;
 import com.example.agent.runtime.step.StepRuntimeService;
 import com.example.agent.runtime.step.StepState;
-import com.example.agent.runtime.raw.RawOutputEnvelopeBuilder;
+import com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder;
 import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
 import com.example.agent.runtime.summary.StepSummaryProperties;
 

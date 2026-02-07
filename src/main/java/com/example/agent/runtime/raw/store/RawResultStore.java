@@ -1,4 +1,6 @@
-package com.example.agent.runtime.raw;
+package com.example.agent.runtime.raw.store;
+
+import com.example.agent.runtime.raw.ref.RawRef;
 
 /**
  * 原始结果存储接口。

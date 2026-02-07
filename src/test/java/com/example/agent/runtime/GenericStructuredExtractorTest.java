@@ -1,9 +1,9 @@
 package com.example.agent.runtime;
 
 import com.example.agent.runtime.structured.extractor.GenericStructuredExtractor;
-import com.example.agent.runtime.structured.data.RecordsetData;
+import com.example.agent.runtime.structured.structured.RecordsetData;
 import com.example.agent.runtime.structured.ResultKind;
-import com.example.agent.runtime.structured.data.SqlData;
+import com.example.agent.runtime.structured.structured.SqlData;
 import com.example.agent.runtime.structured.result.StructuredResult;
 import java.util.List;
 import java.util.Map;

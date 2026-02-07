@@ -1,7 +1,7 @@
 package com.example.agent.runtime.model;
 
-import com.example.agent.runtime.raw.RawRef;
-import com.example.agent.runtime.structured.data.StructuredData;
+import com.example.agent.runtime.raw.ref.RawRef;
+import com.example.agent.runtime.structured.structured.StructuredData;
 import com.example.agent.runtime.structured.result.StructuredResult;
 import java.util.List;
 

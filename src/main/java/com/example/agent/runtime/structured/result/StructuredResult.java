@@ -1,8 +1,8 @@
 package com.example.agent.runtime.structured.result;
 
 import com.example.agent.runtime.structured.ResultKind;
-import com.example.agent.runtime.structured.data.DefaultStructuredData;
-import com.example.agent.runtime.structured.data.StructuredData;
+import com.example.agent.runtime.structured.structured.DefaultStructuredData;
+import com.example.agent.runtime.structured.structured.StructuredData;
 
 import java.util.Map;
 

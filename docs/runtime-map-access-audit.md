@@ -395,14 +395,14 @@
 
 - `src/main/java/com/example/agent/runtime/engine/AgentRuntime.java:800` `com.example.agent.runtime.engine.AgentRuntime#resolveRawRef`：`private String resolveRawRef(Map<String, Object> output) {`
 - `src/main/java/com/example/agent/runtime/llm/LlmStepService.java:1366` `com.example.agent.runtime.llm.LlmStepService#resolveRawRefFromToolResult`：`private String resolveRawRefFromToolResult(Map<String, Object> result) {`
-- `src/main/java/com/example/agent/runtime/raw/RawOutputEnvelopeBuilder.java:62` `com.example.agent.runtime.raw.RawOutputEnvelopeBuilder#resolveRawRef`：`public String resolveRawRef(Map<String, Object> rawOutput) {`
+- `src/main/java/com/example/agent/runtime/raw/RawOutputEnvelopeBuilder.java:62` `com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder#resolveRawRef`：`public String resolveRawRef(Map<String, Object> rawOutput) {`
 - `src/main/java/com/example/agent/runtime/react/ReactLoopService.java:598` `com.example.agent.runtime.react.ReactLoopService#resolveRawRef`：`private String resolveRawRef(Map<String, Object> output) {`
 - `src/main/java/com/example/agent/runtime/step/StepExecutionOutput.java:183` `com.example.agent.runtime.step.StepExecutionOutput#resolveRawRef`：`private static String resolveRawRef(Map<String, Object> payload) {`
 - `src/main/java/com/example/agent/runtime/step/StepRuntimeService.java:374` `com.example.agent.runtime.step.StepRuntimeService#resolveRawRef`：`private RawRef resolveRawRef(StepExecutionOutput output) {`
 
 ### B2. refs 解析相关方法
 
-- `src/main/java/com/example/agent/runtime/raw/RawOutputEnvelopeBuilder.java:97` `com.example.agent.runtime.raw.RawOutputEnvelopeBuilder#resolveRefs`：`public Map<String, String> resolveRefs(Map<String, Object> rawOutput) {`
+- `src/main/java/com/example/agent/runtime/raw/RawOutputEnvelopeBuilder.java:97` `com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder#resolveRefs`：`public Map<String, String> resolveRefs(Map<String, Object> rawOutput) {`
 - `src/main/java/com/example/agent/runtime/step/StepExecutionOutput.java:212` `com.example.agent.runtime.step.StepExecutionOutput#resolveRefs`：`private static Map<String, String> resolveRefs(Map<String, Object> payload) {`
 - `src/main/java/com/example/agent/runtime/step/StepRuntimeService.java:409` `com.example.agent.runtime.step.StepRuntimeService#resolveRefs`：`private StepResultRefSet resolveRefs(StepExecutionOutput output, RawRef rawRef) {`
 
@@ -461,7 +461,7 @@
 - `rawRef` 提取路径差异（同为 `resolveRawRef*`，但 nested key 覆盖不一致）：
   - `src/main/java/com/example/agent/runtime/engine/AgentRuntime.java:800` `com.example.agent.runtime.engine.AgentRuntime#resolveRawRef`
   - `src/main/java/com/example/agent/runtime/llm/LlmStepService.java:1366` `com.example.agent.runtime.llm.LlmStepService#resolveRawRefFromToolResult`
-  - `src/main/java/com/example/agent/runtime/raw/RawOutputEnvelopeBuilder.java:62` `com.example.agent.runtime.raw.RawOutputEnvelopeBuilder#resolveRawRef`
+  - `src/main/java/com/example/agent/runtime/raw/RawOutputEnvelopeBuilder.java:62` `com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder#resolveRawRef`
   - `src/main/java/com/example/agent/runtime/react/ReactLoopService.java:598` `com.example.agent.runtime.react.ReactLoopService#resolveRawRef`
   - `src/main/java/com/example/agent/runtime/step/StepExecutionOutput.java:183` `com.example.agent.runtime.step.StepExecutionOutput#resolveRawRef`
   - `src/main/java/com/example/agent/runtime/step/StepRuntimeService.java:374` `com.example.agent.runtime.step.StepRuntimeService#resolveRawRef`
@@ -490,7 +490,7 @@
 ### D1. 建议的“权威收口点”（应尽量成为唯一解析入口）
 
 - `com.example.agent.runtime.step.StepExecutionOutput`：步骤执行器统一返回类型，建议承载 `toolName/rawRef/refs/summary` 的显式字段。
-- `com.example.agent.runtime.raw.RawOutputEnvelopeBuilder`：负责从“任意输出 Map”中抽取 `rawRef/refs/data/truncated` 的权威实现。
+- `com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder`：负责从“任意输出 Map”中抽取 `rawRef/refs/data/truncated` 的权威实现。
 - `com.example.agent.runtime.summary.StepOutputSummaryBuilder`：负责生成稳定的 `outputSummary/outputDigest/stepSummary` 结构，避免各处复制粘贴。
 - `OutputKeys`（建议新增）：集中管理 key 常量，作为静态分析白名单/治理入口。
 
@@ -505,7 +505,7 @@
 - `com.example.agent.runtime.control.RuntimeApprovalGate`
 - `com.example.agent.runtime.engine.AgentRuntime`
 - `com.example.agent.runtime.llm.LlmStepService`
-- `com.example.agent.runtime.raw.RawOutputEnvelopeBuilder`
+- `com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder`
 - `com.example.agent.runtime.react.ReactLoopService`
 - `com.example.agent.runtime.step.StepExecutionOutput`
 - `com.example.agent.runtime.step.StepRuntimeService`
