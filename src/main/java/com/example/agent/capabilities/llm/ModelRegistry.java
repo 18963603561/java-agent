@@ -3,6 +3,7 @@ package com.example.agent.capabilities.llm;
 import java.util.Collection;
 import java.util.Collections;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 /**
  * 模型注册表，提供模型配置的查询入口。
@@ -31,6 +32,9 @@ public class ModelRegistry {
      * @return 模型定义，未找到则返回空
      */
     public ModelDefinition getModel(String modelId) {
+        if (!StringUtils.hasText(modelId)) {
+            return null;
+        }
         if (modelConfigProperties.getModels() == null) {
             return null;
         }

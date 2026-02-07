@@ -69,6 +69,10 @@ public class DefaultLlmClient implements LlmClient {
      */
     @Override
     public ModelResponse generate(ModelRequest request) {
+        if (request == null) {
+            log.warn("模型请求为空，使用默认请求对象");
+            request = new ModelRequest();
+        }
         // 选择默认场景，避免空场景导致路由失败。
         ModelScene scene = request.getScene() != null ? request.getScene() : ModelScene.CHEAP;
         // 路由到目标模型定义。

@@ -3,6 +3,8 @@ package com.example.agent.capabilities.llm;
 import com.example.agent.security.auth.TenantContext;
 import java.time.Instant;
 import java.util.UUID;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -10,6 +12,11 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ModelFallbackPolicy {
+
+    /**
+     * 日志记录器。
+     */
+    private static final Logger log = LoggerFactory.getLogger(ModelFallbackPolicy.class);
 
     /**
      * 模型配置集合。
@@ -37,10 +44,17 @@ public class ModelFallbackPolicy {
     public ModelFallbackDecision evaluate(TenantContext tenantContext, String taskId,
                                           String currentModel, String reason) {
         if (!modelConfigProperties.isFallbackEnabled()) {
+            log.debug("模型回退已关闭, taskId={}, currentModel={}, reason={}", taskId, currentModel, reason);
             return null;
         }
         String fallbackModel = modelConfigProperties.getFallbackModelId();
         if (fallbackModel == null || fallbackModel.equals(currentModel)) {
+            log.debug("模型回退不生效, taskId={}, currentModel={}, fallbackModel={}", taskId, currentModel, fallbackModel);
+            return null;
+        }
+        if (tenantContext == null || tenantContext.getTenantId() == null || tenantContext.getTenantId().isBlank()) {
+            log.warn("模型回退跳过，租户上下文缺失, taskId={}, currentModel={}, fallbackModel={}",
+                    taskId, currentModel, fallbackModel);
             return null;
         }
         ModelFallbackDecision decision = new ModelFallbackDecision();

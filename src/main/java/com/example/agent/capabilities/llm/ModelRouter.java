@@ -44,16 +44,30 @@ public class ModelRouter {
      * @return 模型定义
      */
     public ModelDefinition route(ModelScene scene) {
+        if (scene == null) {
+            log.warn("模型路由场景为空，返回空模型");
+            return null;
+        }
         String key = scene.name().toLowerCase(Locale.ROOT);
         String modelId = modelConfigProperties.getRoutes().get(key);
-        if (!StringUtils.hasText(modelId)) {
+        if (!StringUtils.hasText(modelId) && modelConfigProperties.isFallbackEnabled()) {
             modelId = modelConfigProperties.getFallbackModelId();
         }
         ModelDefinition model = modelRegistry.getModel(modelId);
-        if (model == null && modelConfigProperties.getFallbackModelId() != null) {
+        if (model == null
+                && modelConfigProperties.isFallbackEnabled()
+                && modelConfigProperties.getFallbackModelId() != null) {
             model = modelRegistry.getModel(modelConfigProperties.getFallbackModelId());
         }
-        log.debug("模型路由, scene={}, modelId={}", scene, model != null ? model.getModelId() : null);
+        if (model == null) {
+            log.warn("模型路由未命中, scene={}, routeModelId={}, fallbackEnabled={}, fallbackModelId={}",
+                    scene,
+                    modelId,
+                    modelConfigProperties.isFallbackEnabled(),
+                    modelConfigProperties.getFallbackModelId());
+        } else {
+            log.debug("模型路由, scene={}, modelId={}", scene, model.getModelId());
+        }
         return model;
     }
 }

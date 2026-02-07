@@ -17,6 +17,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -64,6 +65,12 @@ public class ModelInvocationService {
      * <p>示例：为模型原始输出生成 {@code rawRef}。
      */
     private final RawResultStore rawResultStore;
+
+    /**
+     * 是否启用 LLM 事件发布。
+     */
+    @Value("${agent.llm.event.publish-enabled:true}")
+    private boolean llmEventPublishEnabled;
 
     /**
      * 构造模型调用服务。
@@ -220,8 +227,12 @@ public class ModelInvocationService {
         if (metadata != null) {
             payload.putAll(metadata);
         }
-        // 发布提示词事件，记录事件流信息。
-        // publishEvent(tenantContext, workflowId, seq, EventType.LLM_PROMPT, payload);
+        if (!llmEventPublishEnabled) {
+            log.info("LLM 提示词事件发布已关闭, tenantId={}, workflowId={}, phase={}, modelId={}",
+                    tenantContext.getTenantId(), workflowId, phase, modelId);
+            return;
+        }
+        publishEvent(tenantContext, workflowId, seq, EventType.LLM_PROMPT, payload);
     }
 
     /**
@@ -258,8 +269,12 @@ public class ModelInvocationService {
         if (metadata != null) {
             payload.putAll(metadata);
         }
-        // 发布输出解析事件，记录事件流信息。
-        // publishEvent(tenantContext, workflowId, seq, EventType.LLM_PARSE, payload);
+        if (!llmEventPublishEnabled) {
+            log.info("LLM 输出解析事件发布已关闭, tenantId={}, workflowId={}, phase={}, modelId={}",
+                    tenantContext.getTenantId(), workflowId, phase, response.getModelId());
+            return;
+        }
+        publishEvent(tenantContext, workflowId, seq, EventType.LLM_PARSE, payload);
     }
 
     /**

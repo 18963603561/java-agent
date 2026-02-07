@@ -1,18 +1,28 @@
 package com.example.agent.model;
 
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.util.List;
-import java.util.Map;
-import org.junit.jupiter.api.Test;
-import org.springframework.web.reactive.function.client.WebClient;
 import com.example.agent.capabilities.llm.DefaultModelProvider;
+import com.example.agent.capabilities.llm.ModelDefinition;
 import com.example.agent.capabilities.llm.ModelRequest;
+import com.example.agent.capabilities.llm.ModelResponse;
 import com.example.agent.capabilities.llm.ModelScene;
 import com.example.agent.capabilities.llm.ModelToolChoice;
 import com.example.agent.capabilities.llm.ModelToolDefinition;
 import com.example.agent.capabilities.llm.PromptMessage;
 import com.example.agent.capabilities.llm.PromptRole;
+import com.example.agent.capabilities.llm.provider.LocalFallbackStrategy;
+import com.example.agent.capabilities.llm.provider.ModelProviderHttpProperties;
+import com.example.agent.capabilities.llm.provider.ModelRequestBodyBuilder;
+import com.example.agent.capabilities.llm.provider.ModelMessageBuilder;
+import com.example.agent.capabilities.llm.provider.ProviderRouter;
+import com.example.agent.capabilities.llm.provider.ToolPayloadBuilder;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -21,9 +31,22 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class DefaultModelProviderTest {
 
+    private DefaultModelProvider provider;
+
+    @BeforeEach
+    void setUp() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        ModelProviderHttpProperties properties = new ModelProviderHttpProperties();
+        ModelMessageBuilder messageBuilder = new ModelMessageBuilder();
+        ToolPayloadBuilder toolPayloadBuilder = new ToolPayloadBuilder();
+        ModelRequestBodyBuilder requestBodyBuilder = new ModelRequestBodyBuilder(properties, messageBuilder, toolPayloadBuilder);
+        LocalFallbackStrategy localFallbackStrategy = new LocalFallbackStrategy(objectMapper, messageBuilder);
+        ProviderRouter providerRouter = new ProviderRouter(List.of());
+        provider = new DefaultModelProvider(providerRouter, localFallbackStrategy, requestBodyBuilder);
+    }
+
     @Test
     void buildOpenAiRequestBodyOmitsToolsWhenEmpty() {
-        DefaultModelProvider provider = new DefaultModelProvider(new ObjectMapper(), WebClient.builder());
         ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
         request.setTools(List.of());
         request.setToolChoice(ModelToolChoice.auto());
@@ -38,7 +61,6 @@ class DefaultModelProviderTest {
     @Test
     void buildOpenAiRequestBodyIncludesToolsAndParameters() {
         ObjectMapper objectMapper = new ObjectMapper();
-        DefaultModelProvider provider = new DefaultModelProvider(objectMapper, WebClient.builder());
         Map<String, Object> inputSchema = Map.of(
                 "type", "object",
                 "properties", Map.of("query", Map.of("type", "string"))
@@ -68,7 +90,6 @@ class DefaultModelProviderTest {
 
     @Test
     void buildOpenAiRequestBodyIncludesSpecifiedToolChoice() {
-        DefaultModelProvider provider = new DefaultModelProvider(new ObjectMapper(), WebClient.builder());
         ModelToolDefinition tool = new ModelToolDefinition("demo_tool", "demo", null);
         ModelToolChoice toolChoice = ModelToolChoice.specified("demo_tool");
 
@@ -100,7 +121,6 @@ class DefaultModelProviderTest {
 
     @Test
     void buildOpenAiRequestBodyDefaultsParametersWhenMissing() {
-        DefaultModelProvider provider = new DefaultModelProvider(new ObjectMapper(), WebClient.builder());
         ModelToolDefinition tool = new ModelToolDefinition("demo_tool", "demo", null);
 
         ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
@@ -128,7 +148,6 @@ class DefaultModelProviderTest {
 
     @Test
     void buildOpenAiRequestBodyUsesMessagesWhenProvided() {
-        DefaultModelProvider provider = new DefaultModelProvider(new ObjectMapper(), WebClient.builder());
         ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
         request.setMessages(List.of(
                 new PromptMessage(PromptRole.SYSTEM, "system"),
@@ -146,7 +165,6 @@ class DefaultModelProviderTest {
 
     @Test
     void buildOllamaRequestBodyOmitsToolsWhenChoiceNone() {
-        DefaultModelProvider provider = new DefaultModelProvider(new ObjectMapper(), WebClient.builder());
         ModelToolDefinition tool = new ModelToolDefinition("demo_tool", "demo", null);
         ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
         request.setTools(List.of(tool));
@@ -159,8 +177,6 @@ class DefaultModelProviderTest {
 
     @Test
     void buildOllamaRequestBodyFiltersSpecifiedTool() {
-        ObjectMapper objectMapper = new ObjectMapper();
-        DefaultModelProvider provider = new DefaultModelProvider(objectMapper, WebClient.builder());
         ModelToolDefinition tool = new ModelToolDefinition("demo_tool", "demo", null);
         ModelToolDefinition other = new ModelToolDefinition("other_tool", "other", null);
         ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
@@ -184,7 +200,6 @@ class DefaultModelProviderTest {
 
     @Test
     void buildOllamaRequestBodyMapsDeveloperRoleToSystem() {
-        DefaultModelProvider provider = new DefaultModelProvider(new ObjectMapper(), WebClient.builder());
         ModelRequest request = new ModelRequest("ping", ModelScene.CHEAP);
         request.setMessages(List.of(
                 new PromptMessage(PromptRole.DEVELOPER, "dev"),
@@ -202,4 +217,18 @@ class DefaultModelProviderTest {
         Map<?, ?> first = (Map<?, ?>) messages.get(0);
         assertEquals("system", first.get("role"));
     }
+
+    @Test
+    void invokeFallsBackToLocalWhenNoAdapterMatched() {
+        ModelRequest request = new ModelRequest("PLAN_CONTEXT_JSON:{}", ModelScene.CHEAP);
+        ModelDefinition definition = new ModelDefinition();
+        definition.setModelId("local-model");
+
+        ModelResponse response = provider.invoke(definition, request);
+
+        assertNotNull(response);
+        assertEquals("local-model", response.getModelId());
+        assertTrue(response.getContent().contains("local-plan") || response.getContent().startsWith("response:"));
+    }
 }
+
