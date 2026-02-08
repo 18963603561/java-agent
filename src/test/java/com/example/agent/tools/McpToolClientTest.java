@@ -27,6 +27,11 @@ import com.example.agent.capabilities.tools.mcp.McpServerProperties;
 import com.example.agent.capabilities.tools.mcp.McpToolClient;
 import com.example.agent.capabilities.tools.mcp.McpToolListRequest;
 import com.example.agent.capabilities.tools.mcp.McpToolListResponse;
+import com.example.agent.capabilities.tools.mcp.protocol.McpJsonRpcAdapter;
+import com.example.agent.capabilities.tools.mcp.protocol.McpRestAdapter;
+import com.example.agent.capabilities.tools.mcp.session.McpSseSessionManager;
+import com.example.agent.capabilities.tools.mcp.strategy.McpCallStrategyResolver;
+import com.example.agent.capabilities.tools.mcp.transport.McpHttpTransport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -189,8 +194,13 @@ class McpToolClientTest {
         CircuitBreakerManager circuitBreakerManager = Mockito.mock(CircuitBreakerManager.class);
         WebClient.Builder builder = WebClient.builder().exchangeFunction(exchangeFunction);
         ObjectMapper objectMapper = new ObjectMapper();
+        McpCallStrategyResolver strategyResolver = new McpCallStrategyResolver();
+        McpSseSessionManager sseSessionManager = new McpSseSessionManager();
+        McpHttpTransport httpTransport = new McpHttpTransport(builder, objectMapper);
+        McpJsonRpcAdapter jsonRpcAdapter = new McpJsonRpcAdapter(httpTransport, sseSessionManager);
+        McpRestAdapter restAdapter = new McpRestAdapter(httpTransport, sseSessionManager, objectMapper);
         return new McpToolClient(properties, toolRegistry, rateLimitService, circuitBreakerManager, builder,
-                objectMapper);
+                objectMapper, strategyResolver, jsonRpcAdapter, restAdapter);
     }
 
     private ExchangeFunction okResponse(byte[] body) {

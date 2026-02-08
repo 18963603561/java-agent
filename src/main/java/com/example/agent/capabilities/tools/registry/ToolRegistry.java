@@ -3,9 +3,11 @@ package com.example.agent.capabilities.tools.registry;
 import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -19,12 +21,16 @@ public class ToolRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(ToolRegistry.class);
 
-    private final Map<String, ToolHandler> handlers = new HashMap<>();
-    private final Map<String, McpToolDefinition> definitions = new HashMap<>();
+    private final Map<String, ToolHandler> handlers = new ConcurrentHashMap<>();
+    private final Map<String, McpToolDefinition> definitions = new ConcurrentHashMap<>();
     /**
      * 工具定义来源映射，用于按来源覆盖与清理。
      */
-    private final Map<String, String> definitionSources = new HashMap<>();
+    private final Map<String, String> definitionSources = new ConcurrentHashMap<>();
+    /**
+     * 工具定义读写锁，保障多映射写入一致性。
+     */
+    private final ReadWriteLock definitionLock = new ReentrantReadWriteLock();
 
     public ToolRegistry() {
         registerDefaults();
@@ -46,7 +52,12 @@ public class ToolRegistry {
      * @return 工具定义列表
      */
     public List<McpToolDefinition> listDefinitions() {
-        return new ArrayList<>(definitions.values());
+        definitionLock.readLock().lock();
+        try {
+            return new ArrayList<>(definitions.values());
+        } finally {
+            definitionLock.readLock().unlock();
+        }
     }
 
     /**
@@ -59,7 +70,12 @@ public class ToolRegistry {
         if (toolName == null) {
             return null;
         }
-        return definitions.get(toolName);
+        definitionLock.readLock().lock();
+        try {
+            return definitions.get(toolName);
+        } finally {
+            definitionLock.readLock().unlock();
+        }
     }
 
     /**
@@ -103,7 +119,8 @@ public class ToolRegistry {
             return;
         }
         String normalizedSource = source == null ? "unknown" : source.trim();
-        synchronized (definitions) {
+        definitionLock.writeLock().lock();
+        try {
             for (McpToolDefinition definition : toolDefinitions) {
                 if (definition == null || definition.getName() == null || definition.getName().isBlank()) {
                     continue;
@@ -125,6 +142,8 @@ public class ToolRegistry {
                 definitionSources.put(name, normalizedSource);
                 log.info("工具定义已注册, toolName={}, source={}", name, normalizedSource);
             }
+        } finally {
+            definitionLock.writeLock().unlock();
         }
     }
 
@@ -138,7 +157,8 @@ public class ToolRegistry {
         if (source == null || source.isBlank()) {
             return;
         }
-        synchronized (definitions) {
+        definitionLock.writeLock().lock();
+        try {
             List<String> removed = new ArrayList<>();
             for (Map.Entry<String, String> entry : definitionSources.entrySet()) {
                 String name = entry.getKey();
@@ -158,6 +178,8 @@ public class ToolRegistry {
             if (!removed.isEmpty()) {
                 log.info("工具定义已清理, source={}, removed={}", source, removed.size());
             }
+        } finally {
+            definitionLock.writeLock().unlock();
         }
     }
 

@@ -36,6 +36,7 @@ import org.springframework.stereotype.Component;
 import com.example.agent.capabilities.tools.registry.ToolCache;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.capabilities.tools.sandbox.SandboxExecutor;
+import com.example.agent.capabilities.tools.sandbox.SandboxResult;
 import com.example.agent.capabilities.tools.validation.ToolArgumentValidator;
 
 /**
@@ -250,8 +251,8 @@ public class ToolExecutor {
                 log.info("宸ュ叿鎵ц寮€濮? tenantId={}, tool={}, attempt={}, usageId={}, traceId={}",
                         tenantContext.getTenantId(), resolvedTool, attempt, usageId,
                         resolveTraceId(tenantContext));
-                // 鍏堟墽琛屾矙绠变换鍔★紝鍐嶆墽琛?MCP 宸ュ叿璋冪敤
-                //SandboxResult sandboxResult = sandboxExecutor.execute(resolvedTool, request, tenantContext, arguments);
+                // 先执行沙箱校验，再执行 MCP 工具调用
+                SandboxResult sandboxResult = sandboxExecutor.execute(resolvedTool, request, tenantContext, arguments);
                 McpToolCallRequest callRequest = buildCallRequest(request, resolvedTool, arguments, usageId);
                 McpToolCallResponse callResponse = mcpToolClient.callTool(callRequest, tenantContext);
                 Map<String, Object> toolResult = callResponse != null ? callResponse.getResult() : null;
@@ -259,12 +260,12 @@ public class ToolExecutor {
                 if (toolResult != null) {
                     merged.putAll(toolResult);
                 }
-/*                if (sandboxResult != null && sandboxResult.getOutput() != null) {
+                if (sandboxResult != null && sandboxResult.getOutput() != null) {
                     merged.put("sandbox", sandboxResult.getOutput());
                 }
                 if (sandboxResult != null && sandboxResult.getStatus() != null) {
                     merged.put("sandboxStatus", sandboxResult.getStatus());
-                }*/
+                }
 
                 TokenUsageRecord usageRecord = recordUsage(tenantContext, request, usageId,
                         resolvedTool, merged, taskId, false);
