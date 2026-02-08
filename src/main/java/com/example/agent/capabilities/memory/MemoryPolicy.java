@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import com.example.agent.capabilities.memory.support.MemoryTextUtils;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -77,7 +78,7 @@ public class MemoryPolicy {
     private long estimateTokens(List<MemoryRecord> records) {
         long total = 0;
         for (MemoryRecord record : records) {
-            String text = firstNonBlank(record.getContent(), record.getSummary());
+            String text = MemoryTextUtils.firstNonBlank(record.getContent(), record.getSummary());
             total += tokenEstimator.estimateTokens(text);
         }
         return total;
@@ -97,13 +98,4 @@ public class MemoryPolicy {
         return filtered;
     }
 
-    private String firstNonBlank(String first, String second) {
-        if (StringUtils.hasText(first)) {
-            return first;
-        }
-        if (StringUtils.hasText(second)) {
-            return second;
-        }
-        return null;
-    }
 }

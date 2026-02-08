@@ -6,6 +6,7 @@ import com.example.agent.runtime.model.RuntimeResult;
 import com.example.agent.security.redaction.RedactionResult;
 import com.example.agent.security.redaction.RedactionService;
 import com.example.agent.security.redaction.RedactionStage;
+import com.example.agent.capabilities.memory.support.MemoryTextUtils;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -98,8 +99,8 @@ public class MemoryWriteService {
                 MemoryRecord record = new MemoryRecord();
                 record.setSessionId(sessionId);
                 record.setTaskId(taskId);
-                record.setContent(trimText(text, properties.getMaxRecordChars()));
-                record.setSummary(trimText(text, properties.getMaxSummaryChars()));
+                record.setContent(MemoryTextUtils.trimText(text, properties.getMaxRecordChars()));
+                record.setSummary(MemoryTextUtils.trimText(text, properties.getMaxSummaryChars()));
                 record.setLayer(MemoryLayer.RECENT.value());
                 if (saveSafely(record, tenantContext)) {
                     saved++;
@@ -120,8 +121,10 @@ public class MemoryWriteService {
                 MemoryRecord record = new MemoryRecord();
                 record.setSessionId(sessionId);
                 record.setTaskId(taskId);
-                record.setContent(trimText(outputRedaction.getRedactedText(), properties.getMaxRecordChars()));
-                record.setSummary(trimText(summaryRedaction.getRedactedText(), properties.getMaxSummaryChars()));
+                record.setContent(MemoryTextUtils.trimText(outputRedaction.getRedactedText(),
+                        properties.getMaxRecordChars()));
+                record.setSummary(MemoryTextUtils.trimText(summaryRedaction.getRedactedText(),
+                        properties.getMaxSummaryChars()));
                 record.setLayer(MemoryLayer.RECENT.value());
                 if (saveSafely(record, tenantContext)) {
                     saved++;
@@ -172,8 +175,8 @@ public class MemoryWriteService {
         MemoryRecord record = new MemoryRecord();
         record.setSessionId(request.getSessionId());
         record.setTaskId(taskId);
-        record.setContent(trimText(redaction.getRedactedText(), properties.getMaxRecordChars()));
-        record.setSummary(trimText(redaction.getRedactedText(), properties.getMaxSummaryChars()));
+        record.setContent(MemoryTextUtils.trimText(redaction.getRedactedText(), properties.getMaxRecordChars()));
+        record.setSummary(MemoryTextUtils.trimText(redaction.getRedactedText(), properties.getMaxSummaryChars()));
         record.setLayer(MemoryLayer.RECENT.value());
         saveSafely(record, tenantContext);
     }
@@ -244,20 +247,9 @@ public class MemoryWriteService {
             if (builder.length() > 0) {
                 builder.append(" | ");
             }
-            builder.append("finalOutput: ").append(trimText(outputText, 200));
+            builder.append("finalOutput: ").append(MemoryTextUtils.trimText(outputText, 200));
         }
         String summary = builder.toString().trim();
         return summary.isEmpty() ? null : summary;
-    }
-
-    private String trimText(String text, int maxChars) {
-        if (!StringUtils.hasText(text) || maxChars <= 0) {
-            return text;
-        }
-        String trimmed = text.trim();
-        if (trimmed.length() <= maxChars) {
-            return trimmed;
-        }
-        return trimmed.substring(0, maxChars);
     }
 }

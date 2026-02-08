@@ -1,18 +1,22 @@
 package com.example.agent.capabilities.memory;
 
-import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.context.ContextPolicy;
+import com.example.agent.capabilities.memory.recall.RecallContext;
+import com.example.agent.capabilities.memory.recall.RecallContextResolver;
+import com.example.agent.capabilities.memory.recall.RecallExecutionPlanner;
+import com.example.agent.capabilities.memory.recall.RecallMetricsRecorder;
+import com.example.agent.capabilities.memory.recall.RecallPolicyResolver;
+import com.example.agent.capabilities.memory.recall.RecallPolicySnapshot;
+import com.example.agent.capabilities.memory.recall.RecallPostProcessResult;
+import com.example.agent.capabilities.memory.recall.RecallPostProcessor;
+import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.observability.MetricsPublisher;
-import com.example.agent.security.redaction.RedactionResult;
 import com.example.agent.security.redaction.RedactionService;
-import com.example.agent.security.redaction.RedactionStage;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -24,43 +28,69 @@ public class MemoryRecallService {
 
     private static final Logger log = LoggerFactory.getLogger(MemoryRecallService.class);
 
-    private static final String CONTEXT_RECALL_ENABLED = "memoryRecallEnabled";
-    private static final String CONTEXT_RECALL_FORCE = "memoryRecallForce";
-    private static final String CONTEXT_RECALL_LIMIT = "memoryRecallLimit";
-    private static final String CONTEXT_RECALL_MIN_QUERY_LENGTH = "memoryRecallMinQueryLength";
-    private static final String CONTEXT_RECALL_INCLUDE_COMPRESSED = "memoryRecallIncludeCompressed";
-    private static final String CONTEXT_RECALL_MAX_SUMMARY_CHARS = "memoryRecallMaxSummaryChars";
-    private static final String CONTEXT_RECALL_MAX_RECORD_CHARS = "memoryRecallMaxRecordChars";
-    private static final String CONTEXT_POLICY_KEY = "contextPolicy";
-    private static final String CONTEXT_POLICY_FALLBACK_KEY = "policy";
     /**
-     * 记忆存取服务。
+     * 召回上下文解析器。
      */
-    private final MemoryStore memoryStore;
+    private final RecallContextResolver recallContextResolver;
 
     /**
-     * 记忆召回配置。
+     * 召回策略解析器。
      */
-    private final MemoryRecallProperties properties;
+    private final RecallPolicyResolver recallPolicyResolver;
+
+    /**
+     * 召回检索执行器。
+     */
+    private final RecallExecutionPlanner recallExecutionPlanner;
+
+    /**
+     * 召回后处理器。
+     */
+    private final RecallPostProcessor recallPostProcessor;
+
+    /**
+     * 召回指标记录器。
+     */
+    private final RecallMetricsRecorder recallMetricsRecorder;
 
     /**
      * 脱敏服务。
      */
     private final RedactionService redactionService;
 
-    /**
-     * 指标发布器，用于记录策略使用情况。
-     */
-    private final MetricsPublisher metricsPublisher;
+    @Autowired
+    public MemoryRecallService(RecallContextResolver recallContextResolver,
+                               RecallPolicyResolver recallPolicyResolver,
+                               RecallExecutionPlanner recallExecutionPlanner,
+                               RecallPostProcessor recallPostProcessor,
+                               RecallMetricsRecorder recallMetricsRecorder,
+                               RedactionService redactionService) {
+        this.recallContextResolver = recallContextResolver;
+        this.recallPolicyResolver = recallPolicyResolver;
+        this.recallExecutionPlanner = recallExecutionPlanner;
+        this.recallPostProcessor = recallPostProcessor;
+        this.recallMetricsRecorder = recallMetricsRecorder;
+        this.redactionService = redactionService;
+    }
 
+    /**
+     * 兼容测试与手工构造场景的便捷构造方法。
+     *
+     * @param memoryStore 记忆存储门面
+     * @param properties 召回配置
+     * @param redactionService 脱敏服务
+     * @param metricsPublisher 指标发布器
+     */
     public MemoryRecallService(MemoryStore memoryStore,
                                MemoryRecallProperties properties,
                                RedactionService redactionService,
                                MetricsPublisher metricsPublisher) {
-        this.memoryStore = memoryStore;
-        this.properties = properties;
-        this.redactionService = redactionService;
-        this.metricsPublisher = metricsPublisher;
+        this(new RecallContextResolver(properties),
+                new RecallPolicyResolver(),
+                new RecallExecutionPlanner(memoryStore),
+                new RecallPostProcessor(redactionService),
+                new RecallMetricsRecorder(metricsPublisher),
+                redactionService);
     }
 
     /**
@@ -75,13 +105,8 @@ public class MemoryRecallService {
         if (tenantContext == null) {
             return MemoryRecallResult.skipped("tenant_missing");
         }
-        Map<String, Object> effectiveContext = context != null
-                ? context
-                : request != null ? request.getContext() : null;
-        String workflowId = readString(effectiveContext, "workflowId");
-
-        boolean enabled = resolveBoolean(effectiveContext, CONTEXT_RECALL_ENABLED, properties.isEnabled());
-        if (!enabled) {
+        RecallContext recallContext = recallContextResolver.resolve(request, context);
+        if (!recallContext.isEnabled()) {
             log.debug("记忆召回关闭, tenantId={}", tenantContext.getTenantId());
             return MemoryRecallResult.skipped("disabled");
         }
@@ -97,369 +122,52 @@ public class MemoryRecallService {
             return MemoryRecallResult.skipped("query_empty");
         }
 
-        int minQueryLength = resolveInt(effectiveContext, CONTEXT_RECALL_MIN_QUERY_LENGTH,
-                properties.getMinQueryLength());
-        boolean force = resolveBoolean(effectiveContext, CONTEXT_RECALL_FORCE, false);
-        if (!force && query.trim().length() < Math.max(0, minQueryLength)) {
+        if (!recallContext.isForce() && query.trim().length() < Math.max(0, recallContext.getMinQueryLength())) {
             return MemoryRecallResult.skipped("query_too_short");
         }
 
-        int limit = resolveInt(effectiveContext, CONTEXT_RECALL_LIMIT, properties.getLimit());
-        int maxSummaryChars = resolveInt(effectiveContext, CONTEXT_RECALL_MAX_SUMMARY_CHARS,
-                properties.getMaxSummaryChars());
-        int maxRecordChars = resolveInt(effectiveContext, CONTEXT_RECALL_MAX_RECORD_CHARS,
-                properties.getMaxRecordChars());
-        boolean includeCompressed = resolveBoolean(effectiveContext, CONTEXT_RECALL_INCLUDE_COMPRESSED,
-                properties.isIncludeCompressed());
-
-        ContextPolicy policy = resolvePolicyFromContext(effectiveContext);
-        List<RetrievalPriority> retrievalPriority = resolveRetrievalPriority(policy);
-        boolean enableSensitiveMask = resolveSensitiveMask(policy);
-        if (metricsPublisher != null) {
-            metricsPublisher.incrementWithTags("context_retrieval_priority_used_total",
-                    "priorityName", formatPriorityTag(retrievalPriority));
-        }
+        RecallPolicySnapshot policySnapshot = recallPolicyResolver.resolve(recallContext.getEffectiveContext());
+        List<RetrievalPriority> retrievalPriority = policySnapshot.getRetrievalPriority();
+        boolean enableSensitiveMask = policySnapshot.isEnableSensitiveMask();
+        recallMetricsRecorder.recordRetrievalPriority(retrievalPriority);
         log.info("记忆召回开始, tenantId={}, workflowId={}, sessionId={}, queryLength={}, limit={}, retrievalPriority={}, enableSensitiveMask={}",
-                tenantContext.getTenantId(), workflowId, sessionId, query.length(), limit,
+                tenantContext.getTenantId(), recallContext.getWorkflowId(), sessionId, query.length(),
+                recallContext.getLimit(),
                 retrievalPriority, enableSensitiveMask);
 
         try {
-            MemoryQuery memoryQuery = new MemoryQuery();
-            memoryQuery.setSessionId(sessionId);
-            memoryQuery.setQuery(query);
-            memoryQuery.setLimit(limit);
-
-            MemorySearchResult searchResult = memoryStore.search(memoryQuery, tenantContext, retrievalPriority);
-            List<MemoryRecord> records = searchResult != null ? searchResult.getRecords() : List.of();
-            records = filterCompressed(records, includeCompressed);
-            if (records.isEmpty()) {
+            List<MemoryRecord> records = recallExecutionPlanner.executeSearch(
+                    sessionId,
+                    query,
+                    recallContext.getLimit(),
+                    tenantContext,
+                    retrievalPriority);
+            RecallPostProcessResult postProcessResult = recallPostProcessor.process(
+                    records,
+                    recallContext.isIncludeCompressed(),
+                    recallContext.getMaxRecordChars(),
+                    recallContext.getMaxSummaryChars(),
+                    enableSensitiveMask);
+            if (postProcessResult.getRecords().isEmpty()) {
                 log.info("记忆召回无命中, tenantId={}, sessionId={}", tenantContext.getTenantId(), sessionId);
                 return MemoryRecallResult.skipped("empty");
             }
-            List<MemoryRecord> trimmed = trimRecords(records, maxRecordChars);
-            int redactionsAppliedCount = applyRedactionToRecords(trimmed, enableSensitiveMask);
-            String summary = buildSummary(trimmed, maxSummaryChars);
-            RedactionResult summaryRedaction = applyRedactionToSummary(summary, enableSensitiveMask);
-            summary = summaryRedaction.getRedactedText();
-            redactionsAppliedCount += summaryRedaction.getRedactedCount();
             log.info("记忆召回完成, tenantId={}, workflowId={}, sessionId={}, count={}, summaryLength={}, "
                             + "redactionsAppliedCount={}, enabled={}, rejectOnSecrets={}, redactOnPii={}",
-                    tenantContext.getTenantId(), workflowId, sessionId, trimmed.size(),
-                    summary == null ? 0 : summary.length(),
-                    redactionsAppliedCount,
+                    tenantContext.getTenantId(), recallContext.getWorkflowId(), sessionId,
+                    postProcessResult.getRecords().size(),
+                    postProcessResult.getSummary() == null ? 0 : postProcessResult.getSummary().length(),
+                    postProcessResult.getRedactionsAppliedCount(),
                     redactionService != null && redactionService.isEnabled(),
                     redactionService != null && redactionService.isRejectOnSecrets(),
                     redactionService != null && redactionService.isRedactOnPii());
-            return MemoryRecallResult.hit(trimmed, summary, redactionsAppliedCount);
+            return MemoryRecallResult.hit(postProcessResult.getRecords(),
+                    postProcessResult.getSummary(),
+                    postProcessResult.getRedactionsAppliedCount());
         } catch (Exception ex) {
             log.error("记忆召回异常, tenantId={}, sessionId={}",
                     tenantContext.getTenantId(), sessionId, ex);
             return MemoryRecallResult.skipped("recall_failed");
         }
-    }
-
-    private int applyRedactionToRecords(List<MemoryRecord> records, boolean enableSensitiveMask) {
-        if (!enableSensitiveMask || redactionService == null || records == null || records.isEmpty()) {
-            return 0;
-        }
-        int redactedCount = 0;
-        for (MemoryRecord record : records) {
-            if (record == null) {
-                continue;
-            }
-            RedactionResult contentResult = redactionService.apply(
-                    record.getContent(), RedactionStage.RECALL, "memoryContent");
-            record.setContent(contentResult.getRedactedText());
-            redactedCount += contentResult.getRedactedCount();
-
-            RedactionResult summaryResult = redactionService.apply(
-                    record.getSummary(), RedactionStage.RECALL, "memorySummary");
-            record.setSummary(summaryResult.getRedactedText());
-            redactedCount += summaryResult.getRedactedCount();
-        }
-        return redactedCount;
-    }
-
-    private RedactionResult applyRedactionToSummary(String summary, boolean enableSensitiveMask) {
-        if (!enableSensitiveMask || redactionService == null) {
-            RedactionResult result = new RedactionResult();
-            result.setRedactedText(summary);
-            return result;
-        }
-        return redactionService.apply(summary, RedactionStage.RECALL, "memorySummaryAggregate");
-    }
-
-    /**
-     * 从上下文解析策略信息，保持向后兼容。
-     */
-    private ContextPolicy resolvePolicyFromContext(Map<String, Object> context) {
-        if (context == null) {
-            return null;
-        }
-        Object value = context.get(CONTEXT_POLICY_KEY);
-        if (value == null) {
-            value = context.get(CONTEXT_POLICY_FALLBACK_KEY);
-        }
-        if (value instanceof ContextPolicy policy) {
-            return policy;
-        }
-        if (value instanceof Map<?, ?> map) {
-            ContextPolicy policy = buildPolicyFromMap(map);
-            return hasPolicyContent(policy) ? policy : null;
-        }
-        return null;
-    }
-
-    private ContextPolicy buildPolicyFromMap(Map<?, ?> map) {
-        if (map == null) {
-            return null;
-        }
-        ContextPolicy policy = new ContextPolicy();
-        policy.setPolicyId(readString(map, "policyId"));
-        policy.setRetrievalPriority(readStringList(map.get("retrievalPriority")));
-        policy.setPruneOrder(readStringList(map.get("pruneOrder")));
-        policy.setMaxEvidenceCount(readInteger(map, "maxEvidenceCount"));
-        policy.setMaxMemoryCount(readInteger(map, "maxMemoryCount"));
-        policy.setEnableSensitiveMask(readBoolean(map.get("enableSensitiveMask")));
-        return policy;
-    }
-
-    private boolean hasPolicyContent(ContextPolicy policy) {
-        if (policy == null) {
-            return false;
-        }
-        return StringUtils.hasText(policy.getPolicyId())
-                || (policy.getRetrievalPriority() != null && !policy.getRetrievalPriority().isEmpty())
-                || (policy.getPruneOrder() != null && !policy.getPruneOrder().isEmpty())
-                || policy.getMaxEvidenceCount() != null
-                || policy.getMaxMemoryCount() != null
-                || policy.getEnableSensitiveMask() != null;
-    }
-
-    /**
-     * 解析检索优先级并补齐默认顺序。
-     */
-    private List<RetrievalPriority> resolveRetrievalPriority(ContextPolicy policy) {
-        List<RetrievalPriority> resolved = new ArrayList<>();
-        List<String> configured = policy != null ? policy.getRetrievalPriority() : null;
-        if (configured != null) {
-            for (String value : configured) {
-                RetrievalPriority normalized = normalizePriorityValue(value);
-                if (normalized != null && !resolved.contains(normalized)) {
-                    resolved.add(normalized);
-                }
-            }
-        }
-        for (RetrievalPriority value : RetrievalPriority.defaultOrder()) {
-            if (!resolved.contains(value)) {
-                resolved.add(value);
-            }
-        }
-        return resolved;
-    }
-
-    private RetrievalPriority normalizePriorityValue(String value) {
-        return RetrievalPriority.parse(value);
-    }
-
-    /**
-     * 解析敏感遮罩开关，空值回退到默认行为。
-     */
-    private boolean resolveSensitiveMask(ContextPolicy policy) {
-        if (policy == null || policy.getEnableSensitiveMask() == null) {
-            return true;
-        }
-        return Boolean.TRUE.equals(policy.getEnableSensitiveMask());
-    }
-
-    private String formatPriorityTag(List<RetrievalPriority> retrievalPriority) {
-        if (retrievalPriority == null || retrievalPriority.isEmpty()) {
-            return "default";
-        }
-        List<String> tags = new ArrayList<>();
-        for (RetrievalPriority value : retrievalPriority) {
-            if (value != null) {
-                tags.add(value.name().toLowerCase(Locale.ROOT));
-            }
-        }
-        return tags.isEmpty() ? "default" : String.join(">", tags);
-    }
-
-    private boolean resolveBoolean(Map<String, Object> context, String key, boolean defaultValue) {
-        if (context == null || !context.containsKey(key)) {
-            return defaultValue;
-        }
-        Object value = context.get(key);
-        if (value instanceof Boolean boolValue) {
-            return boolValue;
-        }
-        if (value instanceof String text && StringUtils.hasText(text)) {
-            return Boolean.parseBoolean(text.trim());
-        }
-        return defaultValue;
-    }
-
-    private int resolveInt(Map<String, Object> context, String key, int defaultValue) {
-        if (context == null || !context.containsKey(key)) {
-            return defaultValue;
-        }
-        Object value = context.get(key);
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        if (value instanceof String text && StringUtils.hasText(text)) {
-            try {
-                return Integer.parseInt(text.trim());
-            } catch (NumberFormatException ignored) {
-                return defaultValue;
-            }
-        }
-        return defaultValue;
-    }
-
-    private List<MemoryRecord> trimRecords(List<MemoryRecord> records, int maxChars) {
-        if (records == null || records.isEmpty()) {
-            return List.of();
-        }
-        if (maxChars <= 0) {
-            return new ArrayList<>(records);
-        }
-        List<MemoryRecord> trimmed = new ArrayList<>(records.size());
-        for (MemoryRecord record : records) {
-            if (record == null) {
-                continue;
-            }
-            MemoryRecord copy = new MemoryRecord();
-            copy.setMemoryId(record.getMemoryId());
-            copy.setSessionId(record.getSessionId());
-            copy.setTaskId(record.getTaskId());
-            copy.setTenantId(record.getTenantId());
-            copy.setLayer(record.getLayer());
-            copy.setCreatedAt(record.getCreatedAt());
-            copy.setExpiresAt(record.getExpiresAt());
-            copy.setConversationSummary(record.getConversationSummary());
-            copy.setWorkingMemorySummary(record.getWorkingMemorySummary());
-            copy.setContent(trimText(record.getContent(), maxChars));
-            copy.setSummary(trimText(record.getSummary(), maxChars));
-            trimmed.add(copy);
-        }
-        return trimmed;
-    }
-
-    private List<MemoryRecord> filterCompressed(List<MemoryRecord> records, boolean includeCompressed) {
-        if (includeCompressed || records == null || records.isEmpty()) {
-            return records == null ? List.of() : records;
-        }
-        List<MemoryRecord> filtered = new ArrayList<>();
-        for (MemoryRecord record : records) {
-            if (record == null) {
-                continue;
-            }
-            if (!MemoryLayer.isCompressed(record.getLayer())) {
-                filtered.add(record);
-            }
-        }
-        return filtered;
-    }
-
-    private String buildSummary(List<MemoryRecord> records, int maxSummaryChars) {
-        if (records == null || records.isEmpty() || maxSummaryChars <= 0) {
-            return null;
-        }
-        StringBuilder builder = new StringBuilder();
-        int index = 1;
-        for (MemoryRecord record : records) {
-            String text = firstNonBlank(record.getSummary(), record.getContent());
-            if (!StringUtils.hasText(text)) {
-                continue;
-            }
-            if (builder.length() > 0) {
-                builder.append('\n');
-            }
-            builder.append(index).append(". ").append(text.trim());
-            if (builder.length() >= maxSummaryChars) {
-                builder.setLength(Math.min(builder.length(), maxSummaryChars));
-                break;
-            }
-            index++;
-        }
-        String summary = builder.toString().trim();
-        return summary.isEmpty() ? null : summary;
-    }
-
-    private List<String> readStringList(Object value) {
-        if (value instanceof List<?> list) {
-            List<String> result = new ArrayList<>();
-            for (Object item : list) {
-                if (item != null && StringUtils.hasText(item.toString())) {
-                    result.add(item.toString());
-                }
-            }
-            return result.isEmpty() ? null : result;
-        }
-        if (value instanceof String text && StringUtils.hasText(text)) {
-            return List.of(text.trim());
-        }
-        return null;
-    }
-
-    private Integer readInteger(Map<?, ?> map, String key) {
-        if (map == null || key == null) {
-            return null;
-        }
-        Object value = map.get(key);
-        if (value instanceof Number number) {
-            return number.intValue();
-        }
-        if (value instanceof String text && StringUtils.hasText(text)) {
-            try {
-                return Integer.parseInt(text.trim());
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
-    }
-
-    private Boolean readBoolean(Object value) {
-        if (value instanceof Boolean bool) {
-            return bool;
-        }
-        if (value instanceof String text && StringUtils.hasText(text)) {
-            return Boolean.parseBoolean(text.trim().toLowerCase(Locale.ROOT));
-        }
-        return null;
-    }
-
-    private String readString(Map<?, ?> context, String key) {
-        if (context == null || key == null) {
-            return null;
-        }
-        Object value = context.get(key);
-        if (value instanceof String text && StringUtils.hasText(text)) {
-            return text;
-        }
-        return null;
-    }
-
-    private String firstNonBlank(String first, String second) {
-        if (StringUtils.hasText(first)) {
-            return first;
-        }
-        if (StringUtils.hasText(second)) {
-            return second;
-        }
-        return null;
-    }
-
-    private String trimText(String text, int maxChars) {
-        if (!StringUtils.hasText(text) || maxChars <= 0) {
-            return text;
-        }
-        String trimmed = text.trim();
-        if (trimmed.length() <= maxChars) {
-            return trimmed;
-        }
-        return trimmed.substring(0, maxChars);
     }
 }

@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.memory;
 
 import com.example.agent.security.auth.TenantContext;
+import com.example.agent.capabilities.memory.support.MemoryTextUtils;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -127,7 +128,7 @@ public class CompressedMemoryStore {
             return null;
         }
         if (summary.length() > MAX_SUMMARY_CHARS) {
-            return summary.substring(0, MAX_SUMMARY_CHARS);
+            return MemoryTextUtils.trimText(summary, MAX_SUMMARY_CHARS);
         }
         return summary;
     }
@@ -158,7 +159,7 @@ public class CompressedMemoryStore {
         if (bullets.isEmpty()) {
             return null;
         }
-        String summary = trimText(String.join("；", bullets), MAX_SUMMARY_CHARS);
+        String summary = MemoryTextUtils.trimText(String.join("；", bullets), MAX_SUMMARY_CHARS);
         ConversationSummary conversationSummary = new ConversationSummary();
         conversationSummary.setVersion(SUMMARY_VERSION);
         conversationSummary.setSummary(summary);
@@ -173,7 +174,7 @@ public class CompressedMemoryStore {
         if (items.isEmpty()) {
             return null;
         }
-        String summary = trimText(String.join(" | ", items), MAX_SUMMARY_CHARS);
+        String summary = MemoryTextUtils.trimText(String.join(" | ", items), MAX_SUMMARY_CHARS);
         WorkingMemorySummary workingSummary = new WorkingMemorySummary();
         workingSummary.setVersion(SUMMARY_VERSION);
         workingSummary.setSummary(summary);
@@ -196,7 +197,7 @@ public class CompressedMemoryStore {
             if (!StringUtils.hasText(text)) {
                 continue;
             }
-            items.add(trimText(text, MAX_ITEM_CHARS));
+            items.add(MemoryTextUtils.trimText(text, MAX_ITEM_CHARS));
             if (items.size() >= maxCount) {
                 break;
             }
@@ -219,7 +220,7 @@ public class CompressedMemoryStore {
             if (!StringUtils.hasText(text)) {
                 continue;
             }
-            items.add(trimText(text, MAX_ITEM_CHARS));
+            items.add(MemoryTextUtils.trimText(text, MAX_ITEM_CHARS));
         }
         return items;
     }
@@ -232,17 +233,6 @@ public class CompressedMemoryStore {
             return record.getSummary();
         }
         return record.getContent();
-    }
-
-    private String trimText(String text, int maxChars) {
-        if (!StringUtils.hasText(text) || maxChars <= 0) {
-            return text;
-        }
-        String trimmed = text.trim();
-        if (trimmed.length() <= maxChars) {
-            return trimmed;
-        }
-        return trimmed.substring(0, maxChars);
     }
 
     private void logStructuredSummary(MemoryRecord record, String workflowId) {

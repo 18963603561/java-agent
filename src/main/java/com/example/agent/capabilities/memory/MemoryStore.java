@@ -1,38 +1,59 @@
 package com.example.agent.capabilities.memory;
 
+import com.example.agent.capabilities.memory.store.MemoryMaintenanceService;
+import com.example.agent.capabilities.memory.store.MemorySaveOrchestrator;
+import com.example.agent.capabilities.memory.store.MemorySearchOrchestrator;
 import com.example.agent.security.auth.TenantContext;
-import java.time.Duration;
-import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
-import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 /**
- * 记忆存取服务，负责保存、检索与压缩。
+ * 记忆存取门面，负责参数入口校验与委派。
  */
 @Service
 public class MemoryStore {
 
-    private static final Logger log = LoggerFactory.getLogger(MemoryStore.class);
+    /**
+     * 保存编排服务。
+     */
+    private final MemorySaveOrchestrator memorySaveOrchestrator;
 
-    private final MemoryRepository memoryRepository;
-    private final ObjectProvider<VectorStore> vectorStoreProvider;
-    private final ObjectProvider<EmbeddingService> embeddingServiceProvider;
-    private final RecentMemoryStore recentMemoryStore;
-    private final SemanticMemoryStore semanticMemoryStore;
-    private final CompressedMemoryStore compressedMemoryStore;
-    private final MemoryPolicy memoryPolicy;
-    private final MemoryExpireProperties expireProperties;
-    private final MemoryExpirationService expirationService;
-    private final Map<String, Instant> cleanupTimestamps = new ConcurrentHashMap<>();
+    /**
+     * 检索编排服务。
+     */
+    private final MemorySearchOrchestrator memorySearchOrchestrator;
 
+    /**
+     * 维护服务。
+     */
+    private final MemoryMaintenanceService memoryMaintenanceService;
+
+    /**
+     * 兼容测试场景时复用的维护服务。
+     */
+    private static MemoryMaintenanceService createMaintenanceService(MemoryRepository memoryRepository,
+                                                                     CompressedMemoryStore compressedMemoryStore,
+                                                                     MemoryPolicy memoryPolicy,
+                                                                     MemoryExpireProperties expireProperties,
+                                                                     MemoryExpirationService expirationService) {
+        return new MemoryMaintenanceService(memoryRepository, compressedMemoryStore,
+                memoryPolicy, expireProperties, expirationService);
+    }
+
+    @Autowired
+    public MemoryStore(MemorySaveOrchestrator memorySaveOrchestrator,
+                       MemorySearchOrchestrator memorySearchOrchestrator,
+                       MemoryMaintenanceService memoryMaintenanceService) {
+        this.memorySaveOrchestrator = memorySaveOrchestrator;
+        this.memorySearchOrchestrator = memorySearchOrchestrator;
+        this.memoryMaintenanceService = memoryMaintenanceService;
+    }
+
+    /**
+     * 便捷构造方法，用于测试场景快速组装 MemoryStore。
+     */
     public MemoryStore(MemoryRepository memoryRepository,
                        ObjectProvider<VectorStore> vectorStoreProvider,
                        ObjectProvider<EmbeddingService> embeddingServiceProvider,
@@ -42,15 +63,20 @@ public class MemoryStore {
                        MemoryPolicy memoryPolicy,
                        MemoryExpireProperties expireProperties,
                        MemoryExpirationService expirationService) {
-        this.memoryRepository = memoryRepository;
-        this.vectorStoreProvider = vectorStoreProvider;
-        this.embeddingServiceProvider = embeddingServiceProvider;
-        this.recentMemoryStore = recentMemoryStore;
-        this.semanticMemoryStore = semanticMemoryStore;
-        this.compressedMemoryStore = compressedMemoryStore;
-        this.memoryPolicy = memoryPolicy;
-        this.expireProperties = expireProperties;
-        this.expirationService = expirationService;
+        MemoryMaintenanceService maintenanceService = createMaintenanceService(memoryRepository,
+                compressedMemoryStore, memoryPolicy, expireProperties, expirationService);
+        this.memorySaveOrchestrator = new MemorySaveOrchestrator(
+                recentMemoryStore,
+                vectorStoreProvider,
+                embeddingServiceProvider,
+                expirationService,
+                maintenanceService);
+        this.memorySearchOrchestrator = new MemorySearchOrchestrator(
+                recentMemoryStore,
+                semanticMemoryStore,
+                compressedMemoryStore,
+                maintenanceService);
+        this.memoryMaintenanceService = maintenanceService;
     }
 
     /**
@@ -62,46 +88,9 @@ public class MemoryStore {
      */
     public MemoryRecord save(MemoryRecord record, TenantContext tenantContext) {
         if (!hasValidTenantContext(tenantContext)) {
-            log.warn("记忆保存跳过, reason=tenant_invalid");
             return null;
         }
-        if (record == null) {
-            log.warn("记忆保存跳过, tenantId={}, reason=record_missing", tenantContext.getTenantId());
-            return null;
-        }
-        if (record.getMemoryId() == null || record.getMemoryId().isBlank()) {
-            record.setMemoryId(UUID.randomUUID().toString());
-        }
-        record.setTenantId(tenantContext.getTenantId());
-        Instant now = Instant.now();
-        if (record.getCreatedAt() == null) {
-            record.setCreatedAt(now);
-        }
-        if (expirationService != null) {
-            expirationService.applyExpiration(record, now);
-        }
-        MemoryRecord saved = recentMemoryStore.save(record);
-        VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
-        String text = firstNonBlank(record.getContent(), record.getSummary());
-        if (vectorStore != null && StringUtils.hasText(text)) {
-            try {
-                EmbeddingService embeddingService = embeddingServiceProvider.getIfAvailable();
-                if (embeddingService != null) {
-                    List<Float> embedding = embeddingService.embed(text);
-                    vectorStore.upsert(tenantContext.getTenantId(), record, embedding);
-                } else {
-                    log.warn("嵌入服务不可用，跳过向量写入, tenantId={}, memoryId={}",
-                            tenantContext.getTenantId(), record.getMemoryId());
-                }
-            } catch (Exception ex) {
-                log.error("记忆向量写入失败, tenantId={}, memoryId={}",
-                        tenantContext.getTenantId(), record.getMemoryId(), ex);
-            }
-        }
-        log.info("记忆保存, tenantId={}, sessionId={}, memoryId={}",
-                tenantContext.getTenantId(), record.getSessionId(), record.getMemoryId());
-        autoCompressIfNeeded(record.getSessionId(), tenantContext);
-        return saved;
+        return memorySaveOrchestrator.save(record, tenantContext);
     }
 
     /**
@@ -127,62 +116,9 @@ public class MemoryStore {
                                      TenantContext tenantContext,
                                      List<RetrievalPriority> retrievalPriority) {
         if (!hasValidTenantContext(tenantContext)) {
-            log.warn("记忆检索跳过, reason=tenant_invalid");
             return new MemorySearchResult(List.of());
         }
-        if (query == null) {
-            log.warn("记忆检索跳过, tenantId={}, reason=query_missing", tenantContext.getTenantId());
-            return new MemorySearchResult(List.of());
-        }
-        int limit = query.getLimit() != null && query.getLimit() > 0 ? query.getLimit() : 10;
-        cleanupExpiredIfNeeded(tenantContext, "search");
-        List<MemoryRecord> aggregated = new ArrayList<>();
-        if (query != null && StringUtils.hasText(query.getQuery())) {
-            List<RetrievalPriority> priorityOrder = normalizeRetrievalPriority(retrievalPriority);
-            for (RetrievalPriority priority : priorityOrder) {
-                if (aggregated.size() >= limit) {
-                    break;
-                }
-                switch (priority) {
-                    case RECENT -> {
-                        List<MemoryRecord> recent = recentMemoryStore.search(
-                                tenantContext.getTenantId(), query.getSessionId(), query.getQuery(), limit);
-                        mergeRecords(aggregated, recent, limit);
-                    }
-                    case SEMANTIC -> {
-                        List<MemoryRecord> semantic = semanticMemoryStore.search(query, tenantContext, limit);
-                        mergeRecords(aggregated, semantic, limit);
-                    }
-                    case SUMMARY -> {
-                        List<MemoryRecord> compressed = compressedMemoryStore.search(
-                                tenantContext.getTenantId(), query.getSessionId(), query.getQuery(), limit);
-                        mergeRecords(aggregated, compressed, limit);
-                    }
-                }
-            }
-        }
-        autoCompressIfNeeded(query != null ? query.getSessionId() : null, tenantContext);
-        List<MemoryRecord> filtered = expirationService != null
-                ? expirationService.filterExpired(aggregated, Instant.now())
-                : aggregated;
-        return new MemorySearchResult(filtered);
-    }
-
-    private List<RetrievalPriority> normalizeRetrievalPriority(List<RetrievalPriority> retrievalPriority) {
-        List<RetrievalPriority> resolved = new ArrayList<>();
-        if (retrievalPriority != null) {
-            for (RetrievalPriority value : retrievalPriority) {
-                if (value != null && !resolved.contains(value)) {
-                    resolved.add(value);
-                }
-            }
-        }
-        for (RetrievalPriority value : RetrievalPriority.defaultOrder()) {
-            if (!resolved.contains(value)) {
-                resolved.add(value);
-            }
-        }
-        return resolved;
+        return memorySearchOrchestrator.search(query, tenantContext, retrievalPriority);
     }
 
     /**
@@ -194,112 +130,18 @@ public class MemoryStore {
      */
     public MemoryRecord compress(CompressionRequest request, TenantContext tenantContext) {
         if (!hasValidTenantContext(tenantContext)) {
-            log.warn("记忆压缩跳过, reason=tenant_invalid");
             return null;
         }
-        if (request == null) {
-            log.warn("记忆压缩跳过, tenantId={}, reason=request_missing", tenantContext.getTenantId());
-            return null;
-        }
-        if (!StringUtils.hasText(request.getSessionId())) {
-            log.warn("记忆压缩跳过, tenantId={}, reason=session_missing", tenantContext.getTenantId());
-            return null;
-        }
-        cleanupExpiredIfNeeded(tenantContext, "compress");
-        List<MemoryRecord> records = memoryRepository.findBySession(
-                tenantContext.getTenantId(), request.getSessionId());
-        MemoryRecord compressed = compressedMemoryStore.compress(
-                request.getSessionId(), records, tenantContext, request.getWorkflowId());
-        if (compressed == null) {
-            log.warn("记忆压缩无效, tenantId={}, sessionId={}",
-                    tenantContext.getTenantId(), request.getSessionId());
-            return null;
-        }
-        log.info("记忆压缩完成, tenantId={}, sessionId={}",
-                tenantContext.getTenantId(), request.getSessionId());
-        return compressed;
-    }
-
-    private String firstNonBlank(String first, String second) {
-        if (StringUtils.hasText(first)) {
-            return first;
-        }
-        if (StringUtils.hasText(second)) {
-            return second;
-        }
-        return null;
-    }
-
-    private void mergeRecords(List<MemoryRecord> target, List<MemoryRecord> source, int limit) {
-        if (source == null || source.isEmpty() || target.size() >= limit) {
-            return;
-        }
-        for (MemoryRecord record : source) {
-            if (record == null) {
-                continue;
-            }
-            if (target.size() >= limit) {
-                break;
-            }
-            boolean exists = target.stream()
-                    .anyMatch(item -> item.getMemoryId() != null && item.getMemoryId().equals(record.getMemoryId()));
-            if (!exists) {
-                target.add(record);
-            }
-        }
-    }
-
-    private void autoCompressIfNeeded(String sessionId, TenantContext tenantContext) {
-        if (tenantContext == null || !StringUtils.hasText(sessionId)) {
-            return;
-        }
-        List<MemoryRecord> records = memoryRepository.findBySession(tenantContext.getTenantId(), sessionId);
-        if (memoryPolicy.shouldCompress(records, Instant.now())) {
-            MemoryRecord compressed = compressedMemoryStore.compress(sessionId, records, tenantContext);
-            if (compressed != null) {
-                log.info("自动压缩触发, tenantId={}, sessionId={}, memoryId={}",
-                        tenantContext.getTenantId(), sessionId, compressed.getMemoryId());
-            }
-        }
-    }
-
-    private void cleanupExpiredIfNeeded(TenantContext tenantContext, String reason) {
-        if (tenantContext == null || expireProperties == null || memoryRepository == null) {
-            return;
-        }
-        if (!expireProperties.isEnabled() || !expireProperties.isCleanupOnRead()) {
-            return;
-        }
-        Instant now = Instant.now();
-        String tenantId = tenantContext.getTenantId();
-        if (!StringUtils.hasText(tenantId)) {
-            return;
-        }
-        long interval = Math.max(0, expireProperties.getCleanupIntervalSeconds());
-        if (interval > 0) {
-            // 避免频繁清理导致存储压力过大
-            Instant lastCleanup = cleanupTimestamps.get(tenantId);
-            if (lastCleanup != null && Duration.between(lastCleanup, now).getSeconds() < interval) {
-                return;
-            }
-        }
-        int removed = memoryRepository.deleteExpired(tenantId, now);
-        cleanupTimestamps.put(tenantId, now);
-        if (removed > 0) {
-            log.info("过期记忆清理完成, tenantId={}, removed={}, reason={}",
-                    tenantId, removed, reason);
-        } else {
-            log.debug("过期记忆清理无数据, tenantId={}, reason={}", tenantId, reason);
-        }
+        return memoryMaintenanceService.compress(request, tenantContext);
     }
 
     /**
      * 校验租户上下文是否有效。
-     *
-     * @param tenantContext 租户上下文
-     * @return 是否有效
      */
     private boolean hasValidTenantContext(TenantContext tenantContext) {
-        return tenantContext != null && StringUtils.hasText(tenantContext.getTenantId());
+        return tenantContext != null
+                && tenantContext.getTenantId() != null
+                && !tenantContext.getTenantId().isBlank();
     }
+
 }
