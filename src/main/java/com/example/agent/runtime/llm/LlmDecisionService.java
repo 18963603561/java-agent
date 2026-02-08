@@ -1,9 +1,9 @@
 package com.example.agent.runtime.llm;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.llm.ModelRequest;
-import com.example.agent.capabilities.llm.ModelToolChoice;
-import com.example.agent.capabilities.llm.ModelToolDefinition;
+import com.example.agent.capabilities.llm.provider.ModelRequest;
+import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
+import com.example.agent.capabilities.llm.tooling.ModelToolDefinition;
 import com.example.agent.runtime.output.OutputKeys;
 import com.example.agent.security.auth.TenantContext;
 import com.fasterxml.jackson.core.type.TypeReference;

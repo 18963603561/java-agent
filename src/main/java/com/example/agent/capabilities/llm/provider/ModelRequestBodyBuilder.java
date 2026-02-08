@@ -1,8 +1,7 @@
 package com.example.agent.capabilities.llm.provider;
 
-import com.example.agent.capabilities.llm.ModelDefinition;
-import com.example.agent.capabilities.llm.ModelRequest;
-import com.example.agent.capabilities.llm.ModelToolDefinition;
+import com.example.agent.capabilities.llm.config.ModelProviderHttpProperties;
+import com.example.agent.capabilities.llm.tooling.ModelToolDefinition;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -89,4 +88,3 @@ public class ModelRequestBodyBuilder {
         return body;
     }
 }
-

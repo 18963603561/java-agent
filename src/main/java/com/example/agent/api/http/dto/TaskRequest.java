@@ -1,6 +1,6 @@
 package com.example.agent.api.http.dto;
 
-import com.example.agent.capabilities.llm.ModelToolChoice;
+import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Map;
 

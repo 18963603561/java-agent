@@ -6,6 +6,7 @@ import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.ContextSnapshot;
 import com.example.agent.capabilities.context.PromptAssemblyInput;
 import com.example.agent.capabilities.context.RoleBoundary;
+import com.example.agent.capabilities.llm.support.ValidationSupport;
 import com.example.agent.capabilities.memory.TokenEstimator;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -15,10 +16,10 @@ import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.util.ReflectionTestUtils;
-import com.example.agent.capabilities.llm.DefaultPromptAssembler;
-import com.example.agent.capabilities.llm.DefaultPromptTemplate;
-import com.example.agent.capabilities.llm.PromptBundle;
-import com.example.agent.capabilities.llm.PromptRole;
+import com.example.agent.capabilities.llm.prompt.DefaultPromptAssembler;
+import com.example.agent.capabilities.llm.prompt.DefaultPromptTemplate;
+import com.example.agent.capabilities.llm.prompt.PromptBundle;
+import com.example.agent.capabilities.llm.prompt.PromptRole;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -35,7 +36,8 @@ class DefaultPromptAssemblerTest {
 
         DefaultPromptAssembler assembler = new DefaultPromptAssembler(template,
                 new TokenEstimator(),
-                new MetricsPublisher(new SimpleMeterRegistry()));
+                new MetricsPublisher(new SimpleMeterRegistry()),
+                new ValidationSupport());
 
         ContextSnapshot snapshot = new ContextSnapshot();
         RoleBoundary boundary = new RoleBoundary();
@@ -60,7 +62,8 @@ class DefaultPromptAssemblerTest {
     void buildTrimsWhenOverBudget() {
         DefaultPromptAssembler assembler = new DefaultPromptAssembler(new DefaultPromptTemplate(),
                 new TokenEstimator(),
-                new MetricsPublisher(new SimpleMeterRegistry()));
+                new MetricsPublisher(new SimpleMeterRegistry()),
+                new ValidationSupport());
         ReflectionTestUtils.setField(assembler, "promptTrimEnabled", true);
         PromptAssemblyInput input = new PromptAssemblyInput();
         input.setSystemText("系统策略:必须遵守安全边界");
@@ -92,7 +95,8 @@ class DefaultPromptAssemblerTest {
     void buildDoesNotTrimWhenDisabled() {
         DefaultPromptAssembler assembler = new DefaultPromptAssembler(new DefaultPromptTemplate(),
                 new TokenEstimator(),
-                new MetricsPublisher(new SimpleMeterRegistry()));
+                new MetricsPublisher(new SimpleMeterRegistry()),
+                new ValidationSupport());
         ReflectionTestUtils.setField(assembler, "promptTrimEnabled", false);
 
         PromptAssemblyInput input = new PromptAssemblyInput();

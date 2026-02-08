@@ -6,10 +6,10 @@ import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.capabilities.memory.MemoryWriteService;
-import com.example.agent.capabilities.llm.ModelInvocationService;
-import com.example.agent.capabilities.llm.ModelResponse;
-import com.example.agent.capabilities.llm.ModelToolResolver;
-import com.example.agent.capabilities.llm.PromptAssembler;
+import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.provider.ModelResponse;
+import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
+import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.streaming.observability.TracingPublisher;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -415,12 +415,12 @@ class ReactLoopServiceTest {
         service.run(request, new TenantContext("t-1", "u-1", List.of(), "req", "trace"),
                 "wf-1", "task-1", new AtomicLong(0));
 
-        ArgumentCaptor<com.example.agent.capabilities.llm.ModelRequest> captor = ArgumentCaptor.forClass(
-                com.example.agent.capabilities.llm.ModelRequest.class);
+        ArgumentCaptor<com.example.agent.capabilities.llm.provider.ModelRequest> captor = ArgumentCaptor.forClass(
+                com.example.agent.capabilities.llm.provider.ModelRequest.class);
         Mockito.verify(modelInvocationService, Mockito.atLeast(2)).invoke(
-                captor.capture(), eq(com.example.agent.capabilities.llm.ModelScene.PLANNER),
+                captor.capture(), eq(com.example.agent.capabilities.llm.provider.ModelScene.PLANNER),
                 any(), any(), any(), any(), any());
-        List<com.example.agent.capabilities.llm.ModelRequest> captured = captor.getAllValues();
+        List<com.example.agent.capabilities.llm.provider.ModelRequest> captured = captor.getAllValues();
         String prompt = captured.get(captured.size() - 1).getPrompt();
         assertNotNull(prompt);
         assertFalse(prompt.contains("contextSnapshot"));

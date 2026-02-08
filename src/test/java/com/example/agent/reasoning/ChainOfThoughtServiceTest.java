@@ -3,9 +3,9 @@ package com.example.agent.reasoning;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
-import com.example.agent.capabilities.llm.ModelInvocationService;
-import com.example.agent.capabilities.llm.ModelResponse;
-import com.example.agent.capabilities.llm.PromptAssembler;
+import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.provider.ModelResponse;
+import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.streaming.sse.EventStreamService;
@@ -264,7 +264,7 @@ class ChainOfThoughtServiceTest {
                     }
                     if (index == 3) {
                         Object request = invocation.getArgument(0);
-                        if (request instanceof com.example.agent.capabilities.llm.ModelRequest modelRequest) {
+                        if (request instanceof com.example.agent.capabilities.llm.provider.ModelRequest modelRequest) {
                             capturedPrompt.set(modelRequest.getPrompt());
                         }
                     }

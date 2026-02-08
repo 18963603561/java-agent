@@ -1,10 +1,10 @@
 package com.example.agent.model;
 
-import com.example.agent.capabilities.llm.ModelConfigProperties;
-import com.example.agent.capabilities.llm.ModelDefinition;
-import com.example.agent.capabilities.llm.ModelRegistry;
-import com.example.agent.capabilities.llm.ModelRouter;
-import com.example.agent.capabilities.llm.ModelScene;
+import com.example.agent.capabilities.llm.config.ModelConfigProperties;
+import com.example.agent.capabilities.llm.provider.ModelDefinition;
+import com.example.agent.capabilities.llm.provider.ModelRegistry;
+import com.example.agent.capabilities.llm.provider.ModelRouter;
+import com.example.agent.capabilities.llm.provider.ModelScene;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;

@@ -1,8 +1,6 @@
 package com.example.agent.capabilities.llm.provider;
 
-import com.example.agent.capabilities.llm.ModelDefinition;
-import com.example.agent.capabilities.llm.ModelRequest;
-import com.example.agent.capabilities.llm.ModelResponse;
+import com.example.agent.capabilities.llm.config.ModelProviderHttpProperties;
 import com.example.agent.common.error.ErrorCodeException;
 import java.time.Duration;
 import java.util.Map;
@@ -66,7 +64,9 @@ public class OpenAiProviderAdapter implements ModelProviderAdapter {
         String baseUrl = definition != null ? definition.getEndpoint() : null;
         String modelId = definition != null ? definition.getModelId() : null;
         if (!StringUtils.hasText(baseUrl) || !StringUtils.hasText(modelId)) {
-            throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MODEL_UNAVAILABLE", "模型配置缺失");
+            throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE,
+                    LlmErrorCode.MODEL_CONFIG_INVALID.getCode(),
+                    "模型配置缺失");
         }
 
         Map<String, Object> body = requestBodyBuilder.buildOpenAiRequestBody(modelId, request, definition);
@@ -101,15 +101,14 @@ public class OpenAiProviderAdapter implements ModelProviderAdapter {
                     .block());
         } catch (Exception ex) {
             log.error("兼容接口调用异常, 模型标识={}, 服务地址={}, 工具数={}", modelId, baseUrl, toolCount, ex);
-            if (ex instanceof RuntimeException runtime) {
-                throw runtime;
-            }
-            throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MODEL_UNAVAILABLE", "模型调用异常");
+            throw errorMapper.mapThrowable(ex);
         }
 
         if (response == null) {
             log.error("兼容接口调用失败, 模型标识={}, 服务地址={}, 工具数={}", modelId, baseUrl, toolCount);
-            throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MODEL_UNAVAILABLE", "模型调用失败");
+            throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE,
+                    LlmErrorCode.MODEL_UNAVAILABLE.getCode(),
+                    "模型调用失败");
         }
 
         String content = responseExtractor.extractOpenAiContent(response);

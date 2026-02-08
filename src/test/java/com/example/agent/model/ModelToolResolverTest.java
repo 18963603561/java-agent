@@ -10,15 +10,16 @@ import com.example.agent.capabilities.tools.ToolCatalogService;
 import com.example.agent.capabilities.tools.ToolSummary;
 import com.example.agent.capabilities.tools.skill.SkillDefinition;
 import com.example.agent.capabilities.tools.skill.SkillRegistry;
+import com.example.agent.capabilities.llm.tooling.ToolingContextMapper;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
-import com.example.agent.capabilities.llm.ModelRequest;
-import com.example.agent.capabilities.llm.ModelToolChoice;
-import com.example.agent.capabilities.llm.ModelToolResolver;
+import com.example.agent.capabilities.llm.provider.ModelRequest;
+import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
+import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -40,7 +41,7 @@ class ModelToolResolverTest {
         ToolCatalog toolCatalog = Mockito.mock(ToolCatalog.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         ModelToolResolver resolver = new ModelToolResolver(toolRegistry, skillRegistry, toolCatalog,
-                new ObjectMapper(), metricsPublisher);
+                new ObjectMapper(), metricsPublisher, new ToolingContextMapper());
 
         ToolSummary summaryA = new ToolSummary();
         summaryA.setToolName("tool_a");
@@ -68,7 +69,7 @@ class ModelToolResolverTest {
         ToolCatalog toolCatalog = Mockito.mock(ToolCatalog.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         ModelToolResolver resolver = new ModelToolResolver(toolRegistry, skillRegistry, toolCatalog,
-                new ObjectMapper(), metricsPublisher);
+                new ObjectMapper(), metricsPublisher, new ToolingContextMapper());
 
         TaskRequest taskRequest = new TaskRequest();
         taskRequest.setToolChoice(ModelToolChoice.none());
@@ -89,7 +90,7 @@ class ModelToolResolverTest {
         ToolCatalog toolCatalog = Mockito.mock(ToolCatalog.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         ModelToolResolver resolver = new ModelToolResolver(toolRegistry, skillRegistry, toolCatalog,
-                new ObjectMapper(), metricsPublisher);
+                new ObjectMapper(), metricsPublisher, new ToolingContextMapper());
 
         TaskRequest taskRequest = new TaskRequest();
         taskRequest.setContext(Map.of("disableTools", true));
@@ -110,7 +111,7 @@ class ModelToolResolverTest {
         ToolCatalog toolCatalog = Mockito.mock(ToolCatalog.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         ModelToolResolver resolver = new ModelToolResolver(toolRegistry, skillRegistry, toolCatalog,
-                new ObjectMapper(), metricsPublisher);
+                new ObjectMapper(), metricsPublisher, new ToolingContextMapper());
 
         ToolSummary summaryA = new ToolSummary();
         summaryA.setToolName("tool_a");
@@ -145,7 +146,7 @@ class ModelToolResolverTest {
         ToolCatalog toolCatalog = Mockito.mock(ToolCatalog.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         ModelToolResolver resolver = new ModelToolResolver(toolRegistry, skillRegistry, toolCatalog,
-                new ObjectMapper(), metricsPublisher);
+                new ObjectMapper(), metricsPublisher, new ToolingContextMapper());
 
         when(toolRegistry.listDefinitions()).thenReturn(List.of(
                 new McpToolDefinition("tool_a", "v1", "a",
@@ -175,7 +176,7 @@ class ModelToolResolverTest {
         ToolCatalogService toolCatalogService = (ToolCatalogService) toolCatalog;
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         ModelToolResolver resolver = new ModelToolResolver(toolRegistry, skillRegistry, toolCatalog,
-                new ObjectMapper(), metricsPublisher);
+                new ObjectMapper(), metricsPublisher, new ToolingContextMapper());
 
         McpToolDefinition toolA = new McpToolDefinition("tool_a", "v1", "a",
                 Map.of("type", "object"), Map.of("type", "object"), List.of());
@@ -206,7 +207,7 @@ class ModelToolResolverTest {
         ToolCatalog toolCatalog = Mockito.mock(ToolCatalog.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         ModelToolResolver resolver = new ModelToolResolver(toolRegistry, skillRegistry, toolCatalog,
-                new ObjectMapper(), metricsPublisher);
+                new ObjectMapper(), metricsPublisher, new ToolingContextMapper());
         ReflectionTestUtils.setField(resolver, "toolInjectMode", "full");
 
         when(toolRegistry.listDefinitions()).thenReturn(List.of(
@@ -231,7 +232,7 @@ class ModelToolResolverTest {
         ToolCatalogService toolCatalogService = (ToolCatalogService) toolCatalog;
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         ModelToolResolver resolver = new ModelToolResolver(toolRegistry, skillRegistry, toolCatalog,
-                new ObjectMapper(), metricsPublisher);
+                new ObjectMapper(), metricsPublisher, new ToolingContextMapper());
 
         when(toolCatalogService.getToolSchema("tool_missing")).thenReturn(null);
 

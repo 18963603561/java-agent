@@ -1,12 +1,12 @@
 package com.example.agent.runtime.llm;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.llm.ModelInvocationService;
-import com.example.agent.capabilities.llm.ModelRequest;
-import com.example.agent.capabilities.llm.ModelResponse;
-import com.example.agent.capabilities.llm.ModelScene;
-import com.example.agent.capabilities.llm.ModelToolDefinition;
-import com.example.agent.capabilities.llm.ModelToolResolver;
+import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.provider.ModelRequest;
+import com.example.agent.capabilities.llm.provider.ModelResponse;
+import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.tooling.ModelToolDefinition;
+import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.runtime.output.OutputKeys;
 import com.example.agent.security.auth.TenantContext;

@@ -4,14 +4,15 @@ import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.ContextSnapshot;
 import com.example.agent.capabilities.context.RoleBoundary;
 import com.example.agent.capabilities.context.RuntimeMeta;
+import com.example.agent.capabilities.llm.support.ValidationSupport;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import com.example.agent.capabilities.llm.PromptMessage;
-import com.example.agent.capabilities.llm.DefaultPromptAssembler;
-import com.example.agent.capabilities.llm.DefaultPromptTemplate;
-import com.example.agent.capabilities.llm.PromptBundle;
+import com.example.agent.capabilities.llm.prompt.PromptMessage;
+import com.example.agent.capabilities.llm.prompt.DefaultPromptAssembler;
+import com.example.agent.capabilities.llm.prompt.DefaultPromptTemplate;
+import com.example.agent.capabilities.llm.prompt.PromptBundle;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -21,7 +22,8 @@ class DefaultPromptAssemblerLegacyPathNoLeakTest {
 
     @Test
     void buildLegacyShouldNotLeakRuntimeFields() {
-        DefaultPromptAssembler assembler = new DefaultPromptAssembler(new DefaultPromptTemplate(), null, null);
+        DefaultPromptAssembler assembler = new DefaultPromptAssembler(new DefaultPromptTemplate(), null, null,
+                new ValidationSupport());
         ContextSnapshot snapshot = new ContextSnapshot();
         snapshot.setSnapshotId("snapshot-003");
 

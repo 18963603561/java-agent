@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.llm.provider;
 
-import com.example.agent.capabilities.llm.ModelDefinition;
+import com.example.agent.capabilities.llm.provider.ModelDefinition;
 import java.util.List;
 import org.springframework.stereotype.Component;
 

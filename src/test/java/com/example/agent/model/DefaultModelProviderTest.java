@@ -1,16 +1,16 @@
 package com.example.agent.model;
 
-import com.example.agent.capabilities.llm.DefaultModelProvider;
-import com.example.agent.capabilities.llm.ModelDefinition;
-import com.example.agent.capabilities.llm.ModelRequest;
-import com.example.agent.capabilities.llm.ModelResponse;
-import com.example.agent.capabilities.llm.ModelScene;
-import com.example.agent.capabilities.llm.ModelToolChoice;
-import com.example.agent.capabilities.llm.ModelToolDefinition;
-import com.example.agent.capabilities.llm.PromptMessage;
-import com.example.agent.capabilities.llm.PromptRole;
+import com.example.agent.capabilities.llm.provider.DefaultModelProvider;
+import com.example.agent.capabilities.llm.provider.ModelDefinition;
+import com.example.agent.capabilities.llm.provider.ModelRequest;
+import com.example.agent.capabilities.llm.provider.ModelResponse;
+import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
+import com.example.agent.capabilities.llm.tooling.ModelToolDefinition;
+import com.example.agent.capabilities.llm.prompt.PromptMessage;
+import com.example.agent.capabilities.llm.prompt.PromptRole;
 import com.example.agent.capabilities.llm.provider.LocalFallbackStrategy;
-import com.example.agent.capabilities.llm.provider.ModelProviderHttpProperties;
+import com.example.agent.capabilities.llm.config.ModelProviderHttpProperties;
 import com.example.agent.capabilities.llm.provider.ModelRequestBodyBuilder;
 import com.example.agent.capabilities.llm.provider.ModelMessageBuilder;
 import com.example.agent.capabilities.llm.provider.ProviderRouter;

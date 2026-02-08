@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.llm.provider;
 
-import com.example.agent.capabilities.llm.ModelRequest;
+import com.example.agent.capabilities.llm.provider.ModelRequest;
 import com.example.agent.runtime.api.RuntimeContextView;
 import com.example.agent.runtime.output.OutputKeys;
 import com.fasterxml.jackson.core.type.TypeReference;

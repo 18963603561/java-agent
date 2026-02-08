@@ -1,6 +1,6 @@
 package com.example.agent.context;
 
-import com.example.agent.capabilities.llm.DefaultPromptTemplate;
+import com.example.agent.capabilities.llm.prompt.DefaultPromptTemplate;
 import org.junit.jupiter.api.Test;
 import com.example.agent.capabilities.context.ContextSnapshot;
 import com.example.agent.capabilities.context.DefaultContextAssembler;

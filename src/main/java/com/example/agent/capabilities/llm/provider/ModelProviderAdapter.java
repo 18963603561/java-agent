@@ -1,8 +1,8 @@
 package com.example.agent.capabilities.llm.provider;
 
-import com.example.agent.capabilities.llm.ModelDefinition;
-import com.example.agent.capabilities.llm.ModelRequest;
-import com.example.agent.capabilities.llm.ModelResponse;
+import com.example.agent.capabilities.llm.provider.ModelDefinition;
+import com.example.agent.capabilities.llm.provider.ModelRequest;
+import com.example.agent.capabilities.llm.provider.ModelResponse;
 
 /**
  * 模型提供商适配器。

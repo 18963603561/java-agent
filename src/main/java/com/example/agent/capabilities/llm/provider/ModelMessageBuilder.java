@@ -1,8 +1,8 @@
 package com.example.agent.capabilities.llm.provider;
 
-import com.example.agent.capabilities.llm.ModelDefinition;
-import com.example.agent.capabilities.llm.PromptMessage;
-import com.example.agent.capabilities.llm.PromptRole;
+import com.example.agent.capabilities.llm.provider.ModelDefinition;
+import com.example.agent.capabilities.llm.prompt.PromptMessage;
+import com.example.agent.capabilities.llm.prompt.PromptRole;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

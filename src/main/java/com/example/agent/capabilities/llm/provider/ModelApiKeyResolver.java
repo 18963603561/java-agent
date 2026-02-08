@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.llm.provider;
 
-import com.example.agent.capabilities.llm.ModelDefinition;
+import com.example.agent.capabilities.llm.config.ModelProviderHttpProperties;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -34,4 +34,3 @@ public class ModelApiKeyResolver {
         return null;
     }
 }
-

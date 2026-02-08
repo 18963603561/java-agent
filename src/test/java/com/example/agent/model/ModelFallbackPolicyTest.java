@@ -1,8 +1,8 @@
 package com.example.agent.model;
 
-import com.example.agent.capabilities.llm.ModelConfigProperties;
-import com.example.agent.capabilities.llm.ModelFallbackDecision;
-import com.example.agent.capabilities.llm.ModelFallbackPolicy;
+import com.example.agent.capabilities.llm.config.ModelConfigProperties;
+import com.example.agent.capabilities.llm.provider.ModelFallbackDecision;
+import com.example.agent.capabilities.llm.provider.ModelFallbackPolicy;
 import com.example.agent.security.auth.TenantContext;
 import org.junit.jupiter.api.Test;
 

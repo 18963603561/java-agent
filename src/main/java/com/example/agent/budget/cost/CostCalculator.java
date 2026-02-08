@@ -1,6 +1,6 @@
 package com.example.agent.budget.cost;
 
-import com.example.agent.capabilities.llm.ModelDefinition;
+import com.example.agent.capabilities.llm.provider.ModelDefinition;
 import org.springframework.stereotype.Component;
 
 /**

@@ -7,8 +7,8 @@ import com.example.agent.capabilities.context.RoleBoundary;
 import com.example.agent.capabilities.context.RuntimeMeta;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import com.example.agent.capabilities.llm.PromptMessage;
-import com.example.agent.capabilities.llm.DefaultPromptTemplate;
+import com.example.agent.capabilities.llm.prompt.PromptMessage;
+import com.example.agent.capabilities.llm.prompt.DefaultPromptTemplate;
 
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
