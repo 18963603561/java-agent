@@ -3,6 +3,7 @@ package com.example.agent.capabilities.memory;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.runtime.model.RuntimeResult;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.security.redaction.RedactionResult;
 import com.example.agent.security.redaction.RedactionService;
 import com.example.agent.security.redaction.RedactionStage;
@@ -23,6 +24,8 @@ public class MemoryWriteService {
     private static final Logger log = LoggerFactory.getLogger(MemoryWriteService.class);
 
     private static final String CONTEXT_WRITE_ENABLED = "memoryWriteEnabled";
+    private static final String MEMORY_WRITE_SERIALIZE_FALLBACK_TOTAL =
+            "memory_write_output_serialize_fallback_total";
 
     /**
      * 记忆存取服务。
@@ -44,14 +47,21 @@ public class MemoryWriteService {
      */
     private final RedactionService redactionService;
 
+    /**
+     * 指标发布器。
+     */
+    private final MetricsPublisher metricsPublisher;
+
     public MemoryWriteService(MemoryStore memoryStore,
                               MemoryWriteProperties properties,
                               ObjectMapper objectMapper,
-                              RedactionService redactionService) {
+                              RedactionService redactionService,
+                              MetricsPublisher metricsPublisher) {
         this.memoryStore = memoryStore;
         this.properties = properties;
         this.objectMapper = objectMapper;
         this.redactionService = redactionService;
+        this.metricsPublisher = metricsPublisher;
     }
 
     /**
@@ -109,7 +119,7 @@ public class MemoryWriteService {
         }
 
         if (properties.isSaveFinalOutput() && result != null && result.getFinalOutput() != null) {
-            String outputText = serializeOutput(result.getFinalOutput());
+            String outputText = serializeOutput(result.getFinalOutput(), tenantContext, request, taskId);
             String summary = buildOutputSummary(result.getPlanSummary(), outputText);
             RedactionResult outputRedaction = applyRedaction(outputText, RedactionStage.WRITE, "finalOutput");
             RedactionResult summaryRedaction = applyRedaction(summary, RedactionStage.WRITE, "finalOutputSummary");
@@ -227,13 +237,27 @@ public class MemoryWriteService {
         }
     }
 
-    private String serializeOutput(Map<String, Object> output) {
+    /**
+     * 序列化最终输出，失败时记录降级日志并返回兜底文本。
+     */
+    private String serializeOutput(Map<String, Object> output,
+                                   TenantContext tenantContext,
+                                   TaskRequest request,
+                                   String taskId) {
         if (output == null) {
             return null;
         }
         try {
             return objectMapper.writeValueAsString(output);
         } catch (Exception ex) {
+            String tenantId = tenantContext != null ? tenantContext.getTenantId() : null;
+            String sessionId = request != null ? request.getSessionId() : null;
+            String workflowId = request != null ? readString(request.getContext(), "workflowId") : null;
+            log.warn("最终输出序列化失败，使用降级文本, tenantId={}, workflowId={}, sessionId={}, taskId={}, reason={}",
+                    tenantId, workflowId, sessionId, taskId, ex.getMessage());
+            if (metricsPublisher != null) {
+                metricsPublisher.increment(MEMORY_WRITE_SERIALIZE_FALLBACK_TOTAL);
+            }
             return String.valueOf(output);
         }
     }

@@ -2,6 +2,8 @@ package com.example.agent.capabilities.memory;
 
 import java.util.ArrayList;
 import java.util.List;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.stereotype.Component;
 
@@ -12,6 +14,8 @@ import org.springframework.stereotype.Component;
 @ConditionalOnMissingBean(EmbeddingService.class)
 public class HashEmbeddingService implements EmbeddingService {
 
+    private static final Logger log = LoggerFactory.getLogger(HashEmbeddingService.class);
+
     private final MemoryVectorProperties properties;
 
     public HashEmbeddingService(MemoryVectorProperties properties) {
@@ -20,7 +24,12 @@ public class HashEmbeddingService implements EmbeddingService {
 
     @Override
     public List<Float> embed(String text) {
-        int dimension = Math.max(1, properties.getDimension());
+        int configuredDimension = properties != null ? properties.getDimension() : 0;
+        int dimension = configuredDimension > 0 ? configuredDimension : 1;
+        if (configuredDimension <= 0) {
+            log.warn("嵌入维度配置非法，回退到最小维度, configuredDimension={}, fallbackDimension={}",
+                    configuredDimension, dimension);
+        }
         float[] vector = new float[dimension];
         if (text != null) {
             for (String token : text.split("\\s+")) {
@@ -28,7 +37,7 @@ public class HashEmbeddingService implements EmbeddingService {
                     continue;
                 }
                 int hash = token.hashCode();
-                int index = Math.abs(hash) % dimension;
+                int index = Math.floorMod(hash, dimension);
                 vector[index] += (hash % 2 == 0) ? 1.0f : -1.0f;
             }
         }

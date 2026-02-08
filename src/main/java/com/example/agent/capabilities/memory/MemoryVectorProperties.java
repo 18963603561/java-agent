@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 public class MemoryVectorProperties {
 
     private boolean enabled;
-    private String provider = "qdrant";
     private String baseUrl = "http://localhost:6333";
     private String collection = "memory_records";
     private int dimension = 256;
@@ -25,14 +24,6 @@ public class MemoryVectorProperties {
 
     public void setEnabled(boolean enabled) {
         this.enabled = enabled;
-    }
-
-    public String getProvider() {
-        return provider;
-    }
-
-    public void setProvider(String provider) {
-        this.provider = provider;
     }
 
     public String getBaseUrl() {

@@ -6,7 +6,6 @@ package com.example.agent.capabilities.memory;
 public class CompressionRequest {
 
     private String sessionId;
-    private String strategy;
     /**
      * 工作流标识，用于压缩日志追踪，可为空。
      */
@@ -21,14 +20,6 @@ public class CompressionRequest {
 
     public void setSessionId(String sessionId) {
         this.sessionId = sessionId;
-    }
-
-    public String getStrategy() {
-        return strategy;
-    }
-
-    public void setStrategy(String strategy) {
-        this.strategy = strategy;
     }
 
     public String getWorkflowId() {

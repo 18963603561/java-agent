@@ -5,6 +5,9 @@ import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.runtime.model.RuntimeResult;
 import com.example.agent.security.redaction.RedactionProperties;
 import com.example.agent.security.redaction.RedactionService;
+import com.fasterxml.jackson.core.JsonGenerator;
+import com.fasterxml.jackson.databind.JsonSerializer;
+import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +16,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.example.agent.streaming.observability.MetricsPublisher;
+import io.micrometer.core.instrument.Counter;
 import com.example.agent.capabilities.memory.InMemoryMemoryRepository;
 import com.example.agent.capabilities.memory.MemoryStore;
 import com.example.agent.capabilities.memory.CompressedMemoryStore;
@@ -45,7 +49,8 @@ class MemoryWriteServiceTest {
         properties.setMaxRecordChars(500);
         properties.setMaxSummaryChars(200);
         RedactionService redactionService = buildRedactionService();
-        MemoryWriteService service = new MemoryWriteService(store, properties, new ObjectMapper(), redactionService);
+        MemoryWriteService service = new MemoryWriteService(store, properties, new ObjectMapper(), redactionService,
+                new MetricsPublisher(new SimpleMeterRegistry()));
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
         TaskRequest request = new TaskRequest();
@@ -78,7 +83,8 @@ class MemoryWriteServiceTest {
         properties.setMaxRecordChars(500);
         properties.setMaxSummaryChars(200);
         RedactionService redactionService = buildRedactionService();
-        MemoryWriteService service = new MemoryWriteService(store, properties, new ObjectMapper(), redactionService);
+        MemoryWriteService service = new MemoryWriteService(store, properties, new ObjectMapper(), redactionService,
+                new MetricsPublisher(new SimpleMeterRegistry()));
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
         TaskRequest request = new TaskRequest();
@@ -93,6 +99,43 @@ class MemoryWriteServiceTest {
 
         List<MemoryRecord> records = repository.findBySession("tenant-a", "session-1");
         assertEquals(0, records.size());
+    }
+
+    @Test
+    void saveTaskMemoryShouldFallbackWhenSerializeFailed() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryStore store = buildStore(repository);
+        MemoryWriteProperties properties = new MemoryWriteProperties();
+        properties.setEnabled(true);
+        properties.setSaveUserQuery(false);
+        properties.setSaveFinalOutput(true);
+        properties.setMaxRecordChars(500);
+        properties.setMaxSummaryChars(200);
+        RedactionService redactionService = buildRedactionService();
+        SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+        MetricsPublisher metricsPublisher = new MetricsPublisher(meterRegistry);
+
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new com.fasterxml.jackson.databind.module.SimpleModule()
+                .addSerializer(BadValue.class, new BadValueSerializer()));
+
+        MemoryWriteService service = new MemoryWriteService(store, properties, objectMapper, redactionService,
+                metricsPublisher);
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        TaskRequest request = new TaskRequest();
+        request.setSessionId("session-serialize");
+        request.setContext(Map.of("workflowId", "wf-serialize"));
+
+        RuntimeResult result = new RuntimeResult();
+        result.setFinalOutput(Map.of("bad", new BadValue("x")));
+
+        service.saveTaskMemory(request, result, tenantContext, "task-serialize");
+
+        List<MemoryRecord> records = repository.findBySession("tenant-a", "session-serialize");
+        assertEquals(1, records.size());
+        Counter counter = meterRegistry.find("memory_write_output_serialize_fallback_total").counter();
+        assertTrue(counter != null && counter.count() >= 1.0);
     }
 
     private MemoryStore buildStore(InMemoryMemoryRepository repository) {
@@ -164,6 +207,17 @@ class MemoryWriteServiceTest {
         @Override
         public Stream<T> orderedStream() {
             return stream();
+        }
+    }
+
+    private record BadValue(String value) {
+    }
+
+    private static class BadValueSerializer extends JsonSerializer<BadValue> {
+
+        @Override
+        public void serialize(BadValue value, JsonGenerator gen, SerializerProvider serializers) {
+            throw new IllegalStateException("intentional serialize failure");
         }
     }
 }
