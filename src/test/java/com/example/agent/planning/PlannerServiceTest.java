@@ -26,6 +26,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.io.DefaultResourceLoader;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.ArgumentCaptor;
@@ -53,7 +54,7 @@ class PlannerServiceTest {
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class));
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
 
         TaskRequest request = new TaskRequest();
         request.setQuery("ping");
@@ -82,7 +83,7 @@ class PlannerServiceTest {
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class));
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
 
         TaskRequest request = new TaskRequest();
         request.setQuery("ping");
@@ -108,7 +109,7 @@ class PlannerServiceTest {
         properties.setFallbackEnabled(false);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class));
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
 
         String content = """
                 {
@@ -146,7 +147,7 @@ class PlannerServiceTest {
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
                 properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher,
-                Mockito.mock(JsonOutputRepairService.class));
+                Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
 
         String content = """
                 {
@@ -195,7 +196,7 @@ class PlannerServiceTest {
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class));
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
 
         TaskRequest request = new TaskRequest();
         request.setQuery("ping");
@@ -219,7 +220,7 @@ class PlannerServiceTest {
         properties.setFallbackEnabled(false);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class));
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
 
         String content = """
                 {
@@ -286,7 +287,7 @@ class PlannerServiceTest {
         properties.setFallbackEnabled(false);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, repairService);
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, repairService, buildPromptBuilder());
 
         String badContent = "解释: {\"summary\":\"llm-plan\",\"steps\":[{\"type\":\"TOOL\",\"input\":{}}]} 后缀";
         String repaired = """
@@ -330,7 +331,7 @@ class PlannerServiceTest {
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
         PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, repairService);
+                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, repairService, buildPromptBuilder());
 
         String badContent = "无法解析的输出";
         when(modelInvocationService.invoke(any(ModelRequest.class), any(ModelScene.class),
@@ -357,6 +358,12 @@ class PlannerServiceTest {
         assertFalse(Boolean.TRUE.equals(trace.getRepairSuccess()));
     }
 
+
+    private PlanningPromptBuilder buildPromptBuilder() {
+        return new PlanningPromptBuilder(new ObjectMapper(), new DefaultResourceLoader(),
+                "classpath:prompts/planning/planner-plan-prompt.md");
+    }
+
     private CapabilityBoundaryEvaluator buildEvaluator(boolean enabled) {
         CapabilityEvaluationProperties evalProps = new CapabilityEvaluationProperties();
         evalProps.setEnabled(enabled);
@@ -366,3 +373,5 @@ class PlannerServiceTest {
         return new CapabilityBoundaryEvaluator(evalProps, publisher, eventStreamService);
     }
 }
+
+

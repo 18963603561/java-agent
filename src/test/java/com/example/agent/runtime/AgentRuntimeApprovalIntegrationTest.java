@@ -19,6 +19,7 @@ import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.streaming.observability.TracingPublisher;
 import com.example.agent.planning.PlannerProperties;
 import com.example.agent.planning.PlannerService;
+import com.example.agent.planning.PlanningPromptBuilder;
 import com.example.agent.reasoning.cot.ChainOfThoughtService;
 import com.example.agent.reasoning.debate.DebateCoordinator;
 import com.example.agent.reasoning.thoughttree.ThoughtNode;
@@ -47,6 +48,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.core.io.DefaultResourceLoader;
 import com.example.agent.runtime.control.ExecutionControlService;
 import com.example.agent.runtime.control.ExecutionControlState;
 import com.example.agent.runtime.control.RuntimeApprovalGate;
@@ -110,7 +112,10 @@ class AgentRuntimeApprovalIntegrationTest {
                 evaluator,
                 new ObjectMapper(),
                 Mockito.mock(ContextAssembler.class),
-                Mockito.mock(ContextEventPublisher.class), Mockito.mock(JsonOutputRepairService.class));
+                Mockito.mock(ContextEventPublisher.class),
+                Mockito.mock(JsonOutputRepairService.class),
+                new PlanningPromptBuilder(new ObjectMapper(), new DefaultResourceLoader(),
+                        "classpath:prompts/planning/planner-plan-prompt.md"));
 
         ExecutionControlService executionControlService = new ExecutionControlService();
         StepRuntimeService stepRuntimeService = mock(StepRuntimeService.class);
@@ -281,4 +286,3 @@ class AgentRuntimeApprovalIntegrationTest {
         }
     }
 }
-

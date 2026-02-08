@@ -44,27 +44,21 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StringUtils;
 
 /**
- * 瑙勫垝鏈嶅姟锛岃礋璐ｅ熀浜庝换鍔＄敓鎴愬彲鎵ц姝ラ銆?
- * <p>鐢ㄩ€旓細鏍规嵁杈撳叆闂涓庝笂涓嬫枃閫夋嫨瑙勫垝绛栫暐骞剁敓鎴愭楠ゃ€?
- * <p>杈撳叆锛氫换鍔¤姹備笌绉熸埛涓婁笅鏂囥€?
- * <p>杈撳嚭锛氳鍒掔粨鏋滃璞°€?
- * <p>杈圭晫锛氬綋绂佺敤鍥為€€涓旇鍒掑け璐ユ椂鎶涘嚭寮傚父銆?
- * <p>绀轰緥锛?
- * <pre>{@code
- * PlanResult plan = plannerService.plan(request, tenantContext);
- * }</pre>
+ * 规划服务。
+ *
+ * <p>用途：基于任务请求与上下文生成可执行步骤计划。
+ * <p>职责：统一编排能力评估、LLM 规划、规则回退与步骤规范化。
  */
 @Service
 public class PlannerService {
 
     /**
-     * 鏃ュ織璁板綍鍣ㄣ€?
-     * <p>绀轰緥锛氳褰曡鍒掔敓鎴愮粨鏋滀笌鎽樿銆?
+     * 日志记录器。
      */
     private static final Logger log = LoggerFactory.getLogger(PlannerService.class);
 
     /**
-     * TOOL 姝ラ鍙傛暟鏍￠獙寮€鍏筹紝寮€鍚悗缂哄弬浼氳Е鍙戝洖閫€銆?
+     * TOOL 姝ラ鍙傛暟鏍￠獙寮€鍏筹紝寮€鍚悗缂哄弬浼氳Е鍙戝洖閫€銆?
      */
     @Value("${agent.planner.strict-tool-arguments:false}")
     private boolean strictToolArguments;
@@ -72,7 +66,7 @@ public class PlannerService {
 
     /**
      * 妯″瀷璋冪敤鏈嶅姟銆?
-     * <p>绀轰緥锛氳皟鐢ㄦā鍨嬬敓鎴愯鍒掓楠ゃ€?
+     * <p>绀轰緥锛氳皟鐢ㄦā鍨嬬敓鎴愯鍒掓楠ゃ€?
      */
     private final ModelInvocationService modelInvocationService;
     /**
@@ -81,41 +75,46 @@ public class PlannerService {
      */
     private final ModelToolResolver modelToolResolver;
     /**
-     * 鎻愮ず璇嶈閰嶅櫒銆?
+     * 鎻愮ず璇嶈閰嶅櫒銆?
      * <p>绀轰緥锛氱敓鎴愮粨鏋勫寲娑堟伅鍒楄〃銆?
      */
     private final PromptAssembler promptAssembler;
     private final JsonOutputRepairService jsonOutputRepairService;
     /**
      * 瑙勫垝鐩稿叧閰嶇疆銆?
-     * <p>绀轰緥锛氭帶鍒舵槸鍚﹀惎鐢ㄦā鍨嬭鍒掋€?
+     * <p>绀轰緥锛氭帶鍒舵槸鍚﹀惎鐢ㄦā鍨嬭鍒掋€?
      */
     private final PlannerProperties plannerProperties;
     /**
      * 鑳藉姏杈圭晫璇勪及鍣ㄣ€?
-     * <p>绀轰緥锛氭牴鎹闄╁喅瀹氭槸鍚﹂渶瑕佸鎵广€?
+     * <p>绀轰緥锛氭牴鎹闄╁喅瀹氭槸鍚﹂渶瑕佸鎵广€?
      */
     private final CapabilityBoundaryEvaluator capabilityBoundaryEvaluator;
     /**
      * 搴忓垪鍖栧伐鍏枫€?
-     * <p>绀轰緥锛氬皢涓婁笅鏂囪浆鎹负 {@code JSON}銆?
+     * <p>绀轰緥锛氬皢涓婁笅鏂囪浆鎹负 {@code JSON}銆?
      */
     private final ObjectMapper objectMapper;
     /**
-     * 涓婁笅鏂囪閰嶅櫒銆?
-     * <p>绀轰緥锛氭瀯寤烘彁绀鸿瘝鎵€闇€鐨勪笂涓嬫枃鐗囨銆?
+     * 涓婁笅鏂囪閰嶅櫒銆?
+     * <p>绀轰緥锛氭瀯寤烘彁绀鸿瘝鎵€闇€鐨勪笂涓嬫枃鐗囨銆?
      */
     private final ContextAssembler contextAssembler;
     /**
      * 涓婁笅鏂囦簨浠跺彂甯冨櫒銆?
-     * <p>绀轰緥锛氬彂甯冩彁绀鸿瘝瑁呴厤闃舵浜嬩欢銆?
+     * <p>绀轰緥锛氬彂甯冩彁绀鸿瘝瑁呴厤闃舵浜嬩欢銆?
      */
     private final ContextEventPublisher contextEventPublisher;
 
     /**
-     * 鏋勯€犺鍒掓湇鍔°€?
+     * 规划提示词构建器。
+     */
+    private final PlanningPromptBuilder planningPromptBuilder;
+
+    /**
+     * 鏋勯€犺鍒掓湇鍔°€?
      *
-     * <p>杈撳叆锛氭ā鍨嬭皟鐢ㄦ湇鍔°€佸伐鍏疯В鏋愬櫒涓庨厤缃璞°€?
+     * <p>杈撳叆锛氭ā鍨嬭皟鐢ㄦ湇鍔°€佸伐鍏疯В鏋愬櫒涓庨厤缃璞°€?
      * <p>杈撳嚭锛氬垵濮嬪寲鍚庣殑瑙勫垝鏈嶅姟銆?
      * <p>绀轰緥锛?
      * <pre>{@code
@@ -124,11 +123,11 @@ public class PlannerService {
      *
      * @param modelInvocationService 妯″瀷璋冪敤鏈嶅姟
      * @param modelToolResolver 宸ュ叿瑙ｆ瀽鍣?
-     * @param promptAssembler 鎻愮ず璇嶈閰嶅櫒
+     * @param promptAssembler 鎻愮ず璇嶈閰嶅櫒
      * @param plannerProperties 瑙勫垝閰嶇疆
      * @param capabilityBoundaryEvaluator 鑳藉姏璇勪及鍣?
      * @param objectMapper 搴忓垪鍖栧伐鍏?
-     * @param contextAssembler 涓婁笅鏂囪閰嶅櫒
+     * @param contextAssembler 涓婁笅鏂囪閰嶅櫒
      * @param contextEventPublisher 涓婁笅鏂囦簨浠跺彂甯冨櫒
      */
     public PlannerService(ModelInvocationService modelInvocationService,
@@ -139,7 +138,8 @@ public class PlannerService {
                           ObjectMapper objectMapper,
                           ContextAssembler contextAssembler,
                           ContextEventPublisher contextEventPublisher,
-                          JsonOutputRepairService jsonOutputRepairService) {
+                          JsonOutputRepairService jsonOutputRepairService,
+                          PlanningPromptBuilder planningPromptBuilder) {
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
         this.promptAssembler = promptAssembler;
@@ -149,14 +149,15 @@ public class PlannerService {
         this.contextAssembler = contextAssembler;
         this.contextEventPublisher = contextEventPublisher;
         this.jsonOutputRepairService = jsonOutputRepairService;
+        this.planningPromptBuilder = planningPromptBuilder;
     }
 
     /**
      * 鐢熸垚瑙勫垝缁撴灉銆?
      *
-     * <p>杈撳叆锛氫换鍔¤姹備笌绉熸埛涓婁笅鏂囥€?
-     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞°€?
-     * <p>杈圭晫锛氫細杞皟甯︿笂涓嬫枃鐨勬柟娉曪紝淇濇寔缁熶竴閫昏緫銆?
+     * <p>杈撳叆锛氫换鍔¤姹備笌绉熸埛涓婁笅鏂囥€?
+     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞°€?
+     * <p>杈圭晫锛氫細杞皟甯︿笂涓嬫枃鐨勬柟娉曪紝淇濇寔缁熶竴閫昏緫銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * PlanResult plan = plan(request, tenantContext);
@@ -171,11 +172,11 @@ public class PlannerService {
     }
 
     /**
-     * 甯﹁繍琛屼笂涓嬫枃鐨勮鍒掑叆鍙ｏ紝鐢ㄤ簬鍙戝竷妯″瀷浜嬩欢銆?
+     * 甯﹁繍琛屼笂涓嬫枃鐨勮鍒掑叆鍙ｏ紝鐢ㄤ簬鍙戝竷妯″瀷浜嬩欢銆?
      *
-     * <p>杈撳叆锛氫换鍔¤姹傘€佺鎴蜂笂涓嬫枃涓庨摼璺爣璇嗐€?
-     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞°€?
-     * <p>杈圭晫锛氬綋妯″瀷瑙勫垝澶辫触涓旂鐢ㄥ洖閫€鏃舵姏鍑哄紓甯搞€?
+     * <p>杈撳叆锛氫换鍔¤姹傘€佺鎴蜂笂涓嬫枃涓庨摼璺爣璇嗐€?
+     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞°€?
+     * <p>杈圭晫锛氬綋妯″瀷瑙勫垝澶辫触涓旂鐢ㄥ洖閫€鏃舵姏鍑哄紓甯搞€?
      * <p>绀轰緥锛?
      * <pre>{@code
      * PlanResult plan = plan(request, tenantContext, workflowId, seqCounter);
@@ -196,10 +197,11 @@ public class PlannerService {
         Map<String, Object> context = request != null && request.getContext() != null
                 ? new HashMap<>(request.getContext())
                 : new HashMap<>();
-        if (request != null && request.getToolChoice() != null && !context.containsKey("toolChoice")) {
-            context.put("toolChoice", request.getToolChoice());
+        if (request != null && request.getToolChoice() != null
+                && !context.containsKey(PlanningContextKeys.TOOL_CHOICE)) {
+            context.put(PlanningContextKeys.TOOL_CHOICE, request.getToolChoice());
         }
-        // 璇勪及鑳藉姏杈圭晫锛屽喅瀹氭槸鍚﹂渶瑕佸鎵规垨鎺ㄨ崘绛栫暐銆?
+        // 璇勪及鑳藉姏杈圭晫锛屽喅瀹氭槸鍚﹂渶瑕佸鎵规垨鎺ㄨ崘绛栫暐銆?
         CapabilityEvaluationResult evaluation = evaluateCapability(request, context, tenantContext, workflowId,
                 seqCounter);
         applyEvaluationToContext(context, evaluation);
@@ -223,11 +225,11 @@ public class PlannerService {
     }
 
     /**
-     * 鎵ц鑳藉姏杈圭晫璇勪及銆?
+     * 鎵ц鑳藉姏杈圭晫璇勪及銆?
      *
-     * <p>杈撳叆锛氫换鍔¤姹傘€佷笂涓嬫枃涓庨摼璺俊鎭€?
-     * <p>杈撳嚭锛氳瘎浼扮粨鏋滃璞°€?
-     * <p>杈圭晫锛氳瘎浼板櫒鏈惎鐢ㄦ椂杩斿洖 {@code null}銆?
+     * <p>杈撳叆锛氫换鍔¤姹傘€佷笂涓嬫枃涓庨摼璺俊鎭€?
+     * <p>杈撳嚭锛氳瘎浼扮粨鏋滃璞°€?
+     * <p>杈圭晫锛氳瘎浼板櫒鏈惎鐢ㄦ椂杩斿洖 {@code null}銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * CapabilityEvaluationResult result = evaluateCapability(request, context, ctx, wfId, seq);
@@ -241,7 +243,7 @@ public class PlannerService {
         if (capabilityBoundaryEvaluator == null || !capabilityBoundaryEvaluator.isEnabled()) {
             return null;
         }
-        // 鏋勫缓璇勪及杈撳叆锛屽寘鍚棶棰樸€佸伐鍏锋憳瑕佷笌棰勭畻淇℃伅銆?
+        // 鏋勫缓璇勪及杈撳叆锛屽寘鍚棶棰樸€佸伐鍏锋憳瑕佷笌棰勭畻淇℃伅銆?
         CapabilityEvaluationInput input = new CapabilityEvaluationInput();
         input.setTaskDescription(request != null ? request.getQuery() : null);
         input.setPlanSummary(resolvePlanSummary(context));
@@ -257,7 +259,7 @@ public class PlannerService {
      *
      * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠涓庤瘎浼扮粨鏋溿€?
      * <p>杈撳嚭锛氭棤銆?
-     * <p>杈圭晫锛氳瘎浼拌璺宠繃鏃朵笉鍐欏叆銆?
+     * <p>杈圭晫锛氳瘎浼拌璺宠繃鏃朵笉鍐欏叆銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * applyEvaluationToContext(context, evaluation);
@@ -267,25 +269,25 @@ public class PlannerService {
         if (context == null || evaluation == null || evaluation.isSkipped()) {
             return;
         }
-        if (evaluation.isShouldAskApproval() && !context.containsKey("requiresApproval")) {
-            context.put("requiresApproval", true);
-            context.putIfAbsent("approvalSource", "evaluation");
+        if (evaluation.isShouldAskApproval() && !context.containsKey(PlanningContextKeys.REQUIRES_APPROVAL)) {
+            context.put(PlanningContextKeys.REQUIRES_APPROVAL, true);
+            context.putIfAbsent(PlanningContextKeys.APPROVAL_SOURCE, "evaluation");
         }
         if (!hasExplicitStrategy(context) && evaluation.getRecommendedStrategy() != null) {
             mapStrategyToContext(context, evaluation.getRecommendedStrategy());
         }
-        context.put("capabilityScore", evaluation.getComplexityScore());
-        context.put("capabilityRisk", evaluation.getRiskLevel() != null
+        context.put(PlanningContextKeys.CAPABILITY_SCORE, evaluation.getComplexityScore());
+        context.put(PlanningContextKeys.CAPABILITY_RISK, evaluation.getRiskLevel() != null
                 ? evaluation.getRiskLevel().name()
                 : null);
     }
 
     /**
-     * 灏嗗鎵硅姹傜粦瀹氬埌瑙勫垝姝ラ銆?
+     * 灏嗗鎵硅姹傜粦瀹氬埌瑙勫垝姝ラ銆?
      *
-     * <p>杈撳叆锛氳鍒掔粨鏋溿€佷换鍔¤姹備笌璇勪及缁撴灉銆?
+     * <p>杈撳叆锛氳鍒掔粨鏋溿€佷换鍔¤姹備笌璇勪及缁撴灉銆?
      * <p>杈撳嚭锛氭棤銆?
-     * <p>杈圭晫锛氭棤姝ラ鎴栧凡鏄惧紡鎸囧畾瀹℃壒鏃朵笉澶勭悊銆?
+     * <p>杈圭晫锛氭棤姝ラ鎴栧凡鏄惧紡鎸囧畾瀹℃壒鏃朵笉澶勭悊銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * applyApprovalRequirement(plan, request, evaluation);
@@ -308,10 +310,10 @@ public class PlannerService {
     }
 
     /**
-     * 鍒ゆ柇浠诲姟璇锋眰鏄惁鏄惧紡瑕佹眰瀹℃壒銆?
+     * 鍒ゆ柇浠诲姟璇锋眰鏄惁鏄惧紡瑕佹眰瀹℃壒銆?
      *
-     * <p>杈撳叆锛氫换鍔¤姹傚璞°€?
-     * <p>杈撳嚭锛氭槸鍚﹀瓨鍦ㄥ鎵规爣璁般€?
+     * <p>杈撳叆锛氫换鍔¤姹傚璞°€?
+     * <p>杈撳嚭锛氭槸鍚﹀瓨鍦ㄥ鎵规爣璁般€?
      * <p>绀轰緥锛?
      * <pre>{@code
      * boolean required = hasExplicitApproval(request);
@@ -321,14 +323,14 @@ public class PlannerService {
         if (request == null || request.getContext() == null) {
             return false;
         }
-        return request.getContext().containsKey("requiresApproval");
+        return request.getContext().containsKey(PlanningContextKeys.REQUIRES_APPROVAL);
     }
 
     /**
-     * 鍒ゆ柇姝ラ鍒楄〃涓槸鍚︽樉寮忔爣璁板鎵广€?
+     * 鍒ゆ柇姝ラ鍒楄〃涓槸鍚︽樉寮忔爣璁板鎵广€?
      *
-     * <p>杈撳叆锛氭楠ゅ垪琛ㄣ€?
-     * <p>杈撳嚭锛氭槸鍚﹀瓨鍦ㄥ鎵规爣璁般€?
+     * <p>杈撳叆锛氭楠ゅ垪琛ㄣ€?
+     * <p>杈撳嚭锛氭槸鍚﹀瓨鍦ㄥ鎵规爣璁般€?
      * <p>绀轰緥锛?
      * <pre>{@code
      * boolean required = hasExplicitApproval(steps);
@@ -350,11 +352,11 @@ public class PlannerService {
     }
 
     /**
-     * 鏍囪姝ラ闇€瑕佸鎵广€?
+     * 鏍囪姝ラ闇€瑕佸鎵广€?
      *
-     * <p>杈撳叆锛氭楠ゅ璞′笌鏉ユ簮鏍囪瘑銆?
+     * <p>杈撳叆锛氭楠ゅ璞′笌鏉ユ簮鏍囪瘑銆?
      * <p>杈撳嚭锛氭棤銆?
-     * <p>杈圭晫锛氭楠や负绌烘椂鐩存帴杩斿洖銆?
+     * <p>杈圭晫锛氭楠や负绌烘椂鐩存帴杩斿洖銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * markStepRequiresApproval(step, "evaluation");
@@ -369,7 +371,7 @@ public class PlannerService {
     }
 
     /**
-     * 鍒ゆ柇涓婁笅鏂囦腑鏄惁鏄惧紡鎸囧畾绛栫暐銆?
+     * 鍒ゆ柇涓婁笅鏂囦腑鏄惁鏄惧紡鎸囧畾绛栫暐銆?
      *
      * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
      * <p>杈撳嚭锛氭槸鍚﹀瓨鍦ㄧ瓥鐣ュ瓧娈点€?
@@ -382,11 +384,11 @@ public class PlannerService {
         if (context == null) {
             return false;
         }
-        return context.containsKey("strategy")
-                || context.containsKey("mode")
-                || context.containsKey("cognitive_strategy")
-                || context.containsKey("react")
-                || context.containsKey("reactEnabled");
+        return context.containsKey(PlanningContextKeys.STRATEGY)
+                || context.containsKey(PlanningContextKeys.MODE)
+                || context.containsKey(PlanningContextKeys.COGNITIVE_STRATEGY_LEGACY)
+                || context.containsKey(PlanningContextKeys.REACT)
+                || context.containsKey(PlanningContextKeys.REACT_ENABLED);
     }
 
     /**
@@ -394,7 +396,7 @@ public class PlannerService {
      *
      * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠涓庣瓥鐣ュ悕绉般€?
      * <p>杈撳嚭锛氭棤銆?
-     * <p>杈圭晫锛氱瓥鐣ヤ负绌烘椂涓嶅鐞嗐€?
+     * <p>杈圭晫锛氱瓥鐣ヤ负绌烘椂涓嶅鐞嗐€?
      * <p>绀轰緥锛?
      * <pre>{@code
      * mapStrategyToContext(context, "react");
@@ -406,28 +408,28 @@ public class PlannerService {
         }
         String normalized = strategy.toLowerCase(Locale.ROOT);
         if ("thought_tree".equals(normalized) || "tree_of_thoughts".equals(normalized)) {
-            context.put("cognitive_strategy", "tree_of_thoughts");
+            context.put(PlanningContextKeys.COGNITIVE_STRATEGY_LEGACY, "tree_of_thoughts");
             return;
         }
         if ("debate".equals(normalized)) {
-            context.put("strategy", "debate");
+            context.put(PlanningContextKeys.STRATEGY, "debate");
             return;
         }
         if ("research".equals(normalized)) {
-            context.put("mode", "deep_research");
-            context.put("strategy", "research");
+            context.put(PlanningContextKeys.MODE, "deep_research");
+            context.put(PlanningContextKeys.STRATEGY, "research");
             return;
         }
         if ("react".equals(normalized)) {
-            context.put("react", true);
+            context.put(PlanningContextKeys.REACT, true);
         }
     }
 
     /**
-     * 鑾峰彇涓婁笅鏂囦腑鐨勮鍒掓憳瑕併€?
+     * 鑾峰彇涓婁笅鏂囦腑鐨勮鍒掓憳瑕併€?
      *
      * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
-     * <p>杈撳嚭锛氳鍒掓憳瑕佸瓧绗︿覆鎴?{@code null}銆?
+     * <p>杈撳嚭锛氳鍒掓憳瑕佸瓧绗︿覆鎴?{@code null}銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * String summary = resolvePlanSummary(context);
@@ -437,7 +439,7 @@ public class PlannerService {
         if (context == null) {
             return null;
         }
-        Object summary = context.get("planSummary");
+        Object summary = context.get(PlanningContextKeys.PLAN_SUMMARY);
         return summary instanceof String value ? value : null;
     }
 
@@ -455,9 +457,9 @@ public class PlannerService {
         if (context == null) {
             return null;
         }
-        Object tool = context.get("tool");
-        Object toolName = context.get("toolName");
-        Object fallbackTool = context.get("fallbackTool");
+        Object tool = context.get(PlanningContextKeys.TOOL);
+        Object toolName = context.get(PlanningContextKeys.TOOL_NAME);
+        Object fallbackTool = context.get(PlanningContextKeys.FALLBACK_TOOL);
         StringBuilder builder = new StringBuilder();
         if (tool instanceof String value && !value.isBlank()) {
             builder.append(value);
@@ -472,7 +474,7 @@ public class PlannerService {
     }
 
     /**
-     * 浠ラ€楀彿鎷兼帴瀛楃涓层€?
+     * 浠ラ€楀彿鎷兼帴瀛楃涓层€?
      *
      * <p>杈撳叆锛氬瓧绗︿覆鏋勫缓鍣ㄤ笌寰呮嫾鎺ュ€笺€?
      * <p>杈撳嚭锛氭棤銆?
@@ -489,10 +491,10 @@ public class PlannerService {
     }
 
     /**
-     * 鑾峰彇棰勭畻闃堝€奸厤缃€?
+     * 鑾峰彇棰勭畻闃堝€奸厤缃€?
      *
      * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
-     * <p>杈撳嚭锛氶槇鍊兼暣鏁帮紝榛樿 {@code 0}銆?
+     * <p>杈撳嚭锛氶槇鍊兼暣鏁帮紝榛樿 {@code 0}銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * int threshold = resolveBudgetThreshold(context);
@@ -502,7 +504,7 @@ public class PlannerService {
         if (context == null) {
             return 0;
         }
-        Object threshold = context.get("budgetThresholdTokens");
+        Object threshold = context.get(PlanningContextKeys.BUDGET_THRESHOLD_TOKENS);
         if (threshold instanceof Number number) {
             return number.intValue();
         }
@@ -532,7 +534,7 @@ public class PlannerService {
         if (context == null) {
             return List.of();
         }
-        Object failures = context.get("failureTypes");
+        Object failures = context.get(PlanningContextKeys.FAILURE_TYPES);
         if (failures instanceof List<?> list) {
             List<String> output = new ArrayList<>();
             for (Object item : list) {
@@ -551,8 +553,8 @@ public class PlannerService {
     /**
      * 灏濊瘯浣跨敤妯″瀷鐢熸垚瑙勫垝銆?
      *
-     * <p>杈撳叆锛氫换鍔¤姹傘€佺鎴蜂笂涓嬫枃涓庝笂涓嬫枃淇℃伅銆?
-     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞℃垨 {@code null}銆?
+     * <p>杈撳叆锛氫换鍔¤姹傘€佺鎴蜂笂涓嬫枃涓庝笂涓嬫枃淇℃伅銆?
+     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞℃垨 {@code null}銆?
      * <p>杈圭晫锛氭ā鍨嬭緭鍑轰笉鍚堟硶鏃惰繑鍥?{@code null}銆?
      * <p>绀轰緥锛?
      * <pre>{@code
@@ -565,17 +567,19 @@ public class PlannerService {
                                   AtomicLong seqCounter,
                                   Map<String, Object> context,
                                   String planId) {
+        String tenantId = tenantContext != null ? tenantContext.getTenantId() : null;
         try {
-            // 鏋勯€犺鍒掓彁绀鸿瘝骞剁敓鎴愭ā鍨嬭姹傘€?
             String prompt = buildPlanPrompt(request, context);
             ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.PLANNER);
             applyPromptBundle(modelRequest, prompt, request, context, tenantContext, workflowId, seqCounter);
-            // 瑙勫垝闃舵寮哄埗娉ㄥ叆瀹屾暣宸ュ叿 schema锛屾彁鍗囧弬鏁扮敓鎴愬彲闈犳€?
             modelToolResolver.applyTooling(modelRequest, request, null, true);
-            // 璋冪敤妯″瀷鐢熸垚瑙勫垝鍐呭銆?
+
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("planId", planId);
             metadata.put("promptScene", "planner");
+
+            long invokeStart = System.currentTimeMillis();
+            log.info("开始调用规划模型, tenantId={}, workflowId={}, planId={}", tenantId, workflowId, planId);
             ModelResponse response = modelInvocationService.invoke(
                     modelRequest,
                     ModelScene.PLANNER,
@@ -585,10 +589,18 @@ public class PlannerService {
                     "plan",
                     metadata
             );
-            if (response == null || response.getContent() == null) {
+            log.info("规划模型调用结束, tenantId={}, workflowId={}, planId={}, costMs={}, hasContent={}",
+                    tenantId,
+                    workflowId,
+                    planId,
+                    System.currentTimeMillis() - invokeStart,
+                    response != null && StringUtils.hasText(response.getContent()));
+
+            if (response == null || !StringUtils.hasText(response.getContent())) {
+                log.warn("规划模型输出为空, tenantId={}, workflowId={}, planId={}", tenantId, workflowId, planId);
                 return null;
             }
-            // 瑙ｆ瀽妯″瀷杈撳嚭涓鸿鍒掓楠ゃ€?
+
             String rawContent = response.getContent();
             String parseErrorType = null;
             boolean repairAttempted = false;
@@ -597,37 +609,64 @@ public class PlannerService {
             try {
                 parsed = parsePlan(rawContent, request, context);
             } catch (Exception ex) {
-                log.warn("瑙勫垝瑙ｆ瀽澶辫触, tenantId={}, planId={}, reason={}",
-                        tenantContext.getTenantId(), planId, ex.getMessage());
+                log.warn("规划解析失败, tenantId={}, workflowId={}, planId={}, reason={}",
+                        tenantId,
+                        workflowId,
+                        planId,
+                        ex.getMessage(),
+                        ex);
                 parsed = null;
                 parseErrorType = "json_parse_error";
             }
+
             if (parsed == null || parsed.steps == null || parsed.steps.isEmpty()) {
                 if (parseErrorType == null) {
                     parseErrorType = resolveParseErrorType(rawContent);
                 }
                 repairAttempted = true;
-                PlanParsingResult repaired = tryRepairPlan(rawContent, request, context);
+                long repairStart = System.currentTimeMillis();
+                PlanParsingResult repaired = tryRepairPlan(rawContent, request, context, tenantId, workflowId, planId);
+                log.info("规划修复调用结束, tenantId={}, workflowId={}, planId={}, costMs={}, success={}",
+                        tenantId,
+                        workflowId,
+                        planId,
+                        System.currentTimeMillis() - repairStart,
+                        repaired != null && repaired.steps != null && !repaired.steps.isEmpty());
                 if (repaired != null && repaired.steps != null && !repaired.steps.isEmpty()) {
                     parsed = repaired;
                     repairSuccess = true;
                 }
             }
+
             if (parsed == null || parsed.steps == null || parsed.steps.isEmpty()) {
-                log.warn("瑙勫垝淇澶辫触, tenantId={}, planId={}", tenantContext.getTenantId(), planId);
+                log.warn("规划生成失败, tenantId={}, workflowId={}, planId={}, parseErrorType={}, repairAttempted={}, repairSuccess={}",
+                        tenantId,
+                        workflowId,
+                        planId,
+                        parseErrorType,
+                        repairAttempted,
+                        repairSuccess);
                 recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter, response.getModelId(), false,
                         parseErrorType, repairAttempted, repairSuccess);
                 return null;
             }
+
             recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter, response.getModelId(), true, null,
                     repairAttempted, repairSuccess);
             PlanResult result = new PlanResult(planId, parsed.summary, parsed.steps);
-            log.info("瑙勫垝鐢熸垚(LLM), tenantId={}, planId={}, steps={}",
-                    tenantContext.getTenantId(), planId, parsed.steps.size());
+            log.info("规划生成成功(LLM), tenantId={}, workflowId={}, planId={}, steps={}",
+                    tenantId,
+                    workflowId,
+                    planId,
+                    parsed.steps.size());
             return result;
         } catch (Exception ex) {
-            log.warn("瑙勫垝瑙ｆ瀽澶辫触, tenantId={}, planId={}, reason={}",
-                    tenantContext.getTenantId(), planId, ex.getMessage());
+            log.warn("规划模型链路异常, tenantId={}, workflowId={}, planId={}, reason={}",
+                    tenantId,
+                    workflowId,
+                    planId,
+                    ex.getMessage(),
+                    ex);
             return null;
         }
     }
@@ -635,9 +674,9 @@ public class PlannerService {
     /**
      * 浣跨敤瑙勫垯绛栫暐鐢熸垚瑙勫垝銆?
      *
-     * <p>杈撳叆锛氳鍒掓爣璇嗐€侀棶棰樹笌涓婁笅鏂囦俊鎭€?
-     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞°€?
-     * <p>杈圭晫锛氶棶棰樹负绌烘椂浣跨敤榛樿澶嶆潅搴︺€?
+     * <p>杈撳叆锛氳鍒掓爣璇嗐€侀棶棰樹笌涓婁笅鏂囦俊鎭€?
+     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞°€?
+     * <p>杈圭晫锛氶棶棰樹负绌烘椂浣跨敤榛樿澶嶆潅搴︺€?
      * <p>绀轰緥锛?
      * <pre>{@code
      * PlanResult plan = buildHeuristicPlan(planId, query, context, tenantContext);
@@ -650,8 +689,10 @@ public class PlannerService {
         double complexityScore = estimateComplexity(query);
         String cognitiveStrategy = resolveCognitiveStrategy(context, complexityScore);
         String executionStrategy = resolveExecutionStrategy(context, complexityScore);
-            String mode = context.get("mode") instanceof String value ? value.toLowerCase(Locale.ROOT) : "";
-        String strategy = context.get("strategy") instanceof String value ? value.toLowerCase(Locale.ROOT) : "";
+        String mode = context.get(PlanningContextKeys.MODE) instanceof String value ? value.toLowerCase(Locale.ROOT) : "";
+        String strategy = context.get(PlanningContextKeys.STRATEGY) instanceof String value
+                ? value.toLowerCase(Locale.ROOT)
+                : "";
 
         List<StepSpec> steps = new ArrayList<>();
         List<Map<String, Object>> planSteps = new ArrayList<>();
@@ -672,15 +713,15 @@ public class PlannerService {
                     "strategy=%s, cognitive=%s, complexity=%.2f, steps=%d",
                     executionStrategy, cognitiveStrategy, complexityScore, steps.size());
             PlanResult result = new PlanResult(planId, summary, steps);
-            log.info("瑙勫垝鐢熸垚(閾惧紡鎺ㄧ悊), tenantId={}, planId={}, summary={}",
+            log.info("规划生成（链式推理）, tenantId={}, planId={}, summary={}",
                     tenantContext.getTenantId(), planId, summary);
-            context.put("planSteps", planSteps);
-            context.put("planDependencies", dependencies);
-            context.put("executionStrategy", executionStrategy);
-            context.put("cognitiveStrategy", cognitiveStrategy);
+            context.put(PlanningContextKeys.PLAN_STEPS, planSteps);
+            context.put(PlanningContextKeys.PLAN_DEPENDENCIES, dependencies);
+            context.put(PlanningContextKeys.EXECUTION_STRATEGY, executionStrategy);
+            context.put(PlanningContextKeys.COGNITIVE_STRATEGY, cognitiveStrategy);
             return result;
         }
-        // 闇€瑕佹€濈淮鏍戠瓥鐣ユ椂鍏堟彃鍏ユ€濈淮鏍戞楠ゃ€?
+        // 闇€瑕佹€濈淮鏍戠瓥鐣ユ椂鍏堟彃鍏ユ€濈淮鏍戞楠ゃ€?
         if (needsThoughtTree(cognitiveStrategy, complexityScore)) {
             thoughtStepKey = "step-1";
             Map<String, Object> thoughtInput = new HashMap<>();
@@ -708,7 +749,7 @@ public class PlannerService {
             previousStepKey = stepKey;
         }
 
-        // 杈╄绛栫暐銆?
+        // 杈╄绛栫暐銆?
         if ("debate".equals(strategy)) {
             String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
             Map<String, Object> input = new HashMap<>();
@@ -753,12 +794,12 @@ public class PlannerService {
                     "strategy=%s, cognitive=%s, complexity=%.2f, steps=%d",
                     executionStrategy, cognitiveStrategy, complexityScore, steps.size());
             PlanResult result = new PlanResult(planId, summary, steps);
-            log.info("瑙勫垝鐢熸垚锛圧eAct锛? tenantId={}, planId={}, summary={}",
+            log.info("规划生成（ReAct）, tenantId={}, planId={}, summary={}",
                     tenantContext.getTenantId(), planId, summary);
-            context.put("planSteps", planSteps);
-            context.put("planDependencies", dependencies);
-            context.put("executionStrategy", executionStrategy);
-            context.put("cognitiveStrategy", cognitiveStrategy);
+            context.put(PlanningContextKeys.PLAN_STEPS, planSteps);
+            context.put(PlanningContextKeys.PLAN_DEPENDENCIES, dependencies);
+            context.put(PlanningContextKeys.EXECUTION_STRATEGY, executionStrategy);
+            context.put(PlanningContextKeys.COGNITIVE_STRATEGY, cognitiveStrategy);
             return result;
         }
 
@@ -782,16 +823,16 @@ public class PlannerService {
                     executionStrategy, cognitiveStrategy, complexityScore, steps.size());
             PlanResult result = new PlanResult(planId, summary, steps);
 
-            log.info("瑙勫垝鐢熸垚(澶фā鍨?, tenantId={}, planId={}, summary={}",
+            log.info("规划生成（大模型直答）, tenantId={}, planId={}, summary={}",
                     tenantContext.getTenantId(), planId, summary);
-            context.put("planSteps", planSteps);
-            context.put("planDependencies", dependencies);
-            context.put("executionStrategy", executionStrategy);
-            context.put("cognitiveStrategy", cognitiveStrategy);
+            context.put(PlanningContextKeys.PLAN_STEPS, planSteps);
+            context.put(PlanningContextKeys.PLAN_DEPENDENCIES, dependencies);
+            context.put(PlanningContextKeys.EXECUTION_STRATEGY, executionStrategy);
+            context.put(PlanningContextKeys.COGNITIVE_STRATEGY, cognitiveStrategy);
             return result;
         }
 
-        // 榛樿宸ュ叿姝ラ銆?
+        // 榛樿宸ュ叿姝ラ銆?
         String toolStepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
         Map<String, Object> toolInput = new HashMap<>();
         toolInput.put("query", query);
@@ -799,13 +840,13 @@ public class PlannerService {
         toolInput.put("stepKey", toolStepKey);
         toolInput.put("critical", complexityScore >= 0.6);
         toolInput.put("strategy", cognitiveStrategy);
-        Object toolName = context.get("tool");
+        Object toolName = context.get(PlanningContextKeys.TOOL);
         if (toolName instanceof String name && !name.isBlank()) {
-            toolInput.put("tool", name);
+            toolInput.put(PlanningContextKeys.TOOL, name);
         }
-        Object fallbackTool = context.get("fallbackTool");
+        Object fallbackTool = context.get(PlanningContextKeys.FALLBACK_TOOL);
         if (fallbackTool instanceof String fallbackName && !fallbackName.isBlank()) {
-            toolInput.put("fallbackTool", fallbackName);
+            toolInput.put(PlanningContextKeys.FALLBACK_TOOL, fallbackName);
         }
         if (previousStepKey != null) {
             toolInput.put("dependsOn", List.of(previousStepKey));
@@ -819,20 +860,20 @@ public class PlannerService {
                 executionStrategy, cognitiveStrategy, complexityScore, steps.size());
         PlanResult result = new PlanResult(planId, summary, steps);
 
-        log.info("瑙勫垝鐢熸垚(瑙勫垯), tenantId={}, planId={}, summary={}",
+        log.info("规划生成（规则回退）, tenantId={}, planId={}, summary={}",
                 tenantContext.getTenantId(), planId, summary);
-        context.put("planSteps", planSteps);
-        context.put("planDependencies", dependencies);
-        context.put("executionStrategy", executionStrategy);
-        context.put("cognitiveStrategy", cognitiveStrategy);
+        context.put(PlanningContextKeys.PLAN_STEPS, planSteps);
+        context.put(PlanningContextKeys.PLAN_DEPENDENCIES, dependencies);
+        context.put(PlanningContextKeys.EXECUTION_STRATEGY, executionStrategy);
+        context.put(PlanningContextKeys.COGNITIVE_STRATEGY, cognitiveStrategy);
         return result;
     }
 
     /**
      * 鏋勫缓瑙勫垝鎻愮ず璇嶃€?
      *
-     * <p>杈撳叆锛氫换鍔¤姹備笌涓婁笅鏂囨槧灏勩€?
-     * <p>杈撳嚭锛氭彁绀鸿瘝瀛楃涓层€?
+     * <p>杈撳叆锛氫换鍔¤姹備笌涓婁笅鏂囨槧灏勩€?
+     * <p>杈撳嚭锛氭彁绀鸿瘝瀛楃涓层€?
      * <p>杈圭晫锛氬簭鍒楀寲澶辫触鏃朵娇鐢ㄧ┖涓婁笅鏂囥€?
      * <p>绀轰緥锛?
      * <pre>{@code
@@ -840,122 +881,10 @@ public class PlannerService {
      * }</pre>
      */
     private String buildPlanPrompt(TaskRequest request, Map<String, Object> context) {
-        Map<String, Object> promptContext = new HashMap<>();
-        promptContext.put("query", request != null ? request.getQuery() : null);
-        promptContext.put("contextSummary", buildContextSummary(context));
-        String contextJson;
-        try {
-            contextJson = objectMapper.writeValueAsString(promptContext);
-        } catch (Exception ex) {
-            contextJson = "{}";
+        if (planningPromptBuilder == null) {
+            throw new IllegalStateException("planning_prompt_builder_missing");
         }
-        return """
-                浣犳槸浠诲姟瑙勫垝鍣紙planner锛夈€備綘鐨勪换鍔℃槸锛氭牴鎹?PLAN_CONTEXT_JSON 涓殑 query 涓庝笂涓嬫枃锛岀敓鎴愨€滄渶灏忎笖鍙墽琛屸€濈殑姝ラ璁″垝銆?
-                
-                銆愯鍒掑師鍒欍€?
-                1) 鏈€灏忓寲锛氬繀椤昏緭鍑鸿嚦灏?1 涓楠わ紝鑳藉皯姝ヨВ鍐冲氨涓嶈鍑烘楠わ紱鑳?1 姝ヨВ鍐冲氨涓嶈鎷?3 姝ャ€?
-                2) 鍙墽琛岋細姣忎釜姝ラ蹇呴』鑳借鎵ц鍣ㄧ洿鎺ユ墽琛岋紙step.type 涓?step.input 蹇呴』鑷唇锛夈€?
-                3) 涓嶇紪閫狅細涓嶅緱缂栭€犲閮ㄦ暟鎹粨鏋滐紱鑻ラ渶瑕佹煡璇㈡暟鎹簮锛屽繀椤昏鍒掑伐鍏锋楠ゃ€?
-                4) 鍖哄垎涓ょ被闂锛?
-                   - DIRECT锛氬父璇嗚В閲?姒傚康璇存槑/绾枃鏈敓鎴愶紝涓嶉渶瑕佸伐鍏凤紝蹇呴』杈撳嚭鑷冲皯 1 涓楠?
-                   - TOOL锛氶渶瑕佸閮ㄦ暟鎹?妫€绱?鏁版嵁搴撴煡璇?璋冪敤绯荤粺鎺ュ彛锛屽繀椤昏緭鍑鸿嚦灏?1 涓楠?
-                
-                銆恠teps=[蹇呴』杈撳嚭鑷冲皯 1 涓楠銆?
-                - 闂灞炰簬 DIRECT锛堣В閲婄被銆佸畾涔夌被銆佹敼鍐?鎬荤粨绫荤瓑锛夛紝涓旀棤闇€浠讳綍澶栭儴鏁版嵁銆?
-                  summary 鍐欐槑鈥滄棤闇€宸ュ叿锛岀洿鎺ュ洖绛斺€濓紝骞跺彲杈撳嚭 answerMode="DIRECT"銆?
-                
-                --------------------------------------------------
-                銆愬叧閿崗璁紙涓庤繍琛屾椂涓ユ牸瀵归綈锛夈€?
-                
-                鍙杈撳嚭 steps锛堝嵆浜х敓浠绘剰 step锛夛紝蹇呴』閬靛畧锛?
-                
-                1) steps[*].input锛?
-                   - 蹇呴』鏄?object
-                   - 蹇呴』鍖呭惈 input.question锛堝瓧绗︿覆锛屼笉鑳戒负绌猴級
-                   - input.question 琛ㄧず鈥滆姝ラ姝ｅ湪鍋氫粈涔?/ 璇ユ楠よ澶勭悊鐨勫瓙闂鏄粈涔堚€?
-                   - 杩愯鏃跺皢浼樺厛浣跨敤 input.question 浣滀负璇ユ楠ょ殑闂鏂囨湰
-                
-                2) steps[*].tool锛?
-                   - 涓嶆槸蹇呭～锛屽彲鐪佺暐鎴栦负绌轰覆
-                   - 浣嗗綋 step.type="TOOL" 鏃讹紝蹇呴』淇濊瘉鎵ц鍣ㄨ兘瀹氫綅鍒板叿浣撳伐鍏凤細
-                     - 浼樺厛浣跨敤 steps[*].tool锛堣嫢濉啓锛?
-                     - 鑻?steps[*].tool 涓虹┖锛屽垯 steps[*].input 蹇呴』鍖呭惈 toolName锛堝瓧绗︿覆锛屼笉鑳戒负绌猴級
-                     - 鍚﹀垯璇?TOOL 姝ラ涓嶅彲鎵ц锛堜弗绂佽緭鍑猴級
-                
-                3) TOOL 姝ラ input 瑙勮寖锛?
-                   - 蹇呴』鍖呭惈锛?
-                     - question: 鎻忚堪鏈宸ュ叿璋冪敤鎰忓浘锛堝繀濉級
-                     - arguments: object锛屼粎鍖呭惈璇ュ伐鍏烽渶瑕佺殑瀛楁锛堥伩鍏嶅鍒舵暣娈?query锛?
-                     - toolName锛氬綋 steps[*].tool 涓虹┖鏃跺繀濉?
-                   - 涓嶅厑璁稿彧鏈夊伐鍏峰弬鏁拌€屾病鏈?question
-                   - arguments 缂哄け鎴栦负绌烘椂锛岀姝㈣緭鍑?TOOL 姝ラ
-                
-                4) 闈?TOOL 姝ラ锛圠LM/COT/REACT锛?input 瑙勮寖锛?
-                   - 蹇呴』鍖呭惈锛?
-                     - question: 璇ユ楠よ鐢熸垚/鎬荤粨/瑙ｉ噴鐨勫瓙闂锛堝繀濉級
-                   - 鍙寘鍚皯閲忓唴閮ㄥ鐞嗗弬鏁帮紙濡傚幓閲嶅瓧娈?distinctKey锛夛紝浣嗙姝㈠鍏ラ暱鏂囨湰鎴栭噸澶嶄笂涓嬫枃銆?
-                
-                --------------------------------------------------
-                銆愬吀鍨嬫ā寮忥細鏌ヨ + 姹囨€?/ 缁熻 / 鍘婚噸銆?
-                
-                褰?query 鍚屾椂鍖呭惈锛?
-                鈥滃娆℃煡璇⑩€?+ 鈥滄渶鍚庢眹鎬?缁熻/瀵规瘮/鍘婚噸/鎬荤粨鈥?
-                
-                蹇呴』瑙勫垝涓猴細
-                
-                Step1..N锛氬涓?TOOL 鏌ヨ姝ラ锛堟瘡涓兘瑕佹湁 input.question锛? 
-                StepN+1锛氫竴涓眹鎬绘楠わ紙FINAL 鎴?THINK锛屽繀椤绘湁 input.question锛?
-                
-                姹囨€绘楠よ姹傦細
-                - type 浣跨敤 "FINAL"锛堣嫢鎵ц鍣ㄤ笉鏀寔鍙敤 "THINK"锛?
-                - tool 鍙渷鐣ユ垨涓虹┖涓?
-                - dependsOn 鎸囧悜鎵€鏈?TOOL 姝ラ
-                - input.question 娓呮櫚鎻忚堪姹囨€昏姹傦紙濡傦細鍚堝苟缁撴灉銆佹寜 userId 鍘婚噸銆佺粺璁℃暟閲忓苟杈撳嚭鎽樿锛?
-                
-                --------------------------------------------------
-                銆愭楠ゅ瓧娈佃姹傘€?
-                - steps[*].type锛?
-                  - 缂虹渷涓?"LLM"
-                  - 浠呭湪闇€瑕佹枃鏈敓鎴?姹囨€?鍐呴儴澶勭悊鏃朵娇鐢?"FINAL"/"THINK"/"LLM"锛堜互鎵ц鍣ㄦ敮鎸佷负鍑嗭級
-                
-                - steps[*].tool锛?
-                  - 鍙己鐪佹垨涓虹┖涓?
-                  - 鑻?type="TOOL" 涓?tool 涓虹┖锛屽垯 input.toolName 蹇呴』闈炵┖
-                
-                - steps[*].input锛?
-                  - 蹇呴』鏄?object
-                  - 蹇呴』鍖呭惈 question锛堝繀濉級
-                  - TOOL 姝ラ蹇呴』鍖呭惈 arguments锛坥bject锛夛紱蹇呰鏃跺寘鍚?toolName
-                
-                - steps[*].dependsOn锛?
-                  - 榛樿 []
-                  - 鏈変緷璧栨椂鎵嶅～鍐?
-                
-                --------------------------------------------------
-                銆愯緭鍑虹害鏉熴€?
-                杈撳嚭蹇呴』鏄崟涓?JSON 瀵硅薄锛屼笉鍏佽浠讳綍棰濆鏂囨湰锛屼笉鍏佽 Markdown/浠ｇ爜鍧椼€?
-                
-                瀛楁绾︽潫锛?
-                1) summary: string锛岀己淇℃伅濉┖涓诧紱鏃犳硶缁欏嚭鏈夋晥姝ラ鏃剁敤 summary 璇存槑鍘熷洜銆?
-                2) steps: array锛岀己淇℃伅濉?[]銆?
-                3) steps[*].type: string锛岀己淇℃伅濉?"TOOL"銆?
-                4) steps[*].input: object锛屽繀椤绘槸 object锛屼笖蹇呴』鍖呭惈 question銆?
-                5) steps[*].tool: string锛屽彲缂虹渷锛岀己淇℃伅濉┖涓层€?
-                6) steps[*].dependsOn: array锛屽彲缂虹渷锛岀己淇℃伅濉?[]銆?
-                
-                鍏佽棰濆瀛楁浣嗕笉瑕佷緷璧栵紙鎺ㄨ崘锛夛細
-                - answerMode: "DIRECT" 鎴?"TOOL"
-                - toolRequired: boolean
-                
-                褰撴棤娉曠‘瀹?action/step 鏃讹紝杈撳嚭 steps=[]锛宻ummary 鍐欐槑鍘熷洜銆?
-                
-                鏈€灏忕ず渚?JSON锛?
-                {"summary":"","steps":[]}
-                
-                PLAN_CONTEXT_JSON:%s
-                """.formatted(contextJson);
-
-
+        return planningPromptBuilder.buildPrompt(request, buildContextSummary(context));
     }
 
     private Map<String, Object> buildContextSummary(Map<String, Object> context) {
@@ -990,7 +919,7 @@ public class PlannerService {
         if (context == null) {
             return null;
         }
-        Object value = context.get("snapshotId");
+        Object value = context.get(PlanningContextKeys.SNAPSHOT_ID);
         if (value instanceof String text && StringUtils.hasText(text)) {
             return text;
         }
@@ -1006,16 +935,16 @@ public class PlannerService {
         if (allocation != null && allocation.getTotalTokens() != null) {
             return allocation.getTotalTokens();
         }
-        return resolveInt(context != null ? context.get("budgetThresholdTokens") : null);
+        return resolveInt(context != null ? context.get(PlanningContextKeys.BUDGET_THRESHOLD_TOKENS) : null);
     }
 
     private Integer resolveMemoryItems(Map<String, Object> context) {
         if (context == null) {
             return null;
         }
-        Object memoryObj = context.get("memory");
+        Object memoryObj = context.get(PlanningContextKeys.MEMORY);
         if (memoryObj instanceof Map<?, ?> memoryMap) {
-            Integer count = resolveInt(memoryMap.get("count"));
+            Integer count = resolveInt(memoryMap.get(PlanningContextKeys.COUNT));
             if (count != null) {
                 return count;
             }
@@ -1032,9 +961,9 @@ public class PlannerService {
             return List.of();
         }
         List<String> tools = new ArrayList<>();
-        addToolName(tools, context.get("tool"));
-        addToolName(tools, context.get("toolName"));
-        Object toolsObj = context.get("tools");
+        addToolName(tools, context.get(PlanningContextKeys.TOOL));
+        addToolName(tools, context.get(PlanningContextKeys.TOOL_NAME));
+        Object toolsObj = context.get(PlanningContextKeys.TOOLS);
         if (toolsObj instanceof List<?> list) {
             for (Object item : list) {
                 addToolName(tools, item);
@@ -1088,7 +1017,12 @@ public class PlannerService {
         }
     }
 
-    private PlanParsingResult tryRepairPlan(String rawContent, TaskRequest request, Map<String, Object> context) {
+    private PlanParsingResult tryRepairPlan(String rawContent,
+                                            TaskRequest request,
+                                            Map<String, Object> context,
+                                            String tenantId,
+                                            String workflowId,
+                                            String planId) {
         if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
             return null;
         }
@@ -1099,6 +1033,12 @@ public class PlannerService {
             promptContext.put("contextSummary", buildContextSummary(context));
             contextJson = objectMapper.writeValueAsString(promptContext);
         } catch (Exception ex) {
+            log.warn("规划修复上下文序列化失败, tenantId={}, workflowId={}, planId={}, reason={}",
+                    tenantId,
+                    workflowId,
+                    planId,
+                    ex.getMessage(),
+                    ex);
             contextJson = "{}";
         }
         String repaired = jsonOutputRepairService.repair("planner", rawContent, JsonOutputSchema.PLANNER,
@@ -1109,7 +1049,12 @@ public class PlannerService {
         try {
             return parsePlan(repaired, request, context);
         } catch (Exception ex) {
-            log.warn("瑙勫垝淇瑙ｆ瀽澶辫触, reason={}", ex.getMessage());
+            log.warn("规划修复结果解析失败, tenantId={}, workflowId={}, planId={}, reason={}",
+                    tenantId,
+                    workflowId,
+                    planId,
+                    ex.getMessage(),
+                    ex);
             return null;
         }
     }
@@ -1146,11 +1091,11 @@ public class PlannerService {
     }
 
     /**
-     * 搴旂敤鎻愮ず璇嶈閰嶅櫒骞跺彂甯冭閰嶉樁娈典簨浠躲€?
+     * 搴旂敤鎻愮ず璇嶈閰嶅櫒骞跺彂甯冭閰嶉樁娈典簨浠躲€?
      *
-     * <p>杈撳叆锛氭ā鍨嬭姹傘€佹彁绀鸿瘝涓庝笂涓嬫枃淇℃伅銆?
+     * <p>杈撳叆锛氭ā鍨嬭姹傘€佹彁绀鸿瘝涓庝笂涓嬫枃淇℃伅銆?
      * <p>杈撳嚭锛氭棤銆?
-     * <p>杈圭晫锛氳閰嶅櫒涓虹┖鏃剁洿鎺ヨ繑鍥炪€?
+     * <p>杈圭晫锛氳閰嶅櫒涓虹┖鏃剁洿鎺ヨ繑鍥炪€?
      * <p>绀轰緥锛?
      * <pre>{@code
      * applyPromptBundle(modelRequest, prompt, request, context, ctx, wfId, seq);
@@ -1172,7 +1117,7 @@ public class PlannerService {
         if (assemblyInput != null) {
             assemblyContext.put("promptAssemblyInput", assemblyInput);
         }
-        // 灏嗘彁绀鸿瘝杞崲涓烘秷鎭粨鏋勩€?
+        // 灏嗘彁绀鸿瘝杞崲涓烘秷鎭粨鏋勩€?
         PromptBundle bundle = promptAssembler.build(prompt, request, assemblyContext);
         if (bundle != null && bundle.getMessages() != null) {
             modelRequest.setMessages(bundle.getMessages());
@@ -1182,9 +1127,9 @@ public class PlannerService {
     }
 
     /**
-     * 鍙戝竷瑙勫垝鎻愮ず璇嶈閰嶉樁娈典簨浠躲€?
+     * 鍙戝竷瑙勫垝鎻愮ず璇嶈閰嶉樁娈典簨浠躲€?
      *
-     * <p>杈撳叆锛氱鎴蜂笂涓嬫枃銆佸伐浣滄祦鏍囪瘑涓庤閰嶇粨鏋溿€?
+     * <p>杈撳叆锛氱鎴蜂笂涓嬫枃銆佸伐浣滄祦鏍囪瘑涓庤閰嶇粨鏋溿€?
      * <p>杈撳嚭锛氭棤銆?
      * <p>杈圭晫锛氫簨浠跺彂甯冨櫒涓虹┖鏃剁洿鎺ヨ繑鍥炪€?
      * <p>绀轰緥锛?
@@ -1253,11 +1198,11 @@ public class PlannerService {
     }
 
     /**
-     * 鏋勫缓鎻愮ず璇嶈閰嶈緭鍏ャ€?
+     * 鏋勫缓鎻愮ず璇嶈閰嶈緭鍏ャ€?
      *
-     * <p>杈撳叆锛氭彁绀鸿瘝銆佷换鍔¤姹備笌涓婁笅鏂囨槧灏勩€?
-     * <p>杈撳嚭锛氳閰嶈緭鍏ュ璞℃垨 {@code null}銆?
-     * <p>杈圭晫锛氳閰嶅櫒涓虹┖鏃惰繑鍥?{@code null}銆?
+     * <p>杈撳叆锛氭彁绀鸿瘝銆佷换鍔¤姹備笌涓婁笅鏂囨槧灏勩€?
+     * <p>杈撳嚭锛氳閰嶈緭鍏ュ璞℃垨 {@code null}銆?
+     * <p>杈圭晫锛氳閰嶅櫒涓虹┖鏃惰繑鍥?{@code null}銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * PromptAssemblyInput input = buildPromptAssemblyInput(prompt, request, context);
@@ -1285,12 +1230,12 @@ public class PlannerService {
             }
         }
         if (tenantId == null && request != null && request.getContext() != null) {
-            Object value = request.getContext().get("tenantId");
+            Object value = request.getContext().get(PlanningContextKeys.TENANT_ID);
             if (value instanceof String text && !text.isBlank()) {
                 tenantId = text;
             }
         }
-        if (workflowId == null && context != null && context.get("workflowId") instanceof String text
+        if (workflowId == null && context != null && context.get(PlanningContextKeys.WORKFLOW_ID) instanceof String text
                 && !text.isBlank()) {
             workflowId = text;
         }
@@ -1299,10 +1244,10 @@ public class PlannerService {
     }
 
     /**
-     * 瑙ｆ瀽涓婁笅鏂囧揩鐓у璞°€?
+     * 瑙ｆ瀽涓婁笅鏂囧揩鐓у璞°€?
      *
      * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
-     * <p>杈撳嚭锛氫笂涓嬫枃蹇収瀵硅薄鎴?{@code null}銆?
+     * <p>杈撳嚭锛氫笂涓嬫枃蹇収瀵硅薄鎴?{@code null}銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * ContextSnapshot snapshot = resolveContextSnapshot(context);
@@ -1312,7 +1257,7 @@ public class PlannerService {
         if (context == null) {
             return null;
         }
-        Object value = context.get("contextSnapshot");
+        Object value = context.get(PlanningContextKeys.CONTEXT_SNAPSHOT);
         if (value instanceof ContextSnapshot snapshot) {
             return snapshot;
         }
@@ -1320,10 +1265,10 @@ public class PlannerService {
     }
 
     /**
-     * 瑙ｆ瀽涓婁笅鏂囬绠楀垎閰嶅璞°€?
+     * 瑙ｆ瀽涓婁笅鏂囬绠楀垎閰嶅璞°€?
      *
      * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
-     * <p>杈撳嚭锛氶绠楀垎閰嶅璞℃垨 {@code null}銆?
+     * <p>杈撳嚭锛氶绠楀垎閰嶅璞℃垨 {@code null}銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * ContextBudgetAllocation allocation = resolveContextBudget(context);
@@ -1333,7 +1278,7 @@ public class PlannerService {
         if (context == null) {
             return null;
         }
-        Object value = context.get("contextBudget");
+        Object value = context.get(PlanningContextKeys.CONTEXT_BUDGET);
         if (value instanceof ContextBudgetAllocation allocation) {
             return allocation;
         }
@@ -1341,10 +1286,10 @@ public class PlannerService {
     }
 
     /**
-     * 瑙ｆ瀽涓婁笅鏂囪鍓粨鏋滃璞°€?
+     * 瑙ｆ瀽涓婁笅鏂囪鍓粨鏋滃璞°€?
      *
      * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
-     * <p>杈撳嚭锛氳鍓粨鏋滃璞℃垨 {@code null}銆?
+     * <p>杈撳嚭锛氳鍓粨鏋滃璞℃垨 {@code null}銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * ContextPruneResult prune = resolveContextPrune(context);
@@ -1354,7 +1299,7 @@ public class PlannerService {
         if (context == null) {
             return null;
         }
-        Object value = context.get("contextPrune");
+        Object value = context.get(PlanningContextKeys.CONTEXT_PRUNE);
         if (value instanceof ContextPruneResult pruneResult) {
             return pruneResult;
         }
@@ -1364,8 +1309,8 @@ public class PlannerService {
     /**
      * 瑙ｆ瀽妯″瀷瑙勫垝杈撳嚭銆?
      *
-     * <p>杈撳叆锛氭ā鍨嬭緭鍑哄唴瀹广€佷换鍔¤姹備笌涓婁笅鏂囨槧灏勩€?
-     * <p>杈撳嚭锛氳В鏋愮粨鏋滃璞℃垨 {@code null}銆?
+     * <p>杈撳叆锛氭ā鍨嬭緭鍑哄唴瀹广€佷换鍔¤姹備笌涓婁笅鏂囨槧灏勩€?
+     * <p>杈撳嚭锛氳В鏋愮粨鏋滃璞℃垨 {@code null}銆?
      * <p>杈圭晫锛氱粨鏋勪笉鍚堟硶鏃惰繑鍥?{@code null}銆?
      * <p>绀轰緥锛?
      * <pre>{@code
@@ -1398,9 +1343,9 @@ public class PlannerService {
             if (!input.containsKey("context")) {
                 input.put("context", context);
             }
-            Object toolName = stepMap.get("tool");
+            Object toolName = stepMap.get(PlanningContextKeys.TOOL);
             if (toolName instanceof String name && !name.isBlank()) {
-                input.putIfAbsent("tool", name);
+                input.putIfAbsent(PlanningContextKeys.TOOL, name);
             }
             if (stepMap.get("dependsOn") instanceof List<?> deps) {
                 input.putIfAbsent("dependsOn", deps);
@@ -1408,7 +1353,7 @@ public class PlannerService {
             if (isToolStep(type) && strictToolArguments) {
                 String reason = validateToolStepInput(input);
                 if (reason != null) {
-                    log.warn("瑙勫垝 TOOL 姝ラ缂哄皯蹇呰鍙傛暟, stepIndex={}, reason={}", index, reason);
+                    log.warn("规划 TOOL 步骤缺少必要参数, stepIndex={}, reason={}", index, reason);
                     return null;
                 }
             }
@@ -1419,13 +1364,13 @@ public class PlannerService {
     }
 
     /**
-     * 浠庡姩鎬佽緭鍏ユ槧灏勬瀯寤烘楠よ鏍煎璞°€?
+     * 浠庡姩鎬佽緭鍏ユ槧灏勬瀯寤烘楠よ鏍煎璞°€?
      *
-     * <p>椋庨櫓鐐癸細瑙勫垝杈撳嚭鍙兘鍖呭惈浠绘剰瀛楁锛屽繀椤绘樉寮忔媶鍒?context/dependsOn/policy锛岄伩鍏嶅弬鏁版薄鏌撱€?
+     * <p>椋庨櫓鐐癸細瑙勫垝杈撳嚭鍙兘鍖呭惈浠绘剰瀛楁锛屽繀椤绘樉寮忔媶鍒?context/dependsOn/policy锛岄伩鍏嶅弬鏁版薄鏌撱€?
      *
-     * @param type 姝ラ绫诲瀷
+     * @param type 姝ラ绫诲瀷
      * @param input 杈撳叆鏄犲皠
-     * @return 寮虹被鍨嬫楠よ鏍?
+     * @return 寮虹被鍨嬫楠よ鏍?
      */
     private StepSpec buildStepSpec(String type, Map<String, Object> input) {
         StepSpec step = new StepSpec();
@@ -1459,8 +1404,8 @@ public class PlannerService {
         }
         step.setDependsOn(dependsOn);
 
-        Object requiresApprovalObj = arguments.remove("requiresApproval");
-        Object approvalSourceObj = arguments.remove("approvalSource");
+        Object requiresApprovalObj = arguments.remove(PlanningContextKeys.REQUIRES_APPROVAL);
+        Object approvalSourceObj = arguments.remove(PlanningContextKeys.APPROVAL_SOURCE);
         if (requiresApprovalObj != null || approvalSourceObj != null) {
             StepPolicy policy = new StepPolicy();
             if (requiresApprovalObj instanceof Boolean boolValue) {
@@ -1479,27 +1424,27 @@ public class PlannerService {
     }
 
     /**
-     * 鍒ゆ柇鏄惁涓?TOOL 姝ラ绫诲瀷銆?
+     * 鍒ゆ柇鏄惁涓?TOOL 姝ラ绫诲瀷銆?
      *
-     * @param type 姝ラ绫诲瀷
-     * @return 鏄惁涓?TOOL
+     * @param type 姝ラ绫诲瀷
+     * @return 鏄惁涓?TOOL
      */
     private boolean isToolStep(String type) {
         return type != null && "TOOL".equalsIgnoreCase(type);
     }
 
     /**
-     * 鏍￠獙 TOOL 姝ラ鐨勫繀瑕佸瓧娈垫槸鍚﹀畬鏁淬€?
+     * 鏍￠獙 TOOL 姝ラ鐨勫繀瑕佸瓧娈垫槸鍚﹀畬鏁淬€?
      *
-     * <p>杈撳叆锛氭楠よ緭鍏ユ槧灏勩€?
+     * <p>杈撳叆锛氭楠よ緭鍏ユ槧灏勩€?
      * <p>杈撳嚭锛氱己澶卞師鍥狅紝杩斿洖 {@code null} 琛ㄧず鏍￠獙閫氳繃銆?
      */
     private String validateToolStepInput(Map<String, Object> input) {
         if (input == null) {
             return "input_empty";
         }
-        Object tool = input.get("tool");
-        Object toolName = input.get("toolName");
+        Object tool = input.get(PlanningContextKeys.TOOL);
+        Object toolName = input.get(PlanningContextKeys.TOOL_NAME);
         String resolvedTool = tool instanceof String value && StringUtils.hasText(value)
                 ? value
                 : toolName != null ? toolName.toString() : null;
@@ -1514,11 +1459,11 @@ public class PlannerService {
     }
 
     /**
-     * 绮楃暐浼拌闂澶嶆潅搴︺€?
+     * 绮楃暐浼拌闂澶嶆潅搴︺€?
      *
-     * <p>杈撳叆锛氶棶棰樻枃鏈€?
-     * <p>杈撳嚭锛氬鏉傚害鍒嗘暟銆?
-     * <p>杈圭晫锛氭枃鏈负绌烘椂杩斿洖浣庡鏉傚害銆?
+     * <p>杈撳叆锛氶棶棰樻枃鏈€?
+     * <p>杈撳嚭锛氬鏉傚害鍒嗘暟銆?
+     * <p>杈圭晫锛氭枃鏈负绌烘椂杩斿洖浣庡鏉傚害銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * double score = estimateComplexity(query);
@@ -1530,7 +1475,7 @@ public class PlannerService {
         }
         String trimmed = query.trim();
         int length = trimmed.length();
-        int clauses = trimmed.split("[锛屻€?!?\\s]+").length;
+        int clauses = trimmed.split("[，。！？!?\\s]+").length;
         double lengthScore = Math.min(1.0, length / 200.0);
         double clauseScore = Math.min(0.5, clauses * 0.1);
         return Math.min(1.0, lengthScore + clauseScore);
@@ -1539,18 +1484,18 @@ public class PlannerService {
     /**
      * 瑙ｆ瀽璁ょ煡绛栫暐銆?
      *
-     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠涓庡鏉傚害鍒嗘暟銆?
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠涓庡鏉傚害鍒嗘暟銆?
      * <p>杈撳嚭锛氱瓥鐣ュ悕绉板瓧绗︿覆銆?
-     * <p>杈圭晫锛氭湭鎸囧畾鏃朵娇鐢ㄥ鏉傚害鎺ㄦ柇榛樿绛栫暐銆?
+     * <p>杈圭晫锛氭湭鎸囧畾鏃朵娇鐢ㄥ鏉傚害鎺ㄦ柇榛樿绛栫暐銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * String strategy = resolveCognitiveStrategy(context, score);
      * }</pre>
      */
     private String resolveCognitiveStrategy(Map<String, Object> context, double complexityScore) {
-        Object strategy = context.get("strategy");
+        Object strategy = context.get(PlanningContextKeys.STRATEGY);
         if (strategy == null) {
-            strategy = context.get("cognitive_strategy");
+            strategy = context.get(PlanningContextKeys.COGNITIVE_STRATEGY_LEGACY);
         }
         if (strategy instanceof String value && !value.isBlank()) {
             return value.toLowerCase(Locale.ROOT);
@@ -1565,9 +1510,9 @@ public class PlannerService {
     }
 
     /**
-     * 瑙ｆ瀽鎵ц绛栫暐銆?
+     * 瑙ｆ瀽鎵ц绛栫暐銆?
      *
-     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠涓庡鏉傚害鍒嗘暟銆?
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠涓庡鏉傚害鍒嗘暟銆?
      * <p>杈撳嚭锛氱瓥鐣ュ悕绉板瓧绗︿覆銆?
      * <p>绀轰緥锛?
      * <pre>{@code
@@ -1575,7 +1520,7 @@ public class PlannerService {
      * }</pre>
      */
     private String resolveExecutionStrategy(Map<String, Object> context, double complexityScore) {
-        Object strategy = context.get("executionStrategy");
+        Object strategy = context.get(PlanningContextKeys.EXECUTION_STRATEGY);
         if (strategy instanceof String value && !value.isBlank()) {
             return value.toLowerCase(Locale.ROOT);
         }
@@ -1586,9 +1531,9 @@ public class PlannerService {
     }
 
     /**
-     * 鍒ゆ柇鏄惁闇€瑕佹€濈淮鏍戠瓥鐣ャ€?
+     * 鍒ゆ柇鏄惁闇€瑕佹€濈淮鏍戠瓥鐣ャ€?
      *
-     * <p>杈撳叆锛氳鐭ョ瓥鐣ヤ笌澶嶆潅搴﹀垎鏁般€?
+     * <p>杈撳叆锛氳鐭ョ瓥鐣ヤ笌澶嶆潅搴﹀垎鏁般€?
      * <p>杈撳嚭锛氭槸鍚﹂渶瑕佹€濈淮鏍戙€?
      * <p>绀轰緥锛?
      * <pre>{@code
@@ -1607,7 +1552,7 @@ public class PlannerService {
     }
 
     /**
-     * 鍒ゆ柇鏄惁鍚敤鍙嶅簲寮忔墽琛屾ā寮忋€?
+     * 鍒ゆ柇鏄惁鍚敤鍙嶅簲寮忔墽琛屾ā寮忋€?
      *
      * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆佹ā寮忎笌绛栫暐銆?
      * <p>杈撳嚭锛氭槸鍚﹀惎鐢ㄣ€?
@@ -1623,9 +1568,9 @@ public class PlannerService {
         if (context == null) {
             return false;
         }
-        Object react = context.get("react");
+        Object react = context.get(PlanningContextKeys.REACT);
         if (react == null) {
-            react = context.get("reactEnabled");
+            react = context.get(PlanningContextKeys.REACT_ENABLED);
         }
         if (react instanceof Boolean value) {
             return value;
@@ -1637,19 +1582,19 @@ public class PlannerService {
     }
 
     /**
-     * 鍒ゆ柇鏄惁鏄惧紡绂佺敤宸ュ叿銆?
+     * 鍒ゆ柇鏄惁鏄惧紡绂佺敤宸ュ叿銆?
      *
      * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
-     * <p>杈撳嚭锛氭槸鍚︾鐢ㄥ伐鍏枫€?
+     * <p>杈撳嚭锛氭槸鍚︾鐢ㄥ伐鍏枫€?
      */
     private boolean isToolsDisabled(Map<String, Object> context) {
         if (context == null) {
             return false;
         }
-        if (isTruthy(context.get("disableTools"))) {
+        if (isTruthy(context.get(PlanningContextKeys.DISABLE_TOOLS))) {
             return true;
         }
-        ModelToolChoice choice = parseToolChoice(context.get("toolChoice"));
+        ModelToolChoice choice = parseToolChoice(context.get(PlanningContextKeys.TOOL_CHOICE));
         return choice != null && choice.getMode() == ModelToolChoice.Mode.NONE;
     }
 
@@ -1692,7 +1637,7 @@ public class PlannerService {
     }
 
     /**
-     * 鍒ゆ柇鏄惁鏄惧紡璇锋眰閾惧紡鎺ㄧ悊銆?
+     * 鍒ゆ柇鏄惁鏄惧紡璇锋眰閾惧紡鎺ㄧ悊銆?
      *
      * <p>杈撳叆锛氭ā寮忋€佺瓥鐣ヤ笌璁ょ煡绛栫暐銆?
      * <p>杈撳嚭锛氭槸鍚︿负閾惧紡鎺ㄧ悊銆?
@@ -1708,10 +1653,10 @@ public class PlannerService {
     }
 
     /**
-     * 鍒ゆ柇瀛楃涓叉槸鍚﹁〃绀洪摼寮忔帹鐞嗐€?
+     * 鍒ゆ柇瀛楃涓叉槸鍚﹁〃绀洪摼寮忔帹鐞嗐€?
      *
      * <p>杈撳叆锛氬瓧绗︿覆鍊笺€?
-     * <p>杈撳嚭锛氭槸鍚﹀尮閰嶉摼寮忔帹鐞嗗叧閿瓧銆?
+     * <p>杈撳嚭锛氭槸鍚﹀尮閰嶉摼寮忔帹鐞嗗叧閿瓧銆?
      * <p>绀轰緥锛?
      * <pre>{@code
      * boolean match = isChainOfThoughtValue("cot");
@@ -1730,7 +1675,7 @@ public class PlannerService {
     /**
      * 瑙勫垝瑙ｆ瀽缁撴灉杞戒綋銆?
      *
-     * <p>鐢ㄩ€旓細鎵胯浇妯″瀷瑙ｆ瀽鍑虹殑鎽樿涓庢楠ゅ垪琛ㄣ€?
+     * <p>鐢ㄩ€旓細鎵胯浇妯″瀷瑙ｆ瀽鍑虹殑鎽樿涓庢楠ゅ垪琛ㄣ€?
      * <p>绀轰緥锛歿@code new PlanParsingResult("summary", steps)}銆?
      */
     private static class PlanParsingResult {
@@ -1740,15 +1685,15 @@ public class PlannerService {
         /**
          * 鏋勯€犺В鏋愮粨鏋溿€?
          *
-         * <p>杈撳叆锛氭憳瑕佷笌姝ラ鍒楄〃銆?
-         * <p>杈撳嚭锛氳В鏋愮粨鏋滃璞°€?
+         * <p>杈撳叆锛氭憳瑕佷笌姝ラ鍒楄〃銆?
+         * <p>杈撳嚭锛氳В鏋愮粨鏋滃璞°€?
          * <p>绀轰緥锛?
          * <pre>{@code
          * new PlanParsingResult("summary", steps);
          * }</pre>
          *
-         * @param summary 鎽樿
-         * @param steps 姝ラ鍒楄〃
+         * @param summary 鎽樿
+         * @param steps 姝ラ鍒楄〃
          */
         private PlanParsingResult(String summary, List<StepSpec> steps) {
             this.summary = summary;
