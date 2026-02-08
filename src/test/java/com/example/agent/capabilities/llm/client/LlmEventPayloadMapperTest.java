@@ -1,4 +1,4 @@
-package com.example.agent.model;
+package com.example.agent.capabilities.llm.client;
 
 import com.example.agent.capabilities.llm.client.events.LlmEventPayloadMapper;
 import com.example.agent.capabilities.llm.client.events.LlmParseEventPayload;
@@ -73,4 +73,3 @@ class LlmEventPayloadMapperTest {
         assertTrue(mapped.containsKey("retriable"));
     }
 }
-

@@ -1,4 +1,4 @@
-package com.example.agent.model;
+package com.example.agent.capabilities.llm.prompt;
 
 import java.util.List;
 import org.junit.jupiter.api.Test;

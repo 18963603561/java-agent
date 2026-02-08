@@ -1,4 +1,4 @@
-package com.example.agent.model;
+package com.example.agent.capabilities.llm.provider;
 
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelScene;
@@ -63,4 +63,3 @@ class LocalFallbackStrategyTest {
         assertEquals("response:plain prompt", result);
     }
 }
-

@@ -1,4 +1,4 @@
-package com.example.agent.model;
+package com.example.agent.capabilities.llm.prompt;
 
 import com.example.agent.capabilities.context.AuditMetadata;
 import com.example.agent.capabilities.context.BudgetState;

@@ -1,4 +1,4 @@
-package com.example.agent.model;
+package com.example.agent.capabilities.llm.provider;
 
 import com.example.agent.capabilities.llm.config.ModelConfigProperties;
 import com.example.agent.capabilities.llm.provider.ModelDefinition;

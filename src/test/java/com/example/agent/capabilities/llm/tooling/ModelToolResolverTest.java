@@ -1,4 +1,4 @@
-package com.example.agent.model;
+package com.example.agent.capabilities.llm.tooling;
 
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.common.error.ErrorCodeException;

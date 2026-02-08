@@ -1,4 +1,4 @@
-package com.example.agent.model;
+package com.example.agent.capabilities.llm.repair;
 
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
 import com.example.agent.capabilities.llm.contract.ModelRequest;

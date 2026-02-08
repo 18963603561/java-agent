@@ -1,4 +1,4 @@
-package com.example.agent.model;
+package com.example.agent.capabilities.llm.client;
 
 import com.example.agent.capabilities.llm.client.LlmClient;
 import com.example.agent.capabilities.llm.client.LlmEventPublisher;

@@ -1,4 +1,4 @@
-package com.example.agent.model;
+package com.example.agent.capabilities.llm.prompt;
 
 import com.example.agent.budget.token.ContextBudgetAllocation;
 import com.example.agent.budget.trim.ContextSection;
