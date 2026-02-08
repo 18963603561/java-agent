@@ -1,11 +1,14 @@
 package com.example.agent.model;
 
 import com.example.agent.capabilities.llm.client.LlmClient;
+import com.example.agent.capabilities.llm.client.LlmEventPublisher;
+import com.example.agent.capabilities.llm.client.LlmFailureRecorder;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
+import com.example.agent.capabilities.llm.client.RawRefAttachmentService;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.provider.ModelRouter;
-import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.provider.ProviderErrorMapper;
 import com.example.agent.capabilities.llm.prompt.PromptMessage;
 import com.example.agent.capabilities.llm.prompt.PromptRole;
@@ -278,15 +281,20 @@ class ModelInvocationServiceTest {
         @SuppressWarnings("unchecked")
         ObjectProvider<MetricsPublisher> metricsPublisherProvider = Mockito.mock(ObjectProvider.class);
         when(metricsPublisherProvider.getIfAvailable()).thenReturn(null);
+        LlmEventPublisher llmEventPublisher = new LlmEventPublisher(
+                eventPublisher,
+                eventStreamService,
+                new LlmEventPayloadMapper());
+        RawRefAttachmentService rawRefAttachmentService = new RawRefAttachmentService(rawStoreProvider);
+        LlmFailureRecorder llmFailureRecorder = new LlmFailureRecorder(new ProviderErrorMapper(), metricsPublisherProvider);
         return new ModelInvocationService(
                 llmClient,
                 modelRouter,
-                eventPublisher,
-                eventStreamService,
-                rawStoreProvider,
-                new LlmEventPayloadMapper(),
                 new ValidationSupport(),
                 new ProviderErrorMapper(),
-                metricsPublisherProvider);
+                rawRefAttachmentService,
+                llmEventPublisher,
+                llmFailureRecorder);
     }
 }
+

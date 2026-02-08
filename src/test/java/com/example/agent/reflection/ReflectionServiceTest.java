@@ -2,9 +2,9 @@ package com.example.agent.reflection;
 
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
-import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -275,4 +275,3 @@ class ReflectionServiceTest {
         assertTrue(summary.contains("truncated=true"));
     }
 }
-

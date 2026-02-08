@@ -1,5 +1,8 @@
 package com.example.agent.capabilities.llm.provider;
 
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
+
 /**
  * 模型提供商接口。
  */

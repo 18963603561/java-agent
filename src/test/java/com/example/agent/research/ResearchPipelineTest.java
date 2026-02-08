@@ -2,9 +2,9 @@ package com.example.agent.research;
 
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
-import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
@@ -38,7 +38,7 @@ class ResearchPipelineTest {
         ResearchPipeline pipeline = new ResearchPipeline(modelInvocationService, promptAssembler, new ObjectMapper(),
                 eventPublisher, eventStreamService, repairService);
 
-        String badContent = "说明:{\"citations\":[{\"source\":\"s\",\"snippet\":\"x\"}]}后缀";
+        String badContent = "璇存槑:{\"citations\":[{\"source\":\"s\",\"snippet\":\"x\"}]}鍚庣紑";
         String repaired = "{\"citations\":[{\"source\":\"s\",\"snippet\":\"x\"}]}";
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.RESEARCH),
                 any(), any(), any(), eq("research"), any()))
@@ -66,7 +66,7 @@ class ResearchPipelineTest {
         ResearchPipeline pipeline = new ResearchPipeline(modelInvocationService, promptAssembler, new ObjectMapper(),
                 eventPublisher, eventStreamService, repairService);
 
-        String badContent = "无法解析";
+        String badContent = "鏃犳硶瑙ｆ瀽";
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.RESEARCH),
                 any(), any(), any(), eq("research"), any()))
                 .thenReturn(new ModelResponse("research", badContent, 10, 10));

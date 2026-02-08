@@ -2,11 +2,11 @@ package com.example.agent.model;
 
 import com.example.agent.capabilities.llm.provider.DefaultModelProvider;
 import com.example.agent.capabilities.llm.provider.ModelDefinition;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
-import com.example.agent.capabilities.llm.provider.ModelScene;
-import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
-import com.example.agent.capabilities.llm.tooling.ModelToolDefinition;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelToolChoice;
+import com.example.agent.capabilities.llm.contract.ModelToolDefinition;
 import com.example.agent.capabilities.llm.prompt.PromptMessage;
 import com.example.agent.capabilities.llm.prompt.PromptRole;
 import com.example.agent.capabilities.llm.provider.LocalFallbackStrategy;
@@ -100,7 +100,7 @@ class DefaultModelProviderTest {
         Map<String, Object> body = provider.buildOpenAiRequestBody("model-x", request, null);
 
         assertTrue(body.containsKey("tool_choice"));
-        assertTrue(body.containsKey("toolChoice"));
+        assertFalse(body.containsKey("toolChoice"));
         Object snakeCaseChoice = body.get("tool_choice");
         assertTrue(snakeCaseChoice instanceof Map<?, ?>);
         Map<?, ?> snakeChoiceMap = (Map<?, ?>) snakeCaseChoice;
@@ -109,14 +109,6 @@ class DefaultModelProviderTest {
         Map<?, ?> snakeFunction = (Map<?, ?>) snakeChoiceMap.get("function");
         assertNotNull(snakeFunction.get("name"));
         assertEquals("demo_tool", snakeFunction.get("name"));
-        Object toolChoiceObj = body.get("toolChoice");
-        assertTrue(toolChoiceObj instanceof Map<?, ?>);
-        Map<?, ?> toolChoiceMap = (Map<?, ?>) toolChoiceObj;
-        assertEquals("function", toolChoiceMap.get("type"));
-        assertTrue(toolChoiceMap.get("function") instanceof Map<?, ?>);
-        Map<?, ?> camelFunction = (Map<?, ?>) toolChoiceMap.get("function");
-        assertNotNull(camelFunction.get("name"));
-        assertEquals("demo_tool", camelFunction.get("name"));
     }
 
     @Test
@@ -231,4 +223,5 @@ class DefaultModelProviderTest {
         assertTrue(response.getContent().contains("local-plan") || response.getContent().startsWith("response:"));
     }
 }
+
 

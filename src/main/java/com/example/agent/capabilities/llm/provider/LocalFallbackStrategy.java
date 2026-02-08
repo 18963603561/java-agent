@@ -1,15 +1,17 @@
 package com.example.agent.capabilities.llm.provider;
 
-import com.example.agent.capabilities.llm.provider.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.runtime.api.RuntimeContextView;
 import com.example.agent.runtime.output.OutputKeys;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.function.Function;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -18,7 +20,7 @@ import org.springframework.util.StringUtils;
 /**
  * 本地兜底策略。
  *
- * <p>用途：在远程模型不可用或未配置时提供稳定的结构化兜底输出。</p>
+ * <p>用途：在远程模型不可用或未配置时提供稳定的结构化兜底输出。
  */
 @Component
 public class LocalFallbackStrategy {
@@ -37,10 +39,12 @@ public class LocalFallbackStrategy {
 
     private final ObjectMapper objectMapper;
     private final ModelMessageBuilder messageBuilder;
+    private final Map<String, Function<Map<String, Object>, String>> handlers;
 
     public LocalFallbackStrategy(ObjectMapper objectMapper, ModelMessageBuilder messageBuilder) {
         this.objectMapper = objectMapper;
         this.messageBuilder = messageBuilder;
+        this.handlers = initHandlers();
     }
 
     /**
@@ -55,43 +59,39 @@ public class LocalFallbackStrategy {
         if (prompt == null) {
             return "response:";
         }
-        if (prompt.contains(LLM_STEP_TOOL_RESULT_MARKER)) {
-            Map<String, Object> context = parseJsonAfterMarker(prompt, LLM_STEP_TOOL_RESULT_MARKER);
-            return buildLocalLlmStepToolSummary(context);
-        }
-        if (prompt.contains(LLM_STEP_MARKER)) {
-            Map<String, Object> context = parseJsonAfterMarker(prompt, LLM_STEP_MARKER);
-            return buildLocalLlmStepDecision(context);
-        }
-        if (prompt.contains(PLAN_MARKER)) {
-            Map<String, Object> context = parseJsonAfterMarker(prompt, PLAN_MARKER);
-            return buildLocalPlan(context);
-        }
-        if (prompt.contains(REFLECTION_MARKER)) {
-            Map<String, Object> context = parseJsonAfterMarker(prompt, REFLECTION_MARKER);
-            return buildLocalReflection(context);
-        }
-        if (prompt.contains(FINAL_MARKER)) {
-            Map<String, Object> context = parseJsonAfterMarker(prompt, FINAL_MARKER);
-            return buildLocalFinal(context);
-        }
-        if (prompt.contains(RESEARCH_MARKER)) {
-            Map<String, Object> context = parseJsonAfterMarker(prompt, RESEARCH_MARKER);
-            return buildLocalResearch(context);
-        }
-        if (prompt.contains(DEBATE_MARKER)) {
-            Map<String, Object> context = parseJsonAfterMarker(prompt, DEBATE_MARKER);
-            return buildLocalDebate(context);
-        }
-        if (prompt.contains(MULTI_AGENT_MARKER)) {
-            Map<String, Object> context = parseJsonAfterMarker(prompt, MULTI_AGENT_MARKER);
-            return buildLocalMultiAgent(context);
-        }
-        if (prompt.contains(COT_MARKER)) {
-            Map<String, Object> context = parseJsonAfterMarker(prompt, COT_MARKER);
-            return buildLocalChainOfThought(context);
+        for (Map.Entry<String, Function<Map<String, Object>, String>> entry : handlers.entrySet()) {
+            String marker = entry.getKey();
+            if (!prompt.contains(marker)) {
+                continue;
+            }
+            Map<String, Object> context = parseJsonAfterMarker(prompt, marker);
+            return entry.getValue().apply(context);
         }
         return "response:" + prompt;
+    }
+
+    /**
+     * 返回规划工具名称。
+     *
+     * @param context 上下文
+     * @return 工具名称
+     */
+    public String resolvePlanToolName(Map<String, Object> context) {
+        return RuntimeContextView.of(context).resolveToolName();
+    }
+
+    private Map<String, Function<Map<String, Object>, String>> initHandlers() {
+        Map<String, Function<Map<String, Object>, String>> mapping = new LinkedHashMap<>();
+        mapping.put(LLM_STEP_TOOL_RESULT_MARKER, this::buildLocalLlmStepToolSummary);
+        mapping.put(LLM_STEP_MARKER, this::buildLocalLlmStepDecision);
+        mapping.put(PLAN_MARKER, this::buildLocalPlan);
+        mapping.put(REFLECTION_MARKER, this::buildLocalReflection);
+        mapping.put(FINAL_MARKER, this::buildLocalFinal);
+        mapping.put(RESEARCH_MARKER, this::buildLocalResearch);
+        mapping.put(DEBATE_MARKER, this::buildLocalDebate);
+        mapping.put(MULTI_AGENT_MARKER, this::buildLocalMultiAgent);
+        mapping.put(COT_MARKER, this::buildLocalChainOfThought);
+        return mapping;
     }
 
     private Map<String, Object> parseJsonAfterMarker(String prompt, String marker) {
@@ -221,8 +221,12 @@ public class LocalFallbackStrategy {
         String highlights;
         double confidence;
         if (!success) {
-            String errorCode = context != null && context.get("errorCode") != null ? String.valueOf(context.get("errorCode")) : "TOOL_FAILED";
-            String errorMessage = context != null && context.get("errorMessage") != null ? String.valueOf(context.get("errorMessage")) : "";
+            String errorCode = context != null && context.get("errorCode") != null
+                    ? String.valueOf(context.get("errorCode"))
+                    : "TOOL_FAILED";
+            String errorMessage = context != null && context.get("errorMessage") != null
+                    ? String.valueOf(context.get("errorMessage"))
+                    : "";
             answer = StringUtils.hasText(errorMessage) ? errorMessage : ("工具执行失败: " + errorCode);
             highlights = "status=FAILED, errorCode=" + errorCode;
             confidence = 0.2;
@@ -401,16 +405,6 @@ public class LocalFallbackStrategy {
             log.error("本地兜底 JSON 序列化失败", ex);
             return defaultJson;
         }
-    }
-
-    /**
-     * 返回规划工具名称。
-     *
-     * @param context 上下文
-     * @return 工具名称
-     */
-    public String resolvePlanToolName(Map<String, Object> context) {
-        return RuntimeContextView.of(context).resolveToolName();
     }
 }
 

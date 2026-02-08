@@ -4,7 +4,7 @@ import com.example.agent.capabilities.llm.config.ModelConfigProperties;
 import com.example.agent.capabilities.llm.provider.ModelDefinition;
 import com.example.agent.capabilities.llm.provider.ModelRegistry;
 import com.example.agent.capabilities.llm.provider.ModelRouter;
-import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 import org.junit.jupiter.api.Test;
 
 import java.util.Map;
@@ -75,4 +75,5 @@ class ModelRouterTest {
         assertEquals("planner-model", result.getModelId());
     }
 }
+
 

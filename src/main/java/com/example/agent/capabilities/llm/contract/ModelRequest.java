@@ -1,8 +1,8 @@
-package com.example.agent.capabilities.llm.provider;
+package com.example.agent.capabilities.llm.contract;
 
 import com.example.agent.capabilities.llm.prompt.PromptMessage;
-import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
-import com.example.agent.capabilities.llm.tooling.ModelToolDefinition;
+import com.example.agent.capabilities.llm.contract.ModelToolChoice;
+import com.example.agent.capabilities.llm.contract.ModelToolDefinition;
 
 import java.util.List;
 

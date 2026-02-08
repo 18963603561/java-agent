@@ -14,6 +14,10 @@ public class ModelDefinition {
      */
     private String provider;
     /**
+     * 强类型供应商标识。
+     */
+    private ProviderType providerType;
+    /**
      * 模型服务地址。
      */
     private String endpoint;
@@ -72,6 +76,39 @@ public class ModelDefinition {
      */
     public void setProvider(String provider) {
         this.provider = provider;
+        if (this.providerType == null || this.providerType == ProviderType.UNKNOWN) {
+            this.providerType = ProviderType.fromValue(provider);
+        }
+    }
+
+    /**
+     * 获取强类型供应商标识。
+     *
+     * @return 供应商类型
+     */
+    public ProviderType getProviderType() {
+        return providerType;
+    }
+
+    /**
+     * 设置强类型供应商标识。
+     *
+     * @param providerType 供应商类型
+     */
+    public void setProviderType(ProviderType providerType) {
+        this.providerType = providerType;
+    }
+
+    /**
+     * 解析供应商类型。
+     *
+     * @return 供应商类型
+     */
+    public ProviderType resolveProviderType() {
+        if (providerType != null) {
+            return providerType;
+        }
+        return ProviderType.fromValue(provider);
     }
 
     /**

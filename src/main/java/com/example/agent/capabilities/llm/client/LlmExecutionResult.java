@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.llm.client;
 
-import com.example.agent.capabilities.llm.provider.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
 
 /**
  * LLM 统一执行结果协议。

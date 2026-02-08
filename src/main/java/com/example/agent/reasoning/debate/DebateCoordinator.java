@@ -4,9 +4,9 @@ import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
-import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.prompt.PromptBundle;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
@@ -27,7 +27,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * 辩论协调器，负责辩论流程控制。
+ * 杈╄鍗忚皟鍣紝璐熻矗杈╄娴佺▼鎺у埗銆?
  */
 @Service
 public class DebateCoordinator {
@@ -56,13 +56,13 @@ public class DebateCoordinator {
     }
 
     /**
-     * 执行辩论。
+     * 鎵ц杈╄銆?
      *
-     * @param topic 主题
-     * @param tenantContext 租户上下文
-     * @param workflowId 工作流标识
-     * @param seqCounter 事件序列计数器
-     * @return 辩论轮次结果
+     * @param topic 涓婚
+     * @param tenantContext 绉熸埛涓婁笅鏂?
+     * @param workflowId 宸ヤ綔娴佹爣璇?
+     * @param seqCounter 浜嬩欢搴忓垪璁℃暟鍣?
+     * @return 杈╄杞缁撴灉
      */
     public DebateRound debate(String topic,
                               TenantContext tenantContext,
@@ -103,7 +103,7 @@ public class DebateCoordinator {
         if (StringUtils.hasText(repairedConclusion)) {
             conclusion = repairedConclusion;
         } else if (!StringUtils.hasText(conclusion)) {
-            log.warn("辩论结论修复失败, topic={}", topic);
+            log.warn("杈╄缁撹淇澶辫触, topic={}", topic);
         }
         recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
                 response != null ? response.getModelId() : null,
@@ -117,18 +117,18 @@ public class DebateCoordinator {
             round.setRawRef(response.getRawRef());
         }
         publishDebateEvent(tenantContext, workflowId, seqCounter, round);
-        log.info("辩论完成, topic={}, conclusion={}", topic, round.getConclusion());
+        log.info("杈╄瀹屾垚, topic={}, conclusion={}", topic, round.getConclusion());
         return round;
     }
 
     /**
-     * 兼容旧入口。
+     * 鍏煎鏃у叆鍙ｃ€?
      *
-     * @param topic 主题
-     * @return 辩论结果
+     * @param topic 涓婚
+     * @return 杈╄缁撴灉
      */
     public DebateRound debate(String topic) {
-        log.info("辩论开始, topic={}", topic);
+        log.info("杈╄寮€濮? topic={}", topic);
         DebateRound round = new DebateRound();
         round.setRoundId(UUID.randomUUID().toString());
         round.setTopic(topic);
@@ -146,21 +146,21 @@ public class DebateCoordinator {
             json = "{}";
         }
         return """
-            你是辩论主持人（debate moderator）。你的任务是基于 DEBATE_CONTEXT_JSON 中的辩论内容，输出一段可执行、可落地的辩论结论。
+            浣犳槸杈╄涓绘寔浜猴紙debate moderator锛夈€備綘鐨勪换鍔℃槸鍩轰簬 DEBATE_CONTEXT_JSON 涓殑杈╄鍐呭锛岃緭鍑轰竴娈靛彲鎵ц銆佸彲钀藉湴鐨勮京璁虹粨璁恒€?
             
-            【结论要求】
-            1) 必须做出明确裁决：给出“推荐方案/最终立场/折中方案”，避免仅说“各有道理”。
-            2) 必须包含关键依据（简短列点即可）：说明为什么选择该结论，提炼 2~4 个最有力的理由。
-            3) 必须指出主要风险/前提：用 1~2 句说明结论成立的条件或需要注意的风险。
-            4) 禁止逐字复述辩论过程与长引用；只允许高度概括。
+            銆愮粨璁鸿姹傘€?
+            1) 蹇呴』鍋氬嚭鏄庣‘瑁佸喅锛氱粰鍑衡€滄帹鑽愭柟妗?鏈€缁堢珛鍦?鎶樹腑鏂规鈥濓紝閬垮厤浠呰鈥滃悇鏈夐亾鐞嗏€濄€?
+            2) 蹇呴』鍖呭惈鍏抽敭渚濇嵁锛堢畝鐭垪鐐瑰嵆鍙級锛氳鏄庝负浠€涔堥€夋嫨璇ョ粨璁猴紝鎻愮偧 2~4 涓渶鏈夊姏鐨勭悊鐢便€?
+            3) 蹇呴』鎸囧嚭涓昏椋庨櫓/鍓嶆彁锛氱敤 1~2 鍙ヨ鏄庣粨璁烘垚绔嬬殑鏉′欢鎴栭渶瑕佹敞鎰忕殑椋庨櫓銆?
+            4) 绂佹閫愬瓧澶嶈堪杈╄杩囩▼涓庨暱寮曠敤锛涘彧鍏佽楂樺害姒傛嫭銆?
             
-            【输出要求】
-            输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+            銆愯緭鍑鸿姹傘€?
+            杈撳嚭蹇呴』鏄崟涓?JSON 瀵硅薄锛屼笉鍏佽浠讳綍棰濆鏂囨湰锛屼笉鍏佽 Markdown/浠ｇ爜鍧椼€?
             
-            字段约束：
-            1) conclusion: string，必须输出，缺信息填空串。
+            瀛楁绾︽潫锛?
+            1) conclusion: string锛屽繀椤昏緭鍑猴紝缂轰俊鎭～绌轰覆銆?
             
-            最小示例 JSON：{"conclusion":""}
+            鏈€灏忕ず渚?JSON锛歿"conclusion":""}
             
             DEBATE_CONTEXT_JSON:%s
             """.formatted(json);
@@ -282,3 +282,4 @@ public class DebateCoordinator {
         }
     }
 }
+

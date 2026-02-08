@@ -1,6 +1,8 @@
 package com.example.agent.capabilities.llm.provider;
 
 import com.example.agent.capabilities.llm.config.ModelProviderHttpProperties;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.common.error.ErrorCodeException;
 import java.time.Duration;
 import java.util.Map;
@@ -48,11 +50,10 @@ public class OllamaProviderAdapter implements ModelProviderAdapter {
 
     @Override
     public boolean supports(ModelDefinition definition) {
-        if (definition == null || !StringUtils.hasText(definition.getProvider())) {
+        if (definition == null) {
             return false;
         }
-        String normalized = definition.getProvider().toLowerCase(java.util.Locale.ROOT);
-        if (!normalized.contains("ollama")) {
+        if (definition.resolveProviderType() != ProviderType.OLLAMA) {
             return false;
         }
         return StringUtils.hasText(definition.getEndpoint()) && StringUtils.hasText(definition.getModelId());

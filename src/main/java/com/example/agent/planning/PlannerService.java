@@ -14,10 +14,10 @@ import com.example.agent.governance.evaluation.CapabilityEvaluationResult;
 import com.example.agent.budget.token.ContextBudgetAllocation;
 import com.example.agent.budget.trim.ContextPruneResult;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
-import com.example.agent.capabilities.llm.provider.ModelScene;
-import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
@@ -44,12 +44,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.util.StringUtils;
 
 /**
- * 规划服务，负责基于任务生成可执行步骤。
- * <p>用途：根据输入问题与上下文选择规划策略并生成步骤。
- * <p>输入：任务请求与租户上下文。
- * <p>输出：规划结果对象。
- * <p>边界：当禁用回退且规划失败时抛出异常。
- * <p>示例：
+ * 瑙勫垝鏈嶅姟锛岃礋璐ｅ熀浜庝换鍔＄敓鎴愬彲鎵ц姝ラ銆?
+ * <p>鐢ㄩ€旓細鏍规嵁杈撳叆闂涓庝笂涓嬫枃閫夋嫨瑙勫垝绛栫暐骞剁敓鎴愭楠ゃ€?
+ * <p>杈撳叆锛氫换鍔¤姹備笌绉熸埛涓婁笅鏂囥€?
+ * <p>杈撳嚭锛氳鍒掔粨鏋滃璞°€?
+ * <p>杈圭晫锛氬綋绂佺敤鍥為€€涓旇鍒掑け璐ユ椂鎶涘嚭寮傚父銆?
+ * <p>绀轰緥锛?
  * <pre>{@code
  * PlanResult plan = plannerService.plan(request, tenantContext);
  * }</pre>
@@ -58,78 +58,78 @@ import org.springframework.util.StringUtils;
 public class PlannerService {
 
     /**
-     * 日志记录器。
-     * <p>示例：记录规划生成结果与摘要。
+     * 鏃ュ織璁板綍鍣ㄣ€?
+     * <p>绀轰緥锛氳褰曡鍒掔敓鎴愮粨鏋滀笌鎽樿銆?
      */
     private static final Logger log = LoggerFactory.getLogger(PlannerService.class);
 
     /**
-     * TOOL 步骤参数校验开关，开启后缺参会触发回退。
+     * TOOL 姝ラ鍙傛暟鏍￠獙寮€鍏筹紝寮€鍚悗缂哄弬浼氳Е鍙戝洖閫€銆?
      */
     @Value("${agent.planner.strict-tool-arguments:false}")
     private boolean strictToolArguments;
 
 
     /**
-     * 模型调用服务。
-     * <p>示例：调用模型生成规划步骤。
+     * 妯″瀷璋冪敤鏈嶅姟銆?
+     * <p>绀轰緥锛氳皟鐢ㄦā鍨嬬敓鎴愯鍒掓楠ゃ€?
      */
     private final ModelInvocationService modelInvocationService;
     /**
-     * 工具解析器。
-     * <p>示例：将工具配置注入模型请求。
+     * 宸ュ叿瑙ｆ瀽鍣ㄣ€?
+     * <p>绀轰緥锛氬皢宸ュ叿閰嶇疆娉ㄥ叆妯″瀷璇锋眰銆?
      */
     private final ModelToolResolver modelToolResolver;
     /**
-     * 提示词装配器。
-     * <p>示例：生成结构化消息列表。
+     * 鎻愮ず璇嶈閰嶅櫒銆?
+     * <p>绀轰緥锛氱敓鎴愮粨鏋勫寲娑堟伅鍒楄〃銆?
      */
     private final PromptAssembler promptAssembler;
     private final JsonOutputRepairService jsonOutputRepairService;
     /**
-     * 规划相关配置。
-     * <p>示例：控制是否启用模型规划。
+     * 瑙勫垝鐩稿叧閰嶇疆銆?
+     * <p>绀轰緥锛氭帶鍒舵槸鍚﹀惎鐢ㄦā鍨嬭鍒掋€?
      */
     private final PlannerProperties plannerProperties;
     /**
-     * 能力边界评估器。
-     * <p>示例：根据风险决定是否需要审批。
+     * 鑳藉姏杈圭晫璇勪及鍣ㄣ€?
+     * <p>绀轰緥锛氭牴鎹闄╁喅瀹氭槸鍚﹂渶瑕佸鎵广€?
      */
     private final CapabilityBoundaryEvaluator capabilityBoundaryEvaluator;
     /**
-     * 序列化工具。
-     * <p>示例：将上下文转换为 {@code JSON}。
+     * 搴忓垪鍖栧伐鍏枫€?
+     * <p>绀轰緥锛氬皢涓婁笅鏂囪浆鎹负 {@code JSON}銆?
      */
     private final ObjectMapper objectMapper;
     /**
-     * 上下文装配器。
-     * <p>示例：构建提示词所需的上下文片段。
+     * 涓婁笅鏂囪閰嶅櫒銆?
+     * <p>绀轰緥锛氭瀯寤烘彁绀鸿瘝鎵€闇€鐨勪笂涓嬫枃鐗囨銆?
      */
     private final ContextAssembler contextAssembler;
     /**
-     * 上下文事件发布器。
-     * <p>示例：发布提示词装配阶段事件。
+     * 涓婁笅鏂囦簨浠跺彂甯冨櫒銆?
+     * <p>绀轰緥锛氬彂甯冩彁绀鸿瘝瑁呴厤闃舵浜嬩欢銆?
      */
     private final ContextEventPublisher contextEventPublisher;
 
     /**
-     * 构造规划服务。
+     * 鏋勯€犺鍒掓湇鍔°€?
      *
-     * <p>输入：模型调用服务、工具解析器与配置对象。
-     * <p>输出：初始化后的规划服务。
-     * <p>示例：
+     * <p>杈撳叆锛氭ā鍨嬭皟鐢ㄦ湇鍔°€佸伐鍏疯В鏋愬櫒涓庨厤缃璞°€?
+     * <p>杈撳嚭锛氬垵濮嬪寲鍚庣殑瑙勫垝鏈嶅姟銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * new PlannerService(invocationService, toolResolver, promptAssembler, props, evaluator, mapper, assembler, publisher);
      * }</pre>
      *
-     * @param modelInvocationService 模型调用服务
-     * @param modelToolResolver 工具解析器
-     * @param promptAssembler 提示词装配器
-     * @param plannerProperties 规划配置
-     * @param capabilityBoundaryEvaluator 能力评估器
-     * @param objectMapper 序列化工具
-     * @param contextAssembler 上下文装配器
-     * @param contextEventPublisher 上下文事件发布器
+     * @param modelInvocationService 妯″瀷璋冪敤鏈嶅姟
+     * @param modelToolResolver 宸ュ叿瑙ｆ瀽鍣?
+     * @param promptAssembler 鎻愮ず璇嶈閰嶅櫒
+     * @param plannerProperties 瑙勫垝閰嶇疆
+     * @param capabilityBoundaryEvaluator 鑳藉姏璇勪及鍣?
+     * @param objectMapper 搴忓垪鍖栧伐鍏?
+     * @param contextAssembler 涓婁笅鏂囪閰嶅櫒
+     * @param contextEventPublisher 涓婁笅鏂囦簨浠跺彂甯冨櫒
      */
     public PlannerService(ModelInvocationService modelInvocationService,
                           ModelToolResolver modelToolResolver,
@@ -152,40 +152,40 @@ public class PlannerService {
     }
 
     /**
-     * 生成规划结果。
+     * 鐢熸垚瑙勫垝缁撴灉銆?
      *
-     * <p>输入：任务请求与租户上下文。
-     * <p>输出：规划结果对象。
-     * <p>边界：会转调带上下文的方法，保持统一逻辑。
-     * <p>示例：
+     * <p>杈撳叆锛氫换鍔¤姹備笌绉熸埛涓婁笅鏂囥€?
+     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞°€?
+     * <p>杈圭晫锛氫細杞皟甯︿笂涓嬫枃鐨勬柟娉曪紝淇濇寔缁熶竴閫昏緫銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * PlanResult plan = plan(request, tenantContext);
      * }</pre>
      *
-     * @param request 任务请求
-     * @param tenantContext 租户上下文
-     * @return 规划结果
+     * @param request 浠诲姟璇锋眰
+     * @param tenantContext 绉熸埛涓婁笅鏂?
+     * @return 瑙勫垝缁撴灉
      */
     public PlanResult plan(TaskRequest request, TenantContext tenantContext) {
         return plan(request, tenantContext, null, null);
     }
 
     /**
-     * 带运行上下文的规划入口，用于发布模型事件。
+     * 甯﹁繍琛屼笂涓嬫枃鐨勮鍒掑叆鍙ｏ紝鐢ㄤ簬鍙戝竷妯″瀷浜嬩欢銆?
      *
-     * <p>输入：任务请求、租户上下文与链路标识。
-     * <p>输出：规划结果对象。
-     * <p>边界：当模型规划失败且禁用回退时抛出异常。
-     * <p>示例：
+     * <p>杈撳叆锛氫换鍔¤姹傘€佺鎴蜂笂涓嬫枃涓庨摼璺爣璇嗐€?
+     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞°€?
+     * <p>杈圭晫锛氬綋妯″瀷瑙勫垝澶辫触涓旂鐢ㄥ洖閫€鏃舵姏鍑哄紓甯搞€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * PlanResult plan = plan(request, tenantContext, workflowId, seqCounter);
      * }</pre>
      *
-     * @param request 任务请求
-     * @param tenantContext 租户上下文
-     * @param workflowId 工作流标识
-     * @param seqCounter 事件序列计数器
-     * @return 规划结果
+     * @param request 浠诲姟璇锋眰
+     * @param tenantContext 绉熸埛涓婁笅鏂?
+     * @param workflowId 宸ヤ綔娴佹爣璇?
+     * @param seqCounter 浜嬩欢搴忓垪璁℃暟鍣?
+     * @return 瑙勫垝缁撴灉
      */
     public PlanResult plan(TaskRequest request,
                            TenantContext tenantContext,
@@ -199,12 +199,12 @@ public class PlannerService {
         if (request != null && request.getToolChoice() != null && !context.containsKey("toolChoice")) {
             context.put("toolChoice", request.getToolChoice());
         }
-        // 评估能力边界，决定是否需要审批或推荐策略。
+        // 璇勪及鑳藉姏杈圭晫锛屽喅瀹氭槸鍚﹂渶瑕佸鎵规垨鎺ㄨ崘绛栫暐銆?
         CapabilityEvaluationResult evaluation = evaluateCapability(request, context, tenantContext, workflowId,
                 seqCounter);
         applyEvaluationToContext(context, evaluation);
 
-        // 优先尝试模型规划，失败则回退规则规划。
+        // 浼樺厛灏濊瘯妯″瀷瑙勫垝锛屽け璐ュ垯鍥為€€瑙勫垯瑙勫垝銆?
         if (plannerProperties.isLlmEnabled()) {
             PlanResult llmPlan = tryLlmPlan(request, tenantContext, workflowId, seqCounter, context, planId);
             if (llmPlan != null) {
@@ -216,19 +216,19 @@ public class PlannerService {
         if (!plannerProperties.isFallbackEnabled()) {
             throw new IllegalStateException("planner_fallback_disabled");
         }
-        // 规则规划作为兜底策略。
+        // 瑙勫垯瑙勫垝浣滀负鍏滃簳绛栫暐銆?
         PlanResult fallback = buildHeuristicPlan(planId, query, context, tenantContext);
         applyApprovalRequirement(fallback, request, evaluation);
         return fallback;
     }
 
     /**
-     * 执行能力边界评估。
+     * 鎵ц鑳藉姏杈圭晫璇勪及銆?
      *
-     * <p>输入：任务请求、上下文与链路信息。
-     * <p>输出：评估结果对象。
-     * <p>边界：评估器未启用时返回 {@code null}。
-     * <p>示例：
+     * <p>杈撳叆锛氫换鍔¤姹傘€佷笂涓嬫枃涓庨摼璺俊鎭€?
+     * <p>杈撳嚭锛氳瘎浼扮粨鏋滃璞°€?
+     * <p>杈圭晫锛氳瘎浼板櫒鏈惎鐢ㄦ椂杩斿洖 {@code null}銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * CapabilityEvaluationResult result = evaluateCapability(request, context, ctx, wfId, seq);
      * }</pre>
@@ -241,7 +241,7 @@ public class PlannerService {
         if (capabilityBoundaryEvaluator == null || !capabilityBoundaryEvaluator.isEnabled()) {
             return null;
         }
-        // 构建评估输入，包含问题、工具摘要与预算信息。
+        // 鏋勫缓璇勪及杈撳叆锛屽寘鍚棶棰樸€佸伐鍏锋憳瑕佷笌棰勭畻淇℃伅銆?
         CapabilityEvaluationInput input = new CapabilityEvaluationInput();
         input.setTaskDescription(request != null ? request.getQuery() : null);
         input.setPlanSummary(resolvePlanSummary(context));
@@ -253,12 +253,12 @@ public class PlannerService {
     }
 
     /**
-     * 将评估结果写入上下文。
+     * 灏嗚瘎浼扮粨鏋滃啓鍏ヤ笂涓嬫枃銆?
      *
-     * <p>输入：上下文映射与评估结果。
-     * <p>输出：无。
-     * <p>边界：评估被跳过时不写入。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠涓庤瘎浼扮粨鏋溿€?
+     * <p>杈撳嚭锛氭棤銆?
+     * <p>杈圭晫锛氳瘎浼拌璺宠繃鏃朵笉鍐欏叆銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * applyEvaluationToContext(context, evaluation);
      * }</pre>
@@ -281,12 +281,12 @@ public class PlannerService {
     }
 
     /**
-     * 将审批要求绑定到规划步骤。
+     * 灏嗗鎵硅姹傜粦瀹氬埌瑙勫垝姝ラ銆?
      *
-     * <p>输入：规划结果、任务请求与评估结果。
-     * <p>输出：无。
-     * <p>边界：无步骤或已显式指定审批时不处理。
-     * <p>示例：
+     * <p>杈撳叆锛氳鍒掔粨鏋溿€佷换鍔¤姹備笌璇勪及缁撴灉銆?
+     * <p>杈撳嚭锛氭棤銆?
+     * <p>杈圭晫锛氭棤姝ラ鎴栧凡鏄惧紡鎸囧畾瀹℃壒鏃朵笉澶勭悊銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * applyApprovalRequirement(plan, request, evaluation);
      * }</pre>
@@ -308,11 +308,11 @@ public class PlannerService {
     }
 
     /**
-     * 判断任务请求是否显式要求审批。
+     * 鍒ゆ柇浠诲姟璇锋眰鏄惁鏄惧紡瑕佹眰瀹℃壒銆?
      *
-     * <p>输入：任务请求对象。
-     * <p>输出：是否存在审批标记。
-     * <p>示例：
+     * <p>杈撳叆锛氫换鍔¤姹傚璞°€?
+     * <p>杈撳嚭锛氭槸鍚﹀瓨鍦ㄥ鎵规爣璁般€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * boolean required = hasExplicitApproval(request);
      * }</pre>
@@ -325,11 +325,11 @@ public class PlannerService {
     }
 
     /**
-     * 判断步骤列表中是否显式标记审批。
+     * 鍒ゆ柇姝ラ鍒楄〃涓槸鍚︽樉寮忔爣璁板鎵广€?
      *
-     * <p>输入：步骤列表。
-     * <p>输出：是否存在审批标记。
-     * <p>示例：
+     * <p>杈撳叆锛氭楠ゅ垪琛ㄣ€?
+     * <p>杈撳嚭锛氭槸鍚﹀瓨鍦ㄥ鎵规爣璁般€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * boolean required = hasExplicitApproval(steps);
      * }</pre>
@@ -350,12 +350,12 @@ public class PlannerService {
     }
 
     /**
-     * 标记步骤需要审批。
+     * 鏍囪姝ラ闇€瑕佸鎵广€?
      *
-     * <p>输入：步骤对象与来源标识。
-     * <p>输出：无。
-     * <p>边界：步骤为空时直接返回。
-     * <p>示例：
+     * <p>杈撳叆锛氭楠ゅ璞′笌鏉ユ簮鏍囪瘑銆?
+     * <p>杈撳嚭锛氭棤銆?
+     * <p>杈圭晫锛氭楠や负绌烘椂鐩存帴杩斿洖銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * markStepRequiresApproval(step, "evaluation");
      * }</pre>
@@ -369,11 +369,11 @@ public class PlannerService {
     }
 
     /**
-     * 判断上下文中是否显式指定策略。
+     * 鍒ゆ柇涓婁笅鏂囦腑鏄惁鏄惧紡鎸囧畾绛栫暐銆?
      *
-     * <p>输入：上下文映射。
-     * <p>输出：是否存在策略字段。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
+     * <p>杈撳嚭锛氭槸鍚﹀瓨鍦ㄧ瓥鐣ュ瓧娈点€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * boolean explicit = hasExplicitStrategy(context);
      * }</pre>
@@ -390,12 +390,12 @@ public class PlannerService {
     }
 
     /**
-     * 将推荐策略映射到上下文字段。
+     * 灏嗘帹鑽愮瓥鐣ユ槧灏勫埌涓婁笅鏂囧瓧娈点€?
      *
-     * <p>输入：上下文映射与策略名称。
-     * <p>输出：无。
-     * <p>边界：策略为空时不处理。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠涓庣瓥鐣ュ悕绉般€?
+     * <p>杈撳嚭锛氭棤銆?
+     * <p>杈圭晫锛氱瓥鐣ヤ负绌烘椂涓嶅鐞嗐€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * mapStrategyToContext(context, "react");
      * }</pre>
@@ -424,11 +424,11 @@ public class PlannerService {
     }
 
     /**
-     * 获取上下文中的规划摘要。
+     * 鑾峰彇涓婁笅鏂囦腑鐨勮鍒掓憳瑕併€?
      *
-     * <p>输入：上下文映射。
-     * <p>输出：规划摘要字符串或 {@code null}。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
+     * <p>杈撳嚭锛氳鍒掓憳瑕佸瓧绗︿覆鎴?{@code null}銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * String summary = resolvePlanSummary(context);
      * }</pre>
@@ -442,11 +442,11 @@ public class PlannerService {
     }
 
     /**
-     * 获取上下文中的工具摘要。
+     * 鑾峰彇涓婁笅鏂囦腑鐨勫伐鍏锋憳瑕併€?
      *
-     * <p>输入：上下文映射。
-     * <p>输出：工具摘要字符串或 {@code null}。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
+     * <p>杈撳嚭锛氬伐鍏锋憳瑕佸瓧绗︿覆鎴?{@code null}銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * String tools = resolveToolSummary(context);
      * }</pre>
@@ -472,11 +472,11 @@ public class PlannerService {
     }
 
     /**
-     * 以逗号拼接字符串。
+     * 浠ラ€楀彿鎷兼帴瀛楃涓层€?
      *
-     * <p>输入：字符串构建器与待拼接值。
-     * <p>输出：无。
-     * <p>示例：
+     * <p>杈撳叆锛氬瓧绗︿覆鏋勫缓鍣ㄤ笌寰呮嫾鎺ュ€笺€?
+     * <p>杈撳嚭锛氭棤銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * appendWithComma(builder, "toolA");
      * }</pre>
@@ -489,11 +489,11 @@ public class PlannerService {
     }
 
     /**
-     * 获取预算阈值配置。
+     * 鑾峰彇棰勭畻闃堝€奸厤缃€?
      *
-     * <p>输入：上下文映射。
-     * <p>输出：阈值整数，默认 {@code 0}。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
+     * <p>杈撳嚭锛氶槇鍊兼暣鏁帮紝榛樿 {@code 0}銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * int threshold = resolveBudgetThreshold(context);
      * }</pre>
@@ -518,12 +518,12 @@ public class PlannerService {
 
     @SuppressWarnings("unchecked")
     /**
-     * 解析上下文中的失败类型列表。
+     * 瑙ｆ瀽涓婁笅鏂囦腑鐨勫け璐ョ被鍨嬪垪琛ㄣ€?
      *
-     * <p>输入：上下文映射。
-     * <p>输出：失败类型列表。
-     * <p>边界：解析失败时返回空列表。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
+     * <p>杈撳嚭锛氬け璐ョ被鍨嬪垪琛ㄣ€?
+     * <p>杈圭晫锛氳В鏋愬け璐ユ椂杩斿洖绌哄垪琛ㄣ€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * List<String> failures = resolveFailureTypes(context);
      * }</pre>
@@ -549,12 +549,12 @@ public class PlannerService {
     }
 
     /**
-     * 尝试使用模型生成规划。
+     * 灏濊瘯浣跨敤妯″瀷鐢熸垚瑙勫垝銆?
      *
-     * <p>输入：任务请求、租户上下文与上下文信息。
-     * <p>输出：规划结果对象或 {@code null}。
-     * <p>边界：模型输出不合法时返回 {@code null}。
-     * <p>示例：
+     * <p>杈撳叆锛氫换鍔¤姹傘€佺鎴蜂笂涓嬫枃涓庝笂涓嬫枃淇℃伅銆?
+     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞℃垨 {@code null}銆?
+     * <p>杈圭晫锛氭ā鍨嬭緭鍑轰笉鍚堟硶鏃惰繑鍥?{@code null}銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * PlanResult plan = tryLlmPlan(request, ctx, wfId, seq, context, planId);
      * }</pre>
@@ -566,13 +566,13 @@ public class PlannerService {
                                   Map<String, Object> context,
                                   String planId) {
         try {
-            // 构造规划提示词并生成模型请求。
+            // 鏋勯€犺鍒掓彁绀鸿瘝骞剁敓鎴愭ā鍨嬭姹傘€?
             String prompt = buildPlanPrompt(request, context);
             ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.PLANNER);
             applyPromptBundle(modelRequest, prompt, request, context, tenantContext, workflowId, seqCounter);
-            // 规划阶段强制注入完整工具 schema，提升参数生成可靠性
+            // 瑙勫垝闃舵寮哄埗娉ㄥ叆瀹屾暣宸ュ叿 schema锛屾彁鍗囧弬鏁扮敓鎴愬彲闈犳€?
             modelToolResolver.applyTooling(modelRequest, request, null, true);
-            // 调用模型生成规划内容。
+            // 璋冪敤妯″瀷鐢熸垚瑙勫垝鍐呭銆?
             Map<String, Object> metadata = new HashMap<>();
             metadata.put("planId", planId);
             metadata.put("promptScene", "planner");
@@ -588,7 +588,7 @@ public class PlannerService {
             if (response == null || response.getContent() == null) {
                 return null;
             }
-            // 解析模型输出为规划步骤。
+            // 瑙ｆ瀽妯″瀷杈撳嚭涓鸿鍒掓楠ゃ€?
             String rawContent = response.getContent();
             String parseErrorType = null;
             boolean repairAttempted = false;
@@ -597,7 +597,7 @@ public class PlannerService {
             try {
                 parsed = parsePlan(rawContent, request, context);
             } catch (Exception ex) {
-                log.warn("规划解析失败, tenantId={}, planId={}, reason={}",
+                log.warn("瑙勫垝瑙ｆ瀽澶辫触, tenantId={}, planId={}, reason={}",
                         tenantContext.getTenantId(), planId, ex.getMessage());
                 parsed = null;
                 parseErrorType = "json_parse_error";
@@ -614,7 +614,7 @@ public class PlannerService {
                 }
             }
             if (parsed == null || parsed.steps == null || parsed.steps.isEmpty()) {
-                log.warn("规划修复失败, tenantId={}, planId={}", tenantContext.getTenantId(), planId);
+                log.warn("瑙勫垝淇澶辫触, tenantId={}, planId={}", tenantContext.getTenantId(), planId);
                 recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter, response.getModelId(), false,
                         parseErrorType, repairAttempted, repairSuccess);
                 return null;
@@ -622,23 +622,23 @@ public class PlannerService {
             recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter, response.getModelId(), true, null,
                     repairAttempted, repairSuccess);
             PlanResult result = new PlanResult(planId, parsed.summary, parsed.steps);
-            log.info("规划生成(LLM), tenantId={}, planId={}, steps={}",
+            log.info("瑙勫垝鐢熸垚(LLM), tenantId={}, planId={}, steps={}",
                     tenantContext.getTenantId(), planId, parsed.steps.size());
             return result;
         } catch (Exception ex) {
-            log.warn("规划解析失败, tenantId={}, planId={}, reason={}",
+            log.warn("瑙勫垝瑙ｆ瀽澶辫触, tenantId={}, planId={}, reason={}",
                     tenantContext.getTenantId(), planId, ex.getMessage());
             return null;
         }
     }
 
     /**
-     * 使用规则策略生成规划。
+     * 浣跨敤瑙勫垯绛栫暐鐢熸垚瑙勫垝銆?
      *
-     * <p>输入：规划标识、问题与上下文信息。
-     * <p>输出：规划结果对象。
-     * <p>边界：问题为空时使用默认复杂度。
-     * <p>示例：
+     * <p>杈撳叆锛氳鍒掓爣璇嗐€侀棶棰樹笌涓婁笅鏂囦俊鎭€?
+     * <p>杈撳嚭锛氳鍒掔粨鏋滃璞°€?
+     * <p>杈圭晫锛氶棶棰樹负绌烘椂浣跨敤榛樿澶嶆潅搴︺€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * PlanResult plan = buildHeuristicPlan(planId, query, context, tenantContext);
      * }</pre>
@@ -659,7 +659,7 @@ public class PlannerService {
 
         String previousStepKey = null;
         String thoughtStepKey = null;
-        // 优先处理显式链式推理策略。
+        // 浼樺厛澶勭悊鏄惧紡閾惧紡鎺ㄧ悊绛栫暐銆?
         if (isChainOfThoughtRequested(mode, strategy, cognitiveStrategy)) {
             String stepKey = "step-1";
             Map<String, Object> input = new HashMap<>();
@@ -672,7 +672,7 @@ public class PlannerService {
                     "strategy=%s, cognitive=%s, complexity=%.2f, steps=%d",
                     executionStrategy, cognitiveStrategy, complexityScore, steps.size());
             PlanResult result = new PlanResult(planId, summary, steps);
-            log.info("规划生成(链式推理), tenantId={}, planId={}, summary={}",
+            log.info("瑙勫垝鐢熸垚(閾惧紡鎺ㄧ悊), tenantId={}, planId={}, summary={}",
                     tenantContext.getTenantId(), planId, summary);
             context.put("planSteps", planSteps);
             context.put("planDependencies", dependencies);
@@ -680,7 +680,7 @@ public class PlannerService {
             context.put("cognitiveStrategy", cognitiveStrategy);
             return result;
         }
-        // 需要思维树策略时先插入思维树步骤。
+        // 闇€瑕佹€濈淮鏍戠瓥鐣ユ椂鍏堟彃鍏ユ€濈淮鏍戞楠ゃ€?
         if (needsThoughtTree(cognitiveStrategy, complexityScore)) {
             thoughtStepKey = "step-1";
             Map<String, Object> thoughtInput = new HashMap<>();
@@ -693,7 +693,7 @@ public class PlannerService {
             previousStepKey = thoughtStepKey;
         }
 
-        // 多智能体策略。
+        // 澶氭櫤鑳戒綋绛栫暐銆?
         if ("multi_agent".equals(strategy) || "multi-agent".equals(strategy)) {
             String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
             Map<String, Object> input = new HashMap<>();
@@ -708,7 +708,7 @@ public class PlannerService {
             previousStepKey = stepKey;
         }
 
-        // 辩论策略。
+        // 杈╄绛栫暐銆?
         if ("debate".equals(strategy)) {
             String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
             Map<String, Object> input = new HashMap<>();
@@ -722,7 +722,7 @@ public class PlannerService {
             previousStepKey = stepKey;
         }
 
-        // 研究策略。
+        // 鐮旂┒绛栫暐銆?
         if ("deep_research".equals(mode) || "research".equals(strategy)) {
             String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
             Map<String, Object> input = new HashMap<>();
@@ -737,7 +737,7 @@ public class PlannerService {
             previousStepKey = stepKey;
         }
 
-        // 反应式策略。
+        // 鍙嶅簲寮忕瓥鐣ャ€?
         if (shouldUseReact(context, mode, strategy)) {
             String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
             Map<String, Object> input = new HashMap<>();
@@ -753,7 +753,7 @@ public class PlannerService {
                     "strategy=%s, cognitive=%s, complexity=%.2f, steps=%d",
                     executionStrategy, cognitiveStrategy, complexityScore, steps.size());
             PlanResult result = new PlanResult(planId, summary, steps);
-            log.info("规划生成（ReAct）, tenantId={}, planId={}, summary={}",
+            log.info("瑙勫垝鐢熸垚锛圧eAct锛? tenantId={}, planId={}, summary={}",
                     tenantContext.getTenantId(), planId, summary);
             context.put("planSteps", planSteps);
             context.put("planDependencies", dependencies);
@@ -782,7 +782,7 @@ public class PlannerService {
                     executionStrategy, cognitiveStrategy, complexityScore, steps.size());
             PlanResult result = new PlanResult(planId, summary, steps);
 
-            log.info("规划生成(大模型), tenantId={}, planId={}, summary={}",
+            log.info("瑙勫垝鐢熸垚(澶фā鍨?, tenantId={}, planId={}, summary={}",
                     tenantContext.getTenantId(), planId, summary);
             context.put("planSteps", planSteps);
             context.put("planDependencies", dependencies);
@@ -791,7 +791,7 @@ public class PlannerService {
             return result;
         }
 
-        // 默认工具步骤。
+        // 榛樿宸ュ叿姝ラ銆?
         String toolStepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
         Map<String, Object> toolInput = new HashMap<>();
         toolInput.put("query", query);
@@ -819,7 +819,7 @@ public class PlannerService {
                 executionStrategy, cognitiveStrategy, complexityScore, steps.size());
         PlanResult result = new PlanResult(planId, summary, steps);
 
-        log.info("规划生成(规则), tenantId={}, planId={}, summary={}",
+        log.info("瑙勫垝鐢熸垚(瑙勫垯), tenantId={}, planId={}, summary={}",
                 tenantContext.getTenantId(), planId, summary);
         context.put("planSteps", planSteps);
         context.put("planDependencies", dependencies);
@@ -829,12 +829,12 @@ public class PlannerService {
     }
 
     /**
-     * 构建规划提示词。
+     * 鏋勫缓瑙勫垝鎻愮ず璇嶃€?
      *
-     * <p>输入：任务请求与上下文映射。
-     * <p>输出：提示词字符串。
-     * <p>边界：序列化失败时使用空上下文。
-     * <p>示例：
+     * <p>杈撳叆锛氫换鍔¤姹備笌涓婁笅鏂囨槧灏勩€?
+     * <p>杈撳嚭锛氭彁绀鸿瘝瀛楃涓层€?
+     * <p>杈圭晫锛氬簭鍒楀寲澶辫触鏃朵娇鐢ㄧ┖涓婁笅鏂囥€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * String prompt = buildPlanPrompt(request, context);
      * }</pre>
@@ -850,106 +850,106 @@ public class PlannerService {
             contextJson = "{}";
         }
         return """
-                你是任务规划器（planner）。你的任务是：根据 PLAN_CONTEXT_JSON 中的 query 与上下文，生成“最小且可执行”的步骤计划。
+                浣犳槸浠诲姟瑙勫垝鍣紙planner锛夈€備綘鐨勪换鍔℃槸锛氭牴鎹?PLAN_CONTEXT_JSON 涓殑 query 涓庝笂涓嬫枃锛岀敓鎴愨€滄渶灏忎笖鍙墽琛屸€濈殑姝ラ璁″垝銆?
                 
-                【规划原则】
-                1) 最小化：必须输出至少 1 个步骤，能少步解决就不要出步骤；能 1 步解决就不要拆 3 步。
-                2) 可执行：每个步骤必须能被执行器直接执行（step.type 与 step.input 必须自洽）。
-                3) 不编造：不得编造外部数据结果；若需要查询数据源，必须规划工具步骤。
-                4) 区分两类问题：
-                   - DIRECT：常识解释/概念说明/纯文本生成，不需要工具，必须输出至少 1 个步骤
-                   - TOOL：需要外部数据/检索/数据库查询/调用系统接口，必须输出至少 1 个步骤
+                銆愯鍒掑師鍒欍€?
+                1) 鏈€灏忓寲锛氬繀椤昏緭鍑鸿嚦灏?1 涓楠わ紝鑳藉皯姝ヨВ鍐冲氨涓嶈鍑烘楠わ紱鑳?1 姝ヨВ鍐冲氨涓嶈鎷?3 姝ャ€?
+                2) 鍙墽琛岋細姣忎釜姝ラ蹇呴』鑳借鎵ц鍣ㄧ洿鎺ユ墽琛岋紙step.type 涓?step.input 蹇呴』鑷唇锛夈€?
+                3) 涓嶇紪閫狅細涓嶅緱缂栭€犲閮ㄦ暟鎹粨鏋滐紱鑻ラ渶瑕佹煡璇㈡暟鎹簮锛屽繀椤昏鍒掑伐鍏锋楠ゃ€?
+                4) 鍖哄垎涓ょ被闂锛?
+                   - DIRECT锛氬父璇嗚В閲?姒傚康璇存槑/绾枃鏈敓鎴愶紝涓嶉渶瑕佸伐鍏凤紝蹇呴』杈撳嚭鑷冲皯 1 涓楠?
+                   - TOOL锛氶渶瑕佸閮ㄦ暟鎹?妫€绱?鏁版嵁搴撴煡璇?璋冪敤绯荤粺鎺ュ彛锛屽繀椤昏緭鍑鸿嚦灏?1 涓楠?
                 
-                【steps=[必须输出至少 1 个步骤]】
-                - 问题属于 DIRECT（解释类、定义类、改写/总结类等），且无需任何外部数据。
-                  summary 写明“无需工具，直接回答”，并可输出 answerMode="DIRECT"。
-                
-                --------------------------------------------------
-                【关键协议（与运行时严格对齐）】
-                
-                只要输出 steps（即产生任意 step），必须遵守：
-                
-                1) steps[*].input：
-                   - 必须是 object
-                   - 必须包含 input.question（字符串，不能为空）
-                   - input.question 表示“该步骤正在做什么 / 该步骤要处理的子问题是什么”
-                   - 运行时将优先使用 input.question 作为该步骤的问题文本
-                
-                2) steps[*].tool：
-                   - 不是必填，可省略或为空串
-                   - 但当 step.type="TOOL" 时，必须保证执行器能定位到具体工具：
-                     - 优先使用 steps[*].tool（若填写）
-                     - 若 steps[*].tool 为空，则 steps[*].input 必须包含 toolName（字符串，不能为空）
-                     - 否则该 TOOL 步骤不可执行（严禁输出）
-                
-                3) TOOL 步骤 input 规范：
-                   - 必须包含：
-                     - question: 描述本次工具调用意图（必填）
-                     - arguments: object，仅包含该工具需要的字段（避免复制整段 query）
-                     - toolName：当 steps[*].tool 为空时必填
-                   - 不允许只有工具参数而没有 question
-                   - arguments 缺失或为空时，禁止输出 TOOL 步骤
-                
-                4) 非 TOOL 步骤（LLM/COT/REACT） input 规范：
-                   - 必须包含：
-                     - question: 该步骤要生成/总结/解释的子问题（必填）
-                   - 可包含少量内部处理参数（如去重字段 distinctKey），但禁止塞入长文本或重复上下文。
+                銆恠teps=[蹇呴』杈撳嚭鑷冲皯 1 涓楠銆?
+                - 闂灞炰簬 DIRECT锛堣В閲婄被銆佸畾涔夌被銆佹敼鍐?鎬荤粨绫荤瓑锛夛紝涓旀棤闇€浠讳綍澶栭儴鏁版嵁銆?
+                  summary 鍐欐槑鈥滄棤闇€宸ュ叿锛岀洿鎺ュ洖绛斺€濓紝骞跺彲杈撳嚭 answerMode="DIRECT"銆?
                 
                 --------------------------------------------------
-                【典型模式：查询 + 汇总 / 统计 / 去重】
+                銆愬叧閿崗璁紙涓庤繍琛屾椂涓ユ牸瀵归綈锛夈€?
                 
-                当 query 同时包含：
-                “多次查询” + “最后汇总/统计/对比/去重/总结”
+                鍙杈撳嚭 steps锛堝嵆浜х敓浠绘剰 step锛夛紝蹇呴』閬靛畧锛?
                 
-                必须规划为：
+                1) steps[*].input锛?
+                   - 蹇呴』鏄?object
+                   - 蹇呴』鍖呭惈 input.question锛堝瓧绗︿覆锛屼笉鑳戒负绌猴級
+                   - input.question 琛ㄧず鈥滆姝ラ姝ｅ湪鍋氫粈涔?/ 璇ユ楠よ澶勭悊鐨勫瓙闂鏄粈涔堚€?
+                   - 杩愯鏃跺皢浼樺厛浣跨敤 input.question 浣滀负璇ユ楠ょ殑闂鏂囨湰
                 
-                Step1..N：多个 TOOL 查询步骤（每个都要有 input.question）  
-                StepN+1：一个汇总步骤（FINAL 或 THINK，必须有 input.question）
+                2) steps[*].tool锛?
+                   - 涓嶆槸蹇呭～锛屽彲鐪佺暐鎴栦负绌轰覆
+                   - 浣嗗綋 step.type="TOOL" 鏃讹紝蹇呴』淇濊瘉鎵ц鍣ㄨ兘瀹氫綅鍒板叿浣撳伐鍏凤細
+                     - 浼樺厛浣跨敤 steps[*].tool锛堣嫢濉啓锛?
+                     - 鑻?steps[*].tool 涓虹┖锛屽垯 steps[*].input 蹇呴』鍖呭惈 toolName锛堝瓧绗︿覆锛屼笉鑳戒负绌猴級
+                     - 鍚﹀垯璇?TOOL 姝ラ涓嶅彲鎵ц锛堜弗绂佽緭鍑猴級
                 
-                汇总步骤要求：
-                - type 使用 "FINAL"（若执行器不支持可用 "THINK"）
-                - tool 可省略或为空串
-                - dependsOn 指向所有 TOOL 步骤
-                - input.question 清晰描述汇总要求（如：合并结果、按 userId 去重、统计数量并输出摘要）
+                3) TOOL 姝ラ input 瑙勮寖锛?
+                   - 蹇呴』鍖呭惈锛?
+                     - question: 鎻忚堪鏈宸ュ叿璋冪敤鎰忓浘锛堝繀濉級
+                     - arguments: object锛屼粎鍖呭惈璇ュ伐鍏烽渶瑕佺殑瀛楁锛堥伩鍏嶅鍒舵暣娈?query锛?
+                     - toolName锛氬綋 steps[*].tool 涓虹┖鏃跺繀濉?
+                   - 涓嶅厑璁稿彧鏈夊伐鍏峰弬鏁拌€屾病鏈?question
+                   - arguments 缂哄け鎴栦负绌烘椂锛岀姝㈣緭鍑?TOOL 姝ラ
                 
-                --------------------------------------------------
-                【步骤字段要求】
-                - steps[*].type：
-                  - 缺省为 "LLM"
-                  - 仅在需要文本生成/汇总/内部处理时使用 "FINAL"/"THINK"/"LLM"（以执行器支持为准）
-                
-                - steps[*].tool：
-                  - 可缺省或为空串
-                  - 若 type="TOOL" 且 tool 为空，则 input.toolName 必须非空
-                
-                - steps[*].input：
-                  - 必须是 object
-                  - 必须包含 question（必填）
-                  - TOOL 步骤必须包含 arguments（object）；必要时包含 toolName
-                
-                - steps[*].dependsOn：
-                  - 默认 []
-                  - 有依赖时才填写
+                4) 闈?TOOL 姝ラ锛圠LM/COT/REACT锛?input 瑙勮寖锛?
+                   - 蹇呴』鍖呭惈锛?
+                     - question: 璇ユ楠よ鐢熸垚/鎬荤粨/瑙ｉ噴鐨勫瓙闂锛堝繀濉級
+                   - 鍙寘鍚皯閲忓唴閮ㄥ鐞嗗弬鏁帮紙濡傚幓閲嶅瓧娈?distinctKey锛夛紝浣嗙姝㈠鍏ラ暱鏂囨湰鎴栭噸澶嶄笂涓嬫枃銆?
                 
                 --------------------------------------------------
-                【输出约束】
-                输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+                銆愬吀鍨嬫ā寮忥細鏌ヨ + 姹囨€?/ 缁熻 / 鍘婚噸銆?
                 
-                字段约束：
-                1) summary: string，缺信息填空串；无法给出有效步骤时用 summary 说明原因。
-                2) steps: array，缺信息填 []。
-                3) steps[*].type: string，缺信息填 "TOOL"。
-                4) steps[*].input: object，必须是 object，且必须包含 question。
-                5) steps[*].tool: string，可缺省，缺信息填空串。
-                6) steps[*].dependsOn: array，可缺省，缺信息填 []。
+                褰?query 鍚屾椂鍖呭惈锛?
+                鈥滃娆℃煡璇⑩€?+ 鈥滄渶鍚庢眹鎬?缁熻/瀵规瘮/鍘婚噸/鎬荤粨鈥?
                 
-                允许额外字段但不要依赖（推荐）：
-                - answerMode: "DIRECT" 或 "TOOL"
+                蹇呴』瑙勫垝涓猴細
+                
+                Step1..N锛氬涓?TOOL 鏌ヨ姝ラ锛堟瘡涓兘瑕佹湁 input.question锛? 
+                StepN+1锛氫竴涓眹鎬绘楠わ紙FINAL 鎴?THINK锛屽繀椤绘湁 input.question锛?
+                
+                姹囨€绘楠よ姹傦細
+                - type 浣跨敤 "FINAL"锛堣嫢鎵ц鍣ㄤ笉鏀寔鍙敤 "THINK"锛?
+                - tool 鍙渷鐣ユ垨涓虹┖涓?
+                - dependsOn 鎸囧悜鎵€鏈?TOOL 姝ラ
+                - input.question 娓呮櫚鎻忚堪姹囨€昏姹傦紙濡傦細鍚堝苟缁撴灉銆佹寜 userId 鍘婚噸銆佺粺璁℃暟閲忓苟杈撳嚭鎽樿锛?
+                
+                --------------------------------------------------
+                銆愭楠ゅ瓧娈佃姹傘€?
+                - steps[*].type锛?
+                  - 缂虹渷涓?"LLM"
+                  - 浠呭湪闇€瑕佹枃鏈敓鎴?姹囨€?鍐呴儴澶勭悊鏃朵娇鐢?"FINAL"/"THINK"/"LLM"锛堜互鎵ц鍣ㄦ敮鎸佷负鍑嗭級
+                
+                - steps[*].tool锛?
+                  - 鍙己鐪佹垨涓虹┖涓?
+                  - 鑻?type="TOOL" 涓?tool 涓虹┖锛屽垯 input.toolName 蹇呴』闈炵┖
+                
+                - steps[*].input锛?
+                  - 蹇呴』鏄?object
+                  - 蹇呴』鍖呭惈 question锛堝繀濉級
+                  - TOOL 姝ラ蹇呴』鍖呭惈 arguments锛坥bject锛夛紱蹇呰鏃跺寘鍚?toolName
+                
+                - steps[*].dependsOn锛?
+                  - 榛樿 []
+                  - 鏈変緷璧栨椂鎵嶅～鍐?
+                
+                --------------------------------------------------
+                銆愯緭鍑虹害鏉熴€?
+                杈撳嚭蹇呴』鏄崟涓?JSON 瀵硅薄锛屼笉鍏佽浠讳綍棰濆鏂囨湰锛屼笉鍏佽 Markdown/浠ｇ爜鍧椼€?
+                
+                瀛楁绾︽潫锛?
+                1) summary: string锛岀己淇℃伅濉┖涓诧紱鏃犳硶缁欏嚭鏈夋晥姝ラ鏃剁敤 summary 璇存槑鍘熷洜銆?
+                2) steps: array锛岀己淇℃伅濉?[]銆?
+                3) steps[*].type: string锛岀己淇℃伅濉?"TOOL"銆?
+                4) steps[*].input: object锛屽繀椤绘槸 object锛屼笖蹇呴』鍖呭惈 question銆?
+                5) steps[*].tool: string锛屽彲缂虹渷锛岀己淇℃伅濉┖涓层€?
+                6) steps[*].dependsOn: array锛屽彲缂虹渷锛岀己淇℃伅濉?[]銆?
+                
+                鍏佽棰濆瀛楁浣嗕笉瑕佷緷璧栵紙鎺ㄨ崘锛夛細
+                - answerMode: "DIRECT" 鎴?"TOOL"
                 - toolRequired: boolean
                 
-                当无法确定 action/step 时，输出 steps=[]，summary 写明原因。
+                褰撴棤娉曠‘瀹?action/step 鏃讹紝杈撳嚭 steps=[]锛宻ummary 鍐欐槑鍘熷洜銆?
                 
-                最小示例 JSON：
+                鏈€灏忕ず渚?JSON锛?
                 {"summary":"","steps":[]}
                 
                 PLAN_CONTEXT_JSON:%s
@@ -1109,7 +1109,7 @@ public class PlannerService {
         try {
             return parsePlan(repaired, request, context);
         } catch (Exception ex) {
-            log.warn("规划修复解析失败, reason={}", ex.getMessage());
+            log.warn("瑙勫垝淇瑙ｆ瀽澶辫触, reason={}", ex.getMessage());
             return null;
         }
     }
@@ -1146,12 +1146,12 @@ public class PlannerService {
     }
 
     /**
-     * 应用提示词装配器并发布装配阶段事件。
+     * 搴旂敤鎻愮ず璇嶈閰嶅櫒骞跺彂甯冭閰嶉樁娈典簨浠躲€?
      *
-     * <p>输入：模型请求、提示词与上下文信息。
-     * <p>输出：无。
-     * <p>边界：装配器为空时直接返回。
-     * <p>示例：
+     * <p>杈撳叆锛氭ā鍨嬭姹傘€佹彁绀鸿瘝涓庝笂涓嬫枃淇℃伅銆?
+     * <p>杈撳嚭锛氭棤銆?
+     * <p>杈圭晫锛氳閰嶅櫒涓虹┖鏃剁洿鎺ヨ繑鍥炪€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * applyPromptBundle(modelRequest, prompt, request, context, ctx, wfId, seq);
      * }</pre>
@@ -1172,7 +1172,7 @@ public class PlannerService {
         if (assemblyInput != null) {
             assemblyContext.put("promptAssemblyInput", assemblyInput);
         }
-        // 将提示词转换为消息结构。
+        // 灏嗘彁绀鸿瘝杞崲涓烘秷鎭粨鏋勩€?
         PromptBundle bundle = promptAssembler.build(prompt, request, assemblyContext);
         if (bundle != null && bundle.getMessages() != null) {
             modelRequest.setMessages(bundle.getMessages());
@@ -1182,12 +1182,12 @@ public class PlannerService {
     }
 
     /**
-     * 发布规划提示词装配阶段事件。
+     * 鍙戝竷瑙勫垝鎻愮ず璇嶈閰嶉樁娈典簨浠躲€?
      *
-     * <p>输入：租户上下文、工作流标识与装配结果。
-     * <p>输出：无。
-     * <p>边界：事件发布器为空时直接返回。
-     * <p>示例：
+     * <p>杈撳叆锛氱鎴蜂笂涓嬫枃銆佸伐浣滄祦鏍囪瘑涓庤閰嶇粨鏋溿€?
+     * <p>杈撳嚭锛氭棤銆?
+     * <p>杈圭晫锛氫簨浠跺彂甯冨櫒涓虹┖鏃剁洿鎺ヨ繑鍥炪€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * publishPlanStage(ctx, wfId, seq, context, input, bundle, beforeTokens);
      * }</pre>
@@ -1227,12 +1227,12 @@ public class PlannerService {
     }
 
     /**
-     * 计算令牌总数。
+     * 璁＄畻浠ょ墝鎬绘暟銆?
      *
-     * <p>输入：令牌明细映射。
-     * <p>输出：令牌总数或 {@code null}。
-     * <p>边界：映射为空时返回 {@code null}。
-     * <p>示例：
+     * <p>杈撳叆锛氫护鐗屾槑缁嗘槧灏勩€?
+     * <p>杈撳嚭锛氫护鐗屾€绘暟鎴?{@code null}銆?
+     * <p>杈圭晫锛氭槧灏勪负绌烘椂杩斿洖 {@code null}銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * Integer total = resolveTokenTotal(tokens);
      * }</pre>
@@ -1253,12 +1253,12 @@ public class PlannerService {
     }
 
     /**
-     * 构建提示词装配输入。
+     * 鏋勫缓鎻愮ず璇嶈閰嶈緭鍏ャ€?
      *
-     * <p>输入：提示词、任务请求与上下文映射。
-     * <p>输出：装配输入对象或 {@code null}。
-     * <p>边界：装配器为空时返回 {@code null}。
-     * <p>示例：
+     * <p>杈撳叆锛氭彁绀鸿瘝銆佷换鍔¤姹備笌涓婁笅鏂囨槧灏勩€?
+     * <p>杈撳嚭锛氳閰嶈緭鍏ュ璞℃垨 {@code null}銆?
+     * <p>杈圭晫锛氳閰嶅櫒涓虹┖鏃惰繑鍥?{@code null}銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * PromptAssemblyInput input = buildPromptAssemblyInput(prompt, request, context);
      * }</pre>
@@ -1299,11 +1299,11 @@ public class PlannerService {
     }
 
     /**
-     * 解析上下文快照对象。
+     * 瑙ｆ瀽涓婁笅鏂囧揩鐓у璞°€?
      *
-     * <p>输入：上下文映射。
-     * <p>输出：上下文快照对象或 {@code null}。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
+     * <p>杈撳嚭锛氫笂涓嬫枃蹇収瀵硅薄鎴?{@code null}銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * ContextSnapshot snapshot = resolveContextSnapshot(context);
      * }</pre>
@@ -1320,11 +1320,11 @@ public class PlannerService {
     }
 
     /**
-     * 解析上下文预算分配对象。
+     * 瑙ｆ瀽涓婁笅鏂囬绠楀垎閰嶅璞°€?
      *
-     * <p>输入：上下文映射。
-     * <p>输出：预算分配对象或 {@code null}。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
+     * <p>杈撳嚭锛氶绠楀垎閰嶅璞℃垨 {@code null}銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * ContextBudgetAllocation allocation = resolveContextBudget(context);
      * }</pre>
@@ -1341,11 +1341,11 @@ public class PlannerService {
     }
 
     /**
-     * 解析上下文裁剪结果对象。
+     * 瑙ｆ瀽涓婁笅鏂囪鍓粨鏋滃璞°€?
      *
-     * <p>输入：上下文映射。
-     * <p>输出：裁剪结果对象或 {@code null}。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
+     * <p>杈撳嚭锛氳鍓粨鏋滃璞℃垨 {@code null}銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * ContextPruneResult prune = resolveContextPrune(context);
      * }</pre>
@@ -1362,12 +1362,12 @@ public class PlannerService {
     }
 
     /**
-     * 解析模型规划输出。
+     * 瑙ｆ瀽妯″瀷瑙勫垝杈撳嚭銆?
      *
-     * <p>输入：模型输出内容、任务请求与上下文映射。
-     * <p>输出：解析结果对象或 {@code null}。
-     * <p>边界：结构不合法时返回 {@code null}。
-     * <p>示例：
+     * <p>杈撳叆锛氭ā鍨嬭緭鍑哄唴瀹广€佷换鍔¤姹備笌涓婁笅鏂囨槧灏勩€?
+     * <p>杈撳嚭锛氳В鏋愮粨鏋滃璞℃垨 {@code null}銆?
+     * <p>杈圭晫锛氱粨鏋勪笉鍚堟硶鏃惰繑鍥?{@code null}銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * PlanParsingResult parsed = parsePlan(content, request, context);
      * }</pre>
@@ -1408,7 +1408,7 @@ public class PlannerService {
             if (isToolStep(type) && strictToolArguments) {
                 String reason = validateToolStepInput(input);
                 if (reason != null) {
-                    log.warn("规划 TOOL 步骤缺少必要参数, stepIndex={}, reason={}", index, reason);
+                    log.warn("瑙勫垝 TOOL 姝ラ缂哄皯蹇呰鍙傛暟, stepIndex={}, reason={}", index, reason);
                     return null;
                 }
             }
@@ -1419,13 +1419,13 @@ public class PlannerService {
     }
 
     /**
-     * 从动态输入映射构建步骤规格对象。
+     * 浠庡姩鎬佽緭鍏ユ槧灏勬瀯寤烘楠よ鏍煎璞°€?
      *
-     * <p>风险点：规划输出可能包含任意字段，必须显式拆分 context/dependsOn/policy，避免参数污染。
+     * <p>椋庨櫓鐐癸細瑙勫垝杈撳嚭鍙兘鍖呭惈浠绘剰瀛楁锛屽繀椤绘樉寮忔媶鍒?context/dependsOn/policy锛岄伩鍏嶅弬鏁版薄鏌撱€?
      *
-     * @param type 步骤类型
-     * @param input 输入映射
-     * @return 强类型步骤规格
+     * @param type 姝ラ绫诲瀷
+     * @param input 杈撳叆鏄犲皠
+     * @return 寮虹被鍨嬫楠よ鏍?
      */
     private StepSpec buildStepSpec(String type, Map<String, Object> input) {
         StepSpec step = new StepSpec();
@@ -1479,20 +1479,20 @@ public class PlannerService {
     }
 
     /**
-     * 判断是否为 TOOL 步骤类型。
+     * 鍒ゆ柇鏄惁涓?TOOL 姝ラ绫诲瀷銆?
      *
-     * @param type 步骤类型
-     * @return 是否为 TOOL
+     * @param type 姝ラ绫诲瀷
+     * @return 鏄惁涓?TOOL
      */
     private boolean isToolStep(String type) {
         return type != null && "TOOL".equalsIgnoreCase(type);
     }
 
     /**
-     * 校验 TOOL 步骤的必要字段是否完整。
+     * 鏍￠獙 TOOL 姝ラ鐨勫繀瑕佸瓧娈垫槸鍚﹀畬鏁淬€?
      *
-     * <p>输入：步骤输入映射。
-     * <p>输出：缺失原因，返回 {@code null} 表示校验通过。
+     * <p>杈撳叆锛氭楠よ緭鍏ユ槧灏勩€?
+     * <p>杈撳嚭锛氱己澶卞師鍥狅紝杩斿洖 {@code null} 琛ㄧず鏍￠獙閫氳繃銆?
      */
     private String validateToolStepInput(Map<String, Object> input) {
         if (input == null) {
@@ -1514,12 +1514,12 @@ public class PlannerService {
     }
 
     /**
-     * 粗略估计问题复杂度。
+     * 绮楃暐浼拌闂澶嶆潅搴︺€?
      *
-     * <p>输入：问题文本。
-     * <p>输出：复杂度分数。
-     * <p>边界：文本为空时返回低复杂度。
-     * <p>示例：
+     * <p>杈撳叆锛氶棶棰樻枃鏈€?
+     * <p>杈撳嚭锛氬鏉傚害鍒嗘暟銆?
+     * <p>杈圭晫锛氭枃鏈负绌烘椂杩斿洖浣庡鏉傚害銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * double score = estimateComplexity(query);
      * }</pre>
@@ -1530,19 +1530,19 @@ public class PlannerService {
         }
         String trimmed = query.trim();
         int length = trimmed.length();
-        int clauses = trimmed.split("[，。;!?\\s]+").length;
+        int clauses = trimmed.split("[锛屻€?!?\\s]+").length;
         double lengthScore = Math.min(1.0, length / 200.0);
         double clauseScore = Math.min(0.5, clauses * 0.1);
         return Math.min(1.0, lengthScore + clauseScore);
     }
 
     /**
-     * 解析认知策略。
+     * 瑙ｆ瀽璁ょ煡绛栫暐銆?
      *
-     * <p>输入：上下文映射与复杂度分数。
-     * <p>输出：策略名称字符串。
-     * <p>边界：未指定时使用复杂度推断默认策略。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠涓庡鏉傚害鍒嗘暟銆?
+     * <p>杈撳嚭锛氱瓥鐣ュ悕绉板瓧绗︿覆銆?
+     * <p>杈圭晫锛氭湭鎸囧畾鏃朵娇鐢ㄥ鏉傚害鎺ㄦ柇榛樿绛栫暐銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * String strategy = resolveCognitiveStrategy(context, score);
      * }</pre>
@@ -1565,11 +1565,11 @@ public class PlannerService {
     }
 
     /**
-     * 解析执行策略。
+     * 瑙ｆ瀽鎵ц绛栫暐銆?
      *
-     * <p>输入：上下文映射与复杂度分数。
-     * <p>输出：策略名称字符串。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠涓庡鏉傚害鍒嗘暟銆?
+     * <p>杈撳嚭锛氱瓥鐣ュ悕绉板瓧绗︿覆銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * String strategy = resolveExecutionStrategy(context, score);
      * }</pre>
@@ -1586,11 +1586,11 @@ public class PlannerService {
     }
 
     /**
-     * 判断是否需要思维树策略。
+     * 鍒ゆ柇鏄惁闇€瑕佹€濈淮鏍戠瓥鐣ャ€?
      *
-     * <p>输入：认知策略与复杂度分数。
-     * <p>输出：是否需要思维树。
-     * <p>示例：
+     * <p>杈撳叆锛氳鐭ョ瓥鐣ヤ笌澶嶆潅搴﹀垎鏁般€?
+     * <p>杈撳嚭锛氭槸鍚﹂渶瑕佹€濈淮鏍戙€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * boolean needed = needsThoughtTree(strategy, score);
      * }</pre>
@@ -1607,11 +1607,11 @@ public class PlannerService {
     }
 
     /**
-     * 判断是否启用反应式执行模式。
+     * 鍒ゆ柇鏄惁鍚敤鍙嶅簲寮忔墽琛屾ā寮忋€?
      *
-     * <p>输入：上下文映射、模式与策略。
-     * <p>输出：是否启用。
-     * <p>示例：
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆佹ā寮忎笌绛栫暐銆?
+     * <p>杈撳嚭锛氭槸鍚﹀惎鐢ㄣ€?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * boolean enabled = shouldUseReact(context, mode, strategy);
      * }</pre>
@@ -1637,10 +1637,10 @@ public class PlannerService {
     }
 
     /**
-     * 判断是否显式禁用工具。
+     * 鍒ゆ柇鏄惁鏄惧紡绂佺敤宸ュ叿銆?
      *
-     * <p>输入：上下文映射。
-     * <p>输出：是否禁用工具。
+     * <p>杈撳叆锛氫笂涓嬫枃鏄犲皠銆?
+     * <p>杈撳嚭锛氭槸鍚︾鐢ㄥ伐鍏枫€?
      */
     private boolean isToolsDisabled(Map<String, Object> context) {
         if (context == null) {
@@ -1692,11 +1692,11 @@ public class PlannerService {
     }
 
     /**
-     * 判断是否显式请求链式推理。
+     * 鍒ゆ柇鏄惁鏄惧紡璇锋眰閾惧紡鎺ㄧ悊銆?
      *
-     * <p>输入：模式、策略与认知策略。
-     * <p>输出：是否为链式推理。
-     * <p>示例：
+     * <p>杈撳叆锛氭ā寮忋€佺瓥鐣ヤ笌璁ょ煡绛栫暐銆?
+     * <p>杈撳嚭锛氭槸鍚︿负閾惧紡鎺ㄧ悊銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * boolean enabled = isChainOfThoughtRequested(mode, strategy, cognitive);
      * }</pre>
@@ -1708,11 +1708,11 @@ public class PlannerService {
     }
 
     /**
-     * 判断字符串是否表示链式推理。
+     * 鍒ゆ柇瀛楃涓叉槸鍚﹁〃绀洪摼寮忔帹鐞嗐€?
      *
-     * <p>输入：字符串值。
-     * <p>输出：是否匹配链式推理关键字。
-     * <p>示例：
+     * <p>杈撳叆锛氬瓧绗︿覆鍊笺€?
+     * <p>杈撳嚭锛氭槸鍚﹀尮閰嶉摼寮忔帹鐞嗗叧閿瓧銆?
+     * <p>绀轰緥锛?
      * <pre>{@code
      * boolean match = isChainOfThoughtValue("cot");
      * }</pre>
@@ -1728,27 +1728,27 @@ public class PlannerService {
     }
 
     /**
-     * 规划解析结果载体。
+     * 瑙勫垝瑙ｆ瀽缁撴灉杞戒綋銆?
      *
-     * <p>用途：承载模型解析出的摘要与步骤列表。
-     * <p>示例：{@code new PlanParsingResult("summary", steps)}。
+     * <p>鐢ㄩ€旓細鎵胯浇妯″瀷瑙ｆ瀽鍑虹殑鎽樿涓庢楠ゅ垪琛ㄣ€?
+     * <p>绀轰緥锛歿@code new PlanParsingResult("summary", steps)}銆?
      */
     private static class PlanParsingResult {
         private final String summary;
         private final List<StepSpec> steps;
 
         /**
-         * 构造解析结果。
+         * 鏋勯€犺В鏋愮粨鏋溿€?
          *
-         * <p>输入：摘要与步骤列表。
-         * <p>输出：解析结果对象。
-         * <p>示例：
+         * <p>杈撳叆锛氭憳瑕佷笌姝ラ鍒楄〃銆?
+         * <p>杈撳嚭锛氳В鏋愮粨鏋滃璞°€?
+         * <p>绀轰緥锛?
          * <pre>{@code
          * new PlanParsingResult("summary", steps);
          * }</pre>
          *
-         * @param summary 摘要
-         * @param steps 步骤列表
+         * @param summary 鎽樿
+         * @param steps 姝ラ鍒楄〃
          */
         private PlanParsingResult(String summary, List<StepSpec> steps) {
             this.summary = summary;
@@ -1756,3 +1756,4 @@ public class PlannerService {
         }
     }
 }
+

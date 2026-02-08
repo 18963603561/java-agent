@@ -1,11 +1,11 @@
 package com.example.agent.capabilities.llm.tooling;
 
-import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
+import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 
 /**
  * 模型工具治理上下文。
  *
- * <p>用途：统一承载工具注入阶段需要的租户、技能、显式工具选择与禁用标记。
+ * <p>用途：统一承载工具注入阶段需要的租户、技能、显式工具选择与禁用标识。
  * <p>输入：由 {@link ToolingContextMapper} 从任务请求与步骤输入映射得到。
  * <p>输出：供 {@code ModelToolResolver} 直接消费，避免散落的 Map 键访问。
  * <p>边界：字段允许为空，消费方按自身策略处理降级或校验。
@@ -58,3 +58,4 @@ public class ModelToolingContext {
         return disableTools;
     }
 }
+

@@ -1,7 +1,8 @@
 package com.example.agent.capabilities.llm.provider;
 
 import com.example.agent.capabilities.llm.config.ModelProviderHttpProperties;
-import com.example.agent.capabilities.llm.tooling.ModelToolDefinition;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelToolDefinition;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,7 +11,7 @@ import org.springframework.stereotype.Component;
 /**
  * 模型请求体构造器。
  *
- * <p>用途：统一构建不同提供商所需请求体。</p>
+ * <p>用途：统一构建不同提供商所需的请求体。</p>
  */
 @Component
 public class ModelRequestBodyBuilder {
@@ -53,7 +54,6 @@ public class ModelRequestBodyBuilder {
                 Object toolChoice = toolPayloadBuilder.buildToolChoiceValue(request.getToolChoice());
                 if (toolChoice != null) {
                     body.put("tool_choice", toolChoice);
-                    body.put("toolChoice", toolChoice);
                 }
             }
         }
@@ -88,3 +88,4 @@ public class ModelRequestBodyBuilder {
         return body;
     }
 }
+

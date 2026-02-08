@@ -1,4 +1,4 @@
-package com.example.agent.capabilities.llm.provider;
+package com.example.agent.capabilities.llm.contract;
 
 /**
  * 模型响应。

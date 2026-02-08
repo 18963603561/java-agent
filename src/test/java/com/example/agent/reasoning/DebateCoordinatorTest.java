@@ -2,9 +2,9 @@ package com.example.agent.reasoning;
 
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
-import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
@@ -37,7 +37,7 @@ class DebateCoordinatorTest {
         DebateCoordinator coordinator = new DebateCoordinator(modelInvocationService, promptAssembler,
                 new ObjectMapper(), eventPublisher, eventStreamService, repairService);
 
-        String badContent = "说明:{\"conclusion\":\"ok\"}后缀";
+        String badContent = "璇存槑:{\"conclusion\":\"ok\"}鍚庣紑";
         String repaired = "{\"conclusion\":\"ok\"}";
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
                 any(), any(), any(), eq("debate"), any()))
@@ -64,7 +64,7 @@ class DebateCoordinatorTest {
         DebateCoordinator coordinator = new DebateCoordinator(modelInvocationService, promptAssembler,
                 new ObjectMapper(), eventPublisher, eventStreamService, repairService);
 
-        String badContent = "无法解析";
+        String badContent = "鏃犳硶瑙ｆ瀽";
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
                 any(), any(), any(), eq("debate"), any()))
                 .thenReturn(new ModelResponse("debate", badContent, 10, 10));

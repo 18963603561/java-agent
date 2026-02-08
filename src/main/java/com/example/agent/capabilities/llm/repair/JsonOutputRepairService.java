@@ -1,9 +1,9 @@
 package com.example.agent.capabilities.llm.repair;
 
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
-import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.prompt.PromptBundle;
 import com.example.agent.capabilities.llm.support.ValidationSupport;
@@ -19,8 +19,8 @@ import org.springframework.util.StringUtils;
  *
  * <p>用途：当模型输出不满足预期结构时，调用低成本模型进行格式修复。
  * <p>输入：修复请求对象。
- * <p>输出：修复后的 JSON 文本；失败返回 null。
- * <p>边界：关键输入缺失时直接返回 null，不触发模型调用。
+ * <p>输出：修复后的 JSON 文本；失败返回 {@code null}。
+ * <p>边界：关键输入缺失时直接返回 {@code null}，不触发模型调用。
  */
 @Service
 public class JsonOutputRepairService {
@@ -64,7 +64,7 @@ public class JsonOutputRepairService {
      * @param schema 期望结构
      * @param contextJson 上下文 JSON
      * @param maxAttempts 最大尝试次数
-     * @return 修复后的 JSON 文本或 null
+     * @return 修复后的 JSON 文本或 {@code null}
      */
     public String repair(String sceneId,
                          String rawModelText,
@@ -79,7 +79,7 @@ public class JsonOutputRepairService {
      * 尝试修复 JSON 输出。
      *
      * @param request 修复请求
-     * @return 修复后的 JSON 文本或 null
+     * @return 修复后的 JSON 文本或 {@code null}
      */
     public String repair(JsonRepairRequest request) {
         if (!isRepairable(request)) {
@@ -159,3 +159,4 @@ public class JsonOutputRepairService {
         }
     }
 }
+

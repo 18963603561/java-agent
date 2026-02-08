@@ -2,9 +2,9 @@ package com.example.agent.multiagent;
 
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
-import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -47,7 +47,7 @@ class MultiAgentCoordinatorTest {
                 modelToolResolver, promptAssembler, new ObjectMapper(), eventPublisher, eventStreamService,
                 repairService);
 
-        String badContent = "说明:{\"team\":[{\"role\":\"r\",\"responsibility\":\"x\"}]}后缀";
+        String badContent = "璇存槑:{\"team\":[{\"role\":\"r\",\"responsibility\":\"x\"}]}鍚庣紑";
         String repaired = "{\"team\":[{\"role\":\"r\",\"responsibility\":\"x\"}]}";
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.PLANNER),
                 any(), any(), any(), eq("multi_agent"), any()))
@@ -80,7 +80,7 @@ class MultiAgentCoordinatorTest {
                 modelToolResolver, promptAssembler, new ObjectMapper(), eventPublisher, eventStreamService,
                 repairService);
 
-        String badContent = "无法解析";
+        String badContent = "鏃犳硶瑙ｆ瀽";
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.PLANNER),
                 any(), any(), any(), eq("multi_agent"), any()))
                 .thenReturn(new ModelResponse("multi", badContent, 10, 10));
@@ -143,3 +143,4 @@ class MultiAgentCoordinatorTest {
         assertFalse(prompt.contains("tokenUsage"));
     }
 }
+

@@ -1,16 +1,16 @@
 package com.example.agent.api.http.dto;
 
-import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
+import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import jakarta.validation.constraints.NotBlank;
 import java.util.Map;
 
 /**
- * 任务提交请求结构。
+ * 浠诲姟鎻愪氦璇锋眰缁撴瀯銆?
  */
 public class TaskRequest {
 
     /**
-     * 执行模式枚举，当前仅保留字段。
+     * 鎵ц妯″紡鏋氫妇锛屽綋鍓嶄粎淇濈暀瀛楁銆?
      */
     public enum ExecutionMode {
         ASYNC,
@@ -18,43 +18,43 @@ public class TaskRequest {
     }
 
     /**
-     * 任务查询内容。
+     * 浠诲姟鏌ヨ鍐呭銆?
      */
-    @NotBlank(message = "查询内容不能为空")
+    @NotBlank(message = "鏌ヨ鍐呭涓嶈兘涓虹┖")
     private String query;
 
     /**
-     * 会话标识，可选。
+     * 浼氳瘽鏍囪瘑锛屽彲閫夈€?
      */
     private String sessionId;
 
     /**
-     * 技能名称，用于限定可用工具与工具选择策略。
+     * 鎶€鑳藉悕绉帮紝鐢ㄤ簬闄愬畾鍙敤宸ュ叿涓庡伐鍏烽€夋嫨绛栫暐銆?
      */
     private String skillName;
 
     /**
-     * 任务上下文，可选。
+     * 浠诲姟涓婁笅鏂囷紝鍙€夈€?
      */
     private Map<String, Object> context;
 
     /**
-     * 幂等键（可选）。
+     * 骞傜瓑閿紙鍙€夛級銆?
      */
     private String idempotencyKey;
 
     /**
-     * 工具选择策略，可选。
+     * 宸ュ叿閫夋嫨绛栫暐锛屽彲閫夈€?
      */
     private ModelToolChoice toolChoice;
 
     /**
-     * 执行模式，可选，默认按异步处理。
+     * 鎵ц妯″紡锛屽彲閫夛紝榛樿鎸夊紓姝ュ鐞嗐€?
      */
     private ExecutionMode executionMode;
 
     /**
-     * 同步等待超时时间（毫秒），仅在 SYNC 模式生效。
+     * 鍚屾绛夊緟瓒呮椂鏃堕棿锛堟绉掞級锛屼粎鍦?SYNC 妯″紡鐢熸晥銆?
      */
     private Long waitTimeoutMs;
 
@@ -125,3 +125,4 @@ public class TaskRequest {
         this.waitTimeoutMs = waitTimeoutMs;
     }
 }
+

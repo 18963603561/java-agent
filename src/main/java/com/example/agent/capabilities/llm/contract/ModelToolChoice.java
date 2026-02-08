@@ -1,4 +1,4 @@
-package com.example.agent.capabilities.llm.tooling;
+package com.example.agent.capabilities.llm.contract;
 
 import java.util.Map;
 import java.util.Locale;

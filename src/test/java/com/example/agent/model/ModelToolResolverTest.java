@@ -17,8 +17,8 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -243,3 +243,4 @@ class ModelToolResolverTest {
         verify(metricsPublisher, times(1)).increment("model_tool_on_demand_schema_not_found_total");
     }
 }
+

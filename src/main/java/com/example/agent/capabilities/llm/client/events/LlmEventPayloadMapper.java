@@ -1,8 +1,10 @@
 package com.example.agent.capabilities.llm.client.events;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Set;
 import org.springframework.stereotype.Component;
 
 /**
@@ -15,6 +17,36 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class LlmEventPayloadMapper {
+
+    private static final Set<String> RESERVED_KEYS = Set.of(
+            "phase",
+            "scene",
+            "provider",
+            "modelId",
+            "workflowId",
+            "traceId",
+            "status",
+            "rawRef",
+            "prompt",
+            "messageCount",
+            "messageRoles",
+            "content",
+            "inputTokens",
+            "outputTokens",
+            "totalTokens",
+            "errorCode",
+            "errorMessage",
+            "exceptionType",
+            "retriable",
+            "promptScene",
+            "promptId",
+            "promptChars",
+            "promptTokensEstimate",
+            "parseSuccess",
+            "parseErrorType",
+            "repairAttempted",
+            "repairSuccess"
+    );
 
     /**
      * 将提示词事件 DTO 映射为 payload。
@@ -92,11 +124,21 @@ public class LlmEventPayloadMapper {
         if (target == null || source == null || source.isEmpty()) {
             return;
         }
+        Set<String> existingKeys = new HashSet<>(target.keySet());
         for (Map.Entry<String, Object> entry : source.entrySet()) {
             if (entry.getKey() == null || entry.getValue() == null) {
                 continue;
             }
-            target.put(entry.getKey(), entry.getValue());
+            String key = entry.getKey();
+            if (isProtectedKey(existingKeys, key)) {
+                target.put("ext_" + key, entry.getValue());
+                continue;
+            }
+            target.put(key, entry.getValue());
         }
+    }
+
+    private boolean isProtectedKey(Set<String> existingKeys, String key) {
+        return existingKeys.contains(key) || RESERVED_KEYS.contains(key);
     }
 }

@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.llm.tooling;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
+import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.capabilities.tools.skill.SkillDefinition;
 import com.example.agent.capabilities.tools.skill.SkillRoute;
 import java.util.ArrayList;
@@ -192,3 +192,4 @@ public class ToolingContextMapper {
         return false;
     }
 }
+

@@ -1,10 +1,12 @@
 package com.example.agent.capabilities.llm.client;
 
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
 
 /**
- * 模型客户端接口，用于统一模型调用。
+ * 模型客户端接口。
+ *
+ * <p>用途：统一抽象模型调用能力，屏蔽底层提供商实现差异。
  */
 public interface LlmClient {
 
@@ -16,3 +18,4 @@ public interface LlmClient {
      */
     ModelResponse generate(ModelRequest request);
 }
+

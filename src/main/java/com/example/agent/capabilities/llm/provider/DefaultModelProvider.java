@@ -1,5 +1,7 @@
 package com.example.agent.capabilities.llm.provider;
 
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.prompt.PromptMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

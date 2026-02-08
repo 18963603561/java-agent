@@ -25,6 +25,7 @@ class LlmArchitectureGuardTest {
 
     private static final Set<String> ALLOWED_LLM_SUB_PACKAGES = Set.of(
             "client",
+            "contract",
             "config",
             "prompt",
             "provider",
@@ -117,4 +118,3 @@ class LlmArchitectureGuardTest {
         return source.contains("Map<String, Object>") || source.contains("Map< String, Object >");
     }
 }
-

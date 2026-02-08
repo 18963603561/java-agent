@@ -4,9 +4,9 @@ import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
-import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.prompt.PromptBundle;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
@@ -28,7 +28,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * 深度研究流程，负责组织检索与引用输出。
+ * 娣卞害鐮旂┒娴佺▼锛岃礋璐ｇ粍缁囨绱笌寮曠敤杈撳嚭銆?
  */
 @Service
 public class ResearchPipeline {
@@ -57,24 +57,24 @@ public class ResearchPipeline {
     }
 
     /**
-     * 执行研究流程。
+     * 鎵ц鐮旂┒娴佺▼銆?
      *
-     * @param query 查询问题
-     * @return 引用列表
+     * @param query 鏌ヨ闂
+     * @return 寮曠敤鍒楄〃
      */
     public List<ResearchCitation> run(String query) {
-        log.info("研究流程启动, queryLength={}", query == null ? 0 : query.length());
+        log.info("鐮旂┒娴佺▼鍚姩, queryLength={}", query == null ? 0 : query.length());
         return List.of();
     }
 
     /**
-     * 带运行上下文的研究入口，用于发布事件。
+     * 甯﹁繍琛屼笂涓嬫枃鐨勭爺绌跺叆鍙ｏ紝鐢ㄤ簬鍙戝竷浜嬩欢銆?
      *
-     * @param query 查询问题
-     * @param tenantContext 租户上下文
-     * @param workflowId 工作流标识
-     * @param seqCounter 事件序列计数器
-     * @return 引用列表
+     * @param query 鏌ヨ闂
+     * @param tenantContext 绉熸埛涓婁笅鏂?
+     * @param workflowId 宸ヤ綔娴佹爣璇?
+     * @param seqCounter 浜嬩欢搴忓垪璁℃暟鍣?
+     * @return 寮曠敤鍒楄〃
      */
     public List<ResearchCitation> run(String query,
                                       TenantContext tenantContext,
@@ -84,13 +84,13 @@ public class ResearchPipeline {
     }
 
     /**
-     * 带原始引用返回的研究入口。
+     * 甯﹀師濮嬪紩鐢ㄨ繑鍥炵殑鐮旂┒鍏ュ彛銆?
      *
-     * @param query 查询问题
-     * @param tenantContext 租户上下文
-     * @param workflowId 工作流标识
-     * @param seqCounter 事件序列计数器
-     * @return 研究执行结果
+     * @param query 鏌ヨ闂
+     * @param tenantContext 绉熸埛涓婁笅鏂?
+     * @param workflowId 宸ヤ綔娴佹爣璇?
+     * @param seqCounter 浜嬩欢搴忓垪璁℃暟鍣?
+     * @return 鐮旂┒鎵ц缁撴灉
      */
     public ResearchRunResult runWithRawRef(String query,
                                            TenantContext tenantContext,
@@ -129,7 +129,7 @@ public class ResearchPipeline {
             }
         }
         if (citations.isEmpty()) {
-            log.warn("研究引用修复失败, queryLength={}", query == null ? 0 : query.length());
+            log.warn("鐮旂┒寮曠敤淇澶辫触, queryLength={}", query == null ? 0 : query.length());
             recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
                     response != null ? response.getModelId() : null, false, parseErrorType,
                     repairAttempted, repairSuccess);
@@ -139,7 +139,7 @@ public class ResearchPipeline {
                     response != null ? response.getModelId() : null, true, null, repairAttempted, repairSuccess);
         }
         publishCitationEvents(tenantContext, workflowId, seqCounter, citations);
-        log.info("研究流程完成, citations={}", citations.size());
+        log.info("鐮旂┒娴佺▼瀹屾垚, citations={}", citations.size());
         return new ResearchRunResult(citations, rawRef);
     }
 
@@ -153,29 +153,29 @@ public class ResearchPipeline {
             json = "{}";
         }
         return """
-            你是研究助手（research citation extractor）。
-            你的任务：从 RESEARCH_CONTEXT_JSON 中提取“可追溯的研究引用（citations）”列表，用于审计与回放。
+            浣犳槸鐮旂┒鍔╂墜锛坮esearch citation extractor锛夈€?
+            浣犵殑浠诲姟锛氫粠 RESEARCH_CONTEXT_JSON 涓彁鍙栤€滃彲杩芥函鐨勭爺绌跺紩鐢紙citations锛夆€濆垪琛紝鐢ㄤ簬瀹¤涓庡洖鏀俱€?
             
-            【引用定义】
-            - citation.source：必须是可定位的来源标识，例如 URL、文档标题+站点、论文标题+作者+年份等；如果上下文没有任何来源信息，则 source 允许为空串，但必须在 snippet 中说明“no_source_provided”。
-            - citation.snippet：必须是与 query 相关的证据片段/要点摘要（不是长段原文），控制在 1~2 句，<= 200 字符。
+            銆愬紩鐢ㄥ畾涔夈€?
+            - citation.source锛氬繀椤绘槸鍙畾浣嶇殑鏉ユ簮鏍囪瘑锛屼緥濡?URL銆佹枃妗ｆ爣棰?绔欑偣銆佽鏂囨爣棰?浣滆€?骞翠唤绛夛紱濡傛灉涓婁笅鏂囨病鏈変换浣曟潵婧愪俊鎭紝鍒?source 鍏佽涓虹┖涓诧紝浣嗗繀椤诲湪 snippet 涓鏄庘€渘o_source_provided鈥濄€?
+            - citation.snippet锛氬繀椤绘槸涓?query 鐩稿叧鐨勮瘉鎹墖娈?瑕佺偣鎽樿锛堜笉鏄暱娈靛師鏂囷級锛屾帶鍒跺湪 1~2 鍙ワ紝<= 200 瀛楃銆?
             
-            【质量规则】
-            1) 只从上下文中“已经出现/已提供”的来源提取，禁止编造来源或杜撰 URL。
-            2) 去重：相同 source 只保留一次；若同一 source 有多段证据，合并为更精炼的 snippet。
-            3) 排序：按与 query 的相关性从高到低；同等相关则按时间新→旧（若上下文提供时间信息）。
-            4) 数量控制：最多输出 10 条；不足则按实际输出。
-            5) 合规：snippet 不得复制大段原文，不得超过 25 个英文词或 200 字符（以更严格者为准）；可用转述/摘要。
+            銆愯川閲忚鍒欍€?
+            1) 鍙粠涓婁笅鏂囦腑鈥滃凡缁忓嚭鐜?宸叉彁渚涒€濈殑鏉ユ簮鎻愬彇锛岀姝㈢紪閫犳潵婧愭垨鏉滄挵 URL銆?
+            2) 鍘婚噸锛氱浉鍚?source 鍙繚鐣欎竴娆★紱鑻ュ悓涓€ source 鏈夊娈佃瘉鎹紝鍚堝苟涓烘洿绮剧偧鐨?snippet銆?
+            3) 鎺掑簭锛氭寜涓?query 鐨勭浉鍏虫€т粠楂樺埌浣庯紱鍚岀瓑鐩稿叧鍒欐寜鏃堕棿鏂扳啋鏃э紙鑻ヤ笂涓嬫枃鎻愪緵鏃堕棿淇℃伅锛夈€?
+            4) 鏁伴噺鎺у埗锛氭渶澶氳緭鍑?10 鏉★紱涓嶈冻鍒欐寜瀹為檯杈撳嚭銆?
+            5) 鍚堣锛歴nippet 涓嶅緱澶嶅埗澶ф鍘熸枃锛屼笉寰楄秴杩?25 涓嫳鏂囪瘝鎴?200 瀛楃锛堜互鏇翠弗鏍艰€呬负鍑嗭級锛涘彲鐢ㄨ浆杩?鎽樿銆?
             
-            【输出要求】
-            输出必须是单个 JSON 对象，不允许任何额外文本，不允许 Markdown/代码块。
+            銆愯緭鍑鸿姹傘€?
+            杈撳嚭蹇呴』鏄崟涓?JSON 瀵硅薄锛屼笉鍏佽浠讳綍棰濆鏂囨湰锛屼笉鍏佽 Markdown/浠ｇ爜鍧椼€?
             
-            字段约束：
-            1) citations: array，必须输出，缺信息填 []。
-            2) citations[*].source: string，可输出空串。
-            3) citations[*].snippet: string，可输出空串。
+            瀛楁绾︽潫锛?
+            1) citations: array锛屽繀椤昏緭鍑猴紝缂轰俊鎭～ []銆?
+            2) citations[*].source: string锛屽彲杈撳嚭绌轰覆銆?
+            3) citations[*].snippet: string锛屽彲杈撳嚭绌轰覆銆?
             
-            最小示例 JSON：{"citations":[]}
+            鏈€灏忕ず渚?JSON锛歿"citations":[]}
             
             RESEARCH_CONTEXT_JSON:%s
             """.formatted(json);
@@ -311,3 +311,4 @@ public class ResearchPipeline {
         }
     }
 }
+

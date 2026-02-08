@@ -3,9 +3,9 @@ package com.example.agent.runtime;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
-import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
@@ -45,7 +45,7 @@ class FinalOutputServiceTest {
         FinalOutputService service = new FinalOutputService(modelInvocationService, promptAssembler, new ObjectMapper(),
                 repairService, properties);
 
-        String badContent = "说明:{\"answer\":\"ok\",\"highlights\":\"\",\"confidence\":0.8}后缀";
+        String badContent = "璇存槑:{\"answer\":\"ok\",\"highlights\":\"\",\"confidence\":0.8}鍚庣紑";
         String repaired = "{\"answer\":\"ok\",\"highlights\":\"\",\"confidence\":0.8}";
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
                 any(), any(), any(), eq("finalize"), any()))
@@ -75,7 +75,7 @@ class FinalOutputServiceTest {
         FinalOutputService service = new FinalOutputService(modelInvocationService, promptAssembler, new ObjectMapper(),
                 repairService, properties);
 
-        String badContent = "无法解析";
+        String badContent = "鏃犳硶瑙ｆ瀽";
         when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
                 any(), any(), any(), eq("finalize"), any()))
                 .thenReturn(new ModelResponse("final", badContent, 10, 10));
@@ -250,3 +250,4 @@ class FinalOutputServiceTest {
         return stepResult;
     }
 }
+

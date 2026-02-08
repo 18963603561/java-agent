@@ -1,4 +1,4 @@
-package com.example.agent.capabilities.llm.tooling;
+package com.example.agent.capabilities.llm.contract;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import java.util.List;

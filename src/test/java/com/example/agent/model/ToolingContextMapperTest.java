@@ -1,7 +1,7 @@
 package com.example.agent.model;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
+import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.capabilities.llm.tooling.ModelToolingContext;
 import com.example.agent.capabilities.llm.tooling.SkillToolPolicy;
 import com.example.agent.capabilities.llm.tooling.ToolingConstraints;
@@ -103,3 +103,4 @@ class ToolingContextMapperTest {
         assertNull(policy.getToolChoice());
     }
 }
+

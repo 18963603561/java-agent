@@ -1,7 +1,9 @@
 package com.example.agent.capabilities.llm.tooling;
 
+import com.example.agent.capabilities.llm.contract.ModelToolChoice;
+import com.example.agent.capabilities.llm.contract.ModelToolDefinition;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.streaming.observability.MetricsPublisher;

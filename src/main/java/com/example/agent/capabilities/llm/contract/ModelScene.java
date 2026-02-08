@@ -1,4 +1,4 @@
-package com.example.agent.capabilities.llm.provider;
+package com.example.agent.capabilities.llm.contract;
 
 /**
  * 模型场景枚举，用于模型路由选择与调用分流。

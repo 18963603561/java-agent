@@ -7,7 +7,7 @@ import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.capabilities.memory.MemoryWriteService;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.streaming.observability.TracingPublisher;
@@ -415,12 +415,12 @@ class ReactLoopServiceTest {
         service.run(request, new TenantContext("t-1", "u-1", List.of(), "req", "trace"),
                 "wf-1", "task-1", new AtomicLong(0));
 
-        ArgumentCaptor<com.example.agent.capabilities.llm.provider.ModelRequest> captor = ArgumentCaptor.forClass(
-                com.example.agent.capabilities.llm.provider.ModelRequest.class);
+        ArgumentCaptor<com.example.agent.capabilities.llm.contract.ModelRequest> captor = ArgumentCaptor.forClass(
+                com.example.agent.capabilities.llm.contract.ModelRequest.class);
         Mockito.verify(modelInvocationService, Mockito.atLeast(2)).invoke(
-                captor.capture(), eq(com.example.agent.capabilities.llm.provider.ModelScene.PLANNER),
+                captor.capture(), eq(com.example.agent.capabilities.llm.contract.ModelScene.PLANNER),
                 any(), any(), any(), any(), any());
-        List<com.example.agent.capabilities.llm.provider.ModelRequest> captured = captor.getAllValues();
+        List<com.example.agent.capabilities.llm.contract.ModelRequest> captured = captor.getAllValues();
         String prompt = captured.get(captured.size() - 1).getPrompt();
         assertNotNull(prompt);
         assertFalse(prompt.contains("contextSnapshot"));

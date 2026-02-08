@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.llm.provider;
 
 import com.example.agent.capabilities.llm.config.ModelConfigProperties;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 
 import java.util.Locale;
 import org.slf4j.Logger;

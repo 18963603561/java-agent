@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.llm.provider;
 
-import com.example.agent.capabilities.llm.tooling.ModelToolChoice;
-import com.example.agent.capabilities.llm.tooling.ModelToolDefinition;
+import com.example.agent.capabilities.llm.contract.ModelToolChoice;
+import com.example.agent.capabilities.llm.contract.ModelToolDefinition;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -146,4 +146,5 @@ public class ToolPayloadBuilder {
         return filtered;
     }
 }
+
 

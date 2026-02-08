@@ -2,10 +2,10 @@ package com.example.agent.capabilities.llm.client;
 
 import com.example.agent.capabilities.llm.provider.ModelDefinition;
 import com.example.agent.capabilities.llm.provider.ModelProvider;
-import com.example.agent.capabilities.llm.provider.ModelRequest;
-import com.example.agent.capabilities.llm.provider.ModelResponse;
+import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.provider.ModelRouter;
-import com.example.agent.capabilities.llm.provider.ModelScene;
+import com.example.agent.capabilities.llm.contract.ModelScene;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
