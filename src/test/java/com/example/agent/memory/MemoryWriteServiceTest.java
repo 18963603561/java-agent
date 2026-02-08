@@ -17,21 +17,29 @@ import org.springframework.beans.factory.ObjectProvider;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.Counter;
-import com.example.agent.capabilities.memory.InMemoryMemoryRepository;
+import com.example.agent.capabilities.memory.repository.InMemoryMemoryRepository;
 import com.example.agent.capabilities.memory.MemoryStore;
-import com.example.agent.capabilities.memory.CompressedMemoryStore;
-import com.example.agent.capabilities.memory.EmbeddingService;
-import com.example.agent.capabilities.memory.MemoryExpirationService;
-import com.example.agent.capabilities.memory.MemoryExpireProperties;
-import com.example.agent.capabilities.memory.MemoryPolicy;
-import com.example.agent.capabilities.memory.MemoryPolicyProperties;
-import com.example.agent.capabilities.memory.MemoryRecord;
-import com.example.agent.capabilities.memory.MemoryWriteProperties;
-import com.example.agent.capabilities.memory.MemoryWriteService;
-import com.example.agent.capabilities.memory.RecentMemoryStore;
-import com.example.agent.capabilities.memory.SemanticMemoryStore;
-import com.example.agent.capabilities.memory.TokenEstimator;
-import com.example.agent.capabilities.memory.VectorStore;
+import com.example.agent.capabilities.memory.store.CompressedMemoryStore;
+import com.example.agent.capabilities.memory.vector.EmbeddingService;
+import com.example.agent.capabilities.memory.policy.MemoryExpirationService;
+import com.example.agent.capabilities.memory.config.MemoryExpireProperties;
+import com.example.agent.capabilities.memory.policy.MemoryPolicy;
+import com.example.agent.capabilities.memory.config.MemoryPolicyProperties;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
+import com.example.agent.capabilities.memory.config.MemoryWriteProperties;
+import com.example.agent.capabilities.memory.write.MemoryWriteService;
+import com.example.agent.capabilities.memory.store.RecentMemoryStore;
+import com.example.agent.capabilities.memory.store.SemanticMemoryStore;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
+import com.example.agent.capabilities.memory.vector.VectorStore;
+import com.example.agent.capabilities.memory.store.MemoryMaintenanceService;
+import com.example.agent.capabilities.memory.store.MemorySaveOrchestrator;
+import com.example.agent.capabilities.memory.store.MemorySearchOrchestrator;
+import com.example.agent.capabilities.memory.write.MemoryWriteContextResolver;
+import com.example.agent.capabilities.memory.write.MemoryWritePersistenceGateway;
+import com.example.agent.capabilities.memory.write.MemoryWriteRecordFactory;
+import com.example.agent.capabilities.memory.write.MemoryWriteRedactionProcessor;
+import com.example.agent.capabilities.memory.write.MemoryWriteSerializer;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -49,8 +57,9 @@ class MemoryWriteServiceTest {
         properties.setMaxRecordChars(500);
         properties.setMaxSummaryChars(200);
         RedactionService redactionService = buildRedactionService();
-        MemoryWriteService service = new MemoryWriteService(store, properties, new ObjectMapper(), redactionService,
-                new MetricsPublisher(new SimpleMeterRegistry()));
+        MetricsPublisher metricsPublisher = new MetricsPublisher(new SimpleMeterRegistry());
+        MemoryWriteService service = buildWriteService(store, properties, new ObjectMapper(), redactionService,
+                metricsPublisher);
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
         TaskRequest request = new TaskRequest();
@@ -83,8 +92,9 @@ class MemoryWriteServiceTest {
         properties.setMaxRecordChars(500);
         properties.setMaxSummaryChars(200);
         RedactionService redactionService = buildRedactionService();
-        MemoryWriteService service = new MemoryWriteService(store, properties, new ObjectMapper(), redactionService,
-                new MetricsPublisher(new SimpleMeterRegistry()));
+        MetricsPublisher metricsPublisher = new MetricsPublisher(new SimpleMeterRegistry());
+        MemoryWriteService service = buildWriteService(store, properties, new ObjectMapper(), redactionService,
+                metricsPublisher);
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
         TaskRequest request = new TaskRequest();
@@ -119,7 +129,7 @@ class MemoryWriteServiceTest {
         objectMapper.registerModule(new com.fasterxml.jackson.databind.module.SimpleModule()
                 .addSerializer(BadValue.class, new BadValueSerializer()));
 
-        MemoryWriteService service = new MemoryWriteService(store, properties, objectMapper, redactionService,
+        MemoryWriteService service = buildWriteService(store, properties, objectMapper, redactionService,
                 metricsPublisher);
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
@@ -149,8 +159,24 @@ class MemoryWriteServiceTest {
         MemoryPolicyProperties policyProperties = new MemoryPolicyProperties();
         policyProperties.setEnabled(false);
         MemoryPolicy memoryPolicy = new MemoryPolicy(policyProperties, new TokenEstimator());
-        return new MemoryStore(repository, vectorProvider, embeddingProvider, recentMemoryStore,
-                semanticMemoryStore, compressedMemoryStore, memoryPolicy, expireProperties, expirationService);
+        MemoryMaintenanceService maintenanceService = new MemoryMaintenanceService(
+                repository,
+                compressedMemoryStore,
+                memoryPolicy,
+                expireProperties,
+                expirationService);
+        MemorySaveOrchestrator saveOrchestrator = new MemorySaveOrchestrator(
+                recentMemoryStore,
+                vectorProvider,
+                embeddingProvider,
+                expirationService,
+                maintenanceService);
+        MemorySearchOrchestrator searchOrchestrator = new MemorySearchOrchestrator(
+                recentMemoryStore,
+                semanticMemoryStore,
+                compressedMemoryStore,
+                maintenanceService);
+        return new MemoryStore(saveOrchestrator, searchOrchestrator, maintenanceService);
     }
 
     private RedactionService buildRedactionService() {
@@ -159,6 +185,20 @@ class MemoryWriteServiceTest {
         properties.setRejectOnSecrets(true);
         properties.setRedactOnPii(true);
         return new RedactionService(properties, new MetricsPublisher(new SimpleMeterRegistry()));
+    }
+
+    private MemoryWriteService buildWriteService(MemoryStore store,
+                                                 MemoryWriteProperties properties,
+                                                 ObjectMapper objectMapper,
+                                                 RedactionService redactionService,
+                                                 MetricsPublisher metricsPublisher) {
+        MemoryWriteContextResolver contextResolver = new MemoryWriteContextResolver(properties);
+        MemoryWriteRedactionProcessor redactionProcessor = new MemoryWriteRedactionProcessor(redactionService);
+        MemoryWriteSerializer serializer = new MemoryWriteSerializer(objectMapper, metricsPublisher, contextResolver);
+        MemoryWriteRecordFactory recordFactory = new MemoryWriteRecordFactory(properties);
+        MemoryWritePersistenceGateway gateway = new MemoryWritePersistenceGateway(store);
+        return new MemoryWriteService(properties, contextResolver, redactionProcessor, serializer, recordFactory,
+                gateway);
     }
 
     private static class FixedObjectProvider<T> implements ObjectProvider<T> {
@@ -221,3 +261,5 @@ class MemoryWriteServiceTest {
         }
     }
 }
+
+

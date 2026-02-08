@@ -1,14 +1,14 @@
 package com.example.agent.memory;
 
-import com.example.agent.capabilities.memory.CompressedMemoryStore;
-import com.example.agent.capabilities.memory.CompressionRequest;
-import com.example.agent.capabilities.memory.InMemoryMemoryRepository;
-import com.example.agent.capabilities.memory.MemoryExpireProperties;
-import com.example.agent.capabilities.memory.MemoryExpirationService;
-import com.example.agent.capabilities.memory.MemoryPolicy;
-import com.example.agent.capabilities.memory.MemoryPolicyProperties;
-import com.example.agent.capabilities.memory.MemoryRecord;
-import com.example.agent.capabilities.memory.TokenEstimator;
+import com.example.agent.capabilities.memory.store.CompressedMemoryStore;
+import com.example.agent.capabilities.memory.model.CompressionRequest;
+import com.example.agent.capabilities.memory.repository.InMemoryMemoryRepository;
+import com.example.agent.capabilities.memory.config.MemoryExpireProperties;
+import com.example.agent.capabilities.memory.policy.MemoryExpirationService;
+import com.example.agent.capabilities.memory.policy.MemoryPolicy;
+import com.example.agent.capabilities.memory.config.MemoryPolicyProperties;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.capabilities.memory.store.MemoryMaintenanceService;
 import com.example.agent.security.auth.TenantContext;
 import java.time.Instant;
@@ -127,3 +127,5 @@ class MemoryMaintenanceServiceTest {
         repository.save(record);
     }
 }
+
+

@@ -4,7 +4,7 @@ import com.example.agent.budget.token.ContextBudgetAllocation;
 import com.example.agent.budget.trim.ContextCompressionResult;
 import com.example.agent.budget.trim.ContextPruneResult;
 import com.example.agent.budget.trim.ContextTrimReport;
-import com.example.agent.capabilities.memory.TokenEstimator;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.capabilities.llm.prompt.PromptMessage;
 import com.example.agent.capabilities.llm.prompt.PromptRenderContext;
 import com.example.agent.capabilities.llm.prompt.PromptRole;
@@ -168,3 +168,4 @@ public class DefaultContextAssembler implements ContextAssembler {
         return text == null ? 0 : text.length();
     }
 }
+

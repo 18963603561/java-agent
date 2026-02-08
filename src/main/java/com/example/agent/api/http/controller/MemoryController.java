@@ -5,10 +5,10 @@ import com.example.agent.security.auth.TenantContext;
 import com.example.agent.security.auth.UserContext;
 import com.example.agent.common.response.ApiResponse;
 import com.example.agent.common.error.ErrorCodeException;
-import com.example.agent.capabilities.memory.CompressionRequest;
-import com.example.agent.capabilities.memory.MemoryQuery;
-import com.example.agent.capabilities.memory.MemoryRecord;
-import com.example.agent.capabilities.memory.MemorySearchResult;
+import com.example.agent.capabilities.memory.model.CompressionRequest;
+import com.example.agent.capabilities.memory.model.MemoryQuery;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
+import com.example.agent.capabilities.memory.model.MemorySearchResult;
 import com.example.agent.capabilities.memory.MemoryStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -108,3 +108,4 @@ public class MemoryController {
         return context;
     }
 }
+

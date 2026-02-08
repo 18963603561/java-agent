@@ -3,7 +3,7 @@ package com.example.agent.capabilities.context;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.budget.token.ContextBudgetRequest;
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.memory.MemoryRecallResult;
+import com.example.agent.capabilities.memory.recall.MemoryRecallResult;
 import com.example.agent.runtime.react.ReactObservation;
 import com.example.agent.capabilities.tools.ToolQuery;
 import java.util.List;
@@ -144,3 +144,4 @@ public class ContextBuildRequest {
         this.budgetRequest = budgetRequest;
     }
 }
+

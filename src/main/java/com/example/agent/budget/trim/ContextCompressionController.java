@@ -12,12 +12,12 @@ import com.example.agent.capabilities.context.TaskIntent;
 import com.example.agent.capabilities.context.ToolCallState;
 import com.example.agent.capabilities.context.ToolState;
 import com.example.agent.capabilities.context.WorkingMemory;
-import com.example.agent.capabilities.memory.CompressionRequest;
-import com.example.agent.capabilities.memory.ConversationSummary;
-import com.example.agent.capabilities.memory.MemoryRecord;
+import com.example.agent.capabilities.memory.model.CompressionRequest;
+import com.example.agent.capabilities.memory.model.ConversationSummary;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
 import com.example.agent.capabilities.memory.MemoryStore;
-import com.example.agent.capabilities.memory.TokenEstimator;
-import com.example.agent.capabilities.memory.WorkingMemorySummary;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
+import com.example.agent.capabilities.memory.model.WorkingMemorySummary;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.capabilities.tools.ToolSummary;
 import java.time.Duration;
@@ -575,3 +575,4 @@ public class ContextCompressionController {
         return second;
     }
 }
+

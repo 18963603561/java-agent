@@ -8,9 +8,9 @@ import com.example.agent.capabilities.context.research.ResearchPipeline;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
-import com.example.agent.capabilities.memory.MemoryRecallResult;
-import com.example.agent.capabilities.memory.MemoryRecallService;
-import com.example.agent.capabilities.memory.MemoryWriteService;
+import com.example.agent.capabilities.memory.recall.MemoryRecallResult;
+import com.example.agent.capabilities.memory.recall.MemoryRecallService;
+import com.example.agent.capabilities.memory.write.MemoryWriteService;
 import com.example.agent.capabilities.tools.enforcement.EnforcementGateway;
 import com.example.agent.capabilities.tools.hook.HookManager;
 import com.example.agent.capabilities.tools.validation.ToolArgumentValidatorRuntime;
@@ -331,3 +331,4 @@ class AgentRuntimeApprovalIntegrationTest {
         }
     }
 }
+

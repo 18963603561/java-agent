@@ -1,7 +1,7 @@
 package com.example.agent.runtime.finalize;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.memory.MemoryWriteService;
+import com.example.agent.capabilities.memory.write.MemoryWriteService;
 import com.example.agent.planning.PlanResult;
 import com.example.agent.runtime.model.RuntimeResult;
 import com.example.agent.runtime.model.StepResult;
@@ -203,3 +203,4 @@ public class RuntimeFinalizationService {
         return result;
     }
 }
+

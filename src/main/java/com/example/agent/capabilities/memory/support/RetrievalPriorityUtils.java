@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.memory.support;
 
-import com.example.agent.capabilities.memory.RetrievalPriority;
+import com.example.agent.capabilities.memory.model.RetrievalPriority;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -55,3 +55,4 @@ public final class RetrievalPriorityUtils {
         return tags.isEmpty() ? "default" : String.join(">", tags);
     }
 }
+

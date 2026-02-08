@@ -1,7 +1,7 @@
 package com.example.agent.memory;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.memory.MemoryRecallProperties;
+import com.example.agent.capabilities.memory.config.MemoryRecallProperties;
 import com.example.agent.capabilities.memory.recall.RecallContext;
 import com.example.agent.capabilities.memory.recall.RecallContextResolver;
 import java.util.HashMap;
@@ -77,3 +77,4 @@ class RecallContextResolverTest {
         assertTrue(resolved.isIncludeCompressed());
     }
 }
+

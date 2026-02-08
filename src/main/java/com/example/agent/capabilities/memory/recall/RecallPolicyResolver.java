@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.memory.recall;
 
 import com.example.agent.capabilities.context.ContextPolicy;
-import com.example.agent.capabilities.memory.RetrievalPriority;
+import com.example.agent.capabilities.memory.model.RetrievalPriority;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
@@ -183,4 +183,5 @@ public class RecallPolicyResolver {
         return null;
     }
 }
+
 

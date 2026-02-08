@@ -1,12 +1,12 @@
 package com.example.agent.capabilities.memory.store;
 
-import com.example.agent.capabilities.memory.CompressedMemoryStore;
-import com.example.agent.capabilities.memory.MemoryQuery;
-import com.example.agent.capabilities.memory.MemoryRecord;
-import com.example.agent.capabilities.memory.MemorySearchResult;
-import com.example.agent.capabilities.memory.RecentMemoryStore;
-import com.example.agent.capabilities.memory.RetrievalPriority;
-import com.example.agent.capabilities.memory.SemanticMemoryStore;
+import com.example.agent.capabilities.memory.store.CompressedMemoryStore;
+import com.example.agent.capabilities.memory.model.MemoryQuery;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
+import com.example.agent.capabilities.memory.model.MemorySearchResult;
+import com.example.agent.capabilities.memory.store.RecentMemoryStore;
+import com.example.agent.capabilities.memory.model.RetrievalPriority;
+import com.example.agent.capabilities.memory.store.SemanticMemoryStore;
 import com.example.agent.capabilities.memory.support.RetrievalPriorityUtils;
 import com.example.agent.security.auth.TenantContext;
 import java.util.ArrayList;
@@ -151,3 +151,4 @@ public class MemorySearchOrchestrator {
         return tenantContext != null && StringUtils.hasText(tenantContext.getTenantId());
     }
 }
+

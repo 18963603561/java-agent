@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.memory.recall;
 
-import com.example.agent.capabilities.memory.RetrievalPriority;
+import com.example.agent.capabilities.memory.model.RetrievalPriority;
 import com.example.agent.capabilities.memory.support.RetrievalPriorityUtils;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import java.util.List;
@@ -31,3 +31,4 @@ public class RecallMetricsRecorder {
                 "priorityName", RetrievalPriorityUtils.formatPriorityTag(retrievalPriority));
     }
 }
+

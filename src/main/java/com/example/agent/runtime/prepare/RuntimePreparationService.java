@@ -7,8 +7,8 @@ import com.example.agent.capabilities.context.ContextBuildResult;
 import com.example.agent.capabilities.context.ContextBuilder;
 import com.example.agent.capabilities.context.EvidencePack;
 import com.example.agent.capabilities.context.EvidencePackService;
-import com.example.agent.capabilities.memory.MemoryRecallResult;
-import com.example.agent.capabilities.memory.MemoryRecallService;
+import com.example.agent.capabilities.memory.recall.MemoryRecallResult;
+import com.example.agent.capabilities.memory.recall.MemoryRecallService;
 import com.example.agent.capabilities.tools.hook.HookManager;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.payload.ContextEventPublisher;
@@ -303,3 +303,4 @@ public class RuntimePreparationService {
         return copy;
     }
 }
+

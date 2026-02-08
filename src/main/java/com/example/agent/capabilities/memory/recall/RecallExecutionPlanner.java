@@ -1,10 +1,10 @@
 package com.example.agent.capabilities.memory.recall;
 
-import com.example.agent.capabilities.memory.MemoryQuery;
-import com.example.agent.capabilities.memory.MemoryRecord;
-import com.example.agent.capabilities.memory.MemorySearchResult;
+import com.example.agent.capabilities.memory.model.MemoryQuery;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
+import com.example.agent.capabilities.memory.model.MemorySearchResult;
 import com.example.agent.capabilities.memory.MemoryStore;
-import com.example.agent.capabilities.memory.RetrievalPriority;
+import com.example.agent.capabilities.memory.model.RetrievalPriority;
 import com.example.agent.security.auth.TenantContext;
 import java.util.List;
 import org.springframework.stereotype.Component;
@@ -44,3 +44,4 @@ public class RecallExecutionPlanner {
         return result != null ? result.getRecords() : List.of();
     }
 }
+

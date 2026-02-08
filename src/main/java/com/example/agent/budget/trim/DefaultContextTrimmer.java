@@ -13,7 +13,7 @@ import com.example.agent.capabilities.context.TaskIntent;
 import com.example.agent.capabilities.context.ToolCallState;
 import com.example.agent.capabilities.context.ToolState;
 import com.example.agent.capabilities.context.WorkingMemory;
-import com.example.agent.capabilities.memory.TokenEstimator;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.capabilities.tools.ToolSummary;
 import java.time.Instant;
@@ -1080,3 +1080,4 @@ public class DefaultContextTrimmer implements ContextTrimmer {
         stats.addRemoved(count, chars, tokens);
     }
 }
+

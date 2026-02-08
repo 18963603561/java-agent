@@ -14,11 +14,11 @@ import com.example.agent.budget.trim.ContextTrimResult;
 import com.example.agent.budget.trim.ContextTrimmer;
 import com.example.agent.budget.trim.DefaultContextTrimmer;
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.memory.ConversationSummary;
-import com.example.agent.capabilities.memory.MemoryRecallResult;
-import com.example.agent.capabilities.memory.MemoryRecord;
-import com.example.agent.capabilities.memory.TokenEstimator;
-import com.example.agent.capabilities.memory.WorkingMemorySummary;
+import com.example.agent.capabilities.memory.model.ConversationSummary;
+import com.example.agent.capabilities.memory.recall.MemoryRecallResult;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
+import com.example.agent.capabilities.memory.model.WorkingMemorySummary;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.runtime.react.ReactObservation;
 import com.example.agent.streaming.payload.ContextEventPublisher;
@@ -275,3 +275,4 @@ class DefaultContextBuilderTest {
         }
     }
 }
+

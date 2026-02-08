@@ -3,7 +3,7 @@ package com.example.agent.capabilities.llm.prompt;
 import com.example.agent.budget.token.ContextBudgetAllocation;
 import com.example.agent.budget.trim.ContextSection;
 import com.example.agent.capabilities.context.PromptAssemblyInput;
-import com.example.agent.capabilities.memory.TokenEstimator;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -272,4 +272,5 @@ class PromptTrimEngine {
     private record TrimOutcome(String text, int tokensReduced, boolean trimmed) {
     }
 }
+
 

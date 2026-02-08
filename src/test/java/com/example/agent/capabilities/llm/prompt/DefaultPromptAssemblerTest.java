@@ -7,7 +7,7 @@ import com.example.agent.capabilities.context.ContextSnapshot;
 import com.example.agent.capabilities.context.PromptAssemblyInput;
 import com.example.agent.capabilities.context.RoleBoundary;
 import com.example.agent.capabilities.llm.support.ValidationSupport;
-import com.example.agent.capabilities.memory.TokenEstimator;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.EnumMap;
@@ -122,3 +122,4 @@ class DefaultPromptAssemblerTest {
         assertEquals(longUser, bundle.getMessages().get(2).getContent());
     }
 }
+

@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.memory.recall;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.memory.MemoryRecallProperties;
+import com.example.agent.capabilities.memory.config.MemoryRecallProperties;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -105,4 +105,3 @@ public class RecallContextResolver {
         return null;
     }
 }
-

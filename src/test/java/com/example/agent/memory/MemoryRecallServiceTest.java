@@ -11,22 +11,25 @@ import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
-import com.example.agent.capabilities.memory.InMemoryMemoryRepository;
+import com.example.agent.capabilities.memory.repository.InMemoryMemoryRepository;
 import com.example.agent.capabilities.memory.MemoryStore;
-import com.example.agent.capabilities.memory.CompressedMemoryStore;
-import com.example.agent.capabilities.memory.EmbeddingService;
-import com.example.agent.capabilities.memory.MemoryExpirationService;
-import com.example.agent.capabilities.memory.MemoryExpireProperties;
-import com.example.agent.capabilities.memory.MemoryPolicy;
-import com.example.agent.capabilities.memory.MemoryPolicyProperties;
-import com.example.agent.capabilities.memory.MemoryRecallProperties;
-import com.example.agent.capabilities.memory.MemoryRecallResult;
-import com.example.agent.capabilities.memory.MemoryRecallService;
-import com.example.agent.capabilities.memory.MemoryRecord;
-import com.example.agent.capabilities.memory.RecentMemoryStore;
-import com.example.agent.capabilities.memory.SemanticMemoryStore;
-import com.example.agent.capabilities.memory.TokenEstimator;
-import com.example.agent.capabilities.memory.VectorStore;
+import com.example.agent.capabilities.memory.store.CompressedMemoryStore;
+import com.example.agent.capabilities.memory.vector.EmbeddingService;
+import com.example.agent.capabilities.memory.policy.MemoryExpirationService;
+import com.example.agent.capabilities.memory.config.MemoryExpireProperties;
+import com.example.agent.capabilities.memory.policy.MemoryPolicy;
+import com.example.agent.capabilities.memory.config.MemoryPolicyProperties;
+import com.example.agent.capabilities.memory.config.MemoryRecallProperties;
+import com.example.agent.capabilities.memory.recall.MemoryRecallResult;
+import com.example.agent.capabilities.memory.recall.MemoryRecallService;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
+import com.example.agent.capabilities.memory.store.RecentMemoryStore;
+import com.example.agent.capabilities.memory.store.SemanticMemoryStore;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
+import com.example.agent.capabilities.memory.store.MemoryMaintenanceService;
+import com.example.agent.capabilities.memory.store.MemorySaveOrchestrator;
+import com.example.agent.capabilities.memory.store.MemorySearchOrchestrator;
+import com.example.agent.capabilities.memory.vector.VectorStore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -101,11 +104,11 @@ class MemoryRecallServiceTest {
 
         MemoryRecord record = new MemoryRecord();
         record.setSessionId("session-1");
-        record.setContent("联系邮箱 test@example.com");
+        record.setContent("鑱旂郴閭 test@example.com");
         store.save(record, tenantContext);
 
         TaskRequest request = new TaskRequest();
-        request.setQuery("邮箱");
+        request.setQuery("閭");
         request.setSessionId("session-1");
         request.setContext(Map.of());
 
@@ -126,8 +129,24 @@ class MemoryRecallServiceTest {
         MemoryPolicyProperties policyProperties = new MemoryPolicyProperties();
         policyProperties.setEnabled(false);
         MemoryPolicy memoryPolicy = new MemoryPolicy(policyProperties, new TokenEstimator());
-        return new MemoryStore(repository, vectorProvider, embeddingProvider, recentMemoryStore,
-                semanticMemoryStore, compressedMemoryStore, memoryPolicy, expireProperties, expirationService);
+        MemoryMaintenanceService maintenanceService = new MemoryMaintenanceService(
+                repository,
+                compressedMemoryStore,
+                memoryPolicy,
+                expireProperties,
+                expirationService);
+        MemorySaveOrchestrator saveOrchestrator = new MemorySaveOrchestrator(
+                recentMemoryStore,
+                vectorProvider,
+                embeddingProvider,
+                expirationService,
+                maintenanceService);
+        MemorySearchOrchestrator searchOrchestrator = new MemorySearchOrchestrator(
+                recentMemoryStore,
+                semanticMemoryStore,
+                compressedMemoryStore,
+                maintenanceService);
+        return new MemoryStore(saveOrchestrator, searchOrchestrator, maintenanceService);
     }
 
     private static class FixedObjectProvider<T> implements ObjectProvider<T> {
@@ -187,3 +206,5 @@ class MemoryRecallServiceTest {
         return new RedactionService(properties, new MetricsPublisher(new SimpleMeterRegistry()));
     }
 }
+
+

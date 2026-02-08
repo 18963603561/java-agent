@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.memory.recall;
 
-import com.example.agent.capabilities.memory.MemoryRecord;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
 import java.util.List;
 
 /**
@@ -41,4 +41,5 @@ public class RecallPostProcessResult {
         return redactionsAppliedCount;
     }
 }
+
 

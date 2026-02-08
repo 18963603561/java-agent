@@ -12,7 +12,7 @@ import com.example.agent.runtime.step.RuntimeContext;
 import com.example.agent.runtime.model.StepSpec;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
-import com.example.agent.capabilities.memory.MemoryWriteService;
+import com.example.agent.capabilities.memory.write.MemoryWriteService;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
@@ -789,4 +789,5 @@ public class ReactLoopService {
         return tracingPublisher.currentTraceId();
     }
 }
+
 

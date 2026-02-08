@@ -4,7 +4,7 @@ import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.ContextSnapshot;
 import com.example.agent.capabilities.context.PromptAssemblyInput;
 import com.example.agent.capabilities.llm.support.ValidationSupport;
-import com.example.agent.capabilities.memory.TokenEstimator;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import java.util.ArrayList;
 import java.util.List;
@@ -154,4 +154,5 @@ public class DefaultPromptAssembler implements PromptAssembler {
         return total;
     }
 }
+
 

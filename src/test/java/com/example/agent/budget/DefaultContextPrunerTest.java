@@ -2,7 +2,7 @@ package com.example.agent.budget;
 
 import com.example.agent.capabilities.context.ContextSnapshot;
 import com.example.agent.capabilities.context.WorkingMemory;
-import com.example.agent.capabilities.memory.TokenEstimator;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.EnumMap;
@@ -43,3 +43,4 @@ class DefaultContextPrunerTest {
         assertTrue(result.getPrunedSnapshot().getWorkingMemory().getSummary().length() <= 4);
     }
 }
+

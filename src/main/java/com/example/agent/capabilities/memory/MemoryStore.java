@@ -1,11 +1,15 @@
 package com.example.agent.capabilities.memory;
 
+import com.example.agent.capabilities.memory.model.CompressionRequest;
+import com.example.agent.capabilities.memory.model.MemoryQuery;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
+import com.example.agent.capabilities.memory.model.MemorySearchResult;
+import com.example.agent.capabilities.memory.model.RetrievalPriority;
 import com.example.agent.capabilities.memory.store.MemoryMaintenanceService;
 import com.example.agent.capabilities.memory.store.MemorySaveOrchestrator;
 import com.example.agent.capabilities.memory.store.MemorySearchOrchestrator;
 import com.example.agent.security.auth.TenantContext;
 import java.util.List;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -30,18 +34,6 @@ public class MemoryStore {
      */
     private final MemoryMaintenanceService memoryMaintenanceService;
 
-    /**
-     * 兼容测试场景时复用的维护服务。
-     */
-    private static MemoryMaintenanceService createMaintenanceService(MemoryRepository memoryRepository,
-                                                                     CompressedMemoryStore compressedMemoryStore,
-                                                                     MemoryPolicy memoryPolicy,
-                                                                     MemoryExpireProperties expireProperties,
-                                                                     MemoryExpirationService expirationService) {
-        return new MemoryMaintenanceService(memoryRepository, compressedMemoryStore,
-                memoryPolicy, expireProperties, expirationService);
-    }
-
     @Autowired
     public MemoryStore(MemorySaveOrchestrator memorySaveOrchestrator,
                        MemorySearchOrchestrator memorySearchOrchestrator,
@@ -49,34 +41,6 @@ public class MemoryStore {
         this.memorySaveOrchestrator = memorySaveOrchestrator;
         this.memorySearchOrchestrator = memorySearchOrchestrator;
         this.memoryMaintenanceService = memoryMaintenanceService;
-    }
-
-    /**
-     * 便捷构造方法，用于测试场景快速组装 MemoryStore。
-     */
-    public MemoryStore(MemoryRepository memoryRepository,
-                       ObjectProvider<VectorStore> vectorStoreProvider,
-                       ObjectProvider<EmbeddingService> embeddingServiceProvider,
-                       RecentMemoryStore recentMemoryStore,
-                       SemanticMemoryStore semanticMemoryStore,
-                       CompressedMemoryStore compressedMemoryStore,
-                       MemoryPolicy memoryPolicy,
-                       MemoryExpireProperties expireProperties,
-                       MemoryExpirationService expirationService) {
-        MemoryMaintenanceService maintenanceService = createMaintenanceService(memoryRepository,
-                compressedMemoryStore, memoryPolicy, expireProperties, expirationService);
-        this.memorySaveOrchestrator = new MemorySaveOrchestrator(
-                recentMemoryStore,
-                vectorStoreProvider,
-                embeddingServiceProvider,
-                expirationService,
-                maintenanceService);
-        this.memorySearchOrchestrator = new MemorySearchOrchestrator(
-                recentMemoryStore,
-                semanticMemoryStore,
-                compressedMemoryStore,
-                maintenanceService);
-        this.memoryMaintenanceService = maintenanceService;
     }
 
     /**

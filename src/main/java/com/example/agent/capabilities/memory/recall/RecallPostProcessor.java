@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.memory.recall;
 
-import com.example.agent.capabilities.memory.MemoryLayer;
-import com.example.agent.capabilities.memory.MemoryRecord;
+import com.example.agent.capabilities.memory.model.MemoryLayer;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
 import com.example.agent.capabilities.memory.support.MemoryTextUtils;
 import com.example.agent.security.redaction.RedactionResult;
 import com.example.agent.security.redaction.RedactionService;
@@ -164,3 +164,4 @@ public class RecallPostProcessor {
         return summary.isEmpty() ? null : summary;
     }
 }
+

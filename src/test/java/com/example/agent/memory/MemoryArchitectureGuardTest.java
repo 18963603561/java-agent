@@ -53,14 +53,14 @@ class MemoryArchitectureGuardTest {
     @Test
     void repositoryAndVectorShouldNotDependOnRecall() throws IOException {
         List<Path> files = List.of(
-                MEMORY_ROOT.resolve("MemoryRepository.java"),
-                MEMORY_ROOT.resolve("InMemoryMemoryRepository.java"),
-                MEMORY_ROOT.resolve("JdbcMemoryRepository.java"),
-                MEMORY_ROOT.resolve("VectorStore.java"),
-                MEMORY_ROOT.resolve("QdrantVectorStore.java"),
-                MEMORY_ROOT.resolve("EmbeddingService.java"),
-                MEMORY_ROOT.resolve("HashEmbeddingService.java"),
-                MEMORY_ROOT.resolve("MemoryVectorProperties.java")
+                MEMORY_ROOT.resolve("repository/MemoryRepository.java"),
+                MEMORY_ROOT.resolve("repository/InMemoryMemoryRepository.java"),
+                MEMORY_ROOT.resolve("repository/JdbcMemoryRepository.java"),
+                MEMORY_ROOT.resolve("vector/VectorStore.java"),
+                MEMORY_ROOT.resolve("vector/QdrantVectorStore.java"),
+                MEMORY_ROOT.resolve("vector/EmbeddingService.java"),
+                MEMORY_ROOT.resolve("vector/HashEmbeddingService.java"),
+                MEMORY_ROOT.resolve("config/MemoryVectorProperties.java")
         );
         List<String> violations = new ArrayList<>();
         for (Path file : files) {

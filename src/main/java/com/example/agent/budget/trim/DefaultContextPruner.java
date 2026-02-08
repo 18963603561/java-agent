@@ -8,7 +8,7 @@ import com.example.agent.capabilities.context.EvidencePack;
 import com.example.agent.capabilities.context.LongTermMemory;
 import com.example.agent.capabilities.context.MemoryRef;
 import com.example.agent.capabilities.context.WorkingMemory;
-import com.example.agent.capabilities.memory.TokenEstimator;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import java.util.ArrayList;
 import java.util.List;
@@ -254,3 +254,4 @@ public class DefaultContextPruner implements ContextPruner {
         return "removed_items:" + removedItems.size();
     }
 }
+

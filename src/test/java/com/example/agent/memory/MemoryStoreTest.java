@@ -7,22 +7,25 @@ import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.ObjectProvider;
-import com.example.agent.capabilities.memory.InMemoryMemoryRepository;
-import com.example.agent.capabilities.memory.MemoryExpireProperties;
-import com.example.agent.capabilities.memory.MemoryPolicyProperties;
+import com.example.agent.capabilities.memory.repository.InMemoryMemoryRepository;
+import com.example.agent.capabilities.memory.config.MemoryExpireProperties;
+import com.example.agent.capabilities.memory.config.MemoryPolicyProperties;
 import com.example.agent.capabilities.memory.MemoryStore;
-import com.example.agent.capabilities.memory.CompressionRequest;
-import com.example.agent.capabilities.memory.MemoryRecord;
-import com.example.agent.capabilities.memory.CompressedMemoryStore;
-import com.example.agent.capabilities.memory.EmbeddingService;
-import com.example.agent.capabilities.memory.MemoryExpirationService;
-import com.example.agent.capabilities.memory.MemoryPolicy;
-import com.example.agent.capabilities.memory.MemoryQuery;
-import com.example.agent.capabilities.memory.MemorySearchResult;
-import com.example.agent.capabilities.memory.RecentMemoryStore;
-import com.example.agent.capabilities.memory.SemanticMemoryStore;
-import com.example.agent.capabilities.memory.TokenEstimator;
-import com.example.agent.capabilities.memory.VectorStore;
+import com.example.agent.capabilities.memory.model.CompressionRequest;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
+import com.example.agent.capabilities.memory.store.CompressedMemoryStore;
+import com.example.agent.capabilities.memory.vector.EmbeddingService;
+import com.example.agent.capabilities.memory.policy.MemoryExpirationService;
+import com.example.agent.capabilities.memory.policy.MemoryPolicy;
+import com.example.agent.capabilities.memory.model.MemoryQuery;
+import com.example.agent.capabilities.memory.model.MemorySearchResult;
+import com.example.agent.capabilities.memory.store.RecentMemoryStore;
+import com.example.agent.capabilities.memory.store.SemanticMemoryStore;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
+import com.example.agent.capabilities.memory.vector.VectorStore;
+import com.example.agent.capabilities.memory.store.MemoryMaintenanceService;
+import com.example.agent.capabilities.memory.store.MemorySaveOrchestrator;
+import com.example.agent.capabilities.memory.store.MemorySearchOrchestrator;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -300,8 +303,24 @@ class MemoryStoreTest {
         MemoryExpirationService expirationService = new MemoryExpirationService(expireProperties);
         CompressedMemoryStore compressedMemoryStore = new CompressedMemoryStore(repository, expirationService);
         MemoryPolicy memoryPolicy = new MemoryPolicy(policyProperties, new TokenEstimator());
-        return new MemoryStore(repository, vectorProvider, embeddingProvider, recentMemoryStore,
-                semanticMemoryStore, compressedMemoryStore, memoryPolicy, expireProperties, expirationService);
+        MemoryMaintenanceService maintenanceService = new MemoryMaintenanceService(
+                repository,
+                compressedMemoryStore,
+                memoryPolicy,
+                expireProperties,
+                expirationService);
+        MemorySaveOrchestrator saveOrchestrator = new MemorySaveOrchestrator(
+                recentMemoryStore,
+                vectorProvider,
+                embeddingProvider,
+                expirationService,
+                maintenanceService);
+        MemorySearchOrchestrator searchOrchestrator = new MemorySearchOrchestrator(
+                recentMemoryStore,
+                semanticMemoryStore,
+                compressedMemoryStore,
+                maintenanceService);
+        return new MemoryStore(saveOrchestrator, searchOrchestrator, maintenanceService);
     }
 
     private MemoryPolicyProperties policyProps(int sizeThreshold, int tokenThreshold,
@@ -386,3 +405,5 @@ class MemoryStoreTest {
         }
     }
 }
+
+

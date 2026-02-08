@@ -1,19 +1,19 @@
 package com.example.agent.memory;
 
-import com.example.agent.capabilities.memory.CompressedMemoryStore;
-import com.example.agent.capabilities.memory.MemoryExpireProperties;
-import com.example.agent.capabilities.memory.MemoryExpirationService;
-import com.example.agent.capabilities.memory.MemoryPolicy;
-import com.example.agent.capabilities.memory.MemoryPolicyProperties;
-import com.example.agent.capabilities.memory.MemoryQuery;
-import com.example.agent.capabilities.memory.MemoryRecord;
-import com.example.agent.capabilities.memory.RecentMemoryStore;
-import com.example.agent.capabilities.memory.RetrievalPriority;
-import com.example.agent.capabilities.memory.SemanticMemoryStore;
-import com.example.agent.capabilities.memory.TokenEstimator;
-import com.example.agent.capabilities.memory.VectorStore;
-import com.example.agent.capabilities.memory.EmbeddingService;
-import com.example.agent.capabilities.memory.InMemoryMemoryRepository;
+import com.example.agent.capabilities.memory.store.CompressedMemoryStore;
+import com.example.agent.capabilities.memory.config.MemoryExpireProperties;
+import com.example.agent.capabilities.memory.policy.MemoryExpirationService;
+import com.example.agent.capabilities.memory.policy.MemoryPolicy;
+import com.example.agent.capabilities.memory.config.MemoryPolicyProperties;
+import com.example.agent.capabilities.memory.model.MemoryQuery;
+import com.example.agent.capabilities.memory.model.MemoryRecord;
+import com.example.agent.capabilities.memory.store.RecentMemoryStore;
+import com.example.agent.capabilities.memory.model.RetrievalPriority;
+import com.example.agent.capabilities.memory.store.SemanticMemoryStore;
+import com.example.agent.capabilities.memory.policy.TokenEstimator;
+import com.example.agent.capabilities.memory.vector.VectorStore;
+import com.example.agent.capabilities.memory.vector.EmbeddingService;
+import com.example.agent.capabilities.memory.repository.InMemoryMemoryRepository;
 import com.example.agent.capabilities.memory.store.MemoryMaintenanceService;
 import com.example.agent.capabilities.memory.store.MemorySearchOrchestrator;
 import com.example.agent.security.auth.TenantContext;
@@ -160,7 +160,7 @@ class MemorySearchOrchestratorTest {
 
         @Override
         public void upsert(String tenantId, MemoryRecord record, List<Float> embedding) {
-            // 测试场景无需实现
+            // 娴嬭瘯鍦烘櫙鏃犻渶瀹炵幇
         }
 
         @Override
@@ -169,3 +169,5 @@ class MemorySearchOrchestratorTest {
         }
     }
 }
+
+

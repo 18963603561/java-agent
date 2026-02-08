@@ -5,7 +5,7 @@ import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
-import com.example.agent.capabilities.memory.MemoryWriteService;
+import com.example.agent.capabilities.memory.write.MemoryWriteService;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
@@ -493,3 +493,4 @@ class ReactLoopServiceTest {
         }
     }
 }
+

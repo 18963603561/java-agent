@@ -1,7 +1,7 @@
 package com.example.agent.memory;
 
-import com.example.agent.capabilities.memory.HashEmbeddingService;
-import com.example.agent.capabilities.memory.MemoryVectorProperties;
+import com.example.agent.capabilities.memory.config.MemoryVectorProperties;
+import com.example.agent.capabilities.memory.vector.HashEmbeddingService;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
