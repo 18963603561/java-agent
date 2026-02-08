@@ -25,7 +25,7 @@ import com.example.agent.capabilities.context.research.ResearchCitation;
 import com.example.agent.runtime.react.ReactObservation;
 import com.example.agent.streaming.payload.ContextEventPublisher;
 import com.example.agent.streaming.payload.ContextSnapshotStage;
-import com.example.agent.capabilities.tools.ToolCatalog;
+import com.example.agent.capabilities.tools.ToolCatalogService;
 import com.example.agent.capabilities.tools.ToolQuery;
 import com.example.agent.capabilities.tools.ToolSummary;
 import java.time.Instant;
@@ -54,7 +54,7 @@ public class DefaultContextBuilder implements ContextBuilder {
     /**
      * 工具目录，用于构建可用工具列表。
      */
-    private final ToolCatalog toolCatalog;
+    private final ToolCatalogService toolCatalog;
     /**
      * 预算分配器，用于生成分段预算。
      */
@@ -108,7 +108,7 @@ public class DefaultContextBuilder implements ContextBuilder {
      * @param contextEventPublisher 事件发布器
      * @param metricsPublisher 指标发布器
      */
-    public DefaultContextBuilder(ToolCatalog toolCatalog,
+    public DefaultContextBuilder(ToolCatalogService toolCatalog,
                                  ContextBudgetAllocator budgetAllocator,
                                  ContextPruner contextPruner,
                                  ContextTrimmer contextTrimmer,

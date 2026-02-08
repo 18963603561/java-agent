@@ -26,7 +26,7 @@ import com.example.agent.streaming.payload.ContextSnapshotStage;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.streaming.sse.EventStreamService;
-import com.example.agent.capabilities.tools.ToolCatalog;
+import com.example.agent.capabilities.tools.ToolCatalogService;
 import com.example.agent.capabilities.tools.ToolQuery;
 import com.example.agent.capabilities.tools.ToolSummary;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -51,7 +51,7 @@ class DefaultContextBuilderTest {
 
     @Test
     void buildCreatesSnapshotWithMemoryAndToolSummary() {
-        ToolCatalog toolCatalog = Mockito.mock(ToolCatalog.class);
+        ToolCatalogService toolCatalog = Mockito.mock(ToolCatalogService.class);
         ContextBudgetAllocator budgetAllocator = Mockito.mock(ContextBudgetAllocator.class);
         ContextPruner contextPruner = Mockito.mock(ContextPruner.class);
         ContextBudgetProperties budgetProperties = new ContextBudgetProperties();

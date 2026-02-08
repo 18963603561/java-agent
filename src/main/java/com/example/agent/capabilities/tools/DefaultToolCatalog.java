@@ -7,6 +7,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,7 @@ import com.example.agent.capabilities.tools.mcp.McpToolSyncService;
  * 默认工具目录实现。
  */
 @Service
-public class DefaultToolCatalog implements ToolCatalog, ToolCatalogService {
+public class DefaultToolCatalog implements ToolCatalogService {
 
     private static final Logger log = LoggerFactory.getLogger(DefaultToolCatalog.class);
 
@@ -64,18 +65,20 @@ public class DefaultToolCatalog implements ToolCatalog, ToolCatalogService {
             if (!matchesTags(definition, query)) {
                 continue;
             }
+            if (!matchesScopes(definition, query)) {
+                continue;
+            }
+            if (!matchesLocale(definition, query)) {
+                continue;
+            }
             ToolSummary summary = new ToolSummary();
             summary.setToolName(definition.getName());
             summary.setDescription(definition.getDescription());
             summary.setTags(definition.getTags());
+            summary.setAuthScope(definition.getAuthScope());
             summaries.add(summary);
         }
         return summaries;
-    }
-
-    @Override
-    public List<ToolSummary> listToolSummaries(ToolQuery query) {
-        return listSummaries(query);
     }
 
     @Override
@@ -151,6 +154,69 @@ public class DefaultToolCatalog implements ToolCatalog, ToolCatalogService {
             }
         }
         return true;
+    }
+
+    /**
+     * 按授权范围匹配工具。
+     *
+     * <p>规则：当查询未指定范围时不过滤；指定后仅命中相同范围的工具。</p>
+     *
+     * @param definition 工具定义
+     * @param query 查询条件
+     * @return 是否命中范围规则
+     */
+    private boolean matchesScopes(McpToolDefinition definition, ToolQuery query) {
+        if (query == null || query.getAllowedScopes() == null || query.getAllowedScopes().isEmpty()) {
+            return true;
+        }
+        if (!StringUtils.hasText(definition.getAuthScope())) {
+            return false;
+        }
+        for (String allowedScope : query.getAllowedScopes()) {
+            if (StringUtils.hasText(allowedScope)
+                    && definition.getAuthScope().equalsIgnoreCase(allowedScope.trim())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 按语言区域匹配工具。
+     *
+     * <p>规则：当查询未指定语言时不过滤；指定后需要命中支持列表。</p>
+     *
+     * @param definition 工具定义
+     * @param query 查询条件
+     * @return 是否命中语言规则
+     */
+    private boolean matchesLocale(McpToolDefinition definition, ToolQuery query) {
+        if (query == null || !StringUtils.hasText(query.getLocale())) {
+            return true;
+        }
+        if (definition.getSupportedLocales() == null || definition.getSupportedLocales().isEmpty()) {
+            return false;
+        }
+        String expectedLocale = normalizeLocale(query.getLocale());
+        for (String supportedLocale : definition.getSupportedLocales()) {
+            if (!StringUtils.hasText(supportedLocale)) {
+                continue;
+            }
+            if (expectedLocale.equals(normalizeLocale(supportedLocale))) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * 归一化语言区域字符串，统一匹配格式。
+     *
+     * @param locale 原始语言区域
+     * @return 归一化结果
+     */
+    private String normalizeLocale(String locale) {
+        return locale.trim().replace('_', '-').toLowerCase(Locale.ROOT);
     }
 
     private McpToolDefinition convertCached(Object cached) {

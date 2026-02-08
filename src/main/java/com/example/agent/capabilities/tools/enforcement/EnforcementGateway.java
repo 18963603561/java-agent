@@ -19,6 +19,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import com.example.agent.capabilities.tools.execution.ToolExecutor;
+import com.example.agent.capabilities.tools.validation.ToolRequestValidator;
 
 /**
  * 执行网关，负责调用工具执行链路并发布事件。
@@ -104,48 +105,54 @@ public class EnforcementGateway {
                                                 AtomicLong seqCounter,
                                                 String toolName,
                                                 Map<String, Object> toolArguments) {
+        TaskRequest validatedRequest = ToolRequestValidator.requireNonNull(request, "request");
+        TenantContext validatedTenant = ToolRequestValidator.requireTenantContext(tenantContext);
+        String validatedToolName = ToolRequestValidator.requireNonBlank(toolName, "toolName");
+        AtomicLong validatedSeqCounter = ToolRequestValidator.requireNonNull(seqCounter, "seqCounter");
         // 执行前记录日志，便于跟踪
         log.info("工具执行开始, tenantId={}, workflowId={}, tool={}",
-                tenantContext.getTenantId(), workflowId, toolName);
+                validatedTenant.getTenantId(), workflowId, validatedToolName);
         // 审批参数优先使用外部传入参数
         Map<String, Object> approvalArgs = toolArguments == null
-                ? toolExecutor.buildArguments(request)
-                : toolExecutor.buildMergedArguments(request, toolArguments);
-        handleApprovalIfNeeded(request, tenantContext, workflowId, toolName, seqCounter, approvalArgs);
-        long invokedSeq = nextSeq(seqCounter);
+                ? toolExecutor.buildArguments(validatedRequest)
+                : toolExecutor.buildMergedArguments(validatedRequest, toolArguments);
+        handleApprovalIfNeeded(validatedRequest, validatedTenant, workflowId, validatedToolName, validatedSeqCounter,
+                approvalArgs);
+        long invokedSeq = nextSeq(validatedSeqCounter);
         String usageId = buildUsageId(taskId, invokedSeq);
         Map<String, Object> invokedPayload = new HashMap<>();
-        invokedPayload.put("tool", toolName);
-        invokedPayload.put("query", request.getQuery());
+        invokedPayload.put("tool", validatedToolName);
+        invokedPayload.put("query", validatedRequest.getQuery());
         invokedPayload.put("usageId", usageId);
-        StreamEvent invoked = buildEvent(tenantContext, workflowId, EventType.TOOL_INVOKED, invokedSeq,
+        StreamEvent invoked = buildEvent(validatedTenant, workflowId, EventType.TOOL_INVOKED, invokedSeq,
                 invokedPayload);
         eventPublisher.publishEvent(invoked);
 
         try {
             // 根据是否传入参数选择执行分支
             Map<String, Object> result = toolArguments == null
-                    ? toolExecutor.execute(request, tenantContext, usageId, toolName, taskId)
-                    : toolExecutor.executeWithArguments(request, tenantContext, usageId, toolName, taskId, toolArguments);
-            ensureUsageContext(result, tenantContext, taskId, usageId);
-            long observationSeq = nextSeq(seqCounter);
-            StreamEvent observation = buildEvent(tenantContext, workflowId, EventType.TOOL_OBSERVATION, observationSeq,
+                    ? toolExecutor.execute(validatedRequest, validatedTenant, usageId, validatedToolName, taskId)
+                    : toolExecutor.executeWithArguments(validatedRequest, validatedTenant, usageId, validatedToolName,
+                    taskId, toolArguments);
+            ensureUsageContext(result, validatedTenant, taskId, usageId);
+            long observationSeq = nextSeq(validatedSeqCounter);
+            StreamEvent observation = buildEvent(validatedTenant, workflowId, EventType.TOOL_OBSERVATION, observationSeq,
                     result);
             eventPublisher.publishEvent(observation);
             log.info("工具执行完成, tenantId={}, workflowId={}, tool={}",
-                    tenantContext.getTenantId(), workflowId, toolName);
+                    validatedTenant.getTenantId(), workflowId, validatedToolName);
             return result;
         } catch (RuntimeException ex) {
-            long errorSeq = nextSeq(seqCounter);
-            StreamEvent error = buildEvent(tenantContext, workflowId, EventType.TOOL_ERROR, errorSeq,
+            long errorSeq = nextSeq(validatedSeqCounter);
+            StreamEvent error = buildEvent(validatedTenant, workflowId, EventType.TOOL_ERROR, errorSeq,
                     Map.of(
-                            "tool", toolName,
+                            "tool", validatedToolName,
                             "error", ex.getMessage() == null ? "tool_failed" : ex.getMessage(),
                             "errorCode", resolveErrorCode(ex)
                     ));
             eventPublisher.publishEvent(error);
             log.error("工具执行失败, tenantId={}, workflowId={}, tool={}",
-                    tenantContext.getTenantId(), workflowId, toolName, ex);
+                    validatedTenant.getTenantId(), workflowId, validatedToolName, ex);
             throw ex;
         }
     }

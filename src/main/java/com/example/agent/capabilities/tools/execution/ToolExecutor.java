@@ -38,6 +38,7 @@ import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.capabilities.tools.sandbox.SandboxExecutor;
 import com.example.agent.capabilities.tools.sandbox.SandboxResult;
 import com.example.agent.capabilities.tools.validation.ToolArgumentValidator;
+import com.example.agent.capabilities.tools.validation.ToolRequestValidator;
 
 /**
  * 宸ュ叿鎵ц鍣紝璐熻矗宸ュ叿璋冪敤銆佺紦瀛樹笌閲嶈瘯鎺у埗銆?
@@ -209,8 +210,11 @@ public class ToolExecutor {
                                                 String toolName,
                                                 String taskId,
                                                 Map<String, Object> toolArguments) {
+        ToolRequestValidator.requireNonNull(request, "request");
+        TenantContext validatedTenant = ToolRequestValidator.requireTenantContext(tenantContext);
+        String validatedToolName = ToolRequestValidator.requireNonBlank(toolName, "toolName");
         // 瑙ｆ瀽宸ュ叿鍚嶇О骞跺悎骞跺弬鏁?
-        String resolvedTool = toolRegistry.resolve(toolName);
+        String resolvedTool = toolRegistry.resolve(validatedToolName);
         Map<String, Object> arguments = toolArguments == null
                 ? buildArguments(request)
                 : buildMergedArguments(request, toolArguments);
@@ -224,10 +228,10 @@ public class ToolExecutor {
             Object cached = toolCache.getIfFresh(cacheKey, ttl);
             if (cached instanceof Map<?, ?> cachedMap) {
                 log.info("宸ュ叿缂撳瓨鍛戒腑, tenantId={}, tool={}, usageId={}, traceId={}",
-                        tenantContext.getTenantId(), resolvedTool, usageId, resolveTraceId(tenantContext));
+                        validatedTenant.getTenantId(), resolvedTool, usageId, resolveTraceId(validatedTenant));
                 @SuppressWarnings("unchecked")
                 Map<String, Object> cachedOutput = (Map<String, Object>) cachedMap;
-                TokenUsageRecord usageRecord = recordUsage(tenantContext, request, usageId,
+                TokenUsageRecord usageRecord = recordUsage(validatedTenant, request, usageId,
                         resolvedTool, cachedOutput, taskId, true);
                 Map<String, Object> response = new HashMap<>();
                 response.put("tool", resolvedTool);
@@ -249,12 +253,12 @@ public class ToolExecutor {
             long startNs = System.nanoTime();
             try {
                 log.info("宸ュ叿鎵ц寮€濮? tenantId={}, tool={}, attempt={}, usageId={}, traceId={}",
-                        tenantContext.getTenantId(), resolvedTool, attempt, usageId,
-                        resolveTraceId(tenantContext));
+                        validatedTenant.getTenantId(), resolvedTool, attempt, usageId,
+                        resolveTraceId(validatedTenant));
                 // 先执行沙箱校验，再执行 MCP 工具调用
-                SandboxResult sandboxResult = sandboxExecutor.execute(resolvedTool, request, tenantContext, arguments);
+                SandboxResult sandboxResult = sandboxExecutor.execute(resolvedTool, request, validatedTenant, arguments);
                 McpToolCallRequest callRequest = buildCallRequest(request, resolvedTool, arguments, usageId);
-                McpToolCallResponse callResponse = mcpToolClient.callTool(callRequest, tenantContext);
+                McpToolCallResponse callResponse = mcpToolClient.callTool(callRequest, validatedTenant);
                 Map<String, Object> toolResult = callResponse != null ? callResponse.getResult() : null;
                 Map<String, Object> merged = new HashMap<>();
                 if (toolResult != null) {
@@ -267,7 +271,7 @@ public class ToolExecutor {
                     merged.put("sandboxStatus", sandboxResult.getStatus());
                 }
 
-                TokenUsageRecord usageRecord = recordUsage(tenantContext, request, usageId,
+                TokenUsageRecord usageRecord = recordUsage(validatedTenant, request, usageId,
                         resolvedTool, merged, taskId, false);
                 Map<String, Object> response = new HashMap<>();
                 response.put("tool", resolvedTool);
@@ -279,9 +283,9 @@ public class ToolExecutor {
                 response.put("resultDigest", buildDigest(merged));
 
                 long durationMs = Duration.ofNanos(System.nanoTime() - startNs).toMillis();
-                metricsPublisher.increment("tool.call.count", resolveTraceId(tenantContext));
+                metricsPublisher.increment("tool.call.count", resolveTraceId(validatedTenant));
                 metricsPublisher.recordTime("tool.call.latency.ms", durationMs,
-                        resolveTraceId(tenantContext));
+                        resolveTraceId(validatedTenant));
 
                 if (cacheEnabled) {
                     // 鎴愬姛缁撴灉鍐欏洖缂撳瓨
@@ -289,34 +293,34 @@ public class ToolExecutor {
                 }
 
                 log.info("宸ュ叿鎵ц瀹屾垚, tenantId={}, tool={}, usageId={}, traceId={}",
-                        tenantContext.getTenantId(), resolvedTool, usageId,
-                        resolveTraceId(tenantContext));
+                        validatedTenant.getTenantId(), resolvedTool, usageId,
+                        resolveTraceId(validatedTenant));
                 return response;
             } catch (ErrorCodeException ex) {
-                metricsPublisher.increment("tool.call.failure.count", resolveTraceId(tenantContext));
+                metricsPublisher.increment("tool.call.failure.count", resolveTraceId(validatedTenant));
                 if (isRetryable(ex) && attempt < maxAttempts) {
                     log.warn("宸ュ叿鎵ц鍙噸璇? tenantId={}, tool={}, attempt={}, errorCode={}, traceId={}",
-                            tenantContext.getTenantId(), resolvedTool, attempt, ex.getErrorCode(),
-                            resolveTraceId(tenantContext));
+                            validatedTenant.getTenantId(), resolvedTool, attempt, ex.getErrorCode(),
+                            resolveTraceId(validatedTenant));
                     retryPolicy.sleepBeforeRetry(attempt);
                     continue;
                 }
                 log.error("宸ュ叿鎵ц澶辫触, tenantId={}, tool={}, attempt={}, errorCode={}, traceId={}",
-                        tenantContext.getTenantId(), resolvedTool, attempt, ex.getErrorCode(),
-                        resolveTraceId(tenantContext), ex);
+                        validatedTenant.getTenantId(), resolvedTool, attempt, ex.getErrorCode(),
+                        resolveTraceId(validatedTenant), ex);
                 throw ex;
             } catch (Exception ex) {
-                metricsPublisher.increment("tool.call.failure.count", resolveTraceId(tenantContext));
+                metricsPublisher.increment("tool.call.failure.count", resolveTraceId(validatedTenant));
                 if (attempt < maxAttempts) {
                     log.warn("宸ュ叿鎵ц寮傚父鍙噸璇? tenantId={}, tool={}, attempt={}, traceId={}",
-                            tenantContext.getTenantId(), resolvedTool, attempt,
-                            resolveTraceId(tenantContext), ex);
+                            validatedTenant.getTenantId(), resolvedTool, attempt,
+                            resolveTraceId(validatedTenant), ex);
                     retryPolicy.sleepBeforeRetry(attempt);
                     continue;
                 }
                 log.error("宸ュ叿鎵ц寮傚父, tenantId={}, tool={}, attempt={}, traceId={}",
-                        tenantContext.getTenantId(), resolvedTool, attempt,
-                        resolveTraceId(tenantContext), ex);
+                        validatedTenant.getTenantId(), resolvedTool, attempt,
+                        resolveTraceId(validatedTenant), ex);
                 throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE",
                         "宸ュ叿鎵ц寮傚父");
             }

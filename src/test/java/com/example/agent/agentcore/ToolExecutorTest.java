@@ -29,10 +29,12 @@ import com.example.agent.capabilities.tools.execution.ToolExecutor;
 import com.example.agent.capabilities.tools.registry.ToolCache;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.capabilities.tools.sandbox.SandboxExecutor;
+import org.springframework.http.HttpStatus;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -42,6 +44,48 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class ToolExecutorTest {
+
+    @Test
+    void executeRejectsNullRequest() {
+        ToolExecutor executor = buildValidationExecutor();
+
+        ErrorCodeException ex = assertThrows(ErrorCodeException.class,
+                () -> executor.execute(null,
+                        new TenantContext("t1", "u1", List.of(), "req", "trace"),
+                        "usage-v1", "demo_tool", "task-v1"));
+
+        assertEquals("INVALID_REQUEST", ex.getErrorCode());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("request 不能为空", ex.getReason());
+    }
+
+    @Test
+    void executeRejectsBlankTenantId() {
+        ToolExecutor executor = buildValidationExecutor();
+
+        ErrorCodeException ex = assertThrows(ErrorCodeException.class,
+                () -> executor.execute(new TaskRequest(),
+                        new TenantContext(" ", "u1", List.of(), "req", "trace"),
+                        "usage-v2", "demo_tool", "task-v2"));
+
+        assertEquals("INVALID_REQUEST", ex.getErrorCode());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("tenantContext.tenantId 不能为空", ex.getReason());
+    }
+
+    @Test
+    void executeRejectsBlankToolName() {
+        ToolExecutor executor = buildValidationExecutor();
+
+        ErrorCodeException ex = assertThrows(ErrorCodeException.class,
+                () -> executor.execute(new TaskRequest(),
+                        new TenantContext("t1", "u1", List.of(), "req", "trace"),
+                        "usage-v3", "  ", "task-v3"));
+
+        assertEquals("INVALID_REQUEST", ex.getErrorCode());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("toolName 不能为空", ex.getReason());
+    }
 
     @Test
     void usesCacheWhenAvailable() {
@@ -260,5 +304,24 @@ class ToolExecutorTest {
                 "usage-4", "demo_tool", "task-4");
 
         assertEquals("rawref:v1:redis:raw:demo:1", result.get("rawRef"));
+    }
+
+    private ToolExecutor buildValidationExecutor() {
+        ToolRegistry toolRegistry = Mockito.mock(ToolRegistry.class);
+        McpToolClient mcpToolClient = Mockito.mock(McpToolClient.class);
+        SandboxExecutor sandboxExecutor = Mockito.mock(SandboxExecutor.class);
+        TokenBudgetManager tokenBudgetManager = Mockito.mock(TokenBudgetManager.class);
+        ModelRouter modelRouter = Mockito.mock(ModelRouter.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<RawResultStore> rawResultStoreProvider = Mockito.mock(ObjectProvider.class);
+        when(rawResultStoreProvider.getIfAvailable()).thenReturn(null);
+        ObjectProvider<StringRedisTemplate> redisProvider = Mockito.mock(ObjectProvider.class);
+        when(redisProvider.getIfAvailable()).thenReturn(null);
+        ToolCache toolCache = new ToolCache(redisProvider, new ObjectMapper());
+        return new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
+                tokenBudgetManager, modelRouter, new ObjectMapper(), metricsPublisher, tracingPublisher,
+                rawResultStoreProvider);
     }
 }

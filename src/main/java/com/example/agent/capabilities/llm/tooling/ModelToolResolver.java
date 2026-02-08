@@ -8,7 +8,6 @@ import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
-import com.example.agent.capabilities.tools.ToolCatalog;
 import com.example.agent.capabilities.tools.ToolCatalogService;
 import com.example.agent.capabilities.tools.ToolQuery;
 import com.example.agent.capabilities.tools.ToolSummary;
@@ -47,10 +46,6 @@ public class ModelToolResolver {
      */
     private final SkillRegistry skillRegistry;
     /**
-     * 工具目录。
-     */
-    private final ToolCatalog toolCatalog;
-    /**
      * 工具目录服务。
      */
     private final ToolCatalogService toolCatalogService;
@@ -81,14 +76,13 @@ public class ModelToolResolver {
 
     public ModelToolResolver(ToolRegistry toolRegistry,
                              SkillRegistry skillRegistry,
-                             ToolCatalog toolCatalog,
+                             ToolCatalogService toolCatalog,
                              ObjectMapper objectMapper,
                              MetricsPublisher metricsPublisher,
                              ToolingContextMapper toolingContextMapper) {
         this.toolRegistry = toolRegistry;
         this.skillRegistry = skillRegistry;
-        this.toolCatalog = toolCatalog;
-        this.toolCatalogService = toolCatalog instanceof ToolCatalogService service ? service : null;
+        this.toolCatalogService = toolCatalog;
         this.objectMapper = objectMapper;
         this.metricsPublisher = metricsPublisher;
         this.toolingContextMapper = toolingContextMapper;
@@ -259,12 +253,10 @@ public class ModelToolResolver {
     }
 
     private List<ModelToolDefinition> resolveSummaryTools() {
-        if (toolCatalog == null && toolCatalogService == null) {
+        if (toolCatalogService == null) {
             return List.of();
         }
-        List<ToolSummary> summaries = toolCatalogService != null
-                ? toolCatalogService.listToolSummaries(new ToolQuery())
-                : toolCatalog.listSummaries(new ToolQuery());
+        List<ToolSummary> summaries = toolCatalogService.listSummaries(new ToolQuery());
         if (summaries == null || summaries.isEmpty()) {
             return List.of();
         }
@@ -297,7 +289,7 @@ public class ModelToolResolver {
     }
 
     private ModelToolDefinition resolveToolByNameFull(String toolName) {
-        McpToolDefinition definition = toolCatalog != null ? toolCatalog.getDefinition(toolName) : null;
+        McpToolDefinition definition = toolCatalogService.getDefinition(toolName);
         if (definition == null) {
             for (McpToolDefinition item : toolRegistry.listDefinitions()) {
                 if (item != null && toolName.equalsIgnoreCase(item.getName())) {
@@ -320,7 +312,7 @@ public class ModelToolResolver {
     private ModelToolDefinition resolveToolByNameOnDemand(String toolName, String tenantId) {
         long startNs = System.nanoTime();
         Map<String, Object> schema = resolveToolSchema(toolName, tenantId, startNs);
-        McpToolDefinition definition = toolCatalog != null ? toolCatalog.getDefinition(toolName) : null;
+        McpToolDefinition definition = toolCatalogService.getDefinition(toolName);
         ModelToolDefinition tool = new ModelToolDefinition(toolName,
                 definition != null ? definition.getDescription() : null,
                 objectMapper.valueToTree(schema));
@@ -331,13 +323,7 @@ public class ModelToolResolver {
     }
 
     private Map<String, Object> resolveToolSchema(String toolName, String tenantId, long startNs) {
-        Map<String, Object> schema = null;
-        if (toolCatalogService != null) {
-            schema = toolCatalogService.getToolSchema(toolName);
-        } else if (toolCatalog != null) {
-            McpToolDefinition definition = toolCatalog.getDefinition(toolName);
-            schema = definition != null ? definition.getInputSchema() : null;
-        }
+        Map<String, Object> schema = toolCatalogService.getToolSchema(toolName);
         long durationMs = Math.max(0, (System.nanoTime() - startNs) / 1_000_000);
         if (schema == null || schema.isEmpty()) {
             if (metricsPublisher != null) {

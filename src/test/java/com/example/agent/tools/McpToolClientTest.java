@@ -25,6 +25,8 @@ import reactor.core.publisher.Flux;
 import reactor.core.publisher.Mono;
 import com.example.agent.capabilities.tools.mcp.McpServerProperties;
 import com.example.agent.capabilities.tools.mcp.McpToolClient;
+import com.example.agent.capabilities.tools.mcp.McpToolCallRequest;
+import com.example.agent.capabilities.tools.mcp.McpToolCallResponse;
 import com.example.agent.capabilities.tools.mcp.McpToolListRequest;
 import com.example.agent.capabilities.tools.mcp.McpToolListResponse;
 import com.example.agent.capabilities.tools.mcp.protocol.McpJsonRpcAdapter;
@@ -186,6 +188,54 @@ class McpToolClientTest {
         } finally {
             fakeServer.stop(0);
         }
+    }
+
+    @Test
+    void listToolsRejectsNullRequest() {
+        McpServerProperties serverProperties = new McpServerProperties();
+        McpToolClient client = buildClient(serverProperties, okResponse(toJsonBytes(Map.of("tools", List.of(), "hasMore", false))));
+
+        ErrorCodeException ex = assertThrows(ErrorCodeException.class,
+                () -> client.listTools(null, new TenantContext("t1", "u1", List.of(), "req", "trace")));
+
+        assertEquals("INVALID_REQUEST", ex.getErrorCode());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("request 不能为空", ex.getReason());
+    }
+
+    @Test
+    void listToolsRejectsBlankTenantId() {
+        McpServerProperties serverProperties = new McpServerProperties();
+        McpToolClient client = buildClient(serverProperties, okResponse(toJsonBytes(Map.of("tools", List.of(), "hasMore", false))));
+        McpToolListRequest request = new McpToolListRequest();
+
+        ErrorCodeException ex = assertThrows(ErrorCodeException.class,
+                () -> client.listTools(request, new TenantContext(" ", "u1", List.of(), "req", "trace")));
+
+        assertEquals("INVALID_REQUEST", ex.getErrorCode());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("tenantContext.tenantId 不能为空", ex.getReason());
+    }
+
+    @Test
+    void callToolRejectsBlankToolName() {
+        McpServerProperties serverProperties = new McpServerProperties();
+        McpServerProperties.McpServer server = new McpServerProperties.McpServer();
+        server.setId("mcp-default");
+        server.setBaseUrl("http://example.com");
+        server.setAllowedHosts(List.of("example.com"));
+        serverProperties.setServers(List.of(server));
+
+        McpToolClient client = buildClient(serverProperties, okResponse(toJsonBytes(Map.of("result", Map.of(), "status", "SUCCESS"))));
+        McpToolCallRequest request = new McpToolCallRequest();
+        request.setToolName("  ");
+
+        ErrorCodeException ex = assertThrows(ErrorCodeException.class,
+                () -> client.callTool(request, new TenantContext("t1", "u1", List.of(), "req", "trace")));
+
+        assertEquals("INVALID_REQUEST", ex.getErrorCode());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertEquals("request.toolName 不能为空", ex.getReason());
     }
 
     private McpToolClient buildClient(McpServerProperties properties, ExchangeFunction exchangeFunction) {
