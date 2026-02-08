@@ -26,6 +26,13 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import com.example.agent.capabilities.tools.execution.ToolExecutor;
+import com.example.agent.capabilities.tools.execution.mapping.ToolExecutionMapper;
+import com.example.agent.capabilities.tools.execution.service.ToolExecutionCacheService;
+import com.example.agent.capabilities.tools.execution.service.ToolExecutionTracer;
+import com.example.agent.capabilities.tools.execution.service.ToolInvocationService;
+import com.example.agent.capabilities.tools.execution.service.ToolRawRefService;
+import com.example.agent.capabilities.tools.execution.service.ToolResultAssembler;
+import com.example.agent.capabilities.tools.execution.service.ToolUsageRecorder;
 import com.example.agent.capabilities.tools.registry.ToolCache;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.capabilities.tools.sandbox.SandboxExecutor;
@@ -117,6 +124,13 @@ class ToolExecutorTest {
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
                 tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher,
+                new ToolExecutionMapper(),
+                new ToolExecutionCacheService(),
+                new ToolInvocationService(),
+                new ToolExecutionTracer(),
+                new ToolRawRefService(),
+                new ToolResultAssembler(new ToolExecutionMapper()),
+                new ToolUsageRecorder(),
                 rawResultStoreProvider);
         ReflectionTestUtils.setField(executor, "cacheEnabled", true);
         ReflectionTestUtils.setField(executor, "cacheTtlSeconds", 300L);
@@ -174,6 +188,13 @@ class ToolExecutorTest {
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
                 tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher,
+                new ToolExecutionMapper(),
+                new ToolExecutionCacheService(),
+                new ToolInvocationService(),
+                new ToolExecutionTracer(),
+                new ToolRawRefService(),
+                new ToolResultAssembler(new ToolExecutionMapper()),
+                new ToolUsageRecorder(),
                 rawResultStoreProvider);
         ReflectionTestUtils.setField(executor, "cacheEnabled", false);
         ReflectionTestUtils.setField(executor, "maxAttempts", 2);
@@ -229,6 +250,13 @@ class ToolExecutorTest {
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
                 tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher,
+                new ToolExecutionMapper(),
+                new ToolExecutionCacheService(),
+                new ToolInvocationService(),
+                new ToolExecutionTracer(),
+                new ToolRawRefService(),
+                new ToolResultAssembler(new ToolExecutionMapper()),
+                new ToolUsageRecorder(),
                 rawResultStoreProvider);
         ReflectionTestUtils.setField(executor, "cacheEnabled", false);
 
@@ -294,6 +322,13 @@ class ToolExecutorTest {
 
         ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
                 tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher,
+                new ToolExecutionMapper(),
+                new ToolExecutionCacheService(),
+                new ToolInvocationService(),
+                new ToolExecutionTracer(),
+                new ToolRawRefService(),
+                new ToolResultAssembler(new ToolExecutionMapper()),
+                new ToolUsageRecorder(),
                 rawResultStoreProvider);
         ReflectionTestUtils.setField(executor, "cacheEnabled", false);
 
@@ -322,6 +357,13 @@ class ToolExecutorTest {
         ToolCache toolCache = new ToolCache(redisProvider, new ObjectMapper());
         return new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
                 tokenBudgetManager, modelRouter, new ObjectMapper(), metricsPublisher, tracingPublisher,
+                new ToolExecutionMapper(),
+                new ToolExecutionCacheService(),
+                new ToolInvocationService(),
+                new ToolExecutionTracer(),
+                new ToolRawRefService(),
+                new ToolResultAssembler(new ToolExecutionMapper()),
+                new ToolUsageRecorder(),
                 rawResultStoreProvider);
     }
 }
