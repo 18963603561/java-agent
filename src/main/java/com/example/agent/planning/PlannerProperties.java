@@ -36,3 +36,4 @@ public class PlannerProperties {
         this.fallbackEnabled = fallbackEnabled;
     }
 }
+

@@ -1,0 +1,6400 @@
+
+
+
+
+邀请团队成员
+你说：
+https://github.com/18963603561/java-agent/tree/001-agent-core-spec_0.20帮我加载这个项目
+
+ChatGPT 说：
+
+已思考 17s
+我这边尝试直接打开你给的地址时，GitHub 返回 404 Not Found（也就是“仓库不存在 / 分支不存在 / 或者你没有权限访问”）。这通常有几种原因：
+
+仓库是 私有仓库，未登录或我无法访问；
+
+账号/仓库名写错（比如其实是别的 owner 或 repo 名）；
+
+分支 001-agent-core-spec_0.20 不存在（分支名有细微差别也会 404）；
+
+仓库被删/改名。
+
+你可以先在浏览器里（登录 GitHub 后）确认这个链接能否打开；如果你能打开，那你本地“加载项目”可以按下面做（最常用的方式）：
+
+方式 A：用 git 克隆并切到分支（推荐）
+# 1) 克隆仓库
+git clone https://github.com/18963603561/java-agent.git
+cd java-agent
+
+# 2) 拉取全部分支并切到目标分支
+git fetch --all
+git checkout 001-agent-core-spec_0.20
+
+# 3) 如果 checkout 报分支不存在，先看远端分支有哪些
+git branch -r
+如果是私有仓库且你有权限，但 https 方式拉不下来，改用 SSH：
+
+git clone git@github.com:18963603561/java-agent.git
+cd java-agent
+git checkout 001-agent-core-spec_0.20
+方式 B：用 IntelliJ IDEA “加载/导入”
+IDEA 打开：File → New → Project from Version Control
+
+URL 粘贴仓库地址（不带 /tree/... 的那个更稳）：
+
+https://github.com/18963603561/java-agent.git
+
+Clone 完成后，如果需要切分支：
+
+右下角 Git 分支菜单 → 选择 001-agent-core-spec_0.20
+
+常见构建命令（按项目实际用 Maven/Gradle）
+在项目根目录看是否有 pom.xml 或 build.gradle：
+
+Maven
+
+mvn -U -DskipTests clean package
+Gradle
+
+./gradlew build
+你现在要我“帮你加载”到哪种环境？
+如果你是想 我帮你读代码/梳理模块/解释怎么跑：请把仓库设为可访问（公开）或发我可访问的仓库链接（确认不会 404），或者直接上传 zip。
+
+如果你只是想 你本地能跑起来：按上面步骤操作即可。
+
+如果你方便的话，把你浏览器里能打开的仓库主页链接（例如 https://github.com/<owner>/<repo>）贴一下；或者把 git branch -r 的输出贴出来，我就能精准告诉你该切哪个分支、怎么构建运行。
+
+
+你说：
+现在我改成公共仓库了，再次尝试一下
+
+ChatGPT 说：
+好，我这边再次尝试了，但现在遇到的是另一个“工具层面”的限制，需要跟你说明清楚一下 👇
+
+当前状态（重要）
+你这个仓库 现在确实已经是 public 了 👍
+
+但是在这个对话里，你还没有把 GitHub 仓库“授权/选中”给我
+
+所以我用 file_search 去加载代码时，系统直接返回了：
+
+MissingGithubRepoSelection
+（未选择任何 GitHub 仓库，无法读取）
+
+这不是你仓库的问题，也不是链接的问题，而是需要你在 ChatGPT 里点一下授权。
+
+你现在只需要做 1 件事（30 秒搞定）
+✅ 步骤
+在输入框里 输入 @github
+
+点击出现的 GitHub 图标
+
+选择并勾选这个仓库：
+18963603561/java-agent
+
+发送任意一句话（比如：好了）
+
+这样我就能：
+
+直接加载 001-agent-core-spec_0.20 分支
+
+读源码
+
+帮你分析 agent 结构、premain、Instrumentation、模块划分
+
+指导怎么跑、怎么 attach、怎么扩展
+
+提前跟你对齐一下：你想我“加载”后做什么？
+你可以选一个（或多个）👇
+
+1️⃣ 整体讲解这个 java-agent 项目的架构
+2️⃣ 只看 001-agent-core-spec_0.20 分支，解释 agent core spec
+3️⃣ 教你怎么运行 / 打包 / 用 -javaagent 启动
+4️⃣ 帮你 review 设计，看看 agent 结构是否合理
+5️⃣ 你正在对标某个规范 / 项目（ByteBuddy / SkyWalking / Arthas？）
+
+你先把仓库授权一下，我立刻就能“真·加载项目”了 🚀
+
+
+你说：
+@github
+
+ChatGPT 说：
+好👌 你已经触发了 @github。
+
+接下来请你在聊天框弹出的 GitHub 面板/图标 里完成两步：
+
+点击 GitHub 图标（或“连接/选择仓库”）
+
+勾选这个仓库：18963603561/java-agent（如果列表里没看到，就用搜索框搜 java-agent）
+
+选好后你随便回我一句 “已选中”（或发个 👍），我就能立刻把该仓库和分支 001-agent-core-spec_0.20 的代码结构加载出来并开始分析/指导怎么跑。
+
+
+你说：
+没看到聊天框弹出的 GitHub 面板/图标
+
+ChatGPT 说：
+OK，这个情况很常见，不是你操作问题 👍
+我们一步一步来，我给你 两种可行方案，你选一个最顺的。
+
+方案一（最稳）：手动授权 GitHub 仓库（推荐）
+有时候 @github 不会自动弹面板，需要你手动走 UI。
+
+操作路径（按顺序点）👇
+在当前对话窗口 左下角，找到 ➕（加号）
+
+点击 ➕ → 选择 GitHub
+
+如果是第一次：
+
+点 Connect GitHub
+
+登录并授权
+
+授权后：
+
+搜索并勾选仓库
+18963603561/java-agent
+
+选中后，回到聊天窗口，发一句：
+
+已授权
+✅ 这是唯一能让我“真正加载并阅读代码”的方式
+
+方案二（不用授权）：你本地 + 我远程指导（立即可用）
+如果你现在不想折腾 UI，其实也完全没问题 👌
+我们可以这样：
+
+你本地执行
+git clone https://github.com/18963603561/java-agent.git
+cd java-agent
+git checkout 001-agent-core-spec_0.20
+然后你把下面任意一个贴给我即可👇：
+
+tree -L 3
+
+或者 agent 入口类（premain / agentmain）
+
+或者 pom.xml / build.gradle
+
+或者你最关心的某个 package
+
+我可以 像 code review 一样逐行给你讲，不需要我直接读仓库。
+
+为了不浪费你时间，我先判断一下你的目标（你点一个就行）
+🔹 A. 我是想学习 / 设计一个 java agent 规范结构
+🔹 B. 我是想把这个 agent 跑起来（-javaagent / attach）
+🔹 C. 我在实现 agent core spec，对标某个框架
+🔹 D. 单纯让我帮你看代码哪里写得好 / 哪里坑
+
+你只要回：A / B / C / D
+或者一句话描述也行。
+
+你这项目名字叫 java-agent + core spec，明显不是随便玩玩的那种，我可以陪你把它拆到很细 🔍
+
+
+你说：
+已上传的图片
+
+ChatGPT 说：
+看到了，你这个截图信息量很关键，我直接给你结论和解决办法👇
+
+你现在为什么“看不到 java-agent”？
+从截图里可以明确判断出 3 点：
+
+✅ 1. GitHub 已经连上了（底部有 GitHub）
+说明账号授权是成功的，不是登录问题。
+
+❌ 2. 列表里全是“尚未建立索引”
+这些仓库（java-design-patterns / java-toolbox / llm-gpt / MetaGPT）：
+
+都已经被 ChatGPT 识别
+
+但还没建立索引
+
+而且 java-agent 根本没出现在列表里
+
+👉 这说明：
+ChatGPT 还没“感知”到你刚刚新公开的 java-agent 仓库
+
+这是 GitHub Connector 的一个同步延迟 / 刷新问题，非常常见，不是你操作错。
+
+✅ 最快解决方案（强烈推荐）
+方法一：手动刷新 GitHub 仓库列表（90% 情况可解）
+按顺序来：
+
+点击截图左下角 GitHub ▾
+
+选择 Disconnect / 断开
+
+重新点击 ➕ → GitHub
+
+重新授权 GitHub
+
+等 5–10 秒
+
+再搜索：
+
+java-agent
+很多时候 重新授权 = 强制刷新仓库列表
+
+方法二：等 GitHub 索引自动同步（最慢，但一定成功）
+如果你是 刚刚才把仓库设为 public：
+
+GitHub Connector 同步通常有 几分钟到十几分钟延迟
+
+刷新页面 / 重新进对话后再试
+
+⚠️ 重要现实情况（说实话）
+即使你现在立刻搞定索引，我也必须告诉你一句：
+
+👉 为了效率，其实完全没必要卡在 GitHub 授权这一步
+
+我们可以 现在立刻继续，而且体验不会差。
+
+🚀 不等授权的“立即推进方案”（工程师常用）
+你本地已经能 clone，对吧？
+那你只需要做一件事 👇
+
+在项目根目录执行：
+tree -L 3
+或如果你在 Windows：
+
+tree /F /A
+然后把输出 直接贴到这里。
+
+我可以马上帮你：
+
+🧠 解析 java-agent 的整体模块设计
+
+🔍 找到 premain / agentmain 入口
+
+🧱 讲清楚你这个 core-spec 0.20 在 agent 里处于什么层
+
+⚙️ 指导你怎么 -javaagent 跑起来
+
+我先帮你“预判”一下（你看看准不准）
+从你的仓库名和分支名来看，你很可能在做的是：
+
+一个“可规范化 / 可演进”的 Java Agent Core 层设计
+类似：
+
+agent bootstrap
+
+instrumentation 抽象
+
+lifecycle / plugin spec
+
+versioned core spec（0.20）
+
+如果你愿意，我可以：
+
+帮你对标 ByteBuddy / SkyWalking / OpenTelemetry Java Agent
+
+或直接帮你 设计一份 agent-core-spec README
+
+你下一步只要回我一句就行👇
+
+我把 tree 贴给你
+
+或 我想先看 agent 入口设计
+
+或 我想你直接帮我 review 架构
+
+我在这，继续陪你把这个项目“拆干净” 💪
+
+
+你说：
+已授权
+
+ChatGPT 说：
+
+已思考 7s
+我这边还是收到了同一个报错：MissingGithubRepoSelection（未选择任何 GitHub 仓库）。
+也就是说：你虽然“已授权”，但在 ChatGPT 侧 还没有把 18963603561/java-agent 这个仓库勾选进来（授权 ≠ 已选仓库）。
+
+你现在这样做就行（关键是“勾选仓库”）
+点击输入框旁边或左下角的 ➕
+
+选择 GitHub
+
+在“配置存储库 / Repositories”里搜索 java-agent
+
+勾选 18963603561/java-agent
+
+回到对话发一句：已勾选 java-agent
+
+你截图里那一堆仓库都显示“尚未建立索引”，而且确实没出现 java-agent。如果搜索还是搜不到：
+
+先在那个搜索框里直接搜：18963603561/java-agent
+
+或者把页面刷新一次 / 重新打开 GitHub 连接页再搜（通常能刷新仓库列表）
+
+不等 UI 的备用方案（立刻可继续）
+你把下面命令输出贴我，我也能直接“加载项目结构”并继续分析：
+
+git clone https://github.com/18963603561/java-agent.git
+cd java-agent
+git checkout 001-agent-core-spec_0.20
+tree -L 4
+你回我任意一种即可：
+
+✅ “已勾选 java-agent”
+
+或 ✅ 贴 tree -L 4 输出
+
+
+你说：
+已上传的图片
+
+ChatGPT 说：
+太好了，这张图把问题彻底说明白了 👍
+而且结论对你是个好消息。
+
+结论先行（一句话版）
+一切都正常。
+现在卡住你的不是“授权 / 仓库 / 操作”，而是 GitHub 官方正在给 java-agent 建立代码索引。
+
+截图里的这句是关键证据 👇
+
+⚠️ 这个仓库的代码正在被索引，几分钟后再试。
+
+这一步 ChatGPT、你、我都没法加速，只能等 GitHub 后台完成。
+
+现在发生了什么（原理解释一下）
+你刚刚做了这几件事（顺序完全正确）：
+
+✅ 把 18963603561/java-agent 改成 Public
+
+✅ ChatGPT 侧 已连接 GitHub
+
+✅ GitHub 已经“看到”这个仓库（repo 名能搜到）
+
+⏳ GitHub Search Indexer 正在跑
+
+在第 4 步完成之前，会出现三个典型现象（你全中了）：
+
+搜 repo 能搜到
+
+搜代码显示 0 个文件
+
+黄色提示：代码正在被索引
+
+👉 这是 GitHub 的正常行为，尤其是：
+
+新建仓库
+
+私有 → 公共
+
+或一次性 push 了较多代码
+
+你接下来该怎么做（最省时间）
+✅ 方案 A：等索引完成（推荐）
+一般时间：
+
+5～15 分钟
+
+极端情况 30 分钟
+
+你可以：
+
+刷新当前页面
+
+或过几分钟重新搜索一次
+
+一旦索引完成：
+
+GitHub 页面能搜到代码
+
+ChatGPT 的 GitHub 连接里也一定能选到这个仓库
+
+我就可以 直接加载源码分析
+
+🚀 方案 B：我们不等索引，直接推进（强烈建议并行）
+说句实在的：
+
+等 GitHub 索引，是最浪费工程师时间的事
+
+我们完全可以现在就继续 👇
+
+你本地已经能 clone，对吧？
+那你任选一个发我：
+
+选项 1：项目结构
+
+tree -L 3
+选项 2：agent 入口
+
+premain / agentmain 所在类
+
+或 MANIFEST.MF
+
+选项 3：core-spec 设计
+
+core module 的 package 结构
+
+或 README / design doc
+
+我可以做到的事情（不依赖索引）：
+
+🧠 精准拆解 java agent 架构
+
+🔌 讲清楚 agent bootstrap / instrumentation lifecycle
+
+🧱 帮你 review core-spec 0.20 是否设计合理
+
+⚙️ 指导你 -javaagent / attach / 打包
+
+给你一个专业判断（你这个项目值得继续）
+从你这个仓库名 + 分支命名方式来看：
+
+java-agent
+
+001-agent-core-spec_0.20
+
+这已经是框架级、不是 demo 级的设计了
+而且你在刻意做 spec versioning —— 这点非常专业。
+
+👉 等索引的同时，我们完全可以把 agent core spec 的设计聊清楚。
+
+你下一步直接回我一句就行：
+等索引，我好了叫你
+
+或 我把 tree 贴给你
+
+或 先帮我看 agent 入口设计
+
+或 我想你直接 review core-spec
+
+你这已经不是“怎么加载项目”的问题了，
+而是 怎么把这个 agent 设计打磨成一套真正可复用的规范 💡
+
+
+你说：
+等索引
+
+ChatGPT 说：
+行👌 那你这边等 GitHub 索引完成就行。
+
+索引好了之后，你按这个顺序做（最省事）：
+
+回到 ChatGPT 里 ➕ → GitHub
+
+在仓库搜索框输入：18963603561/java-agent
+
+勾选这个仓库
+
+回来发我一句：已勾选 java-agent
+（如果你还想我直接看某个分支，也一起说：001-agent-core-spec_0.20）
+
+如果索引好了但还是搜不到仓库，最有效的一招是：断开 GitHub 连接 → 重新连接（强制刷新仓库列表）。
+
+你一勾选成功，我就可以直接把项目结构、入口（premain/agentmain）、打包方式、core spec 的模块边界都给你拆出来。
+
+
+你说：
+起始需求：
+	我现在做的这个fagent智能体，我的愿景是他是一个fmdb的数据治理智能体，整体框架搭建好后，后续可以持续补充治理知识，补充上下文和工具（通过toolbox），这样我就希望用户输入一句话如：帮我查询附近一公里购买奶茶的外卖订单，后续有更多场景，当然未来智能体还需要包含运维功能。我如何规划呢，后续重要的在知识库和工具如何跟插件一样补充进去呢
+以下是大模型与问答对话，请帮我先仔细分析上述需求和大模型给出的答复，我期望后续可以以场景方式，也可以通过业务知识库整理方式，最后以治理元数据兜底。，请帮我详细分析，基于现有工程给出可行性方案。
+你这个愿景可以按“内核稳定 + 插件化扩展”来规划：先把 fagent 做成一套可演进的 治理/运维 Agent Runtime，后续把“知识”和“工具”都当成可热插拔的能力包塞进来（像插件一样）。
+
+1) 总体规划路线：先把“骨架”定死
+
+把系统拆成 4 层，越往下越稳定，越往上越易变：
+
+Runtime 内核（最稳定）
+
+会话/任务/Step 执行、事件流、Evidence/Structured/Summary、重试与质量审查、权限与租户、成本与预算
+
+目标：未来加 100 个场景，内核不动或少动
+
+能力路由层（可演进）
+
+意图识别 → 选择“领域能力包”（数据治理 / 运维 / 业务查询 / …）
+
+规划器（Planner）产出步骤图（TOOL / LLM / FINAL），并且能按租户、环境、权限做约束
+
+能力包（插件）层（重点扩展）
+
+“知识包”（RAG / 规则 / 指标口径 / 表血缘 / 治理规范）
+
+“工具包”（Toolbox 工具：SQL、元数据检索、外卖订单查询、地图/地理围栏、告警系统、工单系统…）
+
+每个能力包都应自带：manifest + prompts + tools + schemas + policies + tests
+
+适配层（最易变）
+
+具体对接 FMDB、Hive、Spark、K8s、YARN、外部 API（外卖/地图）等
+
+这样你后续补场景，本质就是：新增一个能力包 + 注册到路由层。
+
+2) 你给的例子“1公里奶茶外卖订单”，如何落地到可复用模式
+
+把它抽象成一个“查询类场景”的通用模板：
+
+用户一句话
+
+帮我查询附近一公里购买奶茶的外卖订单
+
+建议规划成固定 3 段 Step 模式（可复用）
+
+理解与约束（LLM）
+
+抽取：地理范围=1km、品类=奶茶、业务对象=外卖订单、时间范围（如果没给默认近 7 天/24h，可配置）、用户位置来源（GPS/门店地址/默认城市）
+
+生成 StructuredQueryIntent（稳定结构）
+
+工具检索与计算（TOOL）
+
+Geo：获取用户位置、附近商圈/门店列表（或配送范围过滤）
+
+Order：按门店ID/地理围栏/关键词“奶茶”查订单
+
+必要时：再做二次过滤、聚合（金额、数量、top店铺）
+
+结果呈现（FINAL）
+
+用 SummaryBuilder 产出可读回答
+
+EvidencePack 收 refs（工具调用、SQL、API trace）
+
+Structured 输出标准化数据给后续步骤/二次追问复用（比如“把这些订单按品牌排名”）
+
+关键点：你不要为“奶茶”单做一套流程，而是把它变成QueryIntent → ToolPlan → Execute → Present的通用流水线。
+
+3) “知识库”和“工具”像插件一样补充：给你一套可执行的插件模型
+
+你已经有 Toolbox 的思路，非常适合做插件化。建议定义两类插件：
+
+A. Tool Plugin（工具插件）
+
+每个工具用一个 tools.yaml（你现在就有）+ 一个 ToolSpec 注册到 registry：
+
+工具元数据：name/version/owner/domain/tags
+
+输入输出 schema（强约束）
+
+权限策略：tenant/role/数据域/脱敏级别
+
+成本与速率：估算 token/调用限流
+
+观测：指标名、trace 维度
+
+示例与回归用例（最重要：保证可持续演进）
+
+核心原则：工具只产 raw，structured 归一化只在 StructuredExtractorRegistry 收口（你前面已经在往这个方向做了）。
+
+B. Knowledge Plugin（知识插件）
+
+知识不要只做“向量库”，而是做“多路召回 + 可解释”：
+
+kb-manifest.yaml：领域、版本、适用租户、数据源
+
+索引：向量（语义）、BM25（关键词）、图谱（血缘/指标关系）、规则（确定性）
+
+产物：
+
+KnowledgeRefs（引用哪些文档/口径/表）
+
+KnowledgeFacts（结构化事实：表字段、口径、约束）
+
+更新策略：增量构建、版本化、可回滚
+
+核心原则：知识输出必须可引用（refs），并可结构化（facts），否则后面治理/审计很难做。
+
+4) 你应该怎么“分阶段”规划（建议 P0~P3）
+
+结合你现在 runtime/structured/evidence 的架构，按里程碑推进：
+
+P0：稳定内核（你现在正在做的方向）
+
+Step 执行、Structured/Refs/Summary、EvidencePack、质量审查 retry
+
+多租户权限 + 成本预算 + 事件流
+
+目标：所有场景都走同一条骨架
+
+P1：插件机制成型（最关键）
+
+Tool 插件注册：热加载/灰度开关/版本管理
+
+Knowledge 插件注册：多源召回、版本与引用
+
+场景路由：domain router（治理/运维/业务查询）
+
+P2：治理能力包（FMDB 主线）
+
+元数据检索（表/字段/分区/口径）
+
+血缘/映射/标准化字段（手机号/IMSI/IMEI…你之前的治理需求）
+
+生成治理依赖 SQL / 工单建议 / 质量检查
+
+P3：运维能力包
+
+指标/日志/告警/变更/回滚 SOP
+
+工具链：K8s/YARN/Spark/Hive/HDFS
+
+和治理共享同一套 Evidence / Structured / Summary
+
+5) 让“补充知识/工具”真正像装插件：你需要的三个“硬约束”
+
+统一 Manifest
+
+每个能力包必须有 manifest，声明：domain、tools、kb、schemas、policies、tests、version
+
+统一 Structured Schema
+
+所有工具输出都必须能被 extractor 归一化成稳定的 StructuredResult(kind=...)
+
+这样后续“跨场景复用”和“多步骤依赖”才成立
+
+统一回归测试与契约
+
+每个插件必须带：最少 3~10 条“黄金用例”（输入→期望 structured→期望 summary 关键点）
+
+否则你越补越乱、越补越不敢升级
+
+6) 你下一步可以直接开干的“落地清单”
+
+定义一个 Capability Pack 目录规范（建议）
+
+packs/
+  governance-fmdb/
+    manifest.yaml
+    prompts/
+    tools/
+    schemas/
+    kb/
+    tests/
+  ops-k8s/
+  biz-order-query/
+
+
+在 runtime 加一个 CapabilityRegistry：按 domain/tenant/featureFlag 装配可用包
+
+先做一个“业务查询包”最小闭环：
+
+tools：geo_locate、poi_search、order_query
+
+extractor：OrderQueryResult → StructuredResult(kind=ORDER_LIST)
+
+summary：Top N + 聚合指标
+
+evidence：refs 指向每次工具调用/SQL/API
+
+如果你愿意，我可以按你现在的工程风格（Spring Boot 3 + 你已有的 runtime 分层）直接给你一套Capability Pack 的 manifest 结构 + Java 接口设计（Capability/ToolProvider/KnowledgeProvider/PolicyProvider/TestKit），以及“奶茶订单”这个 pack 的最小样例（tools.yaml + schema + extractor + golden tests）。
+
+好的
+
+那我直接给你一套“可落地的插件化规划 + 最小接口/目录规范”，你照着做就能开始往里不断塞知识和工具。
+
+1) Capability Pack 目录规范（插件包长这样）
+
+建议你在工程根目录新增：
+
+packs/
+  governance-fmdb/
+    manifest.yaml
+    prompts/
+      planner.md
+      runner.md
+      finalizer.md
+    tools/
+      tools.yaml
+    schemas/
+      structured_kinds.json
+      tool_io/
+        geo_locate.schema.json
+        order_query.schema.json
+    kb/
+      sources.yaml
+      index.yaml
+    tests/
+      golden_cases.yaml
+
+  biz-order-query/
+  ops-k8s/
+
+
+核心思想：每个 pack 自带“声明、提示词、工具、结构、知识、回归用例”，你以后加能力就是加一个文件夹。
+
+2) manifest.yaml（插件的“身份证”）
+
+每个包必须声明：它是谁、能做啥、需要哪些工具/知识、输出哪些 structured kind、权限/成本策略、回归用例入口。
+
+id: biz-order-query
+version: 0.1.0
+domain: BIZ_QUERY
+owner: fmdb-agent-team
+
+enabled: true
+featureFlags:
+  - BIZ_ORDER_QUERY
+
+tools:
+  - geo_locate@1
+  - poi_search@1
+  - order_query@2
+
+structuredKinds:
+  - ORDER_LIST
+  - POI_LIST
+
+knowledge:
+  enabled: false   # 这个包先不依赖 kb
+
+policies:
+  auth: tenant_scoped
+  pii:
+    mask: true
+    fields: [phone, idcard, imsi, imei, mac]
+  cost:
+    maxToolCallsPerTask: 6
+    maxTokens: 6000
+
+prompts:
+  planner: prompts/planner.md
+  runner: prompts/runner.md
+  finalizer: prompts/finalizer.md
+
+tests:
+  golden: tests/golden_cases.yaml
+
+3) 运行时需要新增的 4 个“收口点”（这决定你能不能像插件一样持续补）
+A. CapabilityRegistry（装载/路由）
+
+扫描 packs/**/manifest.yaml
+
+按 tenant + featureFlag + domain 决定可用能力包
+
+给 Planner 提供“可用工具列表 + 可用 structuredKinds + 领域提示词”
+
+B. ToolRegistry（工具来自 toolbox）
+
+读取 pack 里 tools/tools.yaml
+
+统一注册成 ToolSpec（含 schema、权限、速率、成本）
+
+执行时：tool 只产 raw
+
+C. KnowledgeRegistry（可选，后面治理包会用）
+
+读取 kb sources + index 配置
+
+提供 recall(query, domain) → 返回 refs + facts
+
+D. StructuredExtractorRegistry（唯一归一化入口）
+
+按 toolName + output 或 kind 做 extractor
+
+输出 StructuredResult(kind, schemaVersion, data, quality, refs)
+
+你前面强调的“收口”理念：Tool/Model 只产 raw；structured 在 extractor 统一映射；summary 再做人类可读，这套刚好是插件化的“地基”。
+
+4) Planner/Runner/Finalizer 的“插件化拼装”
+
+你的 PromptAssembler 可以按 pack 拼三段模板：
+
+Planner：只负责把用户话 → StepPlan（包含每一步 input.question 必填 + tool 参数）
+
+Runner：执行 tool，落 raw + refs
+
+Finalizer：把 structured + evidence + 关键 raw 摘要 → 最终回答
+
+这样你未来加场景，只是换 pack 的 prompts，不改内核。
+
+5) Golden 回归用例（防止越加越乱）
+
+tests/golden_cases.yaml 里放“输入一句话 → 期望 structured kind/关键字段 → 期望 summary 关键点”。
+
+- name: tea_order_nearby_1km
+  input: "帮我查询附近一公里购买奶茶的外卖订单"
+  expect:
+    structuredKinds: [POI_LIST, ORDER_LIST]
+    mustContain:
+      - path: "$.ORDER_LIST.filters.radiusKm"
+        equals: 1
+      - path: "$.ORDER_LIST.filters.keywords[0]"
+        equals: "奶茶"
+    answerMustMention:
+      - "近"
+      - "订单"
+
+
+执行方式：你可以做一个 PackGoldenTestRunner，跑完给 CI 出报告（通过/失败原因/差异）。
+
+6) 你现在可以按这个顺序推进（最省力）
+
+先做 P1：CapabilityRegistry + manifest 装载（先不用 kb）
+
+接入 Toolbox：把 tools.yaml 变成 ToolSpec 注册
+
+为 “biz-order-query” 做 2~3 个工具 + 1 个 extractor（ORDER_LIST）
+
+加 golden tests（保证可持续加场景）
+
+再开 “governance-fmdb” 包：把元数据检索、血缘、字段映射、治理SQL生成塞进去
+
+最后再开 “ops-k8s” 包
+
+7) 你回我三个信息，我就按你的工程直接出“接口 + 类名 + 目录 + 关键代码骨架”
+
+你不用多解释，直接贴一下即可（越短越好）：
+
+你 toolbox 现在的工具注册入口类名（比如 ToolRegistry/ToolboxClient）
+
+你 structured 结果现在的 ResultKind 枚举在哪里
+
+你 pack 想放在工程哪个模块（单模块还是 agent-core/agent-packs 这种多模块）
+
+你如果懒得贴，我也可以按你现有包名习惯直接给一个默认落地方案（com.example.agent.packs + PackLoader + CapabilityRegistry + GoldenTestRunner）。
+
+好的
+已更新保存的记忆
+
+很好，后续如果你在实现过程中遇到什么问题，或者需要进一步优化插件化机制、知识库扩展等方面的建议，随时可以找我。祝你开发顺利！
+
+按你现有包名习惯直接给一个默认落地方案（com.example.agent.packs + PackLoader + CapabilityRegistry + GoldenTestRunner）。
+
+好的，以下是一个基于你现有包名习惯的默认落地方案，包含 PackLoader、CapabilityRegistry 和 GoldenTestRunner：
+
+1) PackLoader 类：加载和装载能力包（插件包）
+package com.example.agent.packs;
+
+import com.example.agent.runtime.model.StepPlan;
+import java.io.File;
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.List;
+
+public class PackLoader {
+
+    private static final String PACKS_DIRECTORY = "packs/";
+
+    // 加载所有能力包的 manifest.yaml 文件
+    public List<CapabilityPack> loadAllPacks() throws IOException {
+        File packsDir = new File(PACKS_DIRECTORY);
+        File[] packDirs = packsDir.listFiles(File::isDirectory);
+        if (packDirs == null) return List.of();
+
+        List<CapabilityPack> packs = new ArrayList<>();
+        for (File packDir : packDirs) {
+            CapabilityPack pack = loadPack(packDir);
+            if (pack != null) {
+                packs.add(pack);
+            }
+        }
+        return packs;
+    }
+
+    private CapabilityPack loadPack(File packDir) throws IOException {
+        File manifestFile = new File(packDir, "manifest.yaml");
+        if (!manifestFile.exists()) return null;
+
+        String manifestContent = new String(Files.readAllBytes(manifestFile.toPath()));
+        // TODO: 使用 YAML 解析库（如 SnakeYAML）解析 manifest.yaml 内容
+        CapabilityPack pack = parseManifest(manifestContent);
+        return pack;
+    }
+
+    // 解析 manifest.yaml 内容
+    private CapabilityPack parseManifest(String content) {
+        // TODO: 实现解析逻辑
+        return new CapabilityPack();  // Placeholder
+    }
+}
+
+2) CapabilityRegistry 类：注册能力包并根据需求提供工具、知识等
+package com.example.agent.packs;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class CapabilityRegistry {
+
+    private final Map<String, CapabilityPack> capabilities = new HashMap<>();
+
+    // 注册能力包
+    public void registerCapability(String capabilityId, CapabilityPack pack) {
+        capabilities.put(capabilityId, pack);
+    }
+
+    // 根据 ID 获取能力包
+    public CapabilityPack getCapability(String capabilityId) {
+        return capabilities.get(capabilityId);
+    }
+
+    // 获取所有注册的能力包
+    public Map<String, CapabilityPack> getAllCapabilities() {
+        return capabilities;
+    }
+}
+
+3) GoldenTestRunner 类：执行回归测试，保证插件包的正确性
+package com.example.agent.packs;
+
+import java.io.File;
+import java.io.IOException;
+import java.util.List;
+
+public class GoldenTestRunner {
+
+    private static final String TESTS_DIRECTORY = "packs/%s/tests/";
+
+    // 运行指定能力包的回归测试
+    public void runGoldenTests(String packId) throws IOException {
+        File testsDir = new File(String.format(TESTS_DIRECTORY, packId));
+        if (!testsDir.exists()) {
+            System.out.println("No tests found for pack: " + packId);
+            return;
+        }
+
+        File[] testFiles = testsDir.listFiles((dir, name) -> name.endsWith(".yaml"));
+        if (testFiles == null) return;
+
+        for (File testFile : testFiles) {
+            runTest(testFile);
+        }
+    }
+
+    private void runTest(File testFile) {
+        // TODO: 解析测试文件并执行测试（使用如 SnakeYAML 解析 YAML 文件）
+        System.out.println("Running test: " + testFile.getName());
+        // 伪代码执行测试，后续补充具体实现
+    }
+}
+
+4) CapabilityPack 类：代表一个能力包的结构
+package com.example.agent.packs;
+
+import java.util.List;
+
+public class CapabilityPack {
+
+    private String id;
+    private String version;
+    private List<String> tools;
+    private List<String> structuredKinds;
+    private String policies;
+
+    // Getter 和 Setter
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
+    public String getVersion() {
+        return version;
+    }
+
+    public void setVersion(String version) {
+        this.version = version;
+    }
+
+    public List<String> getTools() {
+        return tools;
+    }
+
+    public void setTools(List<String> tools) {
+        this.tools = tools;
+    }
+
+    public List<String> getStructuredKinds() {
+        return structuredKinds;
+    }
+
+    public void setStructuredKinds(List<String> structuredKinds) {
+        this.structuredKinds = structuredKinds;
+    }
+
+    public String getPolicies() {
+        return policies;
+    }
+
+    public void setPolicies(String policies) {
+        this.policies = policies;
+    }
+}
+
+5) 目录结构
+
+在你的项目中，你可以按以下结构存放这些类：
+
+src/main/java/com/example/agent/packs/
+    ├── PackLoader.java
+    ├── CapabilityRegistry.java
+    ├── GoldenTestRunner.java
+    └── CapabilityPack.java
+
+
+在 packs/ 目录下，存放每个插件包：
+
+packs/
+    governance-fmdb/
+        manifest.yaml
+        tools/
+            tools.yaml
+        schemas/
+            structured_kinds.json
+        tests/
+            golden_cases.yaml
+    biz-order-query/
+        manifest.yaml
+        tools/
+            tools.yaml
+        schemas/
+            structured_kinds.json
+        tests/
+            golden_cases.yaml
+
+6) 回归测试配置样例：golden_cases.yaml
+- name: tea_order_nearby_1km
+  input: "帮我查询附近一公里购买奶茶的外卖订单"
+  expect:
+    structuredKinds: [POI_LIST, ORDER_LIST]
+    mustContain:
+      - path: "$.ORDER_LIST.filters.radiusKm"
+        equals: 1
+      - path: "$.ORDER_LIST.filters.keywords[0]"
+        equals: "奶茶"
+    answerMustMention:
+      - "近"
+      - "订单"
+
+7) 集成测试与启动
+
+你可以在 PackLoader 加载并注册能力包，使用 GoldenTestRunner 执行测试，并通过 CapabilityRegistry 获取已注册的能力包。
+
+你可以根据这个方案的框架，进一步填充 manifest 解析、工具执行、结构化数据处理等具体实现。如果有需要进一步讨论的细节或实现，随时告诉我！
+
+帮我给几个知识库的场景呢
+
+以下是几个适合在 FMDB 数据治理智能体 中使用的知识库场景。每个场景都可以通过 Knowledge Plugin 来扩展，支持多维度的数据治理与查询。
+
+1) 元数据与表结构查询
+场景描述：
+
+用户可以查询数据库中所有表的结构信息、字段类型、表之间的关系，以及字段与字段之间的映射。
+
+知识库功能：
+
+表结构信息：提供各表的字段类型、约束（如主键、外键）、字段默认值等。
+
+字段映射：映射表与表之间的关联关系，如外键、索引等。
+
+字段命名规范：根据字段的命名模式或类型生成命名规则和标准。
+
+示例：
+
+查询某个表的字段名、数据类型和约束信息。
+
+查询字段间的外键关系和跨表引用。
+
+相关知识点：
+
+数据库表血缘
+
+字段映射与依赖关系
+
+表的约束规则（如唯一性、非空等）
+
+Knowledge Plugin：
+id: metadata-query
+version: 1.0
+knowledge:
+  sources:
+    - db_metadata_source  # 数据库元数据源
+  index:
+    - table_structure  # 索引表结构
+    - field_dependencies  # 索引字段关系
+
+2) 数据治理与质量检查
+场景描述：
+
+对用户请求的数据表或字段进行治理检查，检查字段值的规范性、完整性和合法性。
+
+知识库功能：
+
+数据完整性检查：检测字段值是否符合预定义的规范（例如手机号是否为 11 位数字，邮箱格式是否正确）。
+
+数据脱敏策略：根据数据的敏感度和所属租户提供脱敏或加密处理建议。
+
+数据质量标准：定义每个字段的数据质量标准，如缺失率、值域范围等。
+
+示例：
+
+判断字段是否包含无效数据（例如无效的手机号）。
+
+根据预定义规则自动修复字段中的数据质量问题。
+
+相关知识点：
+
+数据脱敏规则
+
+数据质量检查
+
+字段值格式校验
+
+Knowledge Plugin：
+id: data-quality
+version: 1.0
+knowledge:
+  sources:
+    - data_validation_rules  # 数据验证规则
+  index:
+    - field_integrity_check  # 字段完整性检查
+    - field_format_rules  # 字段格式规则
+
+3) 数据血缘与依赖关系
+场景描述：
+
+帮助用户查询数据库表和字段的血缘关系，理解不同数据表之间的依赖，帮助用户进行数据溯源。
+
+知识库功能：
+
+表血缘关系：记录表之间的数据流转关系，能够帮助用户追踪数据的来源。
+
+字段血缘关系：记录字段之间的依赖关系，帮助用户理解字段是如何计算和派生的。
+
+示例：
+
+查询某个表的所有依赖字段及其源头表。
+
+追踪某个字段的来源和用途，了解它如何影响其他字段或表。
+
+相关知识点：
+
+数据源与流向
+
+表与表、字段与字段的依赖关系
+
+Knowledge Plugin：
+id: data-lineage
+version: 1.0
+knowledge:
+  sources:
+    - field_lineage_data  # 字段血缘数据源
+  index:
+    - table_dependencies  # 表之间的依赖关系
+    - field_propagation  # 字段之间的传播关系
+
+4) SQL 优化与标准化
+场景描述：
+
+帮助用户优化查询性能，提供 SQL 语句的优化建议，或者将 SQL 转换为标准格式以便与 FMDB 数据库兼容。
+
+知识库功能：
+
+SQL 性能优化：提供常见的 SQL 优化建议，例如索引的使用、查询条件优化等。
+
+SQL 规范化：将 SQL 语句规范化为符合 FMDB 或其他数据库系统的标准语法。
+
+示例：
+
+分析用户提交的 SQL 语句并提供优化建议。
+
+自动将不符合规范的 SQL 语句转换为标准格式。
+
+相关知识点：
+
+SQL 性能分析与优化
+
+SQL 标准化与转化规则
+
+数据库索引与查询计划
+
+Knowledge Plugin：
+id: sql-optimization
+version: 1.0
+knowledge:
+  sources:
+    - sql_tuning_rules  # SQL 优化规则
+  index:
+    - sql_performance_analysis  # SQL 性能分析
+    - sql_standardization  # SQL 语法标准化
+
+5) 业务术语与指标定义
+场景描述：
+
+定义和管理组织内的业务术语和指标，确保在数据查询和报告中使用统一的定义。
+
+知识库功能：
+
+术语定义：提供组织内常用术语的定义，确保不同部门或团队使用一致的词汇。
+
+指标定义与计算：规范化和标准化常用业务指标，如用户活跃度、转化率等。
+
+示例：
+
+查询业务术语的标准定义（例如“DAU”指的是“日活跃用户”）。
+
+根据定义的规则计算某个指标（如“销售转化率”）。
+
+相关知识点：
+
+术语表和定义
+
+业务指标的计算与标准化
+
+Knowledge Plugin：
+id: business-terms
+version: 1.0
+knowledge:
+  sources:
+    - business_terms_source  # 业务术语数据源
+  index:
+    - metrics_definitions  # 指标定义
+    - metric_calculations  # 指标计算公式
+
+6) 数据权限与访问控制
+场景描述：
+
+帮助用户管理数据访问权限，确保不同角色或租户只能访问符合权限策略的数据。
+
+知识库功能：
+
+数据访问控制策略：定义并管理不同角色、用户的访问权限，确保敏感数据得到妥善保护。
+
+数据脱敏与加密：根据权限策略，自动对用户数据进行脱敏或加密处理。
+
+示例：
+
+查询某个用户或角色的数据库访问权限。
+
+根据用户权限限制某些敏感字段的访问。
+
+相关知识点：
+
+角色和权限管理
+
+数据访问控制与脱敏策略
+
+Knowledge Plugin：
+id: data-access-control
+version: 1.0
+knowledge:
+  sources:
+    - data_access_policies  # 数据访问控制策略
+  index:
+    - user_permissions  # 用户权限索引
+    - sensitive_fields  # 敏感字段定义与脱敏规则
+
+7) 操作审计与合规性
+场景描述：
+
+帮助用户进行操作审计，确保系统操作符合合规性要求，特别是在数据治理和敏感数据处理方面。
+
+知识库功能：
+
+操作日志审计：记录和查询用户对数据的操作日志，支持合规性审计。
+
+合规性检查：根据法规要求检查数据操作是否符合相关规定，如 GDPR 或 CCPA。
+
+示例：
+
+查询用户的操作日志，查看是否有未授权的数据访问。
+
+检查操作是否符合 GDPR 或 CCPA 的数据处理要求。
+
+相关知识点：
+
+合规性要求（如 GDPR、CCPA）
+
+操作日志与审计
+
+Knowledge Plugin：
+id: data-audit
+version: 1.0
+knowledge:
+  sources:
+    - audit_log_source  # 操作日志数据源
+  index:
+    - compliance_check  # 合规性检查
+    - user_activity  # 用户活动日志
+
+
+这些场景可以通过 Knowledge Plugin 实现，并通过你提供的插件机制集成到系统中。当用户输入相关的查询请求时，智能体会根据知识库返回相关信息，并结合工具包、模型输出给出合适的响应。
+
+id: biz-order-query
+version: 0.1.0
+domain: BIZ_QUERY
+owner: fmdb-agent-team
+
+enabled: true
+featureFlags:
+  - BIZ_ORDER_QUERY
+
+tools:
+  - geo_locate@1
+  - poi_search@1
+  - order_query@2
+
+structuredKinds:
+  - ORDER_LIST
+  - POI_LIST
+
+knowledge:
+  enabled: false   # 这个包先不依赖 kb
+
+policies:
+  auth: tenant_scoped
+  pii:
+    mask: true
+    fields: [phone, idcard, imsi, imei, mac]
+  cost:
+    maxToolCallsPerTask: 6
+    maxTokens: 6000
+
+prompts:
+  planner: prompts/planner.md
+  runner: prompts/runner.md
+  finalizer: prompts/finalizer.md
+
+tests:
+  golden: tests/golden_cases.yaml ，，我在想每一个场景都需要写这些吗
+
+每个场景（如业务查询、数据治理等）确实需要定义类似的配置结构，但这些配置项并不一定要每个场景都写得一模一样。可以考虑将相同或类似的配置抽象成模板，减少重复编写。以下是几种优化和设计方法：
+
+1) 场景配置模板化
+
+你可以创建一些通用的模板或基类来减少每次编写时的重复工作。例如，定义一个通用的配置模板，然后根据不同的场景进行定制。这样做的好处是，如果有通用配置变动，可以集中修改，而不需要在每个场景中重复调整。
+
+示例：通用模板 base-scenario-config.yaml
+id: {{SCENE_ID}}
+version: {{SCENE_VERSION}}
+domain: {{DOMAIN}}
+owner: {{OWNER}}
+
+enabled: true
+featureFlags:
+  - {{FEATURE_FLAG}}
+
+tools:
+  - {{TOOL_1}}
+  - {{TOOL_2}}
+  - {{TOOL_3}}
+
+structuredKinds:
+  - {{STRUCTURED_KIND_1}}
+  - {{STRUCTURED_KIND_2}}
+
+knowledge:
+  enabled: {{KNOWLEDGE_ENABLED}}
+
+policies:
+  auth: tenant_scoped
+  pii:
+    mask: true
+    fields: [phone, idcard, imsi, imei, mac]
+  cost:
+    maxToolCallsPerTask: {{MAX_TOOL_CALLS}}
+    maxTokens: {{MAX_TOKENS}}
+
+prompts:
+  planner: prompts/{{SCENE_ID}}/planner.md
+  runner: prompts/{{SCENE_ID}}/runner.md
+  finalizer: prompts/{{SCENE_ID}}/finalizer.md
+
+tests:
+  golden: tests/{{SCENE_ID}}/golden_cases.yaml
+
+
+每个场景只需要填充不同的变量和定制的部分：
+
+示例：场景 biz-order-query 的配置
+id: biz-order-query
+version: 0.1.0
+domain: BIZ_QUERY
+owner: fmdb-agent-team
+
+enabled: true
+featureFlags:
+  - BIZ_ORDER_QUERY
+
+tools:
+  - geo_locate@1
+  - poi_search@1
+  - order_query@2
+
+structuredKinds:
+  - ORDER_LIST
+  - POI_LIST
+
+knowledge:
+  enabled: false
+
+policies:
+  auth: tenant_scoped
+  pii:
+    mask: true
+    fields: [phone, idcard, imsi, imei, mac]
+  cost:
+    maxToolCallsPerTask: 6
+    maxTokens: 6000
+
+prompts:
+  planner: prompts/biz-order-query/planner.md
+  runner: prompts/biz-order-query/runner.md
+  finalizer: prompts/biz-order-query/finalizer.md
+
+tests:
+  golden: tests/biz-order-query/golden_cases.yaml
+
+2) 场景分类与继承
+
+你可以考虑将一些场景分为基础类型和扩展类型。比如：
+
+基础场景类型：像 BIZ_ORDER_QUERY，它需要通用工具、标准化的提示词和基本的成本策略。
+
+扩展场景类型：比如基于 BIZ_ORDER_QUERY，再扩展一些特定的工具或功能（如地理位置限制、特定的查询逻辑等）。
+
+通过这种方式，你可以将基础配置提取到父类或基础配置中，减少重复代码。例如，你可以为所有业务查询场景定义一个基础配置类，然后子场景只需修改特定的部分。
+
+3) 自动化配置生成
+
+你可以使用一些模板引擎（如 Freemarker、Velocity 或 Mustache）来动态生成每个场景的配置。这样，你只需要维护一些变量和规则，就能自动生成相应的 YAML 配置文件。
+
+例如，使用 Freemarker 模板引擎来自动生成配置：
+
+创建一个模板 scene-config.ftl，其中包含了类似于上面模板化的部分。
+
+在场景创建时，只需传入相关参数，自动生成相应的配置文件。
+
+4) 共享配置与自定义扩展
+
+如果多个场景有很多相同的配置，你可以将相同部分抽象成共享的 公共配置文件（如工具、权限、成本策略等），并让不同场景引用这些公共部分。这样你可以避免在每个场景中重复相同的配置。
+
+示例：
+# common-config.yaml
+tools:
+  - geo_locate@1
+  - poi_search@1
+
+policies:
+  auth: tenant_scoped
+  pii:
+    mask: true
+    fields: [phone, idcard, imsi, imei, mac]
+  cost:
+    maxToolCallsPerTask: 6
+    maxTokens: 6000
+
+
+然后在每个场景中引入这些公共部分：
+
+id: biz-order-query
+version: 0.1.0
+domain: BIZ_QUERY
+owner: fmdb-agent-team
+
+enabled: true
+featureFlags:
+  - BIZ_ORDER_QUERY
+
+tools:
+  - geo_locate@1
+  - poi_search@1
+  - order_query@2
+
+structuredKinds:
+  - ORDER_LIST
+  - POI_LIST
+
+knowledge:
+  enabled: false
+
+policies:
+  auth: tenant_scoped
+  pii:
+    mask: true
+    fields: [phone, idcard, imsi, imei, mac]
+  cost:
+    maxToolCallsPerTask: 6
+    maxTokens: 6000
+
+prompts:
+  planner: prompts/biz-order-query/planner.md
+  runner: prompts/biz-order-query/runner.md
+  finalizer: prompts/biz-order-query/finalizer.md
+
+tests:
+  golden: tests/biz-order-query/golden_cases.yaml
+
+5) 考虑插件式扩展
+
+每个场景的配置本质上可以看作是一个“插件”，你可以将场景配置与具体实现分离。通过为每个场景提供 配置管理与插件管理系统，能够动态加载或卸载配置，且每个插件都能独立运作。
+
+配置管理：通过配置文件或配置中心加载场景的配置。
+
+插件管理：通过插件化架构，动态加载、注册和运行不同场景对应的工具和提示词。
+
+总结：
+
+模板化配置：为每个场景配置模板，减少重复内容。
+
+公共配置：抽象出一些常见的配置，多个场景共享，减少冗余。
+
+自动化生成：通过模板引擎自动生成配置文件，简化手动配置工作。
+
+插件化扩展：通过插件机制，使每个场景的配置和实现解耦，支持动态扩展。
+
+你可以结合这些方法来简化每个场景的配置编写，并确保配置易于管理和扩展。如果有任何问题或需要进一步细化的地方，随时告诉我！
+
+id: biz-order-query
+version: 0.1.0
+domain: BIZ_QUERY
+owner: fmdb-agent-team
+
+enabled: true
+featureFlags:
+  - BIZ_ORDER_QUERY
+
+tools:
+  - geo_locate@1
+  - poi_search@1
+  - order_query@2
+
+structuredKinds:
+  - ORDER_LIST
+  - POI_LIST
+
+knowledge:
+  enabled: false
+
+policies:
+  auth: tenant_scoped
+  pii:
+    mask: true
+    fields: [phone, idcard, imsi, imei, mac]
+  cost:
+    maxToolCallsPerTask: 6
+    maxTokens: 6000
+
+prompts:
+  planner: prompts/biz-order-query/planner.md
+  runner: prompts/biz-order-query/runner.md
+  finalizer: prompts/biz-order-query/finalizer.md
+
+tests:
+  golden: tests/biz-order-query/golden_cases.yaml ，，写成这样的话，意图识别如何做呢，比如有很多这样的模版，如何识别意图和规划
+
+要实现意图识别和规划，尤其是在多个类似模板的场景中，关键在于以下几个步骤：
+
+意图识别（Intent Recognition）：从用户输入中识别出他们的意图。
+
+场景规划（Scenario Planning）：基于识别到的意图，选择合适的工具、提示词和流程进行后续执行。
+
+任务执行：根据规划生成的步骤进行任务执行。
+
+在你的场景中，例如业务查询（biz-order-query），有多个工具和相关的配置，每个配置和场景对应一个特定的查询任务。我们可以使用基于文本匹配的简单方法，或更高效的基于机器学习的模型（如 BERT、GPT 系列）来识别意图并进行规划。
+
+以下是实现意图识别和场景规划的几种方法：
+
+1) 基于规则的意图识别
+
+这是最简单的方式，适合场景有限且意图可以通过规则和关键词识别的情况。你可以基于用户输入的文本来匹配预定义的意图模式。
+
+步骤：
+
+定义关键词/短语模式：为每个场景定义一组关键词或短语，如：“购买奶茶订单”、“查询外卖”等。
+
+匹配意图：根据用户输入的文本匹配到相应的意图。
+
+示例：
+public class IntentRecognizer {
+
+    // 定义意图与相关关键词
+    private static final Map<String, List<String>> intentPatterns = Map.of(
+        "BIZ_ORDER_QUERY", List.of("购买", "奶茶", "外卖", "订单"),
+        "LOCATE_QUERY", List.of("定位", "附近", "位置", "地图")
+    );
+
+    public static String recognizeIntent(String userInput) {
+        for (Map.Entry<String, List<String>> entry : intentPatterns.entrySet()) {
+            String intent = entry.getKey();
+            List<String> keywords = entry.getValue();
+
+            // 简单的关键词匹配
+            for (String keyword : keywords) {
+                if (userInput.contains(keyword)) {
+                    return intent;
+                }
+            }
+        }
+        return "UNKNOWN"; // 未识别的意图
+    }
+}
+
+场景规划：
+
+当识别到意图后，系统就会从配置中读取对应的工具和步骤进行处理。
+
+例如：识别到BIZ_ORDER_QUERY意图后，系统会加载配置中的geo_locate、poi_search、order_query工具，并调用相应的步骤。
+
+2) 基于自然语言处理的意图识别
+
+如果场景比较复杂，或者意图和问题描述之间的映射不完全是简单的关键词匹配，可以考虑使用自然语言处理（NLP）模型（如 BERT、GPT）来识别用户的意图。
+
+步骤：
+
+训练一个意图识别模型：使用现有的标注数据集（例如，收集一些典型的用户输入，标注它们的意图）训练一个分类模型。
+
+输入用户问题，输出意图：用户的输入通过模型推理，识别出意图。
+
+示例：
+
+使用一个预训练的BERT模型，或者你也可以使用 Hugging Face 等 NLP 库来实现。
+
+from transformers import pipeline
+
+# 加载预训练的模型
+intent_classifier = pipeline("zero-shot-classification", model="facebook/bart-large-mnli")
+
+def recognize_intent(user_input):
+    candidate_labels = ["BIZ_ORDER_QUERY", "LOCATE_QUERY", "GENERAL_QUERY"]
+    
+    # 预测输入的意图
+    result = intent_classifier(user_input, candidate_labels)
+    return result['labels'][0]
+
+场景规划：
+
+根据识别的意图选择相应的配置文件。
+
+比如，如果识别到 BIZ_ORDER_QUERY，就加载该场景对应的工具和步骤。
+
+3) 基于规则+意图识别+规划的组合
+
+这种方法是结合了基于规则的意图识别和一些基本的 NLP 模型的优点。你可以先使用简单的规则识别用户的主要意图，如果规则无法匹配，再调用模型进行更复杂的推理。
+
+步骤：
+
+初步基于规则识别意图：通过简单的文本模式识别判断用户的大致意图。
+
+如果规则无法识别，调用更复杂的 NLP 模型（如 BERT）来进一步识别意图。
+
+基于识别的意图进行规划：通过查找场景配置文件和工具，确定接下来的执行步骤。
+
+示例：
+public class IntentAndPlanningProcessor {
+
+    public static void processUserInput(String userInput) {
+        String intent = IntentRecognizer.recognizeIntent(userInput);
+        
+        // 如果规则识别失败，则调用 NLP 模型
+        if ("UNKNOWN".equals(intent)) {
+            intent = callNLPModel(userInput); // 调用 NLP 模型进行意图识别
+        }
+
+        // 根据意图进行规划
+        switch (intent) {
+            case "BIZ_ORDER_QUERY":
+                executeBizOrderQueryPlan();
+                break;
+            case "LOCATE_QUERY":
+                executeLocateQueryPlan();
+                break;
+            default:
+                handleUnknownIntent();
+                break;
+        }
+    }
+
+    private static void executeBizOrderQueryPlan() {
+        // 加载 biz-order-query 配置并执行步骤
+        System.out.println("Executing business order query plan...");
+    }
+
+    private static void executeLocateQueryPlan() {
+        // 加载 locate-query 配置并执行步骤
+        System.out.println("Executing location query plan...");
+    }
+
+    private static String callNLPModel(String userInput) {
+        // 调用外部 NLP 服务或模型（如BERT）
+        return "BIZ_ORDER_QUERY"; // 模拟返回的意图
+    }
+
+    private static void handleUnknownIntent() {
+        System.out.println("Unable to recognize intent.");
+    }
+}
+
+4) 规划步骤与执行
+
+根据识别的意图，系统接下来会根据配置文件中的 tools 和 prompts 执行任务。
+
+步骤：
+
+选择工具：根据场景配置，选择需要的工具（如 geo_locate、poi_search）。
+
+加载提示词：根据规划的步骤加载 planner.md、runner.md、finalizer.md 文件。
+
+执行任务：调用对应的工具执行任务，并返回结构化结果。
+
+public class SceneExecutor {
+
+    public void execute(String intent) {
+        switch (intent) {
+            case "BIZ_ORDER_QUERY":
+                executeBizOrderQuery();
+                break;
+            case "LOCATE_QUERY":
+                executeLocateQuery();
+                break;
+            default:
+                System.out.println("Unknown intent");
+                break;
+        }
+    }
+
+    private void executeBizOrderQuery() {
+        // 加载对应工具并执行
+        ToolExecutor.executeTool("geo_locate");
+        ToolExecutor.executeTool("poi_search");
+        ToolExecutor.executeTool("order_query");
+    }
+
+    private void executeLocateQuery() {
+        // 执行定位查询相关的工具
+        ToolExecutor.executeTool("geo_locate");
+    }
+}
+
+结论：
+
+基于规则的意图识别：适合简单、明确的场景，能够通过关键词匹配直接识别意图并进行规划。
+
+基于 NLP 的意图识别：适用于更复杂的场景，尤其是当意图之间的差异不容易通过简单规则识别时。
+
+规则与 NLP 结合：可以在规则简单时快速响应，而当规则不匹配时转为 NLP 模型进行更精确的意图识别。
+
+通过这样的方式，你可以将多个场景的配置整合到系统中，并根据意图进行灵活的规划和任务执行。
+
+加载提示词：根据规划的步骤加载 planner.md、runner.md、finalizer.md 文件。这个结构是什么样子，并给出示例
+
+在多步骤的任务执行过程中，加载 planner.md、runner.md 和 finalizer.md 文件是为了为智能体提供不同阶段的操作指引。每个文件的作用不同，通常按照以下的结构和流程设计：
+
+planner.md：定义任务规划阶段的提示词，通常用于指导模型或智能体理解用户需求，并将其转化为具体的步骤或操作计划。
+
+runner.md：定义执行阶段的提示词，指导如何调用具体的工具或模型，并生成中间结果。
+
+finalizer.md：定义任务最终结果的处理方式，通常用于总结中间结果、产生最终输出，或者根据结果做进一步的优化或反馈。
+
+1) planner.md：任务规划阶段
+
+这个文件的内容通常用来描述如何从用户的请求中生成一份具体的 任务计划（例如需要调用哪些工具，生成哪些结构化数据）。
+
+示例：planner.md
+# 任务规划阶段
+
+## 输入
+用户请求：帮我查询附近一公里购买奶茶的外卖订单
+
+## 目标
+1. 识别用户需求中的位置范围（例如“附近一公里”）。
+2. 识别用户需求中的关键字（例如“奶茶”）。
+3. 制定任务计划，调用以下工具：
+   - geo_locate：用于获取用户当前位置。
+   - poi_search：用于根据关键字（奶茶）和位置（附近一公里）搜索 POI（商家、外卖等）。
+   - order_query：查询外卖订单信息。
+
+## 任务计划：
+1. 调用 geo_locate 获取用户当前的位置。
+2. 使用 poi_search 根据用户位置和关键字搜索外卖商家。
+3. 调用 order_query 获取相关订单数据。
+
+2) runner.md：任务执行阶段
+
+在执行阶段，runner.md 提供了如何调用具体的工具和如何处理工具的返回值的指引。这个阶段通常包括如何与外部系统或模型交互。
+
+示例：runner.md
+# 任务执行阶段
+
+## 任务计划
+- 使用工具 geo_locate 获取用户当前位置。
+- 使用工具 poi_search 根据位置和奶茶的关键词查询附近的商家。
+- 使用工具 order_query 查询相关的外卖订单信息。
+
+## 执行步骤
+1. 调用 geo_locate：
+   - 输入参数：用户当前的位置信息（例如通过 GPS 获取）。
+   - 输出：经度、纬度坐标。
+   
+2. 调用 poi_search：
+   - 输入参数：从 geo_locate 获取的经纬度坐标，关键字 "奶茶"，查询范围 1km。
+   - 输出：商家的列表（如商家名称、地址、联系方式）。
+
+3. 调用 order_query：
+   - 输入参数：从 poi_search 获取的商家信息，查询类型为外卖订单。
+   - 输出：订单列表（如订单编号、商品详情、状态等）。
+
+3) finalizer.md：结果总结阶段
+
+在最终阶段，finalizer.md 用来指导如何整理执行过程中的所有中间结果，最终生成用户所需的响应信息，并进行必要的后处理（例如数据清理、结果摘要等）。
+
+示例：finalizer.md
+# 任务结果总结阶段
+
+## 输入
+1. 从 geo_locate 获取的位置信息：经度、纬度。
+2. 从 poi_search 获取的商家列表。
+3. 从 order_query 获取的外卖订单数据。
+
+## 任务
+- 清理并格式化外卖订单数据。
+- 提供最终结果：按用户需求返回附近一公里内的奶茶外卖订单。
+
+## 结果处理：
+1. 根据位置和订单状态筛选有效的外卖订单。
+2. 格式化返回结果：输出商家的名称、订单号、外卖内容和送达时间等信息。
+3. 如果有多个商家，按距离从近到远排序。
+
+## 输出
+返回结构化的外卖订单数据，格式示例：
+
+
+{
+"orders": [
+{
+"order_id": "123456",
+"store": "奶茶店A",
+"distance_km": 0.5,
+"items": ["奶茶", "小吃"],
+"delivery_time": "15:30"
+},
+{
+"order_id": "123457",
+"store": "奶茶店B",
+"distance_km": 0.8,
+"items": ["奶茶"],
+"delivery_time": "15:45"
+}
+]
+}
+
+
+---
+
+### 4) **集成流程**
+当用户输入请求时，系统根据识别到的意图（如 BIZ_ORDER_QUERY），加载相关的 **planner.md**、**runner.md** 和 **finalizer.md** 文件并执行相应的任务。
+
+#### 集成示例：
+java
+public class TaskExecutor {
+
+    public void executeTask(String userInput) {
+        // 1. 解析意图并选择场景
+        String intent = IntentRecognizer.recognizeIntent(userInput);
+
+        // 2. 加载相关的 planner, runner, finalizer
+        String plannerContent = loadFile("prompts/" + intent + "/planner.md");
+        String runnerContent = loadFile("prompts/" + intent + "/runner.md");
+        String finalizerContent = loadFile("prompts/" + intent + "/finalizer.md");
+
+        // 3. 解析并执行 planner -> runner -> finalizer 流程
+        executePlanner(plannerContent);
+        executeRunner(runnerContent);
+        executeFinalizer(finalizerContent);
+    }
+
+    private void executePlanner(String plannerContent) {
+        // 解析 planner 内容并执行任务计划
+    }
+
+    private void executeRunner(String runnerContent) {
+        // 执行实际工具调用
+    }
+
+    private void executeFinalizer(String finalizerContent) {
+        // 执行结果总结，返回给用户
+    }
+
+    private String loadFile(String filePath) {
+        // 加载指定路径的文件内容
+        return "File Content Here";
+    }
+}
+
+结论
+
+planner.md：定义任务规划和步骤，帮助模型理解如何从用户请求中提取信息并制定执行计划。
+
+runner.md：定义具体的执行步骤，描述如何调用工具，获取并处理中间结果。
+
+finalizer.md：定义任务的最终输出处理，生成最终的响应信息。
+
+这个结构将任务的不同阶段抽象化，使得各个模块更具可扩展性和可维护性。未来如果需要新增场景，只需根据该模式扩展新的 planner.md、runner.md 和 finalizer.md 文件即可。
+
+如何后面换成查询附近一公里出现的身份证号为xxxx人，是不是重新新增场景配置了
+
+是的，如果你想让智能体能够处理新的查询场景，例如“查询附近一公里出现的身份证号为 xxxx 的人”，你需要对现有的系统做一些扩展。具体来说，可能涉及以下几方面的工作：
+
+新增场景配置：为新的查询场景（例如：BIZ_IDCARD_QUERY）新增一个独立的配置文件，包含新的任务、工具、结构化数据等。
+
+任务规划和工具调整：根据新的场景需求，修改 planner.md、runner.md 和 finalizer.md 文件，适应身份证号的查询和相关数据的处理。
+
+意图识别：更新意图识别模块，增加新的识别模式，使系统能够理解查询“附近一公里出现的身份证号为 xxxx 的人”的意图。
+
+新增查询逻辑：你可能需要增加或调整一些工具，例如查询身份证号的工具（可能需要对数据库或其他数据源进行查询）。
+
+1) 新增场景配置 (BIZ_IDCARD_QUERY)
+
+你需要为这个新场景定义一个配置文件，类似于 biz-order-query 的配置，只不过它会专注于身份证号查询和位置范围。
+
+示例：新增场景配置 biz-idcard-query.yaml
+id: biz-idcard-query
+version: 0.1.0
+domain: BIZ_QUERY
+owner: fmdb-agent-team
+
+enabled: true
+featureFlags:
+  - BIZ_IDCARD_QUERY
+
+tools:
+  - geo_locate@1  # 获取用户位置信息
+  - idcard_search@2  # 查询身份证号的工具
+
+structuredKinds:
+  - PERSON_LIST  # 结构化数据类型，返回匹配身份证号的人列表
+
+knowledge:
+  enabled: false
+
+policies:
+  auth: tenant_scoped
+  pii:
+    mask: true
+    fields: [phone, idcard, imsi, imei, mac]
+  cost:
+    maxToolCallsPerTask: 6
+    maxTokens: 6000
+
+prompts:
+  planner: prompts/biz-idcard-query/planner.md
+  runner: prompts/biz-idcard-query/runner.md
+  finalizer: prompts/biz-idcard-query/finalizer.md
+
+tests:
+  golden: tests/biz-idcard-query/golden_cases.yaml
+
+2) 修改任务规划 (planner.md)
+
+在任务规划阶段，定义如何根据用户输入生成任务计划。对于“查询附近一公里出现的身份证号为 xxxx 的人”，系统需要从用户的请求中提取位置信息和身份证号信息，并且制定相应的查询步骤。
+
+示例：planner.md
+# 任务规划阶段
+
+## 输入
+用户请求：`查询附近一公里出现的身份证号为 xxxx 的人`
+
+## 目标
+1. 识别用户输入中的位置范围（例如“附近一公里”）。
+2. 识别用户输入中的身份证号（例如“xxxx”）。
+3. 制定任务计划，调用以下工具：
+   - `geo_locate`：获取用户当前位置。
+   - `idcard_search`：根据身份证号和位置信息查询人员信息。
+
+## 任务计划：
+1. 调用 `geo_locate` 获取用户当前的位置。
+2. 使用 `idcard_search` 根据用户输入的身份证号和位置（附近一公里）查询人员信息。
+
+3) 修改任务执行 (runner.md)
+
+在执行阶段，runner.md 会指导如何调用实际的工具（如 geo_locate 和 idcard_search）。这里会包含如何获取用户位置信息、如何查询身份证号，并返回相关的人员信息。
+
+示例：runner.md
+# 任务执行阶段
+
+## 执行步骤
+1. 调用 `geo_locate`：
+   - 输入参数：用户的位置信息（通过 GPS 获取）。
+   - 输出：经度、纬度坐标。
+
+2. 调用 `idcard_search`：
+   - 输入参数：
+     - 经纬度坐标（来自 `geo_locate`）。
+     - 身份证号（用户输入的具体身份证号，如 xxxx）。
+   - 输出：查询到的人员信息（包括姓名、身份证号、地址等）。
+
+## 需要注意：
+- 确保身份信息符合隐私保护规则，避免泄露用户的个人信息。
+
+4) 修改结果总结 (finalizer.md)
+
+在最终结果处理阶段，finalizer.md 会指定如何整理查询结果并返回给用户。这可能包括对查询结果的过滤、整理、格式化等。
+
+示例：finalizer.md
+# 结果总结阶段
+
+## 输入
+1. 从 `geo_locate` 获取的位置信息：经度、纬度。
+2. 从 `idcard_search` 获取的人员信息。
+
+## 任务：
+- 清理并格式化人员信息，确保返回的信息不泄露隐私。
+- 提供最终的人员列表，按距离从近到远排序。
+
+## 结果处理：
+1. 根据返回的人员信息，按距离筛选在附近一公里内的人员。
+2. 格式化返回结果：输出姓名、身份证号、距离等信息。
+
+## 输出
+返回结构化的数据格式，示例如下：
+
+
+{
+"persons": [
+{
+"name": "张三",
+"idcard": "xxxx",
+"distance_km": 0.8,
+"address": "北京市朝阳区"
+},
+{
+"name": "李四",
+"idcard": "xxxx",
+"distance_km": 0.9,
+"address": "北京市海淀区"
+}
+]
+}
+
+
+### 5) **意图识别的更新**
+
+为了支持这个新的查询意图（查询附近一公里出现的身份证号为 xxxx 的人），你需要更新 **意图识别模块**，使其能够识别“身份证号”相关的查询请求。
+
+#### 示例：更新意图识别模块
+java
+public class IntentRecognizer {
+
+    // 更新意图模式，包括身份证号查询
+    private static final Map<String, List<String>> intentPatterns = Map.of(
+        "BIZ_ORDER_QUERY", List.of("购买", "奶茶", "外卖", "订单"),
+        "BIZ_IDCARD_QUERY", List.of("身份证号", "查询", "附近", "一公里", "人")
+    );
+
+    public static String recognizeIntent(String userInput) {
+        for (Map.Entry<String, List<String>> entry : intentPatterns.entrySet()) {
+            String intent = entry.getKey();
+            List<String> keywords = entry.getValue();
+
+            // 简单的关键词匹配
+            for (String keyword : keywords) {
+                if (userInput.contains(keyword)) {
+                    return intent;
+                }
+            }
+        }
+        return "UNKNOWN"; // 未识别的意图
+    }
+}
+
+6) 意图与规划的集成
+
+最后，系统可以根据识别到的意图（如 BIZ_IDCARD_QUERY），加载相应的 planner.md、runner.md 和 finalizer.md 文件，执行任务，并返回结果。
+
+集成示例：
+public class TaskExecutor {
+
+    public void executeTask(String userInput) {
+        // 1. 解析意图并选择场景
+        String intent = IntentRecognizer.recognizeIntent(userInput);
+
+        // 2. 加载相关的 planner, runner, finalizer
+        String plannerContent = loadFile("prompts/" + intent + "/planner.md");
+        String runnerContent = loadFile("prompts/" + intent + "/runner.md");
+        String finalizerContent = loadFile("prompts/" + intent + "/finalizer.md");
+
+        // 3. 解析并执行 planner -> runner -> finalizer 流程
+        executePlanner(plannerContent);
+        executeRunner(runnerContent);
+        executeFinalizer(finalizerContent);
+    }
+
+    private void executePlanner(String plannerContent) {
+        // 解析 planner 内容并执行任务计划
+    }
+
+    private void executeRunner(String runnerContent) {
+        // 执行实际工具调用
+    }
+
+    private void executeFinalizer(String finalizerContent) {
+        // 执行结果总结，返回给用户
+    }
+
+    private String loadFile(String filePath) {
+        // 加载指定路径的文件内容
+        return "File Content Here";
+    }
+}
+
+总结
+
+新增场景配置：需要为新场景创建新的配置文件，并根据需要定义 工具、结构化数据类型 和 政策。
+
+修改 planner.md、runner.md 和 finalizer.md：根据新的场景要求，编写对应的任务规划、执行和结果总结步骤。
+
+更新意图识别模块：添加对新场景的支持，通过规则或模型识别用户的查询意图。
+
+通过这种方式，你可以灵活扩展新的查询场景，并保持现有系统的结构化与可扩展性。如果需要进一步细化某个方面的实现，随时告诉我！
+
+如果场景事先没有配置，或者查不到，有没有兜底的方法，因为目前fmdb治理的所有表结构元数据和数据都是有的，可以看到
+
+如果在查询时没有找到预定义的场景或相关配置，或者无法直接匹配用户输入的意图，可以通过 兜底方案 来灵活应对。这种方式依赖于现有的 FMDB 数据治理 系统，直接利用数据库中的元数据和数据进行动态查询和处理。
+
+兜底方案的核心思路：
+
+动态意图识别与回退：当预定义的场景无法识别时，系统会回退到使用数据库元数据和实际数据来推测和处理查询请求。
+
+元数据查询与处理：通过访问 FMDB 的表结构元数据、数据内容等，动态生成可能的查询策略，作为对用户请求的响应。
+
+通用查询引擎：实现一个可以根据不同的用户请求进行 元数据检索、数据匹配、结果推导 的引擎。这个引擎可以在没有场景配置的情况下处理某些通用类型的请求。
+
+以下是如何实现这些兜底方案的具体步骤和方法：
+
+1) 动态意图识别与回退
+
+如果无法通过预定义的规则或 NLP 模型匹配到意图，系统可以回退到 元数据驱动的动态处理，利用 FMDB 提供的表结构和数据进行推理。
+
+步骤：
+
+尝试匹配已有场景：首先尝试通过简单的规则或模型匹配用户的意图，如果能匹配，则按照常规的场景流程处理。
+
+回退至动态查询：如果没有找到匹配的场景，系统会基于用户输入的关键字或上下文信息动态构建查询语句，直接从 FMDB 中查询相关数据。
+
+示例：
+public class IntentRecognizer {
+
+    private static final Map<String, List<String>> intentPatterns = Map.of(
+        "BIZ_ORDER_QUERY", List.of("购买", "奶茶", "外卖", "订单"),
+        "BIZ_IDCARD_QUERY", List.of("身份证号", "查询", "附近", "一公里", "人")
+    );
+
+    public static String recognizeIntent(String userInput) {
+        // 1. 首先尝试通过规则匹配
+        for (Map.Entry<String, List<String>> entry : intentPatterns.entrySet()) {
+            String intent = entry.getKey();
+            List<String> keywords = entry.getValue();
+            for (String keyword : keywords) {
+                if (userInput.contains(keyword)) {
+                    return intent;
+                }
+            }
+        }
+
+        // 2. 如果没有匹配到场景，进行兜底处理
+        return "DYNAMIC_QUERY"; // 兜底，动态查询场景
+    }
+}
+
+2) 动态查询引擎
+
+通过利用 FMDB 的元数据和表结构，系统可以在 “没有场景配置” 或 “场景查询失败” 时自动构建查询并处理响应。你可以创建一个通用的查询引擎，它基于用户的输入，从元数据中提取相关信息并执行查询。
+
+步骤：
+
+获取数据库表结构：通过查询数据库的元数据，获取表结构和字段信息。
+
+构建查询语句：根据用户的输入（例如身份证号、地点等），动态构建 SQL 查询语句。
+
+执行查询：执行生成的查询语句，获取查询结果并返回。
+
+示例：动态查询引擎
+public class DynamicQueryEngine {
+
+    public static void executeDynamicQuery(String userInput) {
+        // 1. 提取用户输入中的关键字段（例如身份证号、地点）
+        String idCard = extractIdCard(userInput);
+        String location = extractLocation(userInput);
+
+        // 2. 构建 SQL 查询语句
+        String sql = buildQuery(idCard, location);
+
+        // 3. 执行查询
+        ResultSet result = executeSqlQuery(sql);
+
+        // 4. 格式化查询结果
+        formatResult(result);
+    }
+
+    private static String extractIdCard(String userInput) {
+        // 提取身份证号（假设有正则表达式或 NLP 解析方法）
+        return "xxxx"; // 示例身份证号
+    }
+
+    private static String extractLocation(String userInput) {
+        // 提取位置（如“附近一公里”）
+        return "latitude, longitude"; // 示例坐标
+    }
+
+    private static String buildQuery(String idCard, String location) {
+        // 根据身份证号和位置生成 SQL 查询
+        return "SELECT * FROM users WHERE idcard = '" + idCard + "' AND location = '" + location + "'";
+    }
+
+    private static ResultSet executeSqlQuery(String sql) {
+        // 连接到数据库并执行 SQL 查询（示例）
+        // 实际情况应该用数据库连接池执行查询
+        return null; // 返回查询结果
+    }
+
+    private static void formatResult(ResultSet result) {
+        // 格式化并返回查询结果（假设返回的是 JSON）
+        System.out.println("Formatted result: ...");
+    }
+}
+
+3) 元数据查询与处理
+
+当系统无法通过场景查询返回合适的结果时，可以直接利用 FMDB 的元数据 来动态查询和构建响应。这种方法的优势在于，即使没有预定义的场景，系统也能够依赖于现有的数据库表结构和数据来处理查询请求。
+
+步骤：
+
+查询元数据：根据表结构或字段名称，查询数据库中的相关字段和数据。
+
+动态返回数据：通过查询数据库表中的数据，将其结构化并返回给用户。
+
+示例：
+public class MetadataDrivenQueryEngine {
+
+    public static void executeQueryBasedOnMetadata(String userInput) {
+        // 1. 获取表结构和元数据
+        List<String> tables = getTablesFromMetadata();
+        List<String> fields = getFieldsFromMetadata();
+
+        // 2. 根据用户输入的关键词生成查询条件
+        String queryCondition = generateCondition(userInput, fields);
+
+        // 3. 构建查询语句
+        String sql = buildSqlQuery(tables, queryCondition);
+
+        // 4. 执行查询
+        ResultSet result = executeSqlQuery(sql);
+
+        // 5. 返回结构化结果
+        formatResult(result);
+    }
+
+    private static List<String> getTablesFromMetadata() {
+        // 获取数据库中的所有表名（根据 FMDB 的元数据）
+        return List.of("users", "orders"); // 示例表名
+    }
+
+    private static List<String> getFieldsFromMetadata() {
+        // 获取表的所有字段（假设从 FMDB 获取）
+        return List.of("idcard", "name", "location"); // 示例字段
+    }
+
+    private static String generateCondition(String userInput, List<String> fields) {
+        // 根据用户输入生成查询条件
+        if (userInput.contains("身份证号")) {
+            return "idcard = 'xxxx'"; // 示例条件
+        }
+        return "";
+    }
+
+    private static String buildSqlQuery(List<String> tables, String condition) {
+        // 构建 SQL 查询
+        return "SELECT * FROM " + tables.get(0) + " WHERE " + condition;
+    }
+
+    private static ResultSet executeSqlQuery(String sql) {
+        // 连接到数据库并执行查询
+        return null; // 示例返回
+    }
+
+    private static void formatResult(ResultSet result) {
+        // 格式化返回查询结果
+        System.out.println("Formatted result: ...");
+    }
+}
+
+4) 通用错误处理和反馈
+
+如果查询结果为空或未找到匹配的记录，可以提供一个友好的错误信息或者建议，例如“未找到符合条件的记录，请检查输入或尝试其他查询”。
+
+可以结合用户输入的上下文，推测他们可能的其他查询意图（例如通过推测“位置”是否为“附近一公里”）。
+
+总结
+
+动态意图识别与回退：当无法匹配到预定义场景时，可以利用现有的数据库元数据进行动态查询。
+
+元数据驱动的查询：通过访问 FMDB 的表结构和数据，自动生成 SQL 查询语句，处理用户的请求。
+
+通用查询引擎：实现一个通用的查询引擎，根据用户输入和数据库的元数据动态执行查询，并返回结构化的结果。
+
+这种方法的优势在于能够适应未来不断变化的查询需求和场景，同时不依赖于每个场景的预定义配置，具有较高的灵活性和扩展性。
+
+其实我在想一件事情，就是丢掉场景，统一基于元数据方式去查，这种可行性和准确度与增加场景方式帮我评估一下
+
+统一基于元数据的查询方式和基于预定义场景的方式各有其优缺点，关键在于你的系统需求和未来的扩展性。下面是对这两种方案的可行性与准确度进行评估的对比分析：
+
+1) 基于元数据的查询方式
+方案特点：
+
+无需预定义场景：查询将直接依赖于 FMDB 元数据，通过动态构建 SQL 查询语句来处理用户请求。
+
+灵活性强：不依赖于每个特定的场景，用户可以基于数据库的结构来灵活查询。
+
+元数据驱动：通过数据库的表结构、字段信息等自动推导查询和数据处理策略。
+
+可行性：
+
+强大的灵活性：你可以快速应对各种未知的查询需求，而无需每次为新场景编写配置。
+
+高效性：如果元数据结构比较规范且查询引擎优化良好，查询效率可以很高，尤其是在面对简单的查询时。
+
+易于扩展：随着数据库模式的变化，你可以直接基于新数据源或新的表结构进行扩展，而无需修改场景配置。
+
+准确度：
+
+精确度取决于元数据质量：如果数据库表的元数据完整且准确，基于元数据的查询准确性较高。然而，如果元数据不完整或不规范，查询结果的准确度可能会受到影响。
+
+需要有效的查询推理能力：系统需要具备一定的推理能力，能够根据用户输入自动生成准确的查询。例如，用户输入“查询附近一公里的奶茶外卖订单”，系统不仅需要识别出位置，还要推导出与奶茶相关的商家和外卖信息。如果推理失败，查询的结果将不准确。
+
+可能需要复杂的查询生成：如果查询过于复杂，基于元数据生成的 SQL 语句可能无法直接满足需求，可能需要人工干预或者更复杂的解析和生成逻辑。
+
+风险和挑战：
+
+推理复杂性：对于非常复杂或非常特定的业务需求，推理可能比较困难。例如，用户输入涉及多个表的联动查询时，系统需要具备足够的推理能力来处理。
+
+查询性能问题：如果没有正确的索引和优化，基于元数据的动态查询可能会导致性能瓶颈，尤其是在查询的数据量较大时。
+
+隐私和安全：直接查询数据时，必须非常小心如何处理敏感信息（如身份证号、手机号等），否则可能会面临数据泄露的风险。
+
+2) 基于预定义场景的查询方式
+方案特点：
+
+场景预定义：为每种类型的查询（如业务查询、订单查询、身份证查询等）预定义对应的场景配置。
+
+高效和精准：每个场景都有明确的查询流程、工具和提示语，因此能针对特定的需求给出准确的响应。
+
+知识库驱动：场景通常包括预定义的工具集、规则、API 及结构化数据，可以高效处理常见和常用的查询需求。
+
+可行性：
+
+高效性和准确性：通过预定义的场景配置，可以精准识别用户需求，并迅速调度合适的工具和查询策略。这样避免了动态推理，查询结果通常较为准确。
+
+清晰的任务规划：每个场景的设计确保了查询任务的清晰划分，避免了多表联动等复杂查询的问题。
+
+低推理负担：由于场景已经完全定义，系统不需要进行复杂的推理和查询生成逻辑，减少了系统的计算复杂性。
+
+准确度：
+
+高准确性：对于已经定义好的场景，准确度极高，因为每个场景都为特定任务量身定制，且所需的工具和步骤已在场景配置中进行详细规划。
+
+误差少：如果场景配置合理，系统执行这些任务时误差较小，特别是在常规查询和常见任务上。
+
+可控性强：场景可以根据实际需求进行修改、调试和优化，准确度也能够随时提升。
+
+风险和挑战：
+
+场景维护成本：随着新需求的不断增加，你需要不断更新场景配置。这可能导致维护负担逐渐增大，尤其是场景数量多且复杂时。
+
+灵活性较低：对于一些突发的、新的查询需求，如果没有提前定义场景，系统将无法处理，或者需要快速定义新场景。
+
+扩展性有限：如果想添加新的查询场景或修改现有的查询流程，可能需要重新设计和配置场景，这会增加系统的复杂度和开发周期。
+
+3) 方案对比：元数据查询 vs 场景查询
+维度	基于元数据的查询方式	基于场景的查询方式
+灵活性	非常灵活，可以应对任何用户输入的查询需求，动态生成查询。	灵活性较差，需要为每个查询场景进行定义和配置。
+准确性	精度依赖于元数据的质量和推理逻辑，复杂查询时准确性可能下降。	精确度高，因为每个场景都有明确的配置和执行步骤。
+扩展性	高，只要有元数据，可以在现有结构上增加更多的查询类型。	低，扩展时需要增加新场景配置，且需要重新设计查询逻辑。
+维护成本	低，系统只需要维护元数据和查询生成逻辑，不需要单独管理每个场景。	高，随着场景增加，需要定期维护、修改和优化场景配置。
+开发复杂度	高，构建一个智能的查询生成引擎需要较大的开发投入，特别是推理逻辑。	低，因为每个场景都有明确的定义和步骤，执行逻辑清晰。
+查询性能	可能会受到查询复杂度、数据量和索引优化的影响，性能不稳定。	通常性能较好，因为每个场景都为特定任务优化过。
+错误处理与推理	错误处理较为复杂，推理失败时可能导致查询错误。	错误处理简单，未匹配的查询会直接返回“无结果”。
+4) 推荐方案与综合考虑
+1. 小规模或常规查询场景：
+
+如果你的系统主要处理的是一些标准化、高频的查询（如常见的外卖查询、订单查询等），并且不需要频繁处理新的、未知的需求，那么基于 预定义场景的查询方式 更加合适。它具有高准确度、低维护复杂度和较好的性能，能够快速响应大多数场景的查询需求。
+
+2. 复杂、动态的查询需求：
+
+如果你的系统需要频繁应对 复杂或动态变化的查询需求，例如用户输入的查询非常灵活且类型多变，或者你希望能够快速适应新的业务需求，那么基于 元数据查询方式 可能会更适合。虽然开发复杂度高一些，但它提供了更大的灵活性和可扩展性，可以避免场景配置的繁琐工作。
+
+3. 混合方案：
+
+你也可以考虑 混合方案，即 场景查询 和 元数据查询 并行工作：
+
+对于常见、标准化的查询任务，依然采用 基于场景的查询方式。
+
+对于未知的、特殊的查询需求，可以回退到元数据驱动的动态查询，通过数据库的表结构和元数据进行推理和查询。
+
+这种方案能够兼顾灵活性和准确度，适应不同复杂度的需求。
+
+总结：
+
+基于元数据的查询方式：适合应对大量复杂、多变的查询需求，灵活性强，但开发和维护难度较高。
+
+基于场景的查询方式：适合处理标准化和高频查询，开发和维护成本低，准确性高，但不适应频繁变化的查询需求。
+
+混合方案：结合了两者的优点，既可以处理标准化查询，也可以应对特殊需求。
+
+希望这能帮你做出更加符合需求的决策！
+
+有没有一种方案去掉场景查询，就是在元数据层面提炼出专有的业务知识，这样能否替代呢，请帮我仔细分析
+方案：去掉场景查询，直接从 元数据层面提炼专有的业务知识
+
+去掉 场景查询，而是直接基于 元数据层 提炼出 专有的业务知识，本质上是将原本通过 预定义场景 处理的复杂查询转化为基于数据库 元数据 和 业务规则的知识层 进行查询的方式。这个方案的核心思想是，在 数据库层面 定义一套智能的查询规则和知识系统，避免了每次新增业务场景时都需要额外配置场景的麻烦。
+
+这种方案的可行性，准确性，以及替代性需要从 元数据、业务规则、查询推理引擎 和 系统维护 四个维度进行全面评估。
+
+1) 元数据层的业务知识提炼
+
+在去掉场景查询后，所有的业务知识和规则将会集中在 元数据层，并且 业务逻辑 将通过查询引擎从元数据中提炼出来。这要求数据库本身不仅仅包含数据，还包含一定的 业务知识 和 查询规则。
+
+方案设计：
+
+元数据扩展：数据库表结构本身需要更细粒度的元数据，例如字段的业务含义、数据之间的关系、字段依赖的规则、数据来源等。这些信息将作为提取和构建业务逻辑的基础。
+
+业务规则：将常见的业务规则、逻辑、限制条件等都编码在 数据库 内部。例如，如何识别一个有效的订单、如何根据用户地理位置找到附近的商家，如何根据身份证号查找客户资料等。
+
+元数据管理系统：你可能需要一个 元数据管理工具，用于描述和存储这些业务知识，保证元数据的完整性和一致性。
+
+例子：
+
+一个表（如 orders）中包含字段 product_type，不仅仅存储字段类型和长度，还需要附加业务元数据：如“这个字段表示订单的产品类型，常见值有：奶茶、汉堡等”。
+
+一个表（如 users）中包含字段 location，业务规则可以定义：根据 location 字段，可以推算出与用户相关的地理位置，进一步与商家的地理位置进行关联。
+
+2) 查询引擎的智能化
+
+去掉场景查询后，系统需要依赖一个智能的查询引擎，从元数据和业务规则中自动生成查询和推理。这个引擎将结合 NLP 和 推理引擎，根据用户输入动态生成查询和数据处理逻辑。
+
+步骤：
+
+自然语言解析：首先，通过 自然语言处理（NLP） 技术，将用户的请求解析成可以与数据库交互的结构化信息。例如，用户请求“查询附近一公里的奶茶订单”，系统需要识别出 地理位置 和 商品类型 等信息。
+
+元数据匹配：根据用户需求和元数据的映射，推理出查询所需的表结构、字段和关系。如果用户提到“奶茶”，查询引擎会根据 product_type 字段和相关业务规则确定查询的表（如 orders 表）。
+
+动态查询生成：通过业务规则和元数据自动生成查询。例如，确定了用户位置后，系统会使用 geo_locate 工具进行查询，而后根据附近商家的信息生成查询条件，查询是否有奶茶类的订单。
+
+示例：
+
+用户输入：“查询附近一公里的奶茶订单”
+
+解析：识别出 产品类型 (奶茶)，查询区域 (一公里)，表字段（例如 product_type, location）。
+
+动态生成查询：
+
+SELECT * FROM orders WHERE product_type = '奶茶' AND location = 'user_location' AND distance <= 1km
+
+3) 方案的优缺点分析
+优点：
+
+无须维护复杂的场景配置：去掉场景查询后，不再需要为每种业务场景单独维护复杂的配置文件和场景定义，减少了开发和运维的成本。
+
+高度灵活：元数据驱动的查询引擎可以动态应对各种查询需求。系统可以灵活扩展，新的查询场景可以直接通过元数据和业务规则进行推理，无需手动新增场景配置。
+
+自动化推理：系统可以通过自动化推理来生成查询，支持更加动态和多变的业务场景。
+
+扩展性好：数据库中的元数据和业务规则可以不断增加和优化，新的查询需求可以通过修改元数据或增加规则来满足，具有较强的扩展性。
+
+缺点：
+
+开发和维护难度较高：需要为数据库设计一个复杂的元数据管理系统，将业务规则与数据层深度绑定。元数据的准确性、完整性以及与查询引擎的匹配程度直接影响系统的表现。
+
+查询推理复杂：对于复杂的业务逻辑和多表联动查询，推理引擎可能需要强大的推理能力，或者手动调优才能保证高效的查询生成。尤其是面对非常复杂的查询需求时，可能需要额外的算法优化。
+
+性能风险：基于元数据和规则生成的动态查询可能存在性能风险，特别是在查询非常复杂或数据量很大的情况下，可能无法做到最优的查询效率。
+
+4) 如何替代场景查询
+替代场景查询的条件：
+
+元数据的丰富程度：必须在数据库层面提供全面的元数据支持，包括字段定义、数据关系、字段依赖、规则等。
+
+业务规则的精细化：所有的业务规则、逻辑、条件等必须事先被提炼并存储在数据库中，保证能够通过规则推理出合适的查询逻辑。
+
+推理引擎的能力：需要一个智能的推理引擎，能够解析用户请求，并在没有场景配置的情况下自动生成正确的查询。这个引擎应支持各种类型的查询，包括复杂的多表联动和地理位置计算。
+
+优化的查询生成机制：为了避免查询性能瓶颈，推理引擎必须能够生成高效的查询，并且数据库的索引、缓存等也需要做相应优化。
+
+5) 整体方案架构建议
+1. 数据库层面的元数据和业务规则管理
+
+创建专门的元数据表，记录字段定义、字段之间的关系、业务规则（如“某个字段代表商品类型”，“某个字段代表地理位置”等）。
+
+使用工具（如 元数据管理平台）统一管理和维护这些元数据和规则，确保它们的准确性和一致性。
+
+2. 智能查询生成引擎
+
+基于 NLP 和 业务规则推理引擎，通过解析用户输入生成查询逻辑。
+
+引擎要能够处理常见的查询需求（如地理位置查询、时间范围查询等）并生成对应的 SQL 语句。
+
+为了支持更复杂的查询，推理引擎需要支持多表联动、复杂的条件生成等。
+
+3. 查询优化
+
+针对生成的查询进行性能优化，确保动态查询在大规模数据环境中能够高效执行。使用 数据库索引 和 查询缓存 来提高查询性能。
+
+6) 总结
+
+元数据驱动查询可以代替传统的 场景查询，尤其适合动态变化的查询需求和复杂的查询场景。它能提供高灵活性、低维护成本和良好的扩展性。
+
+但这个方案的 开发复杂度高，尤其是在推理引擎的设计和查询性能优化上需要更多的投入。
+
+如果你的系统未来需要频繁扩展和应对多变的查询需求，且你有能力管理复杂的元数据和业务规则，那么这个方案具有较高的可行性。
+
+如果你的业务需求更为稳定且易于定义，可以选择 场景查询 方式，它简单易维护且准确性高
+
+ChatGPT 说：
+你这个问题本质是在做一个取舍：
+
+场景驱动（scenario packs）：用“明确的能力包 + prompts + tools + tests”把高频需求做成确定性流水线
+
+元数据驱动（metadata-first）：不写场景，让系统靠 FMDB 的“治理元数据 + 语义层 + 规则”动态推导要查什么、怎么查、怎么回答
+
+你想要的是第三种：“丢掉场景”但又要保持准确度——那就必须把“场景”从显式配置变成元数据里的可计算业务知识。下面我给你一个可落地的评估与方案。
+
+1) 先回答：能不能完全替代场景？
+能替代一部分，不能100%替代所有。
+
+可以替代的（适合元数据驱动）
+结构清晰、可映射到元数据的查询：表/字段/指标口径/血缘/权限/数据质量规则
+
+治理类与分析类：比如“这个字段从哪来”“这个指标口径是什么”“某表有无手机号字段”“某任务影响哪些下游”
+
+可抽象成通用查询模板的业务问法：时间范围 + 条件 + 聚合 + 排序 + 取 TopN（这类可以靠语义层/指标层统一）
+
+很难完全替代的（仍然需要“隐式场景”或显式pack）
+需要外部系统工具链的：地图/外卖/工单/告警/运维操作（工具组合、权限、回滚、安全审计都需要明确编排）
+
+复杂多步交互：缺少关键信息要追问、需要多轮澄清、或涉及强约束流程（比如审批/工单）
+
+高风险领域（PII/运维变更）：必须“先判定能不能做、能做到什么粒度”，这类更适合明确策略与流程
+
+结论：如果你“完全去掉场景”，系统最终还是会长出一套“隐式场景”（藏在元数据规则、planner 逻辑、工具约束里）。所以更现实的是：
+
+把“场景包”从 N 个变成 3～5 个“通用能力域”
+业务问法通过“元数据语义层”来吸收变化，而不是每个问法写一个 pack。
+
+2) 你要的“去场景”方案，关键是：把业务知识提炼成元数据语义层
+你现在 FMDB 有“表结构元数据 + 治理元数据 + 数据本体”。要替代场景，至少要补齐 3 类“可计算知识”：
+
+A. 语义映射层（Business Term ↔ Data）
+把自然语言的词（奶茶/订单/附近/身份证）映射到数据资产：
+
+业务实体（Entity）：订单、用户、门店、商品、告警、任务、字段…
+
+属性（Attribute）：身份证号、手机号、位置、品类、金额、状态、时间…
+
+关系（Relation）：用户-订单、门店-订单、订单-商品、表-字段、指标-口径…
+
+这层就是“术语表 + 实体模型 + 字段映射 + 同义词/别名”，放在 FMDB 元数据里。
+
+B. 指标/口径层（Metric Layer）
+很多“业务查询”真正想要的不是 raw 表，而是“指标口径”：
+
+“外卖订单”到底是哪个事实表？是否含退款？是否含取消？
+
+“附近一公里”位置以用户当前位置还是门店坐标？距离算法？
+
+默认时间范围（24h/7d）属于指标/查询规范的一部分
+
+这层把高频业务口径固化，能极大提升准确度与一致性。
+
+C. 策略与约束层（Policy Layer）
+尤其你提到未来有运维能力、还涉及身份证号这种 PII：
+
+哪些字段属于 PII？对哪个租户/角色可见？展示是否脱敏？
+
+哪些查询必须审批？哪些结果只能返回聚合？
+
+动态 SQL 允许的语法子集、最大扫描分区、超时、限流
+
+没有这层，“去场景”会非常危险：模型一生成 SQL 就可能越权/泄露/拖库。
+
+3) 意图识别怎么做：不靠“场景枚举”，靠“元数据的能力索引”
+你担心“模版多了怎么识别意图”。如果走 metadata-first，你的意图识别不应该是 “BIZ_ORDER_QUERY / BIZ_IDCARD_QUERY…” 这种枚举，而是：
+
+3.1 把用户请求解析成一个稳定的结构：Canonical Intent
+例如统一成这种结构（举例）：
+
+taskType: QUERY / GOVERN / OPS / EXPLAIN
+
+entities: [Order] / [Person] / [Table] / [Metric]
+
+filters: timeRange, geoRadius, keywords, identifiers(身份证号/手机号), status…
+
+output: list / aggregate / topN / lineageGraph / ddlSuggestion…
+
+risk: pii / ops / writeAction
+
+这一步不需要每个场景配置，只要一个“Intent Parser”提示词 + 规则校验。
+
+3.2 用“能力索引”去匹配执行路径
+在元数据中维护一个“能力索引”（可以理解为你之前 pack 的 manifest 变成可查询元数据）：
+
+每个能力（不是场景）声明：
+
+可处理的 taskType
+
+覆盖的 entities/attributes
+
+需要的工具类型（SQL/元数据查询/地理/订单API/工单/告警）
+
+风险等级与策略（PII/OPS）
+
+输出的 structured kind
+
+然后通过打分路由：
+
+解析到 entities=Order + geoRadius + keywords → 倾向“通用业务查询能力”
+
+解析到 identifier=idcard → 触发“PII策略能力” + “人群查询能力”
+
+解析到 taskType=GOVERN → 走治理能力（血缘/口径/质量规则）
+
+这其实就是“少量能力域 + 大量元数据语义”，而不是“海量场景包”。
+
+4) “奶茶订单” vs “身份证号xxxx的人”：到底要不要新场景？
+如果你走 metadata-first，答案是：
+
+不需要新“场景”
+
+但需要：新增/完善语义映射 + 策略约束 + 可能新增一个工具能力
+
+具体：
+
+“奶茶订单”
+
+术语：奶茶 → 商品品类字段/商品维度
+
+实体：订单事实表 / 门店维度 / 商品明细
+
+工具：订单查询（SQL或API）+ 可能的地理计算
+
+“身份证号xxxx的人”
+
+术语：身份证号 → PII字段 + 脱敏策略
+
+输出：极可能不允许直接返回明文身份证与个人信息；可能只能返回“是否存在/数量/部分字段脱敏”
+
+工具：人群查询（SQL或API）
+
+核心差异不在“场景”，在“策略/权限/输出规范”
+
+也就是说：你需要的是PII治理能力（策略插件/元数据策略），不是再写一个 biz-idcard-query pack。
+
+5) 可行性与准确度评估：metadata-first 什么时候会翻车？
+准确度提升点
+业务口径统一（指标层）→ 模型不再瞎猜表
+
+字段/实体映射完备（语义层）→ 解析稳定
+
+治理元数据兜底（血缘/口径/规则）→ 可解释、可审计
+
+主要风险点
+语义层不完备时，模型会把词硬映射到错误表字段（“订单”可能落到多个域）
+
+多表 join 推理难：需要关系图 + join path 选择，否则 SQL 容易错/慢
+
+性能与成本不可控：动态 SQL 容易全表扫，必须有“查询预算/限制器”
+
+安全合规风险：身份证号这种要强策略，否则“去场景”会造成越权输出
+
+所以准确度不是取决于“有没有场景”，而是取决于：
+
+你的元数据语义层和策略层是否足够“硬”。
+
+6) 我建议的落地方案：少场景 + 强元数据（你要的“兜底”也在这里）
+6.1 不要做“无场景”，做“极少能力包”
+建议保留 4 个“能力域包”（每个包很稳定，不会爆炸式增长）：
+
+GOVERNANCE：元数据/血缘/口径/质量/权限解释
+
+QUERY：通用查询（SQL/指标层）
+
+OPS：运维（告警/日志/变更/工单），强审计
+
+FALLBACK：元数据驱动的动态查询兜底（受限SQL + 强策略）
+
+你担心的“写一堆 manifest/prompt/tests”会变成：只维护这 4 个包的骨架；业务变化主要靠元数据知识库增长。
+
+6.2 “插件式补充”怎么实现（不靠场景文件夹）
+把“插件”换成两类元数据资产（可版本化）：
+
+Semantic Asset：实体/属性/同义词/映射/Join关系/默认时间窗
+
+Policy Asset：PII分类、脱敏、租户权限、查询预算、审批要求
+
+（可选）Metric Asset：指标定义、口径SQL、维度/事实关联
+
+新增一个业务能力，不是新增场景目录，而是：
+
+往 FMDB 写入一条实体映射/指标口径/策略规则
+
+toolbox 增加一个通用工具（比如 metadata.search, sql.run, metric.query）
+
+6.3 “治理元数据兜底”的执行链
+当没有命中明确能力时，走兜底链路：
+
+Intent Parser 产出 Canonical Intent（含风险标签）
+
+Semantic Resolver：把词映射到实体/指标/字段（给出置信度）
+
+Policy Gate：决定允许的输出粒度（明细/聚合/脱敏/拒绝）
+
+Plan Generator：生成“受限SQL/指标查询/元数据查询”的 plan
+
+Evidence：把映射依据、口径引用、策略命中记录下来（可审计）
+
+这条链路就是你要的“兜底”。
+
+7) 给你一个很实用的决策建议
+如果你目标是 “快速覆盖很多问法”：走 少能力包 + 强语义/指标层（你现在更像这个）
+
+如果你目标是 “少量高价值场景做到极稳”：再对这些高频需求做“显式pack + golden tests”
+
+所以最稳的组合是：
+
+80% 元数据语义层吸收变化 + 20% 高频场景用显式pack锁死准确度与体验
+
+如果你愿意，我可以按你“FMDB治理智能体”的方向，把“元数据语义层”应该长什么样（实体/属性/关系/指标/策略的最小表结构或yaml schema）直接给一套模板，并且用你提的两个例子（奶茶订单、身份证号人群）各自演示：从用户一句话如何落到 Canonical Intent → 语义映射 → 策略裁决 → 受限查询计划。
+
+
+你说：
+给一个最佳方案呢
+
+ChatGPT 说：
+Reasoned for 6m 30s
+下面给你一个我认为**“长期最优、工程可控、准确度最高”**的方案（不是折中随便说说，而是能真正支撑你“fagent = FMDB 数据治理智能体 + 可持续补充知识/上下文/工具 + 运维能力”的愿景）。
+
+核心结论先说：
+
+最佳方案 = “元数据语义层为核心（metadata-first） + 少量稳定能力域包（4个） + 模板化规划（plan templates） + 高价值/高风险才做显式场景回归用例（golden）”
+也就是：不做“每个问法一个场景包”，但也不做“完全无场景随便生成 SQL”。
+你要的“场景方式/业务知识库整理/治理元数据兜底”三者会在这个方案里自然统一。
+
+1. 这套方案为什么是“最佳”
+你现在纠结的本质是：可扩展性 vs 准确度/可控性。
+
+纯“场景包”路线：准确，但维护爆炸（每个新问法都要加 manifest/prompts/tests）
+
+纯“元数据动态查询”路线：扩展强，但准确/安全/性能不可控（尤其 PII/运维）
+
+最佳方案把“可变”放在可治理的元数据层，把“执行骨架”稳定下来，把“规划”做成模板库——这样：
+
+新增 100 个业务问法 → 多数只需要补充：术语/实体映射/指标口径/策略（属于“知识资产”），不用加一堆场景文件夹
+
+高风险/高价值路径（PII、运维、强口径）→ 用少量显式回归用例锁死（可测试、可审计）
+
+最终你还能做到“治理元数据兜底”：任何无法匹配的请求，仍可解释、可追溯地落到 FMDB 元数据与策略上
+
+2. 总体架构：4 个能力域包 + 元数据语义层 + 规划模板库
+你只保留 4 个稳定能力域包（Pack）（它们很少变）：
+
+GOVERNANCE 包
+
+表/字段/指标口径
+
+血缘/依赖/影响分析
+
+质量规则/标准化字段映射
+
+权限/脱敏解释
+
+QUERY 包（通用查询包）
+
+基于语义层/指标层做“业务查询”
+
+支持 list / agg / topN / drill-down
+
+不把“奶茶”“身份证号”当场景，而当“实体+属性+约束”
+
+OPS 包（运维包）
+
+指标/日志/告警/工单/变更SOP
+
+强审计、强权限、强回滚策略
+
+FALLBACK 包（兜底包）
+
+当上面都没匹配到或置信度低：
+
+先走元数据检索解释
+
+再走“受限动态计划”（safe SQL / safe tools）
+
+不允许直接做高风险输出
+
+然后你在 Runtime 内核里固定一个执行管线：
+
+用户输入 → CanonicalIntent → 语义解析 → 策略裁决 → 模板规划 → 工具执行 → Structured 归一化 → Summary + Evidence
+
+这条管线一旦稳定，后续“补知识/补工具/补上下文”都不会扰动内核。
+
+3. 不靠“场景枚举”的意图识别：统一成 CanonicalIntent
+你不要做 BIZ_ORDER_QUERY / BIZ_IDCARD_QUERY ... 的枚举意图（会爆炸）。
+你只做一个稳定结构：
+
+{
+  "taskType": "QUERY | GOVERN | OPS | EXPLAIN",
+  "entities": ["Order", "Person", "Store", "Table", "Metric"],
+  "constraints": {
+    "timeRange": "last_24h",
+    "geoRadiusKm": 1,
+    "keywords": ["奶茶"],
+    "identifiers": {"idcard": "xxxx"}
+  },
+  "output": {"shape": "LIST | AGG | TOPN", "fields": []},
+  "risk": {"pii": true, "opsWrite": false},
+  "confidence": 0.0
+}
+优势：
+
+你后续再来 500 个问法，IntentParser 仍然输出这一个结构
+
+“规划”不靠“场景名字”，而靠 entities + constraints + risk 去路由到模板
+
+4. 关键：把“业务知识”提炼进 FMDB 元数据语义层（替代海量场景）
+要做到“去掉场景”，你必须把场景里隐含的知识变成“可计算元数据”。
+
+我建议把语义层拆成 4 类资产（都版本化、可回滚、可审计）：
+
+4.1 术语/实体资产（Entity）
+描述“订单/人/门店/商品”等业务实体如何映射到数据资产：
+
+entityId、别名（同义词）
+
+主事实表 / 关键字段 / 时间字段 / 地理字段
+
+推荐 join 路径（关系图）
+
+示例（YAML 仅示意）：
+
+entityId: Order
+aliases: ["外卖订单", "订单", "配送单"]
+primaryTable: dwd_order_fact
+timeField: order_time
+geo:
+  type: "store_location"
+  latField: store_lat
+  lonField: store_lon
+attributes:
+  - name: category
+    fields: ["item_category", "item_name"]
+  - name: amount
+    fields: ["pay_amount"]
+4.2 关系资产（Relation / Join Graph）
+解决“多表联动推理”难题：明确 join 关系、基数、代价。
+
+from: Order
+to: Store
+join:
+  - left: dwd_order_fact.store_id
+    right: dim_store.store_id
+cardinality: "many_to_one"
+cost: 1
+4.3 指标资产（Metric / 口径）
+把“外卖订单”的口径锁死，提升准确度与一致性：
+
+metricId: order_count
+aliases: ["订单量", "外卖订单数"]
+definition:
+  type: "sql"
+  sql: "count(1)"
+entity: Order
+defaultTimeRange: "last_24h"
+dimensions: ["store", "city", "category"]
+4.4 策略资产（Policy）
+所有 PII / 权限 / 输出粒度 / 审批都写在策略元数据里：
+
+ruleId: pii_idcard
+match:
+  attribute: "idcard"
+risk: "PII_HIGH"
+allow:
+  roles: ["SEC_ADMIN"]
+defaultOutput:
+  mode: "MASK"
+  maskStyle: "idcard_last4"
+denyIf:
+  - notInRole: ["SEC_ADMIN"]
+当你问“身份证号为xxxx的人”，系统不是新增场景，而是：
+语义层识别 attribute=idcard → 策略层裁决输出粒度/是否拒绝/是否必须工单审批。
+
+5. 规划怎么做：用“模板库（Plan Templates）”替代“每个场景一个 pack”
+你担心模板多了怎么规划。答案是：模板数量是可控的。
+
+你只需要维护 8～15 个通用模板（可覆盖大多数问法），比如：
+
+T1_list_entity：列出某实体的明细（受限字段）
+
+T2_agg_metric：按口径指标聚合
+
+T3_geo_keyword_query：地理范围 + 关键词过滤（奶茶就是关键词）
+
+T4_identifier_lookup：标识符匹配（身份证/手机号）→ 必须走策略裁决
+
+T5_lineage_trace：血缘溯源
+
+T6_impact_analysis：影响分析
+
+T7_quality_check：质量规则检查
+
+T8_ops_triage：告警/日志/指标联动排障
+
+T9_tool_only：纯工具执行（不涉及数据资产）
+
+路由方式不是“意图=某场景”，而是评分：
+
+score(template) = f(entities匹配度, constraints匹配度, risk要求, 可用工具, 置信度)
+
+这样 “奶茶外卖订单” 和 “附近一公里奶茶订单” 不会变成两个场景，它们都是 T3_geo_keyword_query 的不同参数。
+
+6. 兜底策略：真正做到“治理元数据兜底”
+当无法匹配模板或置信度低时，FALLBACK 包这样做：
+
+先解释：我理解你要查什么实体/字段/口径（展示来自 FMDB 元数据的证据）
+
+再追问（只问关键缺失）：时间范围？位置来源？是否允许明细？
+
+最后执行“受限计划”：
+
+只允许 metric.query（指标层）或 sql.safe_query（受限 SQL 子集）
+
+默认只返回聚合/脱敏
+
+强制加 LIMIT、分区限定、扫描预算、超时
+
+这一步非常重要：它让你“无场景”仍然可控，不会因为一句话就跑全表或泄露 PII。
+
+7. 工程落地怎么规划（最省力的落地路径）
+你不需要一次性改完，按这个顺序推进最稳：
+
+P0：把 Runtime 内核钉死（你已经在做）
+Step 执行器、Tool 调用、StructuredExtractor、EvidencePack、重试/质量审查
+
+统一输出：Structured + Summary + Evidence
+
+P1：上线“语义层 + 策略层 + 模板规划”
+实现 CanonicalIntent Parser（LLM + schema 校验）
+
+实现 Semantic Resolver（基于 FMDB 元数据资产）
+
+实现 Policy Engine（PII/权限/输出粒度）
+
+实现 Template Planner（8 个模板起步）
+
+到 P1，你就已经能“丢掉大量场景”了。
+
+P2：治理能力做深（FMDB 主线）
+血缘/口径/质量/标准化字段映射
+
+元数据解释能力（可审计证据）
+
+P3：运维能力包（强审计）
+ops toolchain（k8s/yarn/spark/hive/告警/工单）
+
+写操作必须“审批/双人确认/回滚计划”
+
+8. 最终形态下，“还要不要写 manifest/prompts/tests？”
+要，但数量极少。
+
+你只维护 4 个域包（GOVERN/QUERY/OPS/FALLBACK）的 manifest/prompts/tests
+
+业务变化主要通过“元数据资产”扩展（Entity/Relation/Metric/Policy），它们本身也应该有版本与回归校验
+
+回归测试也从“场景级”转成更可控的两类：
+
+模板级 golden（例如 T3_geo_keyword_query 的 10 条用例覆盖各种参数组合）
+
+口径/策略级契约测试（指标 SQL 是否符合口径、PII策略是否生效）
+
+这样你不会被“每个场景都写一套 planner/runner/finalizer”拖垮。
+
+9. 我给你的“最佳方案一句话总结”
+用 FMDB 的治理元数据构建语义层（实体/关系/指标/策略），让 Query/Govern/Ops 只剩少数稳定能力域包；规划不靠场景枚举，而靠 CanonicalIntent + 模板库；未知请求走受限兜底，所有输出可解释可审计。
+
+如果你希望我进一步把它“工程化到可写代码”的程度，我可以直接给你：
+
+CanonicalIntent JSON Schema
+
+8 个 plan templates 的定义格式（YAML/JSON）
+
+Entity/Relation/Metric/Policy 四类元数据的最小表结构（或 YAML schema）
+
+Template Planner 的打分与路由伪代码
+
+PII/运维的策略裁决链路（默认拒绝/默认聚合/默认脱敏的决策表）
+
+你不用再补充背景，我可以按你上面的愿景直接给“可实现的规范稿”。
+
+
+你说：
+业务变化主要通过“元数据资产”扩展（Entity/Relation/Metric/Policy），它们本身也应该有版本与回归校验。上面请详细介绍一下，结构是什么，如何扩展，使用，给出示例
+
+ChatGPT 说：
+Reasoned for 5m 12s
+下面我把你说的“业务变化主要通过元数据资产扩展（Entity/Relation/Metric/Policy）”这件事讲透：结构是什么、怎么扩展、怎么被运行时使用、如何做版本与回归校验，并给一套可以直接落地到工程里的示例（YAML 方式，后续你也可以同步进 FMDB 元数据表）。
+
+1) 元数据资产是什么：把“场景”从代码/配置里搬到“可计算的治理元数据里”
+你不想为每个问法写一个 pack（manifest/prompts/tools/tests）。那就要把“场景里隐含的业务知识”拆成 4 类“可计算资产”：
+
+Entity（实体资产）：自然语言中的“订单/人/门店/表/指标”等实体，如何映射到数据资产（事实表、维度表、关键字段、默认时间字段、地理字段、可输出字段、默认过滤等）
+
+Relation（关系资产）：实体之间怎么 join（路径、基数、成本、可靠性、适用条件）
+
+Metric（指标资产）：业务口径如何定义（SQL/表达式/过滤/维度/默认时间窗/单位/可解释引用）
+
+Policy（策略资产）：权限/PII/输出粒度/审批/查询预算/脱敏规则（让“能不能做、能做到什么程度”可控）
+
+你会发现：这四类资产合起来，其实就是“语义层 + 指标层 + 策略层”。
+你丢掉的是“海量场景”，保留的是“少量通用规划模板”，业务变化靠资产增长。
+
+2) 推荐的结构：用“资产仓库（IaC）”管理 + 同步进 FMDB
+最容易工程落地、可回滚、可做 CI 的做法是：资产先以文件形式管理（像配置即代码），然后定期同步进 FMDB 元数据表（或直接让 FMDB 存储为源头也可以）。
+
+2.1 目录结构建议
+semantic-assets/
+  bundle.yaml                  # 资产包清单（版本、兼容性、包含哪些资产）
+  entities/
+    order.yaml
+    person.yaml
+    store.yaml
+  relations/
+    order__store.yaml
+    order__person.yaml
+  metrics/
+    order_count.yaml
+    order_amount.yaml
+  policies/
+    pii_fields.yaml
+    query_budget.yaml
+    output_rules.yaml
+  tests/
+    resolver_golden.yaml        # 解析/映射回归用例（最关键）
+    policy_golden.yaml
+    metric_compile.yaml
+你以后“补业务能力”，绝大多数时候就是新增/修改这些文件，而不是新增场景 pack。
+
+3) 资产结构详解 + 示例
+下面每类我都给一个可直接用的 YAML 结构（你可以先从最小字段集开始，后面再扩充）。
+
+3.1 Entity（实体资产）
+结构要点
+Entity 解决三个问题：
+
+自然语言 → 这个实体是什么（aliases / synonyms）
+
+这个实体落在哪些数据资产上（事实表、关键字段、时间字段、分区、默认过滤）
+
+查询时哪些字段可以出现在结果里（避免 PII、避免随意 select *）
+
+示例：entities/order.yaml
+assetType: Entity
+schemaVersion: 1
+id: entity.order
+version: 1.2.0
+status: active
+owner: fmdb-governance
+
+name: Order
+aliases:
+  - 外卖订单
+  - 订单
+  - 配送单
+
+# 事实表与粒度
+storage:
+  primaryTable: dwd_order_fact
+  grain: order_id
+  timeField: order_time
+  partitions:
+    - dt
+  defaultTimeRange: last_7d   # 用户没说时间，就默认近7天（可被 Policy 覆盖）
+
+# 常用属性如何映射到字段（用于语义解析→字段绑定）
+attributes:
+  - key: order_id
+    fields: [order_id]
+    type: string
+    pii: false
+
+  - key: amount
+    fields: [pay_amount]
+    type: number
+    pii: false
+
+  - key: status
+    fields: [order_status]
+    type: enum
+    pii: false
+    enumValues: [CREATED, PAID, CANCELLED, FINISHED]
+
+  - key: item_keyword
+    # “奶茶/咖啡/汉堡”这类通常落在商品名/品类字段
+    fields: [item_name, item_category]
+    type: string
+    pii: false
+
+# 地理语义（用于“附近1公里”这种约束）
+geo:
+  mode: store_location
+  latField: store_lat
+  lonField: store_lon
+  distanceFunction: haversine_km
+
+# 建议默认输出字段（不允许 planner 自由发挥）
+projection:
+  allowedFields:
+    - order_id
+    - order_time
+    - pay_amount
+    - order_status
+    - store_id
+    - store_name
+  denyFields:
+    - phone
+    - idcard
+    - imsi
+    - imei
+
+# 查询约束（保护性能）
+constraints:
+  maxLookbackDays: 30
+  maxRows: 200
+解释：
+
+“奶茶”不是一个场景，而是 item_keyword 属性上的一个 filter。
+
+“附近1公里”由 geo 模块 + relation/join 支撑。
+
+allowedFields/constraints 直接从实体层就把“乱查/查爆/泄露”压住。
+
+3.2 Relation（关系资产）
+结构要点
+Relation 解决：join 路径怎么走、基数是什么、成本是多少、什么时候可用。
+
+示例：relations/order__store.yaml
+assetType: Relation
+schemaVersion: 1
+id: relation.order_to_store
+version: 1.0.0
+status: active
+owner: fmdb-governance
+
+fromEntity: entity.order
+toEntity: entity.store
+
+join:
+  - leftTable: dwd_order_fact
+    leftField: store_id
+    rightTable: dim_store
+    rightField: store_id
+
+cardinality: many_to_one
+cost: 1
+reliability: high
+
+# 可选：限定场景（比如某些租户 store_id 不稳定）
+conditions:
+  - type: tenantAllowList
+    tenants: ["t1", "t2", "default"]
+示例：entities/store.yaml（门店实体，用于地理/名称）
+assetType: Entity
+schemaVersion: 1
+id: entity.store
+version: 1.0.0
+status: active
+owner: fmdb-governance
+
+name: Store
+aliases: [门店, 商家, 店铺]
+
+storage:
+  primaryTable: dim_store
+  grain: store_id
+
+attributes:
+  - key: store_id
+    fields: [store_id]
+    type: string
+
+  - key: store_name
+    fields: [store_name]
+    type: string
+
+  - key: location
+    fields: [lat, lon]
+    type: geo
+
+projection:
+  allowedFields: [store_id, store_name, lat, lon, address]
+3.3 Metric（指标资产）
+结构要点
+Metric 解决：“订单量/GMV/活跃”这类口径到底怎么定义，并且能提供可解释引用（refs）。
+
+你要做到：
+
+同一个业务词 → 总能落到同一个口径
+
+用户问法变化很大，但指标含义稳定
+
+示例：metrics/order_count.yaml
+assetType: Metric
+schemaVersion: 1
+id: metric.order_count
+version: 2.0.0
+status: active
+owner: fmdb-governance
+
+name: Order Count
+aliases:
+  - 订单量
+  - 外卖订单数
+
+entity: entity.order
+type: aggregate
+unit: count
+
+definition:
+  dialect: hive
+  expr: "count(1)"
+
+# 默认维度/可用维度（用于“按门店排名/按城市聚合”）
+dimensions:
+  - key: store
+    fields: [store_id, store_name]
+    viaRelation: relation.order_to_store
+  - key: city
+    fields: [city_id, city_name]
+    viaRelation: relation.order_to_store
+
+defaultTimeRange: last_7d
+
+constraints:
+  maxGroupBy: 3
+  maxRows: 200
+示例：派生指标（把“奶茶”变成过滤，而不是新指标）
+如果你希望“奶茶订单量”是可复用概念，可以定义一个“派生指标”：
+
+assetType: Metric
+schemaVersion: 1
+id: metric.order_count_tea
+version: 1.0.0
+status: active
+owner: fmdb-governance
+
+name: Tea Order Count
+aliases: [奶茶订单量]
+
+entity: entity.order
+type: derived
+
+baseMetric: metric.order_count
+filters:
+  - attribute: item_keyword
+    op: contains_any
+    values: ["奶茶"]
+这样，“奶茶”既可以作为用户临时关键词过滤，也可以沉淀成一个明确的派生指标（看你治理口径是否希望固化）。
+
+3.4 Policy（策略资产）
+结构要点
+Policy 是“去场景”方案是否能落地的关键，否则你会遇到两个灾难：
+
+PII 泄露（身份证号/手机号等）
+
+动态查询拖库/越权/不合规
+
+我建议 Policy 至少包含四类规则：
+
+PII 分类与脱敏动作
+
+访问控制（ABAC/RBAC + 数据域）
+
+输出粒度规则（明细/聚合/拒绝）
+
+查询预算（最大回溯天数、最大扫描、最大 tool calls）
+
+示例：policies/pii_fields.yaml
+assetType: Policy
+schemaVersion: 1
+id: policy.pii_fields
+version: 1.0.0
+status: active
+
+rules:
+  - ruleId: pii_idcard
+    match:
+      fieldNames: ["idcard", "id_card_no", "cert_no"]
+    classification: PII_HIGH
+    defaultAction:
+      type: mask
+      maskStyle: idcard_last4
+
+  - ruleId: pii_phone
+    match:
+      fieldNames: ["phone", "mobile"]
+    classification: PII_MED
+    defaultAction:
+      type: mask
+      maskStyle: phone_middle4
+示例：policies/output_rules.yaml（决定能不能返回“身份证号xxxx的人”）
+assetType: Policy
+schemaVersion: 1
+id: policy.output_rules
+version: 1.0.0
+status: active
+
+rules:
+  - ruleId: deny_pii_lookup_for_general_users
+    when:
+      intent:
+        constraints:
+          identifiers:
+            anyOf: ["idcard"]
+    if:
+      context:
+        notInRoles: ["SEC_ADMIN", "DATA_GOV_ADMIN"]
+    then:
+      decision: deny
+      reason: "身份证号查询属于高敏PII，需安全管理员权限或走审批流程"
+
+  - ruleId: allow_pii_lookup_masked_for_sec_admin
+    when:
+      intent:
+        constraints:
+          identifiers:
+            anyOf: ["idcard"]
+    if:
+      context:
+        inRoles: ["SEC_ADMIN"]
+    then:
+      decision: allow
+      output:
+        mode: masked
+        allowedFields: ["name", "distance_km", "idcard_masked"]
+示例：policies/query_budget.yaml
+assetType: Policy
+schemaVersion: 1
+id: policy.query_budget
+version: 1.0.0
+status: active
+
+rules:
+  - ruleId: default_budget
+    then:
+      budget:
+        maxLookbackDays: 7
+        maxRows: 200
+        timeoutMs: 8000
+        maxToolCalls: 6
+
+  - ruleId: stricter_budget_for_fallback
+    when:
+      intent:
+        taskType: "FALLBACK"
+    then:
+      budget:
+        maxLookbackDays: 3
+        maxRows: 50
+        timeoutMs: 4000
+4) 如何扩展：新增业务能力时“改资产”而不是“加场景”
+你以后遇到业务变化，通常分三类，扩展方式如下：
+
+4.1 新增一种“问法/术语”（最常见）
+例：用户开始说“奶茶”也会说“茶饮”“奶茶饮品”。
+
+✅ 做法：改 Entity.aliases 或属性同义词映射
+不需要新增任何场景。
+
+# 在 entity.order 的 item_keyword 属性里增加 alias（你也可以单独做 synonym 表）
+valuesSynonyms:
+  奶茶: ["奶茶", "茶饮", "奶茶饮品"]
+4.2 新增一个“数据域/实体”
+例：你要支持“优惠券使用情况”。
+
+✅ 做法：
+
+新增 entity.coupon
+
+新增 coupon 与 order/user 的 relation
+
+如有口径，新增 metric
+
+按需加 policy（比如优惠券涉及用户信息）
+
+4.3 新增一个“口径/指标”
+例：业务要新增“有效订单量”（排除取消/退款）。
+
+✅ 做法：新增或升级 Metric（带版本），并跑回归用例。
+
+id: metric.valid_order_count
+version: 1.0.0
+type: derived
+baseMetric: metric.order_count
+filters:
+  - attribute: status
+    op: in
+    values: ["PAID", "FINISHED"]
+5) 如何使用：运行时怎么把资产用起来（最关键的一条链路）
+下面给你一个“从一句话到执行”的典型链路。你会发现：planner 不需要知道每个业务场景，只需要模板 + 资产解析结果。
+
+5.1 用户问：帮我查询附近一公里购买奶茶的外卖订单
+Step A：Intent Parser 产出 CanonicalIntent（结构稳定）
+（LLM + JSON Schema 校验 + 默认值填充）
+
+{
+  "taskType": "QUERY",
+  "entities": ["Order"],
+  "constraints": {
+    "geoRadiusKm": 1,
+    "keywords": ["奶茶"],
+    "timeRange": "last_7d"
+  },
+  "output": {"shape": "LIST"},
+  "risk": {"pii": false}
+}
+Step B：Semantic Resolver（用 Entity/Relation/Metric）
+Order → entity.order
+
+奶茶 → 绑定到 entity.order.attributes.item_keyword
+
+附近1公里 → 绑定到 entity.order.geo
+
+得到一个“可执行语义查询描述”（给 planner 的输入）：
+
+{
+  "resolvedEntity": "entity.order",
+  "table": "dwd_order_fact",
+  "timeField": "order_time",
+  "geo": {"latField": "store_lat", "lonField": "store_lon", "radiusKm": 1},
+  "filters": [
+    {"fields": ["item_name", "item_category"], "op": "contains_any", "values": ["奶茶"]}
+  ],
+  "projection": ["order_id","order_time","pay_amount","order_status","store_id","store_name"]
+}
+Step C：Policy Engine（用 Policy）
+预算：lookback≤7d、maxRows≤200
+
+输出字段：去除 PII 字段（即使模型想要也拿不到）
+
+Step D：Template Planner（用“模板库”）
+匹配模板：T3_geo_keyword_query
+生成 plan：可能是 SQL 工具或 order_query API（看你工具链）
+
+Step E：执行 + StructuredExtractor
+输出：StructuredResult(kind=ORDER_LIST) + EvidenceRefs（SQL/API trace）
+
+5.2 用户问：查询附近一公里出现的身份证号为xxxx的人
+Intent 里出现 identifiers.idcard → risk=PII_HIGH
+Policy 判定：普通用户 deny；安全管理员 allow（masked）
+
+你就能做到没有场景也可控：
+
+非授权用户：解释原因 + 引导走审批/工单
+
+授权用户：只返回脱敏字段/聚合
+
+6) 版本与回归校验：资产也要“像代码一样可升级、可回滚、可验证”
+你问“它们本身也应该有版本与回归校验”，我建议做成一个标准 CI 流水线：
+
+6.1 版本策略（建议 SemVer + schemaVersion）
+schemaVersion：资产结构的协议版本（结构变了才升级）
+
+version：资产内容的语义版本（口径变更/字段映射变更）
+
+推荐规则：
+
+Patch：修 bug（别名补充、字段修正、mask样式修正）
+
+Minor：新增字段/别名/维度/规则（向后兼容）
+
+Major：口径含义变化、字段含义变化、默认时间窗重大调整（可能影响下游）
+
+6.2 回归校验（建议至少 4 类）
+(1) Asset Lint（静态检查）
+ID 唯一
+
+version 格式正确
+
+引用的 entity/relation/metric 都存在
+
+aliases 不冲突或可控（“订单”同时指多个域要显式 disambiguation）
+
+(2) Resolver Golden（解析回归）
+tests/resolver_golden.yaml 示例：
+
+- name: tea_orders_nearby
+  input: "帮我查询附近一公里购买奶茶的外卖订单"
+  expect:
+    entity: entity.order
+    constraints:
+      geoRadiusKm: 1
+    filterBinds:
+      - attribute: item_keyword
+        values: ["奶茶"]
+(3) Metric Compile / Explain（指标可执行）
+指标 SQL 能编译
+
+关键字段存在
+
+explain 结果不允许全表扫（可做简单规则：必须包含 dt 分区过滤）
+
+(4) Policy Golden（策略回归）
+tests/policy_golden.yaml：
+
+- name: deny_idcard_for_normal_user
+  context:
+    roles: ["BIZ_USER"]
+  intent:
+    constraints:
+      identifiers:
+        idcard: "xxxx"
+  expect:
+    decision: deny
+
+- name: allow_idcard_masked_for_sec_admin
+  context:
+    roles: ["SEC_ADMIN"]
+  intent:
+    constraints:
+      identifiers:
+        idcard: "xxxx"
+  expect:
+    decision: allow
+    outputMode: masked
+6.3 发布与回滚：Bundle（资产包）版本
+你可以维护一个 bundle.yaml：
+
+bundleId: fmdb_semantic_bundle
+version: 2026.02.07.1
+compatibleRuntime: ">=0.20.0"
+includes:
+  - entities/order.yaml
+  - entities/store.yaml
+  - relations/order__store.yaml
+  - metrics/order_count.yaml
+  - policies/pii_fields.yaml
+运行时按 tenant/featureFlag 加载某个 bundle；发现问题可以一键回滚到上一个 bundle。
+
+7) 你下一步最建议先做的“最小闭环”
+如果你要最快验证这套路线，我建议你先做：
+
+entity.order + entity.store + relation.order_to_store
+
+metric.order_count
+
+policy.pii_fields + policy.query_budget
+
+两条 resolver golden（奶茶订单、身份证号人群）
+
+一个模板 T3_geo_keyword_query
+
+这五步做完，你就能非常直观地看到：
+
+不新增场景也能扩展问法
+
+PII/预算是硬约束，可控
+
+规划与执行稳定
+
+如果你愿意，我可以继续把“模板库（Plan Templates）”也给出一个同样可落地的结构（比如 templates/T3_geo_keyword_query.yaml），并给出模板路由打分规则（score 函数）和一段 Java 伪代码：Resolver/Policy/Planner 如何串起来。这样你就能真正开始写代码落地。
+
+
+你说：
+每一个的yaml还不是很懂，里面每一个参数请详细说明，我好正是的进行落地
+
+ChatGPT 说：
+
+Thought for 6m 4s
+
+ChatGPT 说：
+下面我按“真正能落地”的方式，把你看到的这些 YAML 逐字段解释清楚。我会先给一套“通用头部字段”（所有资产都一样），然后分别解释 Entity / Relation / Metric / Policy / Bundle / Tests 六类 YAML 里每个参数的含义、运行时怎么用、什么时候必填、什么时候可选、常见取值与坑点。
+你可以把这些 YAML 理解成：把“场景”拆成“可计算的治理元数据资产”。
+运行时不会去“认场景”，而是靠这些资产把用户的话“绑定到数据+口径+策略”，再用少量模板去规划执行。
+0) 所有资产 YAML 的通用头部字段（每个文件最上面那段）
+几乎每个资产文件都会有：
+assetType: Entity|Relation|Metric|Policy
+schemaVersion: 1
+id: xxx
+version: 1.2.0
+status: active
+owner: fmdb-governance
+逐个解释：
+assetType
+含义：资产类型。用来告诉加载器“这是什么资产”。
+取值：Entity / Relation / Metric / Policy
+运行时用途：PackLoader/AssetLoader 根据它分流到不同的解析器 & 校验器。
+schemaVersion
+含义：这个 YAML 的“结构协议版本”。
+什么时候改：只有当你把 YAML 结构改了（字段名变了、结构大改）才改。
+运行时用途：做兼容性判断（老 runtime 能不能读新资产）。
+id
+含义：资产全局唯一 ID（非常重要）。
+建议命名：
+entity.order
+relation.order_to_store
+metric.order_count
+policy.pii_fields
+运行时用途：引用关系（Metric 引 Entity、Relation 引 Entity、Policy 在规则里引用字段/意图等）都靠它。
+version
+含义：资产内容版本（语义版本，SemVer）。
+如何用：
+Patch：修错别名、修字段映射
+Minor：新增属性/新增维度/新增规则（向后兼容）
+Major：口径含义变化、默认逻辑变化（可能影响结果）
+运行时用途：版本选择、回滚、灰度。
+status
+含义：资产生命周期状态。
+常用取值：
+active：启用
+deprecated：可用但不推荐（比如旧口径）
+disabled：禁用（运行时不加载）
+运行时用途：路由时过滤掉不可用资产。
+owner
+含义：资产负责人/团队，便于治理与审计。
+运行时用途：日志、审计、问题追责（建议强制必填）。
+1) Entity（实体资产）YAML：每个字段解释
+一个实体的目标是：把“自然语言里的一个对象（订单/人/门店/告警/表/指标）”变成“可查询的数据模型”。 我把示例贴出来，并对每块解释：
+assetType: Entity
+schemaVersion: 1
+id: entity.order
+version: 1.2.0
+status: active
+owner: fmdb-governance
+
+name: Order
+aliases:
+  - 外卖订单
+  - 订单
+  - 配送单
+
+storage:
+  primaryTable: dwd_order_fact
+  grain: order_id
+  timeField: order_time
+  partitions:
+    - dt
+  defaultTimeRange: last_7d
+
+attributes:
+  - key: order_id
+    fields: [order_id]
+    type: string
+    pii: false
+
+  - key: amount
+    fields: [pay_amount]
+    type: number
+    pii: false
+
+  - key: status
+    fields: [order_status]
+    type: enum
+    pii: false
+    enumValues: [CREATED, PAID, CANCELLED, FINISHED]
+
+  - key: item_keyword
+    fields: [item_name, item_category]
+    type: string
+    pii: false
+
+geo:
+  mode: store_location
+  latField: store_lat
+  lonField: store_lon
+  distanceFunction: haversine_km
+
+projection:
+  allowedFields:
+    - order_id
+    - order_time
+    - pay_amount
+    - order_status
+    - store_id
+    - store_name
+  denyFields:
+    - phone
+    - idcard
+    - imsi
+    - imei
+
+constraints:
+  maxLookbackDays: 30
+  maxRows: 200
+1.1 name
+含义：实体的规范名称（英文/拼音都行，但要统一）。
+运行时用途：用于解释输出、日志展示，不参与映射判断（判断靠 aliases）。
+1.2 aliases
+含义：自然语言别名/同义词列表。
+运行时用途：语义解析阶段把用户问题里的词映射到实体。
+落地建议：
+别名越全，越不需要加“场景”
+但别名冲突要小心：例如“订单”可能跨多个域（外卖订单/支付订单），需要做消歧（后面我会说）
+1.3 storage（实体落地到哪些数据资产）
+这一块是 Entity 的核心：把“实体”落到“表+粒度+时间+分区”。
+storage.primaryTable
+含义：这个实体的主事实表/主表。
+运行时用途：Planner 生成 SQL/调用工具时的默认来源表。
+注意：不是唯一表，但它是“默认表”。
+storage.grain
+含义：实体粒度的主键字段（如 order_id / user_id）。
+运行时用途：
+决定“明细 list”时的去重/主键
+决定 join 的基数判断（结合 relation.cardinality）
+storage.timeField
+含义：默认的时间字段（比如 order_time/create_time）。
+运行时用途：当用户没说时间范围，或者要加 dt 过滤时，用它生成 where 条件。
+storage.partitions
+含义：该表常用分区字段（如 dt/hour）。
+运行时用途：做“查询预算/性能保护”——强制加分区过滤，防止全表扫。
+建议：如果你们真实表是 dt 分区，这是必填项之一。
+storage.defaultTimeRange
+含义：用户未指定时间时的默认窗口。
+常用取值建议：last_24h / last_7d / last_30d
+运行时用途：Intent 填充默认时间，Policy 也可覆盖它（比如 fallback 更严格）
+1.4 attributes（自然语言属性 → 字段映射）
+每个 attributes item 描述一个“业务属性”。
+attributes[].key
+含义：属性的规范 key（你后续在 Metric、Policy、Template 里会引用它）。
+强建议：用稳定命名（snake 或 camel 都行，统一即可）。
+attributes[].fields
+含义：这个属性对应的一个或多个实际字段。
+运行时用途：
+解析时把用户提到的“奶茶”绑定到哪个字段（item_name/item_category）
+生成 SQL 时决定 WHERE 用哪些字段
+为什么允许多个 field：
+像“关键词”可能要在 name、category 两个字段里查
+attributes[].type
+含义：属性类型（决定解析与过滤算子）。
+推荐枚举：
+string / number / enum / boolean / date / geo / id
+运行时用途：
+enum 才允许 in 并做 enumValues 校验
+number 才允许范围过滤（>= <=）
+attributes[].pii
+含义：该属性是否属于敏感信息（PII）。
+运行时用途：
+Policy 引擎、projection 限制、输出脱敏策略触发
+建议：哪怕 Policy 里还会定义更细的规则，这里也建议先标一层 “是否敏感”。
+attributes[].enumValues（仅 enum 类型需要）
+含义：枚举允许值列表。
+运行时用途：校验模型解析出的值是否合法，避免乱拼 SQL。
+1.5 geo（地理约束能力）
+如果你的业务有“附近/1公里/围栏”这类语义，就需要这块。
+geo.mode
+含义：地理点来自哪里。
+典型取值：
+store_location：用门店坐标（订单关联门店）
+user_location：用用户坐标（用户表里有 lat/lon）
+event_location：事件表里有坐标
+运行时用途：Planner 判断需要 join 哪个实体（store/user）拿经纬度。
+geo.latField / geo.lonField
+含义：经纬度字段名。
+运行时用途：生成 distance 过滤（SQL 或工具）
+geo.distanceFunction
+含义：距离计算方式。
+常见：haversine_km（球面距离）
+运行时用途：模板 T_geo_radius 决定怎么落地（SQL UDF / 外部 geo 工具）
+1.6 projection
+这块是“去场景后还能安全”的关键：限制输出字段。
+projection.allowedFields
+含义：允许返回给用户的字段（白名单）。
+运行时用途：Finalizer/StructuredExtractor 输出时只拿这些字段；模型想要别的也不给。
+projection.denyFields
+含义：禁止输出字段（黑名单）。
+建议：PII 一律放这里 + Policy 再做更细。
+运行时用途：双保险。
+白名单 vs 黑名单如何选？
+强建议：默认白名单（allowedFields），黑名单只是兜底。
+因为“去场景”时模型会更自由，白名单能把风险降到最低。
+1.7 constraints
+这块是“预算/性能保护”。
+constraints.maxLookbackDays
+含义：最大允许回溯天数（比如最多查近 30 天）。
+运行时用途：Policy Gate；即使用户说“查一年”，也会要求缩小范围或拒绝。
+constraints.maxRows
+含义：最多返回多少行。
+运行时用途：强制 LIMIT；避免一次拉太多敏感明细。
+2) Relation（关系资产）YAML：每个字段解释
+Relation 解决：实体与实体怎么关联（join 路径），让系统不用“写场景”也能跨表联动。
+assetType: Relation
+schemaVersion: 1
+id: relation.order_to_store
+version: 1.0.0
+status: active
+owner: fmdb-governance
+
+fromEntity: entity.order
+toEntity: entity.store
+
+join:
+  - leftTable: dwd_order_fact
+    leftField: store_id
+    rightTable: dim_store
+    rightField: store_id
+
+cardinality: many_to_one
+cost: 1
+reliability: high
+
+conditions:
+  - type: tenantAllowList
+    tenants: ["t1", "t2", "default"]
+2.1 fromEntity / toEntity
+含义：关系的起点实体与终点实体（引用 entity.id）。
+运行时用途：语义解析找 join path 时，把 entity graph 串起来。
+2.2 join（可以是多段）
+含义：具体 join 条件。允许多段 join（比如 A → B → C）。
+字段：
+leftTable/leftField/rightTable/rightField：非常直观
+运行时用途：
+Template Planner 需要生成 SQL join
+或 Tool Planner 需要决定先查哪个表再补维度
+2.3 cardinality
+含义：基数关系，影响去重与聚合正确性。
+推荐枚举：
+one_to_one / one_to_many / many_to_one / many_to_many
+运行时用途：
+如果是 many_to_many，系统要更谨慎（可能重复爆炸）
+影响聚合口径（是否要 distinct）
+2.4 cost
+含义：关系代价（你可以理解成“走这条 join 的复杂度/开销评分”）。
+运行时用途：有多个 join path 时，选择 cost 更低的。
+2.5 reliability
+含义：可靠性（字段是否稳定、数据是否一致）。
+运行时用途：多路径选择时优先 high；low 的路径可能需要额外校验。
+2.6 conditions
+含义：关系使用条件（租户、环境、权限等）。
+运行时用途：比如某些租户没有 store 维表，就不能用该 relation。
+3) Metric（指标资产）YAML：每个字段解释
+Metric 的作用是：把“订单量/GMV/有效订单”这类口径固化成治理资产，避免模型瞎猜。
+assetType: Metric
+schemaVersion: 1
+id: metric.order_count
+version: 2.0.0
+status: active
+owner: fmdb-governance
+
+name: Order Count
+aliases:
+  - 订单量
+  - 外卖订单数
+
+entity: entity.order
+type: aggregate
+unit: count
+
+definition:
+  dialect: hive
+  expr: "count(1)"
+
+dimensions:
+  - key: store
+    fields: [store_id, store_name]
+    viaRelation: relation.order_to_store
+
+defaultTimeRange: last_7d
+
+constraints:
+  maxGroupBy: 3
+  maxRows: 200
+3.1 aliases
+含义：用户说“订单量/外卖订单数”都指向同一个指标。
+运行时用途：语义解析把用户提到的指标词绑定到 metric。
+3.2 entity
+含义：指标归属的实体（订单、人、门店…）。
+运行时用途：确定 from 表、默认时间字段、默认过滤等（来自 entity.storage）。
+3.3 type
+含义：指标类型。
+推荐枚举：
+aggregate：聚合指标（count/sum/avg…）
+derived：派生指标（基于 baseMetric + filters）
+sql：复杂 SQL（CTE、多表等）
+运行时用途：决定生成逻辑：
+aggregate：直接 select + group by
+derived：先展开 baseMetric 再附加 filters
+sql：直接使用定义 SQL（但要强校验/预算）
+3.4 unit
+含义：展示单位，解释用（count/元/次/%）。
+运行时用途：Finalizer 输出更专业。
+3.5 definition
+定义指标如何计算。
+definition.dialect
+含义：SQL 方言（hive/spark/trino…）
+运行时用途：选择正确的 SQL 生成器、函数名、时间处理方式。
+definition.expr
+含义：聚合表达式（count(1)、sum(pay_amount)）。
+运行时用途：拼接到 SELECT。
+如果你是复杂 SQL 指标，可以用：
+definition.sql: "select ..."（并在 CI 做编译与 explain 校验）
+3.6 dimensions
+指标允许“按什么维度聚合”。
+dimensions[].key
+含义：维度名（store/city/channel…）
+运行时用途：用户说“按门店排名”，解析到 dimension.key=store。
+dimensions[].fields
+含义：这个维度需要的字段（store_id/store_name）。
+运行时用途：生成 group by + select 字段。
+dimensions[].viaRelation
+含义：如果字段不在事实表，需要通过哪个 relation join。
+运行时用途：Planner 自动补 join path（不写场景也能跨表）。
+3.7 defaultTimeRange
+含义：指标默认时间窗（可能与 entity 默认不同）。
+运行时用途：指标查询时优先用它。
+3.8 constraints
+maxGroupBy：最多 group by 几个维度（防止超宽聚合）
+maxRows：返回行数限制
+4) Policy（策略资产）YAML：每个字段解释
+Policy 是“无场景还能安全”的生命线：决定能不能查、能查到什么粒度、怎么脱敏、预算多大。 你会看到两类结构：分类规则 和 决策规则。
+4.1 PII 分类与默认脱敏动作（字段级规则）
+assetType: Policy
+schemaVersion: 1
+id: policy.pii_fields
+version: 1.0.0
+status: active
+
+rules:
+  - ruleId: pii_idcard
+    match:
+      fieldNames: ["idcard", "id_card_no", "cert_no"]
+    classification: PII_HIGH
+    defaultAction:
+      type: mask
+      maskStyle: idcard_last4
+逐字段解释：
+rules[]
+含义：规则列表，按顺序匹配（建议“先具体后泛化”）。
+rules[].ruleId
+含义：规则唯一 ID，便于审计与回归测试。
+rules[].match
+含义：匹配条件（这里是按字段名匹配）。
+可扩展：也可以按表名、属性 key、数据域匹配。
+rules[].classification
+含义：敏感等级（你们可定义：LOW/MED/HIGH）。
+运行时用途：触发更严格的输出限制或审批。
+rules[].defaultAction
+含义：默认动作（脱敏/拒绝/聚合）。
+type: mask：脱敏
+maskStyle：脱敏样式（你们需要实现这些具体函数）
+4.2 输出粒度/权限决策（意图级规则）
+assetType: Policy
+schemaVersion: 1
+id: policy.output_rules
+version: 1.0.0
+status: active
+
+rules:
+  - ruleId: deny_pii_lookup_for_general_users
+    when:
+      intent:
+        constraints:
+          identifiers:
+            anyOf: ["idcard"]
+    if:
+      context:
+        notInRoles: ["SEC_ADMIN", "DATA_GOV_ADMIN"]
+    then:
+      decision: deny
+      reason: "身份证号查询属于高敏PII，需安全管理员权限或走审批流程"
+逐字段解释：
+when
+含义：触发条件（通常基于 CanonicalIntent）。
+上例意思：只要 intent 里出现 identifiers.idcard，就触发。
+if
+含义：额外条件（上下文：角色、租户、环境、数据域等）。
+上例意思：如果用户不在安全管理员角色内。
+then
+含义：最终决策。
+decision 推荐枚举：
+allow
+deny
+allow_masked（允许但必须脱敏）
+allow_aggregate_only（只允许聚合，不允许明细）
+require_approval（要走审批/工单）
+reason：拒绝/限制原因，用于给用户解释（非常建议）
+4.3 查询预算 Policy（性能保护）
+assetType: Policy
+schemaVersion: 1
+id: policy.query_budget
+version: 1.0.0
+status: active
+
+rules:
+  - ruleId: default_budget
+    then:
+      budget:
+        maxLookbackDays: 7
+        maxRows: 200
+        timeoutMs: 8000
+        maxToolCalls: 6
+逐字段解释：
+budget.maxLookbackDays：最大回溯天数
+budget.maxRows：最大返回行数
+budget.timeoutMs：工具/SQL 超时
+budget.maxToolCalls：最多调用多少工具（防止 planner 乱跑）
+你会发现 Entity 也有 constraints，Policy 也有 budget：
+最佳实践是：两边都要。
+Entity constraints 是“实体自带硬限制”
+Policy budget 是“按租户/角色/环境动态覆盖实体限制”
+最终取更严格的那一个。
+5) Bundle（资产包清单）YAML：每个字段解释
+Bundle 的意义：让资产可版本化发布、可回滚、可灰度。
+bundleId: fmdb_semantic_bundle
+version: 2026.02.07.1
+compatibleRuntime: ">=0.20.0"
+includes:
+  - entities/order.yaml
+  - entities/store.yaml
+  - relations/order__store.yaml
+  - metrics/order_count.yaml
+  - policies/pii_fields.yaml
+逐字段解释：
+bundleId
+包名（固定不变），类似发布通道。
+version
+bundle 发布版本（可以用日期+递增）。
+compatibleRuntime
+运行时最低版本要求（防止 runtime 太旧读不了新 schema）。
+includes
+这个 bundle 包含哪些资产文件。
+运行时用途：按租户选择 bundle → 加载这些资产（灰度/回滚就靠它）。
+6) Tests（回归用例）YAML：你“去场景还能稳”的关键
+你不写场景 pack，就更需要资产级回归测试，否则资产一改就影响全局。
+6.1 Resolver Golden：验证“用户话 → 正确绑定实体/属性”
+- name: tea_orders_nearby
+  input: "帮我查询附近一公里购买奶茶的外卖订单"
+  expect:
+    entity: entity.order
+    constraints:
+      geoRadiusKm: 1
+      timeRange: last_7d
+    filterBinds:
+      - attribute: item_keyword
+        values: ["奶茶"]
+字段解释：
+input：用户原话
+expect.entity：应该绑定到哪个实体
+expect.constraints：应该抽取哪些约束（半结构化）
+expect.filterBinds：关键词应该绑定到哪个 attribute（这是最关键的正确性）
+6.2 Policy Golden：验证“PII/权限/输出限制”是否生效
+- name: deny_idcard_for_normal_user
+  context:
+    roles: ["BIZ_USER"]
+  intent:
+    constraints:
+      identifiers:
+        idcard: "xxxx"
+  expect:
+    decision: deny
+字段解释：
+context.roles：模拟调用者身份
+intent：模拟解析后的 CanonicalIntent（不依赖 LLM）
+expect.decision：期望策略引擎给出的决策
+7) 你落地时最容易困惑的点：这些字段分别被谁用？
+给你一张“责任划分图”（用文字解释）：
+Intent Parser（LLM+Schema）
+用到：
+默认时间窗（可从 entity/metric defaultTimeRange 提供候选）
+输出：CanonicalIntent
+Semantic Resolver（语义绑定器）
+用到：
+Entity.aliases / attributes / geo
+Relation.join graph
+Metric.aliases / entity / dimensions
+输出：ResolvedQuery（绑定到表、字段、关系、指标）
+Policy Engine（策略裁决器）
+用到：
+Policy.rules（PII、权限、输出粒度、预算）
+Entity.projection / constraints
+输出：PolicyDecision（allow/deny/masked/aggregate_only + budget）
+Template Planner（模板规划器）
+用到：
+ResolvedQuery + PolicyDecision
+输出：StepPlan（调用哪些工具、SQL 或 API 参数）
+Tool Runner + StructuredExtractor
+用到：
+projection.allowedFields（限制字段）
+metric.definition（计算）
+输出：StructuredResult + Evidence
+8) 最小可落地字段集（你可以先照这个做，不要一口吃成胖子）
+为了你“正式落地”不迷路，我建议你先只实现最小字段集：
+Entity 最小集（强烈推荐）
+id / version / status / owner
+aliases
+storage.primaryTable / timeField / partitions / defaultTimeRange
+attributes.key / attributes.fields / attributes.type / attributes.pii
+projection.allowedFields
+constraints.maxLookbackDays / maxRows
+Relation 最小集
+fromEntity / toEntity
+join
+cardinality
+Metric 最小集
+aliases
+entity
+type
+definition.expr（先只做 aggregate）
+defaultTimeRange
+Policy 最小集
+query_budget（maxLookbackDays、maxRows、timeout）
+output_rules（PII deny/masked）
+9) 你要“正是落地”的下一步：我建议你选一个 YAML，我逐行对照你们实际表来填
+你现在说“还不是很懂”，最有效的方法是： 你把你们 FMDB 里某个真实的订单事实表（只需要这些信息）贴一下：
+表名
+主键字段
+时间字段
+分区字段
+与门店表的 join 字段（store_id 之类）
+商品名/品类字段（item_name/item_category 之类）
+哪些字段是 PII（phone/idcard 等）
+我就能帮你把 entity.order.yaml 按你们真实情况“对照填好”，并且告诉你每一项在运行时会如何影响规划/查询/输出。
+（不需要你再解释业务背景，直接给字段即可。）
+
+你说：
+这种方式如何做到通用呢。之前提到工程落地怎么规划（最省力的落地路径）
+
+你不需要一次性改完，按这个顺序推进最稳：
+
+P0：把 Runtime 内核钉死（你已经在做）
+
+Step 执行器、Tool 调用、StructuredExtractor、EvidencePack、重试/质量审查
+
+统一输出：Structured + Summary + Evidence
+
+P1：上线“语义层 + 策略层 + 模板规划”
+
+实现 CanonicalIntent Parser（LLM + schema 校验）
+
+实现 Semantic Resolver（基于 FMDB 元数据资产）
+
+实现 Policy Engine（PII/权限/输出粒度）
+
+实现 Template Planner（8 个模板起步）
+
+到 P1，你就已经能“丢掉大量场景”了。
+
+P2：治理能力做深（FMDB 主线）
+
+血缘/口径/质量/标准化字段映射
+
+元数据解释能力（可审计证据）
+
+P3：运维能力包（强审计）
+
+ops toolchain（k8s/yarn/spark/hive/告警/工单）
+
+写操作必须“审批/双人确认/回滚计划”。如何做到呢，每一个阶段给我一个可落地方案，我现在正在做智能体参考https://github.com/18963603561/java-agent/tree/001-agent-core-spec_0.20（我理解的是p0）。另外fmdb里面目前有数仓治理的元数据和真实数据，元数据包含表结构 字段 和部分血缘关系等，fmdb可以做表查询和统计分析，但是对多表关连join叫耗时（不推荐使用，可以拆成多表查），另外我手上还有一个完整的toolbox的mcp工具服务。我现在要基于已有的这些东西如何实现呢，我希望的是不仅仅是做配置，后续可以做成通用，就是用户换了场景了也能够使用的那种，请给我一个详细的方案，可以落地的那种，先给我思路，在举例多个场景类别，和兜底
+
+ChatGPT 说：
+
+Thought for 14m 56s
+
+ChatGPT 说：
+下面给你一个“能落地、且尽量通用”的最佳方案：不要靠“每个场景一套配置/提示词/流程”去堆，而是把业务变化收敛到 元数据资产（Entity/Relation/Metric/Policy），再配一个少量通用模板（Template Planner） + 策略引擎（Policy Engine）。这样用户换了场景，只要落在你的语义资产覆盖范围内，就能跑起来；不在覆盖范围内，也有兜底路径。
+你现在参考的仓库分支 001-agent-core-spec_0.20 根目录里能看到 specs/001-agent-core-spec、doc/、.codex/prompts、src/ 等结构，确实很像你说的 P0：Runtime 内核（Step/事件/提示词订阅/输出结构化等）这一层。
+
+根目录的文档索引里还提到 SSE 固定订阅 LLM_PROMPT 与 LLM_OUTPUT 事件用于排查提示词与输出，这对后续 P1/P2 的可观测性非常关键。
+0. 先给你一句话的“最佳方案”
+最佳方案 = P0 Runtime（你已有） + P1 语义层（CanonicalIntent + 资产解析）+ 策略层（PII/权限/成本/写操作审批）+ 少量通用模板规划（8~12 个）+ 资产版本/回归校验。
+业务变化：主要通过新增/迭代 元数据资产（Entity/Relation/Metric/Policy）来支持
+不是每个场景都写一套：你只维护少量“通用模板”，场景差异由资产表达
+Join 不推荐：模板天然支持多步拆解查询（先查ID，再分批查明细，再汇总）
+工具：全部通过你手里的 toolbox MCP 做可插拔注册（读/写/危险等级都能标注）
+1. 总体架构：把“通用”做成一个固定流水线
+无论用户问什么，你都走同一条管线：
+CanonicalIntent Parser（LLM + Schema 校验）
+把自然语言 -> 一个稳定结构（意图 = 操作类型 + 目标实体/指标 + 过滤条件 + 时间范围 + 输出偏好…）
+Semantic Resolver（基于 FMDB 元数据资产）
+把 Intent 里的“业务词”解析成：
+对应的 Entity（实体：订单/用户/门店/任务…）
+对应的 Metric（指标：订单量/异常率/DAU…）
+对应的 Relation（关系：订单->门店、任务->表、字段->血缘…）
+并产出一个 ResolvedQueryGraph（解析图）
+Policy Engine（权限/PII/成本/写操作）
+在执行前做“闸门”：
+能不能查（权限）
+查到是否要脱敏（PII）
+工具调用次数/数据扫描量是否超预算（成本）
+是否涉及写操作（变更/回滚/双人确认）
+Template Planner（少量模板）
+从 8~12 个“通用模板”里选一个（或组合两个），生成 StepPlan：
+METADATA_LOOKUP（查元数据）
+ENTITY_LIST（实体列表查询）
+METRIC_AGG（指标聚合）
+MULTI_QUERY_BY_KEY（多步拆解代替 join）
+LINEAGE_TRACE（血缘追溯）
+QUALITY_CHECK（质量/规则校验）
+IMPACT_ANALYSIS（影响分析）
+OPS_TRIAGE（告警排查）
+CHANGE_EXEC（变更执行：带审批/回滚）
+Runner（调用 toolbox MCP 工具）
+执行每一步：工具只产 raw；Extractor 统一归一化 structured；Evidence 全链路留证
+Finalizer（总结输出）
+给用户可读总结 +（可选）结构化结果 + 证据引用（SQL/工具trace/命中资产）
+这条流水线的“通用性”来自：模板少 + 资产强 + 策略硬。
+以后业务变了，优先改资产，不改模板；模板不够才加模板（而不是加场景）。
+2. 你要落地的目录结构（建议最省力）
+在你现有工程（P0）上新增两个核心目录：assets/ 和 templates/（再加 tests）
+src/main/...
+assets/
+  entities/
+    order.yaml
+    store.yaml
+    user.yaml
+  relations/
+    order_store.yaml
+    store_geo.yaml
+  metrics/
+    order_count.yaml
+    bad_phone_rate.yaml
+  policies/
+    pii.yaml
+    access.yaml
+    tool_risk.yaml
+templates/
+  metadata_lookup.yaml
+  entity_list.yaml
+  metric_agg.yaml
+  multi_query_by_key.yaml
+  lineage_trace.yaml
+  quality_check.yaml
+  ops_triage.yaml
+  change_exec.yaml
+tests/
+  assets_lint_cases.yaml
+  golden_intents.yaml
+  golden_plans.yaml
+assets/：业务语义“资产库”（你的通用能力来源）
+templates/：少量通用规划模板（让 Planner 不需要为每个场景写 prompt）
+tests/：资产/模板的回归（你要“可持续扩展”的关键）
+3. 元数据资产四件套：结构、扩展方式、使用方式（带示例）
+下面我按你说的四类资产：Entity / Relation / Metric / Policy，分别给：
+YAML 示例
+每个字段（参数）解释
+如何扩展
+在运行时如何被用到
+3.1 Entity（实体资产）
+目的：把“业务概念”落到 FMDB 可查的表/字段集合，并提供可被解析的同义词、主键、时间字段、地理字段、推荐查询策略等。
+示例：assets/entities/order.yaml
+id: entity.order
+version: 1.0.0
+owner: fmdb-governance
+domain: BIZ
+
+name: 订单
+synonyms: [外卖订单, 交易单, order]
+
+description: >
+  订单事实实体，用于统计订单量、筛选品类、追踪门店等。
+
+physicalMappings:
+  - source: fmdb
+    table: dwd_order_detail
+    role: fact
+    primaryKey: [order_id]
+    timeField: order_time
+    partitions: [dt]
+    searchableFields:
+      - name: order_id
+        type: string
+        pii: NONE
+      - name: user_id
+        type: string
+        pii: NONE
+      - name: item_name
+        type: string
+        pii: NONE
+      - name: item_category
+        type: string
+        pii: NONE
+      - name: store_id
+        type: string
+        pii: NONE
+      - name: amount
+        type: number
+        pii: NONE
+
+queryHints:
+  preferNoJoin: true
+  recommendedFilters: [dt, order_time, store_id, item_category]
+  maxScanPartitions: 7
+
+examples:
+  - "近7天奶茶订单量"
+  - "查询某门店的订单明细"
+
+tests:
+  - name: entity_order_has_pk
+    assert:
+      - path: $.physicalMappings[0].primaryKey[0]
+        equals: order_id
+字段解释（你关心的“每个参数什么意思”）
+id：实体唯一ID（建议稳定不变，靠 version 演进）
+version：语义版本（建议语义化版本 SemVer：1.0.0）
+owner：资产负责人（后续治理/审批/灰度都靠它）
+domain：业务域（BIZ/GOV/OPS…）
+name：中文名（展示、摘要用）
+synonyms：同义词（让解析器把“外卖订单/交易单”都归到 Order）
+description：解释（给 LLM 和用户看）
+physicalMappings：实体到物理表的映射（核心）
+source：数据源（fmdb）
+table：物理表名
+role：fact/dim（事实表/维表）
+primaryKey：主键（后面 MULTI_QUERY_BY_KEY 模板要用）
+timeField：默认时间字段（没给时间范围时可用默认策略）
+partitions：分区字段（性能关键）
+searchableFields：允许被条件筛选/返回的字段集合（越明确越安全）
+pii：PII分级（NONE/LOW/HIGH…）
+queryHints：查询策略提示（结合你“join 不推荐”）
+preferNoJoin: true：告诉 Planner 用多步拆解，而不是 join
+maxScanPartitions：扫描分区上限（成本控制）
+examples：训练/提示用例（提升解析召回）
+tests：资产自校验（最少保证 pk/timeField/分区存在）
+如何扩展 Entity（让它越来越“通用”）
+新增场景时不要建“场景配置”，优先补：
+synonyms：业务新叫法
+searchableFields：允许筛选的新字段（注意 PII）
+queryHints：性能策略（比如必须带 dt）
+examples：自然语言问法积累（用于提升解析）
+3.2 Relation（关系资产）
+目的：表达实体之间怎么关联（以及不用 join 的关联策略）。
+示例：assets/relations/order_store.yaml
+id: relation.order_store
+version: 1.0.0
+owner: fmdb-governance
+domain: BIZ
+
+from: entity.order
+to: entity.store
+name: 订单归属门店
+type: MANY_TO_ONE
+
+joinKeys:
+  - fromField: store_id
+    toField: store_id
+
+executionHints:
+  preferNoJoin: true
+  strategy: TWO_STEP_LOOKUP
+  stepPlan:
+    - step: query_orders
+      output: store_ids
+    - step: query_stores_by_ids
+      input: store_ids
+字段解释
+from / to：关系两端实体（引用 Entity.id）
+type：基数关系（ONE_TO_ONE / MANY_TO_ONE / MANY_TO_MANY）
+joinKeys：逻辑关联键（哪怕不 join，也要知道用哪个 key 拆解）
+executionHints：执行策略（重点）
+strategy: TWO_STEP_LOOKUP：先查订单拿 store_id，再批量查门店表
+stepPlan：告诉 Planner 怎么拆步（很适合你“join 慢”的约束）
+如何扩展 Relation
+新增关系（比如“用户->订单”、“任务->表”）
+增强策略（比如 store_id 太多时要分批、要限流）
+3.3 Metric（指标资产）
+目的：把“口径/公式/默认维度/默认过滤策略”资产化。你后面做治理问答，指标口径是核心。
+示例：assets/metrics/order_count.yaml
+id: metric.order_count
+version: 1.0.0
+owner: data-metric-owner
+domain: BIZ
+
+name: 订单量
+synonyms: [订单数, order cnt, 下单量]
+description: "统计订单事实表的订单条数（去重 order_id）"
+
+baseEntity: entity.order
+type: COUNT_DISTINCT
+field: order_id
+
+defaultTimeRange:
+  mode: RELATIVE
+  value: 7
+  unit: DAY
+timeField: order_time
+
+groupBySuggestions: [dt, item_category, store_id]
+filters:
+  required: [dt]         # 性能：必须带分区
+  optional: [item_category, store_id]
+
+tests:
+  - name: metric_order_count_has_required_partition
+    assert:
+      - path: $.filters.required[0]
+        equals: dt
+字段解释
+baseEntity：指标依附的实体
+type：COUNT / SUM / AVG / COUNT_DISTINCT 等
+field：聚合字段（COUNT_DISTINCT 时必填）
+defaultTimeRange：用户没说时间时默认窗口（比如近7天）
+filters.required：强制过滤条件（性能和成本控制的关键）
+groupBySuggestions：用户说“按xx分组”时优先推荐的维度
+如何扩展 Metric
+新增指标口径（如“异常手机号率”“字段空值率”“血缘断链率”）
+给出 required filters（避免扫全表）
+加 tests，保证每次改口径不会把查询打爆
+3.4 Policy（策略资产）
+目的：把权限、PII、工具风险、成本预算、写操作审批规则资产化。你想要的“运维写操作必须审批/双人确认/回滚计划”，就落在这里。
+我建议你拆成 3 份策略资产（更清晰）：
+A) assets/policies/pii.yaml（PII分级与脱敏）
+id: policy.pii
+version: 1.0.0
+
+levels:
+  - name: NONE
+  - name: LOW
+    mask: PARTIAL
+  - name: HIGH
+    mask: FULL
+
+fieldRules:
+  - match:
+      fieldNameRegex: ".*(idcard|身份证|imsi|imei|phone|手机号).*"
+    level: HIGH
+    defaultMask: FULL
+B) assets/policies/access.yaml（权限与租户）
+id: policy.access
+version: 1.0.0
+
+roles:
+  - name: analyst
+    allowDomains: [BIZ, GOV]
+  - name: ops
+    allowDomains: [OPS, GOV]
+  - name: admin
+    allowDomains: [BIZ, GOV, OPS]
+
+deny:
+  - when:
+      roleNotIn: [admin]
+    forbidFieldsRegex: ".*(idcard|身份证).*"
+C) assets/policies/tool_risk.yaml（工具风险与审批）
+id: policy.tool_risk
+version: 1.0.0
+
+tools:
+  - name: fmdb.query
+    risk: READ_ONLY
+  - name: k8s.scale
+    risk: WRITE
+    requireApproval:
+      mode: TWO_PERSON
+      channel: ticket
+      rollbackRequired: true
+
+budgets:
+  maxToolCallsPerTask: 6
+  maxScanPartitions: 7
+4. Template（通用模板）怎么做到“替代场景”
+模板不是场景。模板是“任务形态”。
+示例：templates/multi_query_by_key.yaml（用多步替代 join）
+id: template.multi_query_by_key
+version: 1.0.0
+name: 多步拆解查询（替代JOIN）
+
+applicableWhen:
+  - intent.operationIn: [ENTITY_LOOKUP, ENTITY_LIST]
+  - resolver.preferNoJoin: true
+
+slots:
+  required: [primaryEntity, filters]
+  optional: [relatedEntities, timeRange, limit]
+
+plan:
+  - stepId: step1_primary_ids
+    type: TOOL
+    tool: fmdb.query
+    inputFrom:
+      entity: ${primaryEntity}
+      select: ${primaryEntity.primaryKey}
+      filters: ${filters}
+      timeRange: ${timeRange}
+    output: { ids: "$.rows[*].id" }
+
+  - stepId: step2_fetch_related
+    type: TOOL
+    tool: fmdb.batch_query_by_ids
+    inputFrom:
+      entities: ${relatedEntities}
+      ids: ${step1_primary_ids.output.ids}
+    output: { rows: "$.rows" }
+
+  - stepId: step3_merge_in_memory
+    type: LLM
+    prompt: "把 step1/step2 的结果按 joinKeys 做内存合并，输出结构化结果"
+模板字段解释
+applicableWhen：适用条件（让 Planner 不用脑补，能规则化挑模板）
+slots：模板需要的槽位（从 CanonicalIntent + Resolver 来填）
+plan：真正的 StepPlan 生成蓝图
+你后续加模板不会爆炸，因为模板数量很少（8~12），且每个都通用
+5. 分阶段落地方案（P0 ~ P3），按“最省力路径”给你任务清单
+你说“不要一次性改完、按这个顺序推进最稳”，我按你已有条件（FMDB + toolbox MCP + join 慢）给你每阶段的 可交付物。
+P0（你现在）：Runtime 内核钉死 ✅
+目标：不管未来多少能力，执行、留证、结构化、重试、观测都不变。 你要确保 P0 有这些固定点：
+Step 执行器：StepPlan -> 顺序/条件执行
+Tool 调用统一入口：支持 MCP 工具 schema 校验
+StructuredExtractor：raw -> structured（统一出口）
+EvidencePack：工具入参/出参摘要、SQL、trace、耗时、错误
+事件流：至少有 LLM_PROMPT / LLM_OUTPUT（你 repo 文档提过）
+P0 最小验收：
+同一个用户问题，能产出：
+StructuredResult（机器可用）
+FinalAnswer（人可读）
+EvidencePack（可审计）
+P1（关键）：上线“语义层 + 策略层 + 通用模板规划” ✅✅✅
+这是你想要“丢掉大量场景”的分水岭。
+P1-1 CanonicalIntent Parser（LLM + JSON Schema 校验）
+定义一个稳定 Intent 结构（建议就叫 CanonicalIntent），例如：
+{
+  "domain": "BIZ|GOV|OPS",
+  "operation": "METADATA_LOOKUP|ENTITY_LIST|METRIC_AGG|LINEAGE_TRACE|QUALITY_CHECK|OPS_TRIAGE|CHANGE_EXEC",
+  "targets": ["entity.order", "metric.order_count"],
+  "filters": [{"field": "item_category", "op": "EQ", "value": "奶茶"}],
+  "timeRange": {"mode": "RELATIVE", "value": 7, "unit": "DAY"},
+  "location": {"radiusKm": 1, "center": "USER_LOC"},
+  "output": {"format": "SUMMARY+TABLE", "limit": 50}
+}
+这一步让你不再需要意图识别写很多规则：
+让模型直接填 schema，不通过就重试（P0 的 retry 能用上）。
+P1-2 Semantic Resolver（基于 assets）
+实现：
+resolveEntities(intent)：按 targets/synonyms 命中 entity
+resolveMetrics(intent)：按 synonyms 命中 metric
+resolveRelations()：生成解析图（用于 multi-step）
+输出一个 ResolvedQueryGraph，里面包含：
+命中的资产版本（非常重要）
+推荐模板标签（preferNoJoin）
+强制 required filters（比如 dt）
+P1-3 Policy Engine
+在执行前做决策：
+字段是否允许返回（身份证号默认 deny / 强脱敏）
+扫描分区数是否超限（超限 -> 要求缩小时间范围）
+工具风险级别（WRITE -> 需要审批步骤）
+P1-4 Template Planner（8 个模板起步）
+你先做 8 个模板就能覆盖 80% 需求：
+METADATA_LOOKUP
+ENTITY_LIST
+ENTITY_LOOKUP（按主键查）
+METRIC_AGG
+MULTI_QUERY_BY_KEY（代替 join）
+LINEAGE_TRACE
+QUALITY_CHECK
+OPS_TRIAGE（只读排查）
+P1 验收：
+新增一个“场景问法”时，你不写新场景文件，只需：
+给 entity/metric 加 synonyms 或 filters/required
+或新增一个 metric
+模板不变/少变
+P2（FMDB 主线）：治理能力做深 ✅✅
+P2 不再追求“能问”，而是“问得准、可审计、可落单”。 你要补的资产重点变成：
+Entity：表、字段、作业、数据集、指标
+Relation：血缘（字段->字段、表->表）、作业->产出表、指标->来源字段
+Metric：质量指标（空值率、重复率、值域、格式合规率、波动）
+Policy：分级分类、脱敏策略、授权范围
+P2 模板新增/强化建议：
+IMPACT_ANALYSIS：字段/表变更影响（基于血缘关系资产）
+GOVERNANCE_SUGGEST：治理建议（比如“手机号字段建议标准化映射+脱敏”）
+join 慢怎么处理：
+治理类查询天然适合多步：
+先查元数据（表/字段/血缘边）
+再分批查数据概览（每张表各自聚合）
+最后在内存合并并输出证据
+P3（运维能力包）：强审计 + 写操作审批/双人确认/回滚 ✅✅✅
+你要实现“写操作必须审批/双人确认/回滚计划”的机制
+核心做法：把 Step 分成三类，并让 Policy Engine 强制插入“审批关口”。
+READ：只读工具（查日志/查指标/查元数据）
+WRITE：可逆写（扩容、重启、开关配置）
+DESTRUCTIVE：高风险写（删数据、缩容到0、回滚不可用）
+执行规则（建议）：
+WRITE/DESTRUCTIVE 必须生成变更计划（Plan）
+包含：目标、影响面、执行命令、验证点、回滚方案
+必须审批（ApprovalStep）
+单人确认：输入“确认执行”
+双人确认：需要另一个账号/工单系统 approve（你后面接工单）
+必须先跑 DRY-RUN / PRECHECK
+例如：拉取当前副本数、当前告警态势、依赖服务状态
+必须可回滚
+模板里强制包含 rollback step（或至少 rollback 文本计划 + 手工入口）
+这块落地后，你的 ops 智能体才“敢用”。
+6. 给你“多个场景类别”示例（同一套通用模板 + 资产驱动）
+下面我按类别给例子，并说明会落到哪个模板（不需要新场景配置）。
+类别 A：元数据问答（METADATA_LOOKUP）
+“dwd_order_detail 有哪些字段？哪些是敏感字段？”
+“user_id 的口径是什么？在哪些表里出现？”
+依赖：Entity（table/field）+ Policy(PII)
+类别 B：指标口径与统计（METRIC_AGG）
+“近7天奶茶订单量按门店Top10”
+“近30天手机号格式不合规率趋势”
+依赖：Metric + Entity + Policy + required filters（dt）
+类别 C：实体列表查询（ENTITY_LIST）
+“查最近24小时奶茶订单明细（只返回订单号/门店/金额）”
+“查某用户最近10笔订单（只返回脱敏后的字段）”
+依赖：Entity + Policy（字段级过滤/脱敏）
+类别 D：多表但不 join（MULTI_QUERY_BY_KEY）
+“查门店 A 的订单，同时带上门店地址信息”
+=> 先查订单拿 store_id，再批量查门店表，再内存合并
+依赖：Relation.executionHints（TWO_STEP_LOOKUP）
+类别 E：血缘追溯（LINEAGE_TRACE）
+“字段 imei 从哪来？下游有哪些宽表在用？”
+“这张表的上游作业是谁？最近一次产出时间？”
+依赖：Relation（lineage edges）+ Entity(job/table/field)
+类别 F：质量检查（QUALITY_CHECK）
+“这个表 dt 分区最近7天缺失率？”
+“手机号字段空值率、重复率、格式合规率”
+依赖：Metric（质量指标）+ Policy（PII不直接出明文样本）
+类别 G：运维只读排查（OPS_TRIAGE）
+“xx任务失败了，帮我定位原因并给建议”
+“k8s 某服务 CPU 飙高，可能原因是什么？”
+依赖：工具（日志/指标/告警）+ 模板 OPS_TRIAGE
+类别 H：运维写操作（CHANGE_EXEC，带审批/回滚）
+“把 service-a 扩容到 10 个副本”
+“回滚到上一版本”
+依赖：Policy(tool_risk) 强制插入审批与回滚计划
+7. 兜底方案（你想要“用户换场景也能用”必须有）
+即使资产不全，也要能“安全兜底”，我建议三层兜底：
+兜底 1：资产检索兜底（最推荐）
+当 Resolver 找不到 entity/metric：
+去 assets 里按关键词 + 同义词做检索（TopK）
+给出候选（不需要你写新场景）
+让 LLM 自动选择置信度最高的一个；置信度低再问一句澄清（尽量少问）
+兜底 2：退化成“元数据浏览 + 建议下一步”
+当业务语义缺失：
+先查 FMDB 元数据：可能相关的表、字段、分区、owner、数据量
+给用户建议：“你可能想查 A/B 表，常用过滤是 dt/xxx，需要我按哪个口径统计？”
+兜底 3：安全拒绝/降级（针对 PII/写操作）
+查身份证号/手机号明文：默认只返回 脱敏 + 聚合统计
+写操作：没有审批就只输出“变更计划 + 回滚计划”，不真正执行
+8. 你接下来怎么开始（最省力落地清单）
+按你现在条件，我建议你两周内打通 P1 最小闭环，顺序如下：
+先落 assets（不超过 10 个）
+entities：order、store、user、table、field、job
+relations：order_store、field_lineage、job_output_table
+metrics：order_count、null_rate、bad_format_rate
+policies：pii、access、tool_risk
+实现 CanonicalIntent（schema + 重试）
+先支持 4 种 operation：METADATA_LOOKUP / ENTITY_LIST / METRIC_AGG / LINEAGE_TRACE
+实现 Resolver
+synonyms 命中 + required filters 注入 + preferNoJoin 标记
+做 4 个模板
+metadata_lookup / entity_list / metric_agg / multi_query_by_key
+把 toolbox MCP 工具接进 ToolRegistry
+给每个工具标注 risk（READ/WRITE）
+给每个工具标注 schema（输入/输出）
+加 tests
+assets schema 校验 + lint
+golden intents（固定输入 -> 期望 operation/entity/metric）
+golden plans（固定 intent -> 期望模板与步骤数）
+如果你愿意，我下一条可以直接按你“FMDB join 慢、toolbox MCP 已有”的约束，给你一份**“8 个模板”更细的模板清单（每个模板的 slots、计划结构、失败回退）**，再给 3 条完整端到端示例（用户输入 -> intent -> resolved graph -> step plan -> 工具调用顺序 -> structured 输出形状）。
+
+你说：
+我还是不明白这里面整体流程，帮我从开始到结束给我2个整体链的流程，如 	“近7天奶茶订单量按门店Top10”、查某用户最近10笔订单。从知识库配置 意图识别 任务计划 查询 返回数据等详细流程，如何从知识库中获取，这里面大模型如何识别查询意图 如果生成计划（是否包含多个任务），如何查询，具体大模型提示词上下文是什么，都详细描述
+
+ChatGPT 说：
+Reasoned for 17m 13s
+下面我用**“从开始到结束的整链路”**给你跑两条完整例子，并且把你关心的每一块都讲清楚：
+
+**知识库/配置（assets：Entity/Relation/Metric/Policy + templates）**怎么准备、怎么被检索出来
+
+大模型如何识别意图（不是“拍脑袋”，而是：检索候选资产 + 强 schema 约束）
+
+大模型如何生成计划（会不会多任务：会；尤其你不推荐 join 的情况下更需要多步）
+
+怎么查询 FMDB（join 慢 → 通过多步拆表）
+
+提示词上下文到底长什么样（Intent Parser / Planner / Merge / Finalizer 都给你可直接拷贝的模板 + 这两条例子的“填充后示例”）
+
+你现在参考的仓库 001-agent-core-spec_0.20 根目录里已经有 .codex/prompts 目录（可用来落你这些 prompt 模板），并且文档索引里提到可以固定订阅 LLM_PROMPT / LLM_OUTPUT 事件用于排查提示词和模型输出——这正好支撑你后续 P1/P2 的可观测性。 
+
+先给你一个统一心智模型：一次用户输入会经过哪些阶段？
+你要做“通用”，核心就是让所有问题都走同一条流水线：
+
+Asset 检索（非 LLM）
+
+从你的“语义资产库（YAML/表）”里检索出候选 Entity / Metric / Relation / Policy / Template
+
+目的：把“LLM 的自由度”锁进你可控的资产范围内
+
+Intent Parser（LLM + JSON Schema 强约束）
+
+输入：用户原话 + 候选资产摘要 + 规则
+
+输出：CanonicalIntent（稳定 JSON）
+
+Semantic Resolver（规则/代码，不建议用 LLM）
+
+输入：CanonicalIntent + 资产库（Entity/Metric/Relation）+（必要时 FMDB 元数据工具补齐）
+
+输出：ResolvedRequest（字段绑定、分区约束、推荐多步策略等）
+
+Policy Engine（规则/代码）
+
+输入：ResolvedRequest + 调用者角色/租户 + Policy
+
+输出：PolicyDecision（允许/拒绝/脱敏/仅聚合/预算/工具风险）
+
+Template Planner（建议：规则优先，LLM 仅“填槽位”）
+
+输入：ResolvedRequest + PolicyDecision + 模板库
+
+输出：StepPlan（多个 Step：TOOL / LLM / FINAL）
+
+Runner（P0 Runtime）执行 StepPlan
+
+TOOL step：调用 toolbox MCP → raw
+
+Extractor：raw → structured
+
+Evidence：全链路留证（SQL、参数、耗时、错误）
+
+Finalizer（LLM，总结）
+
+输入：structured + evidence 摘要
+
+输出：面向用户的自然语言 + 可复用 structured（可选）
+
+为了让两条例子跑起来：先给一份最小“资产库配置”（你可以就按这个落地）
+你现在 FMDB 支持：表查询 + 统计聚合；join 慢 → 推荐拆成多表查。所以我们资产里必须显式表达：
+
+主事实表是什么
+
+分区字段/时间字段是什么
+
+维表怎么用“两步查”补齐（不 join）
+
+下面是最小可用的 4 份资产（Entity/Relation/Metric/Policy）+ 2 个模板（TopN 指标 / 最近明细）。
+
+A) Entity：订单实体 assets/entities/order.yaml
+assetType: Entity
+schemaVersion: 1
+id: entity.order
+version: 1.0.0
+status: active
+owner: fmdb-governance
+
+name: 订单
+synonyms: [外卖订单, 交易单, order]
+
+storage:
+  source: fmdb
+  table: dwd_order_detail
+  role: fact
+  primaryKey: [order_id]
+  timeField: order_time
+  partitions: [dt]
+  defaultTimeRange: last_7d
+
+attributes:
+  - key: order_id
+    fields: [order_id]
+    type: string
+    pii: NONE
+
+  - key: user_id
+    fields: [user_id]
+    type: string
+    pii: NONE
+
+  - key: store_id
+    fields: [store_id]
+    type: string
+    pii: NONE
+
+  - key: item_keyword
+    fields: [item_name, item_category]
+    type: string
+    pii: NONE
+
+  - key: amount
+    fields: [pay_amount]
+    type: number
+    pii: NONE
+
+projection:
+  allowedFields:
+    - order_id
+    - order_time
+    - user_id
+    - store_id
+    - item_name
+    - item_category
+    - pay_amount
+  denyFields:
+    - phone
+    - idcard
+    - imsi
+    - imei
+
+queryHints:
+  preferNoJoin: true
+  requiredFilters: [dt]
+  maxLookbackDays: 30
+  maxRows: 200
+B) Entity：门店实体 assets/entities/store.yaml
+assetType: Entity
+schemaVersion: 1
+id: entity.store
+version: 1.0.0
+status: active
+owner: fmdb-governance
+
+name: 门店
+synonyms: [店铺, 商家, 门店维表, store]
+
+storage:
+  source: fmdb
+  table: dim_store
+  role: dim
+  primaryKey: [store_id]
+
+attributes:
+  - key: store_id
+    fields: [store_id]
+    type: string
+    pii: NONE
+  - key: store_name
+    fields: [store_name]
+    type: string
+    pii: NONE
+
+projection:
+  allowedFields: [store_id, store_name]
+C) Relation：订单 → 门店（两步查，不 join）assets/relations/order_store.yaml
+assetType: Relation
+schemaVersion: 1
+id: relation.order_to_store
+version: 1.0.0
+status: active
+owner: fmdb-governance
+
+fromEntity: entity.order
+toEntity: entity.store
+cardinality: many_to_one
+
+keys:
+  - fromField: store_id
+    toField: store_id
+
+executionHints:
+  preferNoJoin: true
+  strategy: TWO_STEP_LOOKUP
+  batchSize: 200
+D) Metric：订单量 assets/metrics/order_count.yaml
+assetType: Metric
+schemaVersion: 1
+id: metric.order_count
+version: 1.0.0
+status: active
+owner: data-metric-owner
+
+name: 订单量
+synonyms: [订单数, 外卖订单数, order cnt]
+
+baseEntity: entity.order
+type: COUNT_DISTINCT
+field: order_id
+timeField: order_time
+defaultTimeRange: last_7d
+
+dimensions:
+  - key: store_id
+    entityAttribute: store_id
+    viaRelation: relation.order_to_store
+
+filters:
+  required: [dt]
+  optional: [item_keyword, user_id]
+
+constraints:
+  maxGroupBy: 2
+  maxRows: 200
+E) Policy：预算/PII（极简版）assets/policies/default.yaml
+assetType: Policy
+schemaVersion: 1
+id: policy.default
+version: 1.0.0
+status: active
+
+budget:
+  maxLookbackDays: 30
+  maxRows: 200
+  maxToolCalls: 6
+  timeoutMs: 8000
+
+pii:
+  denyFields: [idcard, phone, imsi, imei]
+  maskByDefault: true
+F) Template：指标 TopN（不 join，补门店名）templates/metric_topn_by_dim.yaml
+templateId: template.metric_topn_by_dim
+version: 1.0.0
+
+applicableWhen:
+  operationIn: [METRIC_AGG_TOPN]
+  require:
+    - metric
+    - groupBy
+    - timeRange
+
+plan:
+  - stepId: agg_fact
+    type: TOOL
+    tool: fmdb.query
+    input:
+      sql: "${compiledAggSql}"
+    outputKind: METRIC_AGG_ROWS
+
+  - stepId: lookup_dim
+    type: TOOL
+    tool: fmdb.batch_query_by_ids
+    input:
+      table: "${dimTable}"
+      idField: "${dimIdField}"
+      ids: "${agg_fact.rows[*].groupKey}"
+      select: ["${dimIdField}", "${dimNameField}"]
+    outputKind: DIM_KV
+
+  - stepId: merge
+    type: LLM
+    promptRef: prompts/merge_topn.md
+    input:
+      aggRows: "${agg_fact.rows}"
+      dimKv: "${lookup_dim.kv}"
+    outputKind: TOPN_LIST
+
+  - stepId: final
+    type: FINAL
+    input:
+      structured: "${merge.structured}"
+      evidence: "${EVIDENCE}"
+G) Template：用户最近 N 笔订单（单表查为主）templates/entity_recent_list.yaml
+templateId: template.entity_recent_list
+version: 1.0.0
+
+applicableWhen:
+  operationIn: [ENTITY_RECENT_LIST]
+  require:
+    - entity
+    - filters
+
+plan:
+  - stepId: query_recent
+    type: TOOL
+    tool: fmdb.query
+    input:
+      sql: "${compiledRecentSql}"
+    outputKind: ENTITY_ROWS
+
+  - stepId: final
+    type: FINAL
+    input:
+      structured: "${query_recent.rows}"
+      evidence: "${EVIDENCE}"
+工具层：你 toolbox MCP 至少要映射出这些“通用工具”
+你已经有 toolbox MCP 服务，只要把工具“对齐成通用语义”即可：
+
+fmdb.query(sql)：执行 SQL（或 FMDB 的查询 DSL）
+
+fmdb.batch_query_by_ids(table, idField, ids, select)：按 ID 批量查维表（内部可拆成多次 IN 查询）
+
+fmdb.meta.search(keyword)：元数据检索（兜底时找表/字段）
+
+fmdb.meta.table_schema(table)：取表结构（resolver 需要时校验字段存在）
+
+注意：你说 join 耗时不推荐，那就不要提供“join 工具”。
+提供 batch_query_by_ids + merge（LLM/代码）就能覆盖 80% 维表补齐需求。
+
+现在开始跑两条整链路：从“知识库配置”到“返回结果”
+下面每条我都按固定结构讲：
+
+资产检索（从知识库拿什么）
+
+Intent Parser（LLM 如何识别意图）+ 提示词上下文 + 输出 JSON
+
+Resolver（字段绑定 & SQL 编译）
+
+Policy（预算 & PII）
+
+Planner（会不会多任务）+ 提示词上下文 + 输出 StepPlan
+
+Runner 执行（工具调用、raw、structured）
+
+Finalizer 输出（提示词上下文）
+
+链路 1：“近7天奶茶订单量按门店Top10”
+1) 资产检索（Knowledge Base Retrieval：非 LLM）
+输入：近7天 奶茶 订单量 门店 Top10
+
+你的 AssetStore 做一次检索（BM25/向量都行），返回 TopK 资产摘要（这里示意）：
+
+命中 Entity：entity.order（synonyms 命中：订单/外卖订单）
+
+命中 Metric：metric.order_count（synonyms 命中：订单量）
+
+命中 Entity：entity.store
+
+命中 Relation：relation.order_to_store（维度：store_id）
+
+命中 Template：template.metric_topn_by_dim
+
+这一步非常关键：你让 LLM “在候选范围内选择”，而不是让它凭空猜表名/字段名。
+
+2) Intent Parser：LLM 如何识别意图（含提示词上下文）
+2.1 CanonicalIntent 的目标 Schema（简化版）
+你在代码里定义 JSON Schema（这里用人话描述）：
+
+operation: METRIC_AGG_TOPN | ENTITY_RECENT_LIST | METADATA_LOOKUP ...
+
+metric: metric id（可空）
+
+entity: entity id（可空）
+
+timeRange: last_7d/last_24h/自定义
+
+filters: [{key, op, value}]
+
+groupBy: 维度 key（如 store_id）
+
+topN: 10
+
+2.2 Intent Parser Prompt（模板）
+你可以放到 .codex/prompts/intent_parser.md（你 repo 里有 prompts 目录可以放这类文件）
+
+你是一个“意图解析器”，负责把用户问题解析为 CanonicalIntent JSON。
+你必须：
+- 只使用我提供的候选资产（entities/metrics/dimensions）
+- 输出必须是合法 JSON，且只输出 JSON
+- 如果缺少时间范围，优先用 metric/entity 的 defaultTimeRange
+- 如果用户提到 Top/TopN/排名，operation=METRIC_AGG_TOPN
+- filters 的 key 必须来自 entity.attributes.key 或 metric.filters.optional
+
+候选实体（entities）：
+{{CANDIDATE_ENTITIES_SUMMARY}}
+
+候选指标（metrics）：
+{{CANDIDATE_METRICS_SUMMARY}}
+
+候选维度（dimensions）：
+{{CANDIDATE_DIMENSIONS_SUMMARY}}
+
+用户问题：
+{{USER_QUESTION}}
+
+输出 CanonicalIntent JSON：
+2.3 这条问题的“填充后上下文”（示例）
+候选摘要（你程序自动拼进去）类似：
+
+entities:
+
+entity.order: attributes=[item_keyword,user_id,store_id], defaultTimeRange=last_7d
+
+entity.store: attributes=[store_id,store_name]
+
+metrics:
+
+metric.order_count: type=COUNT_DISTINCT(order_id), defaultTimeRange=last_7d, dimensions=[store_id]
+
+dimensions:
+
+store_id (via relation.order_to_store)
+
+2.4 LLM 输出 CanonicalIntent（示例）
+{
+  "operation": "METRIC_AGG_TOPN",
+  "metric": "metric.order_count",
+  "timeRange": "last_7d",
+  "filters": [
+    {"key": "item_keyword", "op": "CONTAINS_ANY", "value": ["奶茶"]}
+  ],
+  "groupBy": "store_id",
+  "topN": 10
+}
+这里你问的“LLM 如何识别意图”：
+它不是自由发挥，而是看到候选资产 + 规则后做分类：
+
+“订单量” → metric.order_count
+
+“近7天” → timeRange
+
+“奶茶” → item_keyword filter
+
+“按门店 Top10” → groupBy=store_id + topN=10 + operation=METRIC_AGG_TOPN
+
+3) Semantic Resolver：把 Intent 绑定到字段并编译查询（不建议 LLM）
+Resolver 输入：CanonicalIntent + 资产库（entity/metric/relation）
+
+3.1 绑定结果（ResolvedRequest）
+解析出：
+
+baseEntity = entity.order → 表 dwd_order_detail
+
+metric = order_count → COUNT_DISTINCT(order_id)
+
+groupBy = store_id → 字段 store_id
+
+filter item_keyword → 字段集合 [item_name, item_category]
+
+timeRange last_7d → 需要 dt 分区过滤（requiredFilters）
+
+join 慢 → preferNoJoin=true → 用 relation 的 TWO_STEP_LOOKUP（后面补 store_name）
+
+3.2 编译 SQL（聚合只查事实表，不 join）
+你可以按 FMDB 的能力生成（这里用 SQL 举例）：
+
+SELECT
+  store_id AS group_key,
+  COUNT(DISTINCT order_id) AS metric_value
+FROM dwd_order_detail
+WHERE dt >= date_sub(current_date, 7)
+  AND (
+    item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%'
+  )
+GROUP BY store_id
+ORDER BY metric_value DESC
+LIMIT 10
+如果 FMDB 不支持 date_sub/current_date，你在编译时就把具体 dt 值算出来（由运行时算日期范围），避免方言差异。
+
+4) Policy Engine：预算/字段/工具风险决策（代码）
+Policy 输入：ResolvedRequest + 调用者上下文（角色/租户）
+
+检查 lookbackDays <= 30 ✅（last_7d ok）
+
+检查 requiredFilters 有 dt ✅（我们编译时已注入）
+
+检查输出字段：聚合结果只有 store_id & count ✅
+
+工具风险：fmdb.query（READ）✅
+
+工具调用预算：本链路预估 2~3 次（query + batch_dim + merge）✅
+
+输出 PolicyDecision（示意）：
+
+{
+  "allowed": true,
+  "budget": {"maxToolCalls": 6, "timeoutMs": 8000, "maxRows": 200},
+  "outputMode": "SAFE"
+}
+5) Planner：生成 StepPlan（会包含多个任务吗？会）
+这里“Top10 按门店”你想输出门店名称，但 join 慢，所以 Planner 必须生成多步任务：
+
+Step1：事实表聚合（拿 store_id + order_count）
+
+Step2：维表按 store_id 批量查 store_name
+
+Step3：合并（可以代码合并，也可以 LLM 合并；建议代码合并更稳）
+
+Step4：Final
+
+5.1 Planner Prompt（模板）
+实战建议：Planner 也可以不让 LLM 来“编排”，而是按 operation 直接选模板。
+但你要求“提示词上下文”，我给你 LLM Planner 版本（也同样 schema 校验）。
+
+你是一个任务规划器。你会收到：
+- CanonicalIntent
+- ResolvedRequest（表、字段、推荐 no-join 策略）
+- PolicyDecision（预算/限制）
+- 可用模板列表（每个模板的适用条件）
+
+你必须输出 StepPlan JSON（只输出 JSON）。
+- 尽量使用模板来生成计划，不允许自由发挥工具
+- 如果 preferNoJoin=true 且需要维表字段，必须使用 TWO_STEP_LOOKUP（先查事实，再批量查维表）
+- StepPlan 中每个 TOOL step 必须给出 toolName 和 input
+
+输入如下：
+CanonicalIntent: {{CANONICAL_INTENT}}
+ResolvedRequest: {{RESOLVED_REQUEST}}
+PolicyDecision: {{POLICY}}
+Templates: {{TEMPLATES_SUMMARY}}
+
+输出 StepPlan JSON：
+5.2 这条问题的 StepPlan 输出（示例）
+{
+  "taskId": "task_metric_topn_store",
+  "steps": [
+    {
+      "stepId": "agg_fact",
+      "type": "TOOL",
+      "toolName": "fmdb.query",
+      "input": {
+        "sql": "SELECT store_id AS group_key, COUNT(DISTINCT order_id) AS metric_value FROM dwd_order_detail WHERE dt >= '2026-02-01' AND (item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%') GROUP BY store_id ORDER BY metric_value DESC LIMIT 10"
+      },
+      "expect": {"outputKind": "METRIC_AGG_ROWS"}
+    },
+    {
+      "stepId": "lookup_store",
+      "type": "TOOL",
+      "toolName": "fmdb.batch_query_by_ids",
+      "input": {
+        "table": "dim_store",
+        "idField": "store_id",
+        "idsFrom": "steps.agg_fact.output.rows[*].group_key",
+        "select": ["store_id", "store_name"]
+      },
+      "expect": {"outputKind": "DIM_KV"}
+    },
+    {
+      "stepId": "merge",
+      "type": "LLM",
+      "promptRef": "prompts/merge_topn.md",
+      "inputFrom": {
+        "aggRows": "steps.agg_fact.output.rows",
+        "dimKv": "steps.lookup_store.output.kv"
+      },
+      "expect": {"outputKind": "TOPN_LIST"}
+    },
+    {
+      "stepId": "final",
+      "type": "FINAL",
+      "inputFrom": {
+        "structured": "steps.merge.output.structured",
+        "evidence": "task.evidence"
+      }
+    }
+  ]
+}
+你问“是否包含多个任务”：
+是的，这里至少 2 个 TOOL + 1 个合并（LLM/代码）+ final。
+
+6) Runner 执行：具体怎么查、怎么返回、structured 怎么长
+Step1 调用工具：fmdb.query
+输入：上面的 SQL
+
+输出 raw（示例）：
+
+{
+  "rows": [
+    {"group_key": "S001", "metric_value": 1234},
+    {"group_key": "S009", "metric_value": 987},
+    {"group_key": "S101", "metric_value": 876}
+  ],
+  "cost": {"ms": 320, "scannedPartitions": 7}
+}
+Extractor（P0 的 StructuredExtractor）把 raw 归一化成：
+
+{
+  "kind": "METRIC_AGG_ROWS",
+  "data": [
+    {"store_id": "S001", "order_count": 1234},
+    {"store_id": "S009", "order_count": 987},
+    {"store_id": "S101", "order_count": 876}
+  ]
+}
+EvidencePack 记录：SQL、耗时、扫描分区数等。
+
+Step2：维表批量查 fmdb.batch_query_by_ids
+输入：store_id 列表
+输出 raw（示例）：
+
+{
+  "kv": {
+    "S001": {"store_name": "喜茶(国贸店)"},
+    "S009": {"store_name": "奈雪(万象城店)"},
+    "S101": {"store_name": "一点点(科技园店)"}
+  }
+}
+Step3：merge（这里可以用 LLM，也可以用代码）
+如果你希望更稳，建议用代码 merge；你要求“LLM 提示词上下文”，我仍给 LLM 版本。
+
+prompts/merge_topn.md 示例：
+
+你是一个数据合并器。输入：
+1) aggRows: [{store_id, order_count}]
+2) dimKv: {store_id: {store_name}}
+
+要求：
+- 输出 TOPN_LIST 的 structured JSON
+- 对每行补 store_name（如果缺失，填 "未知门店"）
+- 保留排序
+只输出 JSON。
+输出 structured：
+
+{
+  "kind": "TOPN_LIST",
+  "data": [
+    {"rank": 1, "store_id": "S001", "store_name": "喜茶(国贸店)", "order_count": 1234},
+    {"rank": 2, "store_id": "S009", "store_name": "奈雪(万象城店)", "order_count": 987}
+  ]
+}
+7) Finalizer：面向用户的输出（提示词上下文）
+Finalizer prompt（模板）：
+
+你是业务助手。给定 structured 结果与 evidence 摘要，输出中文回答：
+- 先一句话结论
+- 再给TopN表格（可用markdown）
+- 再说明查询口径（时间范围、关键词、分区过滤）
+- 不要输出任何敏感字段
+structured: {{STRUCTURED}}
+evidenceSummary: {{EVIDENCE_SUMMARY}}
+最终答复（示意）：
+
+近 7 天“奶茶”相关订单量按门店 Top10：
+
+喜茶(国贸店) 1234
+
+奈雪(万象城店) 987
+...
+
+口径说明：时间范围 last_7d；关键词命中 item_name/item_category；按 dt 分区过滤；聚合口径 COUNT DISTINCT(order_id)。
+
+链路 2：“查某用户最近10笔订单”
+这条链路更典型：单实体明细，不一定需要 metric。
+
+1) 资产检索（非 LLM）
+输入：某用户 最近10笔 订单
+
+命中资产：
+
+entity.order（包含 user_id 属性）
+
+template.entity_recent_list
+
+2) Intent Parser（LLM）识别意图 + 输出 CanonicalIntent
+Intent Parser prompt 同上，只是这次候选 metrics 可以为空。
+
+LLM 输出示例：
+
+{
+  "operation": "ENTITY_RECENT_LIST",
+  "entity": "entity.order",
+  "filters": [
+    {"key": "user_id", "op": "EQ", "value": "U123456"}
+  ],
+  "sortBy": {"key": "order_time", "order": "DESC"},
+  "limit": 10,
+  "timeRange": "last_30d"
+}
+注意：用户话里没说时间范围，“最近10笔”并不等于无限回溯。
+这里的 last_30d 是默认策略：
+
+可以来自 entity.queryHints.maxLookbackDays（比如 30 天）
+
+或 Policy default（比如 30 天）
+这样即便用户不说时间，也不会扫全库。
+
+3) Resolver：编译“最近 10 笔”查询 SQL（单表为主）
+从 entity.order 知道：
+
+table = dwd_order_detail
+
+timeField = order_time
+
+partitions = dt（required）
+
+projection.allowedFields 白名单（不返回 phone/idcard）
+
+编译 SQL：
+
+SELECT
+  order_id, order_time, store_id, item_name, item_category, pay_amount
+FROM dwd_order_detail
+WHERE dt >= '2026-01-09'
+  AND user_id = 'U123456'
+ORDER BY order_time DESC
+LIMIT 10
+你可能还想返回 store_name：
+如果事实表没有 store_name，就可以可选走 relation.order_to_store 再查维表补齐（同链路 1 的 Step2）。
+
+4) Policy Engine：字段白名单 + PII 控制
+结果字段来自 projection.allowedFields ✅
+
+denyFields 不输出 ✅
+
+limit=10 ✅
+
+lookback=30d ✅
+
+5) Planner：生成 StepPlan（通常 1 个 TOOL + final；可选补维表）
+5.1 最简 StepPlan（只查事实表）
+{
+  "taskId": "task_user_recent_orders",
+  "steps": [
+    {
+      "stepId": "query_recent",
+      "type": "TOOL",
+      "toolName": "fmdb.query",
+      "input": {
+        "sql": "SELECT order_id, order_time, store_id, item_name, item_category, pay_amount FROM dwd_order_detail WHERE dt >= '2026-01-09' AND user_id='U123456' ORDER BY order_time DESC LIMIT 10"
+      },
+      "expect": {"outputKind": "ENTITY_ROWS"}
+    },
+    {
+      "stepId": "final",
+      "type": "FINAL",
+      "inputFrom": {
+        "structured": "steps.query_recent.output.rows",
+        "evidence": "task.evidence"
+      }
+    }
+  ]
+}
+5.2 可选增强：补 store_name（两步查）
+如果你要更友好输出，可加入：
+
+Step2：batch_query_by_ids(dim_store)
+
+Step3：merge
+
+6) Runner 执行：工具输出与 structured
+fmdb.query raw（示例）：
+
+{
+  "rows": [
+    {"order_id":"O001","order_time":"2026-02-07 10:11:00","store_id":"S001","item_name":"芝士奶茶","item_category":"奶茶","pay_amount":23.5},
+    {"order_id":"O002","order_time":"2026-02-06 19:21:00","store_id":"S009","item_name":"珍珠奶茶","item_category":"奶茶","pay_amount":19.0}
+  ]
+}
+Extractor → ENTITY_ROWS：
+
+{
+  "kind": "ENTITY_ROWS",
+  "data": [
+    {"order_id":"O001","order_time":"2026-02-07 10:11:00","store_id":"S001","item_name":"芝士奶茶","pay_amount":23.5},
+    {"order_id":"O002","order_time":"2026-02-06 19:21:00","store_id":"S009","item_name":"珍珠奶茶","pay_amount":19.0}
+  ]
+}
+7) Finalizer 输出
+Finalizer prompt 与链路 1 类似，只是这里输出“明细列表”。
+
+最终答复（示意）：
+
+用户 U123456 最近 30 天内最近 10 笔订单如下（按时间倒序）：
+O001 2026-02-07 10:11 芝士奶茶 ¥23.5 门店S001
+O002 2026-02-06 19:21 珍珠奶茶 ¥19.0 门店S009
+…
+
+你问的关键问题：LLM 的提示词到底包含哪些“上下文”？
+一句话：LLM 只做它擅长的“语义理解+结构化输出”，不让它“猜表/猜字段/猜权限”。
+
+所以每次 LLM 调用的上下文都应包含：
+
+Intent Parser 上下文（必带）
+候选资产摘要（从 AssetSearch 来）
+
+operation 枚举 + 规则（TopN / 最近 / 按xx分组）
+
+JSON Schema 约束（输出必须能校验）
+
+Planner 上下文（可选用 LLM；强烈建议模板规则化）
+CanonicalIntent
+
+ResolvedRequest（表、字段、必选分区、preferNoJoin 等）
+
+PolicyDecision（预算、限制）
+
+可用模板列表（摘要）
+
+Merge/Finalizer 上下文（可用 LLM）
+structured（已经是干净结构化）
+
+evidence 摘要（口径解释、数据来源、工具耗时）
+
+这样做的意义：
+LLM 永远在“你给定的受控空间”里工作，不会出现“编造字段”“乱 join”“越权输出”的问题。
+
+多场景类别怎么“通用覆盖”？（你要的“换场景也能用”）
+你现在这两条属于 BIZ_QUERY 类。你通用化时建议分 6 类模板族：
+
+METADATA_LOOKUP：查表结构/字段/owner/敏感等级
+
+ENTITY_RECENT_LIST / ENTITY_LIST：明细查询（带白名单字段）
+
+METRIC_AGG / METRIC_AGG_TOPN：指标聚合/排名
+
+MULTI_QUERY_BY_KEY：多步拆解代替 join（你 FMDB 特别需要）
+
+LINEAGE_TRACE / IMPACT_ANALYSIS：血缘追溯/影响分析（P2）
+
+OPS_TRIAGE / CHANGE_EXEC：运维排查/变更执行（P3 强审计）
+
+场景变化（奶茶 → 咖啡、订单 → 优惠券、门店 → 城市）
+大多数只需要：
+
+补 synonyms
+
+补 metric 口径
+
+补 relation key
+
+模板不用变
+
+兜底怎么做（你要求的“场景没配也能用”）
+你必须有三段兜底：
+
+资产兜底（候选不足时扩大检索）
+
+AssetSearch topK 不够 → 扩大 K 或降权匹配，给 LLM 更多候选
+
+FMDB 元数据兜底（没有 Entity/Metric 时）
+
+调 fmdb.meta.search(keyword) 找可能表/字段
+
+先给用户“我找到这些表/字段，你要查哪一个口径？”
+
+或者由 LLM 在候选表里选一个，但要低风险（只允许 metadata 或小样本统计）
+
+安全兜底（PII/写操作）
+
+明细涉及 PII：默认拒绝或强脱敏、只给聚合
+
+写操作：必须走审批模板（P3），否则只输出“变更计划+回滚计划”，不执行
+
+你接下来最省力的落地动作（按你现有条件）
+如果你要“立刻能跑通这两条链”，按下面顺序做：
+
+先把上面的 5 份资产 + 2 个模板落进仓库（assets/ & templates/）
+
+写一个 AssetSearch（最简：synonyms/keyword contain + BM25）
+
+写 CanonicalIntent schema + IntentParser prompt（严格 JSON）
+
+写 Resolver：把 metric/entity 编译 SQL（注入 dt、timeRange、limit）
+
+写 PolicyEngine：预算 + denyFields
+
+TemplatePlanner：按 operation 直接选模板（TopN、RecentList）
+
+Runner 调你 toolbox MCP 的 fmdb.query / fmdb.batch_query_by_ids
+
+把 Intent/Plan/ToolCall/Output 都落 EvidencePack，并用 SSE 订阅排查 prompt/output（你仓库文档索引已提到这条调试路径）
+
+如果你愿意，我下一条可以把这两条链路**“落成你工程里的四个 Java 接口 + 数据结构”**（AssetStore / IntentParser / Resolver / Planner）并把 StepPlan JSON schema也给出来，保证你按 schema 校验就能跑；同时我会给你“无 join 的批量维表查”在 toolbox 侧应怎么设计（分批 IN、并发、限流、缓存）。
+
+
+你说：
+问题1：
+
+链路 1：“近7天奶茶订单量按门店Top10”
+1) 资产检索（Knowledge Base Retrieval：非 LLM）
+
+输入：近7天 奶茶 订单量 门店 Top10
+
+你的 AssetStore 做一次检索（BM25/向量都行），返回 TopK 资产摘要（这里示意）：
+
+命中 Entity：entity.order（synonyms 命中：订单/外卖订单）
+
+命中 Metric：metric.order_count（synonyms 命中：订单量）
+
+命中 Entity：entity.store
+
+命中 Relation：relation.order_to_store（维度：store_id）
+
+命中 Template：template.metric_topn_by_dim
+
+这一步非常关键：你让 LLM “在候选范围内选择”，而不是让它凭空猜表名/字段名。
+
+以上针对 资产检索（Knowledge Base Retrieval：非 LLM）如何查询， 资产的数据存储结构有哪些（向量、非向量方式）怎么存储，怎么就能够查到，分别详细描述。
+
+ChatGPT 说：
+
+Thought for 6m 16s
+
+ChatGPT 说：
+下面我把你问的 “资产检索（Knowledge Base Retrieval：非 LLM）到底怎么查？资产怎么存？（向量/非向量）为什么能查到？” 按可落地实现的方式讲清楚。你可以直接照这个设计去做一个 AssetStore + AssetSearch 模块。 我会分 6 部分：
+你所谓“资产”是什么、长什么样
+资产的存储结构：文件/YAML、数据库、搜索引擎、向量库、图存储
+资产的非向量检索：字典/倒排/BM25/模糊匹配
+资产的向量检索：Embedding + ANN（HNSW/IVF）
+最推荐的 Hybrid（混合检索）：如何打分、如何返回 TopK
+用你的例子 “近7天奶茶订单量按门店Top10” 从 0 到 TopK 的完整检索过程演示
+1) 资产到底是什么：你要检索的“对象”有哪些
+你说的命中项其实对应几类资产：
+Entity：实体（订单、门店、用户…）
+Metric：指标（订单量、GMV、空值率…）
+Relation：关系（订单→门店、表→表血缘…）
+Policy：策略（PII、权限、预算、工具风险…）
+Template：通用模板（METRIC_TOPN、RECENT_LIST、MULTI_QUERY_BY_KEY…）
+资产检索的目标不是“直接得答案”，而是 给后续 LLM/Planner 一个候选集合：
+“你只能从这几个候选里选（entity.order / metric.order_count / relation.order_to_store / template.metric_topn_by_dim …），别凭空猜表名字段名。”
+因此 AssetStore 的检索能力必须满足：
+高召回：能把相关候选都找出来（宁可多一点）
+可解释：能告诉你为何命中（哪个 synonym/哪个字段）
+可过滤：按 tenant / bundle version / domain / status 过滤
+可版本：同一资产多个版本、可回滚
+2) 资产怎么存：5 种常见存储结构（向量/非向量都覆盖）
+你问“资产的数据存储结构有哪些，怎么存储”。我给你一个从简到繁的路径：
+方案 A：文件/YAML 为事实源 + 启动时构建索引（最省事，P1 推荐）
+存储：
+assets/entities/*.yaml
+assets/metrics/*.yaml
+assets/relations/*.yaml
+templates/*.yaml
+policies/*.yaml
+索引：
+程序启动时扫描文件 → 解析成对象 → 建内存索引
+适合资产规模：几百～几千条
+优点：
+Git 版本化天然支持：review、回滚、diff
+最快落地
+缺点：
+多实例部署要同步文件（可通过镜像或配置中心解决）
+不适合资产上万、更新频繁
+方案 B：关系型数据库（PostgreSQL/MySQL）做“资产注册中心”（适合规模化）
+核心表建议：
+asset（主表）
+asset_id（entity.order）
+asset_type（ENTITY/METRIC/RELATION/POLICY/TEMPLATE）
+version（1.0.0）
+status
+domain
+owner
+content_json（存 YAML 解析后的 JSON）
+search_text（用于全文检索）
+bundle_id（用于发布/灰度）
+updated_at
+asset_alias（同义词表）
+asset_id
+alias（订单、外卖订单、order）
+weight
+asset_field（字段/属性表，可选）
+asset_id
+field_key（item_keyword）
+field_names（item_name,item_category）
+pii_level
+asset_edge（关系/血缘边，可选）
+from_asset
+to_asset
+edge_type
+metadata
+索引方式（非向量）：
+Postgres tsvector（全文检索）或 MySQL FULLTEXT
+alias 做 BTree 索引
+优点：
+多实例共享
+更新实时
+容易做租户隔离、灰度
+缺点：
+你需要额外做全文/向量索引（或接 ES/向量库）
+方案 C：搜索引擎（Elasticsearch/OpenSearch/Lucene）做倒排/BM25（强烈推荐中大规模）
+存储： 每个资产是一条 document
+字段包含：
+asset_id/type/version/status/domain
+name
+aliases
+attributes
+examples
+search_text
+索引：
+倒排索引 + BM25
+支持模糊、前缀、分词（中文建议 IK 或 ngram）
+优点：
+非向量召回极强、解释性好（哪几个词命中）
+性能很好
+缺点：
+需要维护 ES 集群（如果规模不大可先不用）
+方案 D：向量库（Milvus/Qdrant/FAISS/HNSW）做语义召回
+存储：
+asset_id + embedding_vector + metadata（type/domain/version/bundle）
+索引：
+ANN 索引（HNSW / IVF-PQ …）
+优点：
+对“同义改写/表达不一致”召回非常好
+例如“过去一周茶饮订单门店排行”也能找到“奶茶订单量 TopN 模板”
+缺点：
+纯向量会误召回，需要配合非向量过滤与 rerank
+embedding 需要生成（离线或在线）
+方案 E：图存储（Graph）存 Relation/Lineage（可选，P2 才需要）
+存储：
+节点：entity/table/field/metric/job
+边：血缘、依赖、映射、join keys
+用途：
+血缘追溯、影响分析、join path 选择
+注意：图不是用来做文本检索的（文本检索交给 A/B/C/D），图主要用于 resolver 阶段做路径计算
+3) 非向量检索怎么做：你怎么“就能够查到”？
+你最关心的应该是：不靠 LLM，怎么从“近7天奶茶订单量按门店Top10”找到那几个资产？ 这里给你一个能落地的非向量检索方案（从简单到完善）：
+3.1 最简可用（P1 立刻能落地）
+核心思路：字典/规则 + 候选集合并集 你维护 4 个最关键的索引：
+aliasIndex：alias → asset_id 列表
+例如：
+“订单量” → [metric.order_count, metric.order_amount…]
+“订单” → [entity.order]
+“门店” → [entity.store]
+tokenIndex：token → asset_id 列表（倒排简化版）
+从 name/desc/examples/attributes 抽 token 建索引
+templateTriggerIndex：触发词 → template_id
+“Top/Top10/排行/排名” → template.metric_topn_by_dim
+“最近/近N笔” → template.entity_recent_list
+“字段/表结构/有哪些字段” → template.metadata_lookup
+typeFilter / domainFilter / bundleFilter
+只取当前租户/当前发布 bundle 的资产
+查询流程（非向量）：
+解析 query → 分词/归一化（去掉标点、全角半角、大小写）
+用 aliasIndex 命中强候选（高权重）
+用 tokenIndex 扩召回（中权重）
+用 templateTriggerIndex 命中模板（高权重）
+合并去重，得到 TopK
+这个方案的好处：你 P1 不需要引入 ES/向量库就能跑起来。
+3.2 标准工程版（推荐）：倒排/BM25 + 同义词 + 结构化 boost
+如果你后面上 ES/OpenSearch/Lucene，检索可变成：
+BM25 文本检索召回 top50
+alias 精确命中召回 top20（强 boost）
+结构化 boost：
+含 “Top/排行” boost template.metric_topn
+含 “按门店” boost relation.order_to_store + entity.store
+含 “订单量” boost metric.*
+最终 rerank（简单线性打分即可）
+4) 向量检索怎么做：资产 embedding 怎么存怎么查
+向量检索的关键是：你要为“每个资产”构建一段可语义匹配的文本，然后算 embedding。
+4.1 每个资产生成一段 search_text
+例如对 entity.order：
+[Entity] 订单 外卖订单 交易单
+表: dwd_order_detail
+主键: order_id 时间字段: order_time 分区: dt
+属性: user_id store_id item_name item_category pay_amount
+示例: 近7天奶茶订单量; 查某用户最近10笔订单
+对 metric.order_count：
+[Metric] 订单量 外卖订单数 订单数
+定义: count distinct order_id
+维度: store_id
+默认时间: last_7d
+可选过滤: item_keyword user_id
+对模板 template.metric_topn_by_dim：
+[Template] 指标TopN 按维度排行 Top10
+适用: metric聚合+排序+limit
+策略: 不join -> 先聚合事实表，再批量查维表，再合并
+4.2 向量存储结构（向量库表）
+至少需要：
+asset_id
+asset_type
+bundle_id
+version
+embedding（向量）
+search_text_hash（用于判断是否需要重算）
+updated_at
+4.3 向量检索怎么查
+查询时：
+对用户 query 生成 embedding（可以在线生成，也可以走轻量模型）
+在向量库做 topK 近邻（例如 top30）
+返回 asset_id 列表 + cosine 相似度
+注意：向量召回一般“召回强、精确弱”，因此你一定要：
+用 type/domain/bundle/status 过滤
+用 aliasIndex / BM25 做 rerank
+也就是混合检索（下一节）
+5) 最推荐：Hybrid（混合检索）= 非向量 + 向量 + 结构化 boost
+这是最接近工业落地的做法（你要“通用”，靠它最稳）。
+5.1 召回（Recall）阶段：3 路并行
+Lexical：BM25 / alias 精确命中 → top50
+Vector：向量近邻 → top30
+Rule：模板触发词/枚举规则 → top10（强制入池）
+把三路 asset_id 合并去重，得到 candidate pool（例如 80~120 个）。
+5.2 重排（Rerank）阶段：一个简单可控打分
+给你一个可落地的公式：
+score = 0.55 * bm25
+      + 0.35 * cosineSim
+      + boost_exact_alias
+      + boost_type_match
+      + boost_template_trigger
+      + boost_domain_match
+boost 例子：
+query 含 “订单量” 且 asset_type=METRIC → +2.0
+query 含 “Top/排行” 且 asset_type=TEMPLATE → +1.5
+query 含 “门店” 且 asset_id=entity.store 或 relation.order_to_store → +1.0
+精确 alias 命中 → +3.0（非常强）
+最终取 topK（比如 5～15），输出“资产摘要”给后续 LLM。
+5.3 输出给 LLM 的不是全量资产，而是“摘要”
+LLM 上下文不能塞太多，你要输出的是：
+asset_id/type/version
+name/synonyms
+关键字段（table/timeField/partition/attributes keys）
+模板适用条件摘要
+6) 用你的例子完整演示：这条 query 怎么被“查到资产”
+Query：“近7天奶茶订单量按门店Top10”
+6.1 Query 预处理（非 LLM）
+做几件事：
+归一化数字与时间表达：
+“近7天” → 时间槽位（timeRange=last_7d）
+分词（中文可用简单词典+ngram，先不要纠结最优）：
+tokens = [奶茶, 订单量, 门店, Top10]
+抽取结构化提示：
+含 Top10 → 触发 METRIC_AGG_TOPN / template.metric_topn_by_dim
+注意：时间词（近7天）对资产检索不是核心，它更像 Planner 的槽位。
+资产检索更关注“订单量/门店/奶茶”。
+6.2 aliasIndex 命中
+“订单量” → metric.order_count（强命中）
+“门店” → entity.store（强命中）
+“订单”/“外卖订单”（如果 query 包含） → entity.order
+6.3 tokenIndex / BM25 扩召回
+“奶茶” 可能出现在：
+entity.order 的 examples（近7天奶茶订单量…）
+entity.order 的 attribute item_keyword 描述
+因此 entity.order 得到更高分
+6.4 templateTriggerIndex 命中
+“Top10/排行/排名” → template.metric_topn_by_dim
+6.5 relation 召回（通过 metric 维度/实体关系）
+metric.order_count 声明维度 store_id via relation.order_to_store
+因此 relation.order_to_store 也被加入候选（即使 query 没出现 “store_id”）
+这一步是“通用性”的来源之一：
+你不是靠写死“门店就用 order_to_store”，而是靠 metric/entity/relation 的声明推导出来。
+6.6 最终 TopK（示意）
+返回给 LLM 的候选摘要可能是：
+metric.order_count（订单量）
+entity.order（订单）
+entity.store（门店）
+relation.order_to_store（订单→门店）
+template.metric_topn_by_dim（指标TopN模板）
+（再加一些相近但低分的备选，如 metric.order_amount）
+你落地时该选哪种存储/检索组合？
+我按你当前阶段（P1刚起）+ 未来扩展给你一个“最省力且通用”的路线：
+阶段 1（P1）：YAML 为源 + 内存索引（非向量先跑通）
+资产存在 repo 的 YAML
+启动构建：
+aliasIndex（HashMap）
+tokenIndex（HashMap<token, Set<assetId>>）
+templateTriggerIndex
+检索：规则 + 词匹配 + 简单打分
+先把两条链路跑通（TopN/RecentList）
+阶段 2（P1.5）：加向量召回（提升“同义改写”的通用性）
+仍然 YAML 为源
+离线生成 embedding（或启动时生成）
+用 FAISS/HNSW 做本地 ANN（最省事）
+混合检索：alias/BM25 + vector
+阶段 3（P2）：资产入库 + 搜索引擎/向量库（规模化）
+资产入 Postgres（版本/租户/灰度）
+ES 做 BM25
+向量库做 embedding 召回
+graph 存 lineage（resolver 用）
+最后给你一个“你可以直接实现的 API/数据结构”
+只要你做出这两个接口，后续流程就能自然串起来：
+1) AssetSearch API
+SearchResult search(String query, SearchFilter filter, int topK);
+
+class SearchResult {
+  List<AssetCandidate> candidates; // topK
+  List<AssetCandidate> backups;    // topK扩展备选
+}
+
+class AssetCandidate {
+  String assetId;
+  String type;
+  String version;
+  double score;
+  List<String> matchedReasons; // ["alias:订单量", "trigger:Top10", "bm25:门店"]
+  AssetSummary summary; // 给LLM用的摘要
+}
+2) AssetSummary（给 LLM 的摘要必须“短而全”）
+Entity：table/timeField/partition/attribute keys
+Metric：definition type/field/dimensions/required filters
+Template：适用条件 + 计划骨架（不需要全量）
+Policy：风险等级、字段限制摘要
+如果你愿意，我可以在下一条直接把 “AssetSearch 的最小实现伪代码” 给你（不依赖 ES、不依赖向量库），包括：
+query 分词与结构化槽位提取（TopN、最近、时间窗）
+alias/token/trigger 三路召回
+scoring 和 matchedReasons 生成
+并且用你这条 query 跑出一份“候选列表+命中理由”，这样你就能立刻写代码验证。
+
+你说：
+问题2：
+3) Semantic Resolver：把 Intent 绑定到字段并编译查询（不建议 LLM）
+
+Resolver 输入：CanonicalIntent + 资产库（entity/metric/relation）
+
+3.1 绑定结果（ResolvedRequest）
+
+解析出：
+
+baseEntity = entity.order → 表 dwd_order_detail
+
+metric = order_count → COUNT_DISTINCT(order_id)
+
+groupBy = store_id → 字段 store_id
+
+filter item_keyword → 字段集合 [item_name, item_category]
+
+timeRange last_7d → 需要 dt 分区过滤（requiredFilters）
+
+join 慢 → preferNoJoin=true → 用 relation 的 TWO_STEP_LOOKUP（后面补 store_name）
+
+3.2 编译 SQL（聚合只查事实表，不 join）
+
+你可以按 FMDB 的能力生成（这里用 SQL 举例）：
+
+SELECT
+  store_id AS group_key,
+  COUNT(DISTINCT order_id) AS metric_value
+FROM dwd_order_detail
+WHERE dt >= date_sub(current_date, 7)
+  AND (
+    item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%'
+  )
+GROUP BY store_id
+ORDER BY metric_value DESC
+LIMIT 10
+
+上面sql是如何生成出来的
+
+ChatGPT 说：
+
+Thought for 8m 24s
+
+ChatGPT 说：
+你这个问题问得非常关键：“这条 SQL 到底是怎么从 CanonicalIntent + 资产（Entity/Metric/Relation）一步步生成出来的？”
+我下面按“可落地实现”的方式给你拆成：输入是什么 → 中间绑定结果是什么 → SQL AST 怎么拼 → 最终渲染成 SQL，并给你一段“足够你写代码”的伪代码/结构。
+1) 先明确：SQL 生成不是一句 prompt 让 LLM 写出来
+在我建议的体系里：
+LLM 做：把用户话解析成 CanonicalIntent（结构化意图）
+Resolver/Compiler（代码做）：
+从资产库里取到 entity/metric/relation 的定义
+把 intent 的 key 绑定到真实字段
+生成一个 Query AST（抽象语法树/中间表示）
+渲染成 dialect-specific SQL（Hive/Spark/Trino/FMDB 的 SQL 方言）
+这样你就不会遇到：LLM 猜表名、猜字段、乱 join、拼错分区、越权字段等问题。
+2) 这条 SQL 的输入是什么？
+2.1 CanonicalIntent（来自 LLM + Schema 校验）
+对“近7天奶茶订单量按门店Top10”，典型意图是：
+{
+  "operation": "METRIC_AGG_TOPN",
+  "metric": "metric.order_count",
+  "timeRange": "last_7d",
+  "filters": [
+    {"key": "item_keyword", "op": "CONTAINS_ANY", "value": ["奶茶"]}
+  ],
+  "groupBy": "store_id",
+  "topN": 10
+}
+2.2 资产库里相关资产（来自 AssetStore）
+你在 P1 资产里应该能拿到（示意字段）：
+Entity：entity.order
+table = dwd_order_detail
+partitions = [dt]
+timeField = order_time
+attributes.item_keyword → fields = [item_name, item_category]
+attributes.store_id → fields = [store_id]
+preferNoJoin = true（你 FMDB join 慢）
+Metric：metric.order_count
+type = COUNT_DISTINCT
+field = order_id
+dimensions.store_id（或 entityAttribute store_id）
+Policy（或 entity.queryHints）
+requiredFilters = [dt]
+maxLookbackDays…
+maxRows…
+3) Resolver 的核心输出：ResolvedRequest（绑定结果）
+Resolver 做的事就是：把 “intent 里的抽象 key” 绑定到 “真实表/字段/表达式”。 对这条 intent，它会生成一个 ResolvedRequest（概念上）：
+{
+  "from": {
+    "table": "dwd_order_detail",
+    "alias": "t"
+  },
+  "time": {
+    "partitionField": "dt",
+    "range": "last_7d",
+    "compiledPartitionPredicate": "t.dt >= '2026-02-02'"
+  },
+  "metric": {
+    "selectExpr": "COUNT(DISTINCT t.order_id)",
+    "alias": "metric_value"
+  },
+  "groupBy": {
+    "field": "t.store_id",
+    "alias": "group_key"
+  },
+  "filters": [
+    {
+      "type": "keyword_any",
+      "fields": ["t.item_name", "t.item_category"],
+      "values": ["奶茶"]
+    }
+  ],
+  "orderBy": [{"expr": "metric_value", "dir": "DESC"}],
+  "limit": 10,
+  "preferNoJoin": true
+}
+注意：这里就已经决定了：只查事实表，不 join 维表。门店名要在后续另一个 step 里用 batch_query_by_ids 补齐。
+4) SQL 是怎么“拼”出来的：一步一步构造 Query AST
+最稳健的做法不是字符串拼接，而是构造一个 Query AST，然后渲染。
+4.1 SQL 结构拆解（这条 SQL 的“骨架”）
+这条 SQL 的骨架就是：
+SELECT
+groupBy 字段（store_id）→ AS group_key
+metric 表达式（count distinct order_id）→ AS metric_value
+FROM
+baseEntity 的事实表：dwd_order_detail
+WHERE
+分区过滤（dt >= start_dt）【强制】
+关键词过滤（item_name like '%奶茶%' OR item_category like '%奶茶%'）【来自 item_keyword】
+GROUP BY
+store_id
+ORDER BY
+metric_value desc
+LIMIT
+10
+4.2 逐步生成（非常“工程化”的解释）
+下面是 Resolver/Compiler 的具体决策过程：
+Step A：确定 FROM 表
+intent.metric = metric.order_count
+metric.baseEntity = entity.order
+entity.order.storage.table = dwd_order_detail
+✅ FROM = dwd_order_detail
+Step B：确定 GROUP BY 字段
+intent.groupBy = store_id
+在 entity.order.attributes 找到 key=store_id → fields=[store_id]
+✅ groupBy = store_id
+如果 attributes 里没定义 store_id，就报错/兜底去 FMDB 元数据查字段是否存在。
+Step C：确定 metric select 表达式
+metric.type = COUNT_DISTINCT
+metric.field = order_id
+✅ metricExpr = COUNT(DISTINCT order_id)
+Step D：确定 timeRange 如何落地（你这里最容易踩坑）
+intent.timeRange = last_7d
+entity.order.partitions 包含 dt，并且 requiredFilters 要求 dt
+✅ 必须用 dt 做过滤
+关键点：last_7d 到底怎么换算成 dt？
+你要在系统里定义一个标准，否则永远争论： 推荐一个清晰定义（建议这样落地）：
+last_7d = 包含今天在内的最近 7 个自然日
+若今天是 2026-02-08
+start_dt = 2026-02-02（02-02~02-08共7天）
+end_dt = 2026-02-08（含）
+这样 where 就是：
+dt >= '2026-02-02' AND dt <= '2026-02-08'
+或者（更常见）只用下界：dt >= '2026-02-02'（依赖分区自然裁剪）
+你之前示例写的 date_sub(current_date, 7) 只是方言写法之一。工程里更推荐你直接算出具体日期字面量，避免 FMDB SQL 方言差异。
+Step E：确定关键词过滤如何生成
+intent.filters 包含：key=item_keyword op=CONTAINS_ANY value=["奶茶"]
+在 entity.order.attributes 找到 item_keyword → fields=[item_name, item_category]
+op=CONTAINS_ANY：含义是“任一字段包含任一关键词”
+✅ 转成 SQL 条件：
+对每个 field 生成：field LIKE '%奶茶%'
+多字段 OR：(item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%')
+这里你可以换成更高性能的实现：
+RLIKE/REGEXP
+或者你们 FMDB 若支持全文/倒排索引，走专用函数
+但“编译规则”是一样的。
+Step F：ORDER BY + LIMIT
+intent.topN = 10 → LIMIT 10
+operation=METRIC_AGG_TOPN → ORDER BY metric_value DESC
+5) 最终 SQL 的渲染（Dialect Renderer）
+当你 AST 构造完后，Renderer 会输出 SQL 字符串。
+5.1 用“具体 dt”渲染（推荐，避免方言）
+SELECT
+  t.store_id AS group_key,
+  COUNT(DISTINCT t.order_id) AS metric_value
+FROM dwd_order_detail t
+WHERE t.dt >= '2026-02-02'
+  AND (
+    t.item_name LIKE '%奶茶%' OR t.item_category LIKE '%奶茶%'
+  )
+GROUP BY t.store_id
+ORDER BY metric_value DESC
+LIMIT 10;
+5.2 用 date_sub(current_date, N) 渲染（仅当 FMDB 支持）
+SELECT
+  store_id AS group_key,
+  COUNT(DISTINCT order_id) AS metric_value
+FROM dwd_order_detail
+WHERE dt >= date_sub(current_date, 7)
+  AND (item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%')
+GROUP BY store_id
+ORDER BY metric_value DESC
+LIMIT 10;
+6) 用“伪代码”告诉你 SQL 生成器应该怎么写（可直接落地）
+6.1 Resolver 主流程（伪代码）
+ResolvedRequest resolve(CanonicalIntent intent, AssetStore store, Context ctx) {
+  MetricAsset metric = store.getMetric(intent.metric);
+  EntityAsset entity = store.getEntity(metric.baseEntity);
+
+  // 1) FROM
+  TableRef from = TableRef.of(entity.storage.table, "t");
+
+  // 2) GROUP BY field binding
+  String groupKey = intent.groupBy;                   // store_id
+  AttributeAttr groupAttr = entity.findAttribute(groupKey);
+  ColumnRef groupCol = from.col(groupAttr.fields.get(0)); // t.store_id
+
+  // 3) metric expr
+  Expr metricExpr = Expr.countDistinct(from.col(metric.field)); // COUNT(DISTINCT t.order_id)
+
+  // 4) WHERE time partition
+  Predicate timePred = compileTimeRangeToPartitionPredicate(
+      from, entity.storage.partitions, intent.timeRange, ctx.nowDate());
+
+  // 5) WHERE filters
+  List<Predicate> filterPreds = new ArrayList<>();
+  for (Filter f: intent.filters) {
+    AttributeAttr attr = entity.findAttribute(f.key); // item_keyword
+    filterPreds.add(compileFilter(from, attr, f));    // LIKE OR LIKE
+  }
+
+  // 6) build request
+  return new ResolvedRequest(from, groupCol, metricExpr, timePred, filterPreds,
+                             orderBy(metricExpr, DESC), intent.topN,
+                             entity.queryHints.preferNoJoin);
+}
+6.2 SQL AST 构造 + 渲染（伪代码）
+SqlQuery compileAggTopN(ResolvedRequest rr) {
+  return SqlQuery.select(
+      rr.groupByCol.as("group_key"),
+      rr.metricExpr.as("metric_value")
+    )
+    .from(rr.fromTable)
+    .where(and(rr.timePredicate, andAll(rr.filterPredicates)))
+    .groupBy(rr.groupByCol)
+    .orderBy(col("metric_value").desc())
+    .limit(rr.limit);
+}
+
+// Renderer 负责把 SqlQuery 渲染成字符串，并把参数绑定出来
+RenderResult render(SqlQuery q, Dialect dialect) { ... }
+6.3 关键词 filter 编译规则（关键）
+Predicate compileFilter(TableRef t, AttributeAttr attr, Filter f) {
+  if (f.op == CONTAINS_ANY) {
+    // any field contains any keyword -> OR across fields and values
+    List<Predicate> ors = new ArrayList<>();
+    for (String field : attr.fields) {
+      for (String kw : f.values) {
+        ors.add(t.col(field).like("%" + escapeLike(kw) + "%"));
+      }
+    }
+    return Predicate.or(ors);
+  }
+  ...
+}
+强烈建议：不要直接拼 %奶茶% 字符串，应该走参数绑定：LIKE ?，参数值为 %奶茶%，防止注入和转义问题。
+7) 你这条 SQL 为什么“不需要 join”？（结合你 FMDB 的约束）
+因为你要的是：
+“按门店 Top10 的订单量”——聚合本质只需要 store_id
+门店名 store_name 是维度展示用字段
+而你明确说 FMDB 多表 join 慢不推荐，所以最佳策略是：
+SQL 只查事实表，得到 Top10 的 store_id
+第二步再查 dim_store（批量按 store_id 查 store_name）
+第三步 merge（代码合并更稳）
+这就是你之前规划里的 TWO_STEP_LOOKUP 策略来源。
+8) 你最关心的“通用性”点：这条 SQL 生成规则能覆盖哪些变化？
+只要资产里把 mapping 做好，这条规则能自动泛化：
+“奶茶”换成 “咖啡/汉堡/茶饮” → 仍然落在 item_keyword，SQL 不变，只是参数变
+“近7天”换成 “近24小时/近30天/指定日期范围” → 只影响 dt/time predicate 编译
+“按门店”换成 “按城市/按品类” → groupBy 绑定到另一个 attribute/dimension
+“Top10”换成 “Top50/Top3” → LIMIT 变
+“订单量”换成 “销售额/GMV” → metric 从 countDistinct 切换为 sum(pay_amount)
+模板不变，SQL 生成器不变，变的是：Intent 值 + 资产绑定。
+如果你愿意，我下一步可以把你们 FMDB “实际查询接口”对齐一下：
+你是用 SQL 直查，还是 FMDB 有自己 DSL？
+你给我你 toolbox MCP 里 fmdb.query 的输入 schema（哪怕只是一段 JSON），我就能把上面的“SQL 编译器”改成“FMDB DSL 编译器”，仍然是同一个 Resolver/AST 思路。
+
+你说：
+问题3：
+5.1 Planner Prompt（模板）
+
+实战建议：Planner 也可以不让 LLM 来“编排”，而是按 operation 直接选模板。
+但你要求“提示词上下文”，我给你 LLM Planner 版本（也同样 schema 校验）。
+
+上面按 operation 直接选模板是什么意思？如何操作呢？ 	
+
+ChatGPT 说：
+
+Thought for 8m 55s
+
+ChatGPT 说：
+“按 operation 直接选模板”的意思是：Planner 不让大模型去“自由编排步骤”，而是把用户请求先解析成一个标准化的 operation（操作类型/任务形态），然后用一套确定性规则在你预先定义好的 **Template（通用执行模板）**里选一个（或组合几个），再把 Resolver 得到的表/字段/条件“填槽位”生成 StepPlan。 这样做的价值是：
+更通用、更稳定：同类问题永远走同一模板，不会因为模型波动而多走/少走一步
+更安全：不让模型自己决定调用什么工具、怎么拼 SQL
+更可测：可以写 golden test：给定 intent/resolved 一定选中某个模板
+下面我把“是什么意思”和“如何操作”拆成可落地的 6 步，并给你两个例子（TopN 指标、最近 N 笔明细）演示。
+1) 什么是 operation
+你在 Intent Parser 阶段，让 LLM 输出一个稳定结构（CanonicalIntent），其中一个字段叫 operation（或 op），它不是“业务场景名”，而是通用任务形态。 例如你可以定义这些 operation（建议一开始别太多，8~12 个足够）：
+METADATA_LOOKUP：查表/字段/口径/权限等元数据
+METRIC_AGG：指标聚合（sum/count/avg 等）
+METRIC_AGG_TOPN：指标聚合 + 排序 + TopN
+ENTITY_LIST：实体列表/明细查询（带过滤）
+ENTITY_RECENT_LIST：最近 N 条（按时间倒序）
+MULTI_QUERY_BY_KEY：多步拆解查询代替 join（你 FMDB 特别需要）
+LINEAGE_TRACE：血缘追溯
+QUALITY_CHECK：质量检查
+OPS_TRIAGE：运维排查（只读）
+CHANGE_EXEC：变更执行（写操作，必须审批/回滚）
+关键：operation 的粒度要“少而稳”，不要变成 “BIZ_ORDER_QUERY / BIZ_IDCARD_QUERY …”那种爆炸式枚举。
+2) 什么是 Template（模板）
+Template 是通用计划蓝图，类似“配方”，它定义：
+适用于哪些 operation
+需要哪些槽位（slot）
+计划包含哪些 Step（TOOL/LLM/FINAL）
+在你这种约束下如何实现（例如 preferNoJoin=true 就两步查维表）
+你可以用 YAML 定义（你之前也在用这种风格）：
+templateId: template.metric_topn_by_dim_no_join
+version: 1.0.0
+
+applicableWhen:
+  operationIn: [METRIC_AGG_TOPN]
+  conditions:
+    - key: preferNoJoin
+      equals: true
+
+requiredSlots: [metric, baseEntity, timeRange, groupBy, topN]
+
+plan:
+  - stepId: agg_fact
+    type: TOOL
+    tool: fmdb.query
+    input:
+      sql: "${compiledAggSql}"
+
+  - stepId: lookup_dim
+    type: TOOL
+    tool: fmdb.batch_query_by_ids
+    input:
+      table: "${dimTable}"
+      idField: "${dimIdField}"
+      ids: "${agg_fact.rows[*].group_key}"
+      select: ["${dimIdField}", "${dimNameField}"]
+
+  - stepId: merge
+    type: CODE   # 建议用代码合并更稳（也可 LLM）
+    fn: mergeTopNWithDim
+
+  - stepId: final
+    type: FINAL
+你也可以做两个版本：
+template.metric_topn_by_dim_join（允许 join 的环境）
+template.metric_topn_by_dim_no_join（你现在 FMDB join 慢 → 用这个）
+3) “按 operation 直接选模板”到底是什么意思
+就是：你不写 Planner prompt 让 LLM 去规划，而是写一个 TemplateSelector（纯代码规则）： 输入：
+CanonicalIntent.operation
+ResolvedRequest（Resolver 已经把 entity/metric/字段/约束都绑定好了）
+PolicyDecision（预算、工具风险、是否允许 join、是否仅聚合等）
+输出：
+一个 TemplateId（例如 template.metric_topn_by_dim_no_join）
+这一步完全不需要 LLM，所以它稳定、可控、可测试。
+4) 如何操作：落地实现步骤（建议你直接按这个写代码）
+Step 1：定义 operation 枚举
+enum Operation {
+  METADATA_LOOKUP,
+  METRIC_AGG,
+  METRIC_AGG_TOPN,
+  ENTITY_LIST,
+  ENTITY_RECENT_LIST,
+  MULTI_QUERY_BY_KEY,
+  LINEAGE_TRACE,
+  QUALITY_CHECK,
+  OPS_TRIAGE,
+  CHANGE_EXEC
+}
+Step 2：给 Template 建一个注册表（TemplateRegistry）
+启动时扫描 templates/*.yaml，读入内存：
+class TemplateDef {
+  String templateId;
+  Set<Operation> operationIn;
+  Map<String, Object> conditions; // preferNoJoin=true, risk<=READ_ONLY 等
+  Set<String> requiredSlots;
+  List<StepBlueprint> plan;
+}
+Step 3：Resolver 输出 “选择模板需要的信息”
+Resolver 除了编 SQL，还要输出一些“选择条件”：
+preferNoJoin（你明确需要）
+needDimLookup（是否需要维表补齐，比如要 store_name）
+risk（是否涉及 PII / 写操作）
+availableTools（toolbox 可用哪些）
+class ResolvedRequest {
+  Operation operation;
+  boolean preferNoJoin;
+  boolean needDimLookup;
+  // metric/entity/groupBy/timeRange/filters...
+}
+Step 4：Policy 决策结果参与过滤
+PolicyEngine 输出例如：
+allowJoin=false
+outputMode=aggregate_only
+maxToolCalls=6
+denyFields=[idcard, phone...]
+Step 5：TemplateSelector：规则选模板
+伪代码（足够你落地）：
+TemplateDef select(Operation op, ResolvedRequest rr, PolicyDecision pd) {
+
+  // 1) 先按 operation 过滤
+  List<TemplateDef> candidates = registry.listByOperation(op);
+
+  // 2) 再按 conditions 过滤（preferNoJoin、risk、joinAllowed、toolAvailable…）
+  candidates = candidates.stream()
+      .filter(t -> matchConditions(t, rr, pd))
+      .filter(t -> rr.hasAllSlots(t.requiredSlots))
+      .toList();
+
+  // 3) 打分选最优（越具体分越高）
+  return candidates.stream()
+      .max(Comparator.comparingDouble(t -> score(t, rr, pd)))
+      .orElseThrow(() -> new NoTemplateMatchedException(op));
+}
+典型 score 策略：
+模板条件命中越多（例如 preferNoJoin、needDimLookup），分越高
+模板 requiredSlots 越匹配，分越高
+计划 step 数越少且满足需求，分越高（成本更低）
+Step 6：TemplateFiller：填槽位生成 StepPlan
+选中模板后，把 ${compiledAggSql}、${dimTable} 这种槽位替换掉，生成最终 StepPlan。
+5) 用你的两个问题演示“按 operation 选模板”怎么走
+例子 A：“近7天奶茶订单量按门店Top10”
+Intent Parser（LLM）输出：
+operation = METRIC_AGG_TOPN
+metric = metric.order_count
+groupBy = store_id
+topN = 10
+timeRange = last_7d
+filters: item_keyword contains 奶茶
+Resolver 发现：
+baseEntity=order，表=dwd_order_detail
+join 慢 → preferNoJoin = true
+需要展示门店名 → needDimLookup = true
+Policy 决策：
+joinAllowed=false（或者 preferNoJoin 强制）
+toolBudget maxToolCalls=6
+TemplateSelector 规则过滤：
+operationIn 包含 METRIC_AGG_TOPN ✅
+conditions: preferNoJoin=true ✅
+requiredSlots 都满足 ✅
+→ 选中：template.metric_topn_by_dim_no_join 生成 StepPlan：
+fmdb.query（事实表聚合 Top10）
+fmdb.batch_query_by_ids（按 store_id 查 dim_store）
+merge（代码合并）
+final
+这里 Planner 完全不需要 LLM，它就是“固定配方”。
+例子 B：“查某用户最近10笔订单”
+Intent Parser 输出：
+operation = ENTITY_RECENT_LIST
+entity = entity.order
+filters: user_id = xxx
+limit = 10
+sortBy = order_time desc
+（可选）timeRange 默认 last_30d
+Resolver：
+baseEntity=order，表=dwd_order_detail
+preferNoJoin = true（但本次不需要维表补齐也可以只查事实表）
+needDimLookup = false（如果你不展示门店名）
+TemplateSelector：
+operationIn = ENTITY_RECENT_LIST → 直接匹配 template.entity_recent_list
+requiredSlots 满足 → 选中该模板
+StepPlan：
+fmdb.query（where user_id + dt + order by time desc limit 10）
+final
+6) 为什么这种方式更通用、更适合你当前约束（FMDB join 慢 + toolbox MCP）
+因为你把“通用性”拆成三层：
+用户话怎么千变万化 → 交给 Intent Parser（LLM + schema）
+落到哪个表字段 → 交给 Resolver（资产驱动 + 代码）
+怎么执行（多步/不 join/补维表/限流） → 交给 Template（固定配方）
+所以“换场景”时大多数变化都被吸收在：
+assets（synonyms、字段映射、指标口径、relation keys）
+而不是去增加“场景 pack”。
+7) 什么时候仍然需要 LLM Planner？
+你问的是“按 operation 选模板”，那我也说清楚边界：
+80% 情况：operation 明确 → 直接选模板（最好）
+20% 情况：operation 仍明确但槽位缺失或歧义大（例如 “查最近订单”没说用户是谁）
+这时不是让 LLM 编排步骤，而是让 LLM 做补槽位/澄清：
+缺用户ID → 问一句“你指哪个用户？”
+时间范围缺失 → 用默认策略或问一句
+合并/总结：LLM 更适合做 merge 文本解释/总结（但 merge 数据更建议用代码）
+8) 给你一个最可测的落地方式：Golden Plan Tests
+因为模板选择是确定性的，你可以写测试：
+输入：CanonicalIntent + ResolvedRequest + PolicyDecision
+期望：选中 templateId = xxx
+期望：Step 数量、工具名序列固定
+这会让你后续扩展模板/资产不会把系统搞乱。
+如果你愿意，我可以把你当前系统最需要的 8 个模板按 operation -> templateId 方式给你一份“模板路由表”，并为每个模板列出：
+requiredSlots
+典型 StepPlan（工具调用序列）
+失败回退策略（比如 dim 查不到就只输出 id）
+这样你照着就能在工程里实现一个“无 LLM Planner”的稳定规划器。
+
+
+
+

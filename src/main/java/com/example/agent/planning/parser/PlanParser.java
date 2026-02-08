@@ -53,14 +53,44 @@ public class PlanParser {
     public PlanParseResult parse(String content,
                                  TaskRequest request,
                                  Map<String, Object> context) throws Exception {
+        PlanParseAttemptResult attemptResult = parseAttempt(content, request, context);
+        return attemptResult != null && attemptResult.isSuccess() ? attemptResult.getResult() : null;
+    }
+
+    /**
+     * 尝试解析规划输出并返回显式结果。
+     *
+     * @param content 模型输出
+     * @param request 任务请求
+     * @param context 上下文映射
+     * @return 解析尝试结果
+     */
+    public PlanParseAttemptResult parseAttempt(String content,
+                                               TaskRequest request,
+                                               Map<String, Object> context) {
+        if (!StringUtils.hasText(content)) {
+            return PlanParseAttemptResult.failure(PlanParseErrorTypes.EMPTY_OUTPUT);
+        }
+        try {
+            return parseInternal(content, request, context);
+        } catch (Exception ex) {
+            log.warn("规划 JSON 解析异常, reason={}", ex.getMessage(), ex);
+            return PlanParseAttemptResult.failure(PlanParseErrorTypes.JSON_PARSE_ERROR);
+        }
+    }
+
+    private PlanParseAttemptResult parseInternal(String content,
+                                                 TaskRequest request,
+                                                 Map<String, Object> context) throws Exception {
         Map<String, Object> root = objectMapper.readValue(content, new TypeReference<Map<String, Object>>() {
         });
         Object stepsObj = root.get(PlanningFieldKeys.STEPS);
         if (!(stepsObj instanceof List<?> stepList)) {
-            return null;
+            return PlanParseAttemptResult.failure(PlanParseErrorTypes.MISSING_STEPS);
         }
-        List<StepSpec> steps = new ArrayList<>();
+        List<StepSpec> steps = new ArrayList<>(stepList.size());
         int index = 0;
+        boolean strictArgumentRejected = false;
         for (Object item : stepList) {
             index++;
             if (!(item instanceof Map<?, ?> stepMap)) {
@@ -69,9 +99,12 @@ public class PlanParser {
             String type = stepMap.get(PlanningFieldKeys.TYPE) instanceof String typeValue
                     ? typeValue
                     : "TOOL";
-            Map<String, Object> input = new HashMap<>();
+            Map<String, Object> input;
             if (stepMap.get(PlanningFieldKeys.INPUT) instanceof Map<?, ?> inputMap) {
+                input = new HashMap<>(Math.max(4, inputMap.size() + 4));
                 inputMap.forEach((key, value) -> input.put(String.valueOf(key), value));
+            } else {
+                input = new HashMap<>(4);
             }
             if (!input.containsKey(PlanningFieldKeys.QUERY) && request != null) {
                 input.put(PlanningFieldKeys.QUERY, request.getQuery());
@@ -90,13 +123,20 @@ public class PlanParser {
                 String reason = validateToolStepInput(input);
                 if (reason != null) {
                     log.warn("规划 TOOL 步骤缺少必要参数, stepIndex={}, reason={}", index, reason);
-                    return null;
+                    strictArgumentRejected = true;
+                    continue;
                 }
             }
             steps.add(buildStepSpec(type, input));
         }
+        if (steps.isEmpty()) {
+            if (strictArgumentRejected) {
+                return PlanParseAttemptResult.failure(PlanParseErrorTypes.INVALID_TOOL_ARGUMENTS);
+            }
+            return PlanParseAttemptResult.failure(PlanParseErrorTypes.NO_VALID_STEPS);
+        }
         String summary = root.get(PlanningFieldKeys.SUMMARY) instanceof String value ? value : "llm-plan";
-        return new PlanParseResult(summary, steps);
+        return PlanParseAttemptResult.success(new PlanParseResult(summary, steps));
     }
 
     /**
@@ -186,4 +226,3 @@ public class PlanParser {
         return type != null && "TOOL".equalsIgnoreCase(type);
     }
 }
-

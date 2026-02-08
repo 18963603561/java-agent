@@ -8,14 +8,48 @@ import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 class PlanParserTest {
+
+    @ParameterizedTest
+    @MethodSource("invalidContentCases")
+    void parseAttemptReturnsExpectedErrorTypeForInvalidInput(String content,
+                                                              String expectedType) {
+        PlanParser parser = new PlanParser(new ObjectMapper());
+
+        PlanParseAttemptResult result = parser.parseAttempt(content, null, Map.of());
+
+        assertNotNull(result);
+        assertFalse(result.isSuccess());
+        assertEquals(expectedType, result.getErrorType());
+    }
+
+    @ParameterizedTest
+    @MethodSource("strictToolInputInvalidCases")
+    void parseAttemptReturnsInvalidToolArgumentsWhenStrictModeAndToolInputInvalid(String content)
+            throws Exception {
+        PlanParser parser = new PlanParser(new ObjectMapper());
+        Field field = PlanParser.class.getDeclaredField("strictToolArguments");
+        field.setAccessible(true);
+        field.set(parser, true);
+
+        PlanParseAttemptResult result = parser.parseAttempt(content, null, Map.of());
+
+        assertNotNull(result);
+        assertFalse(result.isSuccess());
+        assertEquals(PlanParseErrorTypes.INVALID_TOOL_ARGUMENTS, result.getErrorType());
+    }
 
     @Test
     void parseReturnsStepsAndSummaryWhenJsonValid() throws Exception {
@@ -83,6 +117,32 @@ class PlanParserTest {
         PlanParseResult result = parser.parse(json, null, Map.of());
 
         assertNull(result);
+        PlanParseAttemptResult attemptResult = parser.parseAttempt(json, null, Map.of());
+        assertNotNull(attemptResult);
+        assertFalse(attemptResult.isSuccess());
+        assertEquals(PlanParseErrorTypes.INVALID_TOOL_ARGUMENTS, attemptResult.getErrorType());
+    }
+
+    @Test
+    void parseAttemptReturnsMissingStepsWhenStepsMissing() {
+        PlanParser parser = new PlanParser(new ObjectMapper());
+
+        PlanParseAttemptResult result = parser.parseAttempt("{\"summary\":\"x\"}", null, Map.of());
+
+        assertNotNull(result);
+        assertFalse(result.isSuccess());
+        assertEquals(PlanParseErrorTypes.MISSING_STEPS, result.getErrorType());
+    }
+
+    @Test
+    void parseAttemptReturnsJsonParseErrorWhenInvalidJson() {
+        PlanParser parser = new PlanParser(new ObjectMapper());
+
+        PlanParseAttemptResult result = parser.parseAttempt("not_json", null, Map.of());
+
+        assertNotNull(result);
+        assertFalse(result.isSuccess());
+        assertEquals(PlanParseErrorTypes.JSON_PARSE_ERROR, result.getErrorType());
     }
 
     @Test
@@ -119,5 +179,64 @@ class PlanParserTest {
                 PlanningFieldKeys.ARGUMENTS,
                 Map.of("query", "q"))));
     }
-}
 
+    private static Stream<Arguments> invalidContentCases() {
+        return Stream.of(
+                Arguments.of("", PlanParseErrorTypes.EMPTY_OUTPUT),
+                Arguments.of("   ", PlanParseErrorTypes.EMPTY_OUTPUT),
+                Arguments.of("not_json", PlanParseErrorTypes.JSON_PARSE_ERROR),
+                Arguments.of("{\"summary\":\"x\"}", PlanParseErrorTypes.MISSING_STEPS),
+                Arguments.of("{\"steps\":[]}", PlanParseErrorTypes.NO_VALID_STEPS),
+                Arguments.of("{\"steps\":[1]}",
+                        PlanParseErrorTypes.NO_VALID_STEPS),
+                Arguments.of("{\"steps\":[\"invalid\",true,null]}",
+                        PlanParseErrorTypes.NO_VALID_STEPS)
+        );
+    }
+
+    private static Stream<Arguments> strictToolInputInvalidCases() {
+        return Stream.of(
+                Arguments.of("""
+                        {
+                          "summary": "ok",
+                          "steps": [
+                            {
+                              "type": "TOOL",
+                              "input": {
+                                "query": "ping"
+                              }
+                            }
+                          ]
+                        }
+                        """),
+                Arguments.of("""
+                        {
+                          "summary": "ok",
+                          "steps": [
+                            {
+                              "type": "TOOL",
+                              "tool": "demo",
+                              "input": {
+                                "query": "ping"
+                              }
+                            }
+                          ]
+                        }
+                        """),
+                Arguments.of("""
+                        {
+                          "summary": "ok",
+                          "steps": [
+                            {
+                              "type": "TOOL",
+                              "tool": "demo",
+                              "input": {
+                                "arguments": {}
+                              }
+                            }
+                          ]
+                        }
+                        """)
+        );
+    }
+}

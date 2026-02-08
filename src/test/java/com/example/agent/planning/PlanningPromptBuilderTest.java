@@ -50,6 +50,23 @@ class PlanningPromptBuilderTest {
     }
 
     @Test
+    void buildPromptShouldReuseTemplateCache() {
+        String template = "CACHE=%s";
+        CountingResourceLoader loader = new CountingResourceLoader(template);
+        PlanningPromptBuilder builder = new PlanningPromptBuilder(
+                new ObjectMapper(),
+                loader,
+                "memory:planner-template");
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("q");
+        builder.buildPrompt(request, Map.of("k", "v"));
+        builder.buildPrompt(request, Map.of("k", "v2"));
+
+        assertTrue(loader.getLoadCount() == 1);
+    }
+
+    @Test
     void buildPromptThrowsWhenTemplateMissing() {
         PlanningPromptBuilder builder = new PlanningPromptBuilder(
                 new ObjectMapper(),
@@ -85,6 +102,26 @@ class PlanningPromptBuilderTest {
                     return false;
                 }
             };
+        }
+    }
+
+    private static class CountingResourceLoader extends DefaultResourceLoader {
+
+        private final String template;
+        private int loadCount;
+
+        private CountingResourceLoader(String template) {
+            this.template = template;
+        }
+
+        @Override
+        public Resource getResource(String location) {
+            loadCount++;
+            return new ByteArrayResource(template.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+        }
+
+        private int getLoadCount() {
+            return loadCount;
         }
     }
 }

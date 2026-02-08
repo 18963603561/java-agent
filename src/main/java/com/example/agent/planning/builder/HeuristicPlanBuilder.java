@@ -2,12 +2,12 @@ package com.example.agent.planning.builder;
 
 import com.example.agent.planning.PlanResult;
 import com.example.agent.planning.PlanningContextKeys;
-import com.example.agent.planning.PlanningFieldKeys;
 import com.example.agent.planning.context.PlanningContext;
+import com.example.agent.planning.strategy.PlanningStrategyContext;
+import com.example.agent.planning.strategy.PlanningStrategyRegistry;
+import com.example.agent.planning.strategy.PlanningStrategyResult;
 import com.example.agent.runtime.model.StepSpec;
-import com.example.agent.planning.parser.PlanParser;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -25,15 +25,15 @@ public class HeuristicPlanBuilder {
 
     private static final Logger log = LoggerFactory.getLogger(HeuristicPlanBuilder.class);
 
-    private final PlanParser planParser;
+    private final PlanningStrategyRegistry strategyRegistry;
 
     /**
      * 构造规则规划构建器。
      *
-     * @param planParser 步骤构建器
+     * @param strategyRegistry 策略注册中心
      */
-    public HeuristicPlanBuilder(PlanParser planParser) {
-        this.planParser = planParser;
+    public HeuristicPlanBuilder(PlanningStrategyRegistry strategyRegistry) {
+        this.strategyRegistry = strategyRegistry;
     }
 
     /**
@@ -49,9 +49,12 @@ public class HeuristicPlanBuilder {
                             String query,
                             PlanningContext planningContext,
                             String tenantId) {
+        if (planningContext == null) {
+            planningContext = new PlanningContext(new java.util.HashMap<>());
+        }
         double complexityScore = estimateComplexity(query);
         String cognitiveStrategy = resolveCognitiveStrategy(planningContext, complexityScore);
-        String executionStrategy = resolveExecutionStrategy(planningContext, complexityScore);
+        String executionStrategy = resolveExecutionStrategy(planningContext);
         String mode = safeLowercase(planningContext.getString(PlanningContextKeys.MODE));
         String strategy = safeLowercase(planningContext.getString(PlanningContextKeys.STRATEGY));
 
@@ -59,201 +62,42 @@ public class HeuristicPlanBuilder {
         List<Map<String, Object>> planSteps = new ArrayList<>();
         List<Map<String, String>> dependencies = new ArrayList<>();
 
-        String previousStepKey = null;
-
-        if (isChainOfThoughtRequested(mode, strategy, cognitiveStrategy)) {
-            String stepKey = "step-1";
-            Map<String, Object> input = new HashMap<>();
-            input.put(PlanningFieldKeys.QUESTION, query);
-            input.put(PlanningFieldKeys.CONTEXT, planningContext.mutableValues());
-            input.put(PlanningFieldKeys.STEP_KEY, stepKey);
-            steps.add(planParser.buildStepSpec("CHAIN_OF_THOUGHT", input));
-            planSteps.add(Map.of(PlanningFieldKeys.ID,
-                    stepKey,
-                    PlanningFieldKeys.TYPE,
-                    "CHAIN_OF_THOUGHT",
-                    PlanningFieldKeys.NAME,
-                    "chain-of-thought"));
-            return finalizePlan(planId,
-                    tenantId,
-                    "链式推理",
-                    planningContext,
-                    executionStrategy,
-                    cognitiveStrategy,
-                    complexityScore,
-                    steps,
-                    planSteps,
-                    dependencies);
-        }
-
-        if (needsThoughtTree(cognitiveStrategy, complexityScore)) {
-            String thoughtStepKey = "step-1";
-            Map<String, Object> thoughtInput = new HashMap<>();
-            thoughtInput.put(PlanningFieldKeys.PROMPT, query);
-            thoughtInput.put(PlanningFieldKeys.STEP_KEY, thoughtStepKey);
-            thoughtInput.put(PlanningFieldKeys.CRITICAL, Boolean.TRUE);
-            thoughtInput.put(PlanningContextKeys.STRATEGY, cognitiveStrategy);
-            steps.add(planParser.buildStepSpec("THOUGHT_TREE", thoughtInput));
-            planSteps.add(Map.of(PlanningFieldKeys.ID,
-                    thoughtStepKey,
-                    PlanningFieldKeys.TYPE,
-                    "THOUGHT_TREE",
-                    PlanningFieldKeys.NAME,
-                    "thought-tree"));
-            previousStepKey = thoughtStepKey;
-        }
-
-        if ("multi_agent".equals(strategy) || "multi-agent".equals(strategy)) {
-            String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
-            Map<String, Object> input = new HashMap<>();
-            input.put(PlanningFieldKeys.QUERY, query);
-            input.put(PlanningFieldKeys.CONTEXT, planningContext.mutableValues());
-            input.put(PlanningFieldKeys.STEP_KEY, stepKey);
-            steps.add(planParser.buildStepSpec("MULTI_AGENT", input));
-            planSteps.add(Map.of(PlanningFieldKeys.ID,
-                    stepKey,
-                    PlanningFieldKeys.TYPE,
-                    "MULTI_AGENT",
-                    PlanningFieldKeys.NAME,
-                    "multi-agent"));
-            if (previousStepKey != null) {
-                dependencies.add(Map.of(PlanningFieldKeys.FROM, previousStepKey, PlanningFieldKeys.TO, stepKey));
-            }
-            previousStepKey = stepKey;
-        }
-
-        if ("debate".equals(strategy)) {
-            String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
-            Map<String, Object> input = new HashMap<>();
-            input.put(PlanningFieldKeys.QUERY, query);
-            input.put(PlanningFieldKeys.CONTEXT, planningContext.mutableValues());
-            input.put(PlanningFieldKeys.STEP_KEY, stepKey);
-            steps.add(planParser.buildStepSpec("DEBATE", input));
-            planSteps.add(Map.of(PlanningFieldKeys.ID,
-                    stepKey,
-                    PlanningFieldKeys.TYPE,
-                    "DEBATE",
-                    PlanningFieldKeys.NAME,
-                    "debate"));
-            if (previousStepKey != null) {
-                dependencies.add(Map.of(PlanningFieldKeys.FROM, previousStepKey, PlanningFieldKeys.TO, stepKey));
-            }
-            previousStepKey = stepKey;
-        }
-
-        if ("deep_research".equals(mode) || "research".equals(strategy)) {
-            String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
-            Map<String, Object> input = new HashMap<>();
-            input.put(PlanningFieldKeys.QUERY, query);
-            input.put(PlanningFieldKeys.CONTEXT, planningContext.mutableValues());
-            input.put(PlanningFieldKeys.STEP_KEY, stepKey);
-            steps.add(planParser.buildStepSpec("RESEARCH", input));
-            planSteps.add(Map.of(PlanningFieldKeys.ID,
-                    stepKey,
-                    PlanningFieldKeys.TYPE,
-                    "RESEARCH",
-                    PlanningFieldKeys.NAME,
-                    "deep-research"));
-            if (previousStepKey != null) {
-                dependencies.add(Map.of(PlanningFieldKeys.FROM, previousStepKey, PlanningFieldKeys.TO, stepKey));
-            }
-            previousStepKey = stepKey;
-        }
-
-        if (shouldUseReact(planningContext, mode, strategy)) {
-            String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
-            Map<String, Object> input = new HashMap<>();
-            input.put(PlanningFieldKeys.QUESTION, query);
-            input.put(PlanningFieldKeys.CONTEXT, planningContext.mutableValues());
-            input.put(PlanningFieldKeys.STEP_KEY, stepKey);
-            input.put(PlanningContextKeys.STRATEGY, cognitiveStrategy);
-            steps.add(planParser.buildStepSpec("REACT", input));
-            planSteps.add(Map.of(PlanningFieldKeys.ID,
-                    stepKey,
-                    PlanningFieldKeys.TYPE,
-                    "REACT",
-                    PlanningFieldKeys.NAME,
-                    "react"));
-            if (previousStepKey != null) {
-                dependencies.add(Map.of(PlanningFieldKeys.FROM, previousStepKey, PlanningFieldKeys.TO, stepKey));
-            }
-            return finalizePlan(planId,
-                    tenantId,
-                    "ReAct",
-                    planningContext,
-                    executionStrategy,
-                    cognitiveStrategy,
-                    complexityScore,
-                    steps,
-                    planSteps,
-                    dependencies);
-        }
-
-        if (isToolsDisabled(planningContext)) {
-            String stepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
-            Map<String, Object> input = new HashMap<>();
-            input.put(PlanningFieldKeys.QUESTION, query);
-            input.put(PlanningFieldKeys.CONTEXT, planningContext.mutableValues());
-            input.put(PlanningFieldKeys.STEP_KEY, stepKey);
-            input.put(PlanningContextKeys.STRATEGY, cognitiveStrategy);
-            steps.add(planParser.buildStepSpec("LLM", input));
-            planSteps.add(Map.of(PlanningFieldKeys.ID,
-                    stepKey,
-                    PlanningFieldKeys.TYPE,
-                    "LLM",
-                    PlanningFieldKeys.NAME,
-                    "direct-llm"));
-            if (previousStepKey != null) {
-                dependencies.add(Map.of(PlanningFieldKeys.FROM, previousStepKey, PlanningFieldKeys.TO, stepKey));
-            }
-            return finalizePlan(planId,
-                    tenantId,
-                    "大模型直答",
-                    planningContext,
-                    executionStrategy,
-                    cognitiveStrategy,
-                    complexityScore,
-                    steps,
-                    planSteps,
-                    dependencies);
-        }
-
-        String toolStepKey = previousStepKey == null ? "step-1" : "step-" + (steps.size() + 1);
-        Map<String, Object> toolInput = new HashMap<>();
-        toolInput.put(PlanningFieldKeys.QUERY, query);
-        toolInput.put(PlanningFieldKeys.CONTEXT, planningContext.mutableValues());
-        toolInput.put(PlanningFieldKeys.STEP_KEY, toolStepKey);
-        toolInput.put(PlanningFieldKeys.CRITICAL, complexityScore >= 0.6);
-        toolInput.put(PlanningContextKeys.STRATEGY, cognitiveStrategy);
-        String toolName = planningContext.getString(PlanningContextKeys.TOOL);
-        if (toolName != null) {
-            toolInput.put(PlanningContextKeys.TOOL, toolName);
-        }
-        String fallbackTool = planningContext.getString(PlanningContextKeys.FALLBACK_TOOL);
-        if (fallbackTool != null) {
-            toolInput.put(PlanningContextKeys.FALLBACK_TOOL, fallbackTool);
-        }
-        if (previousStepKey != null) {
-            toolInput.put(PlanningFieldKeys.DEPENDS_ON, List.of(previousStepKey));
-            dependencies.add(Map.of(PlanningFieldKeys.FROM, previousStepKey, PlanningFieldKeys.TO, toolStepKey));
-        }
-        steps.add(planParser.buildStepSpec("TOOL", toolInput));
-        planSteps.add(Map.of(PlanningFieldKeys.ID,
-                toolStepKey,
-                PlanningFieldKeys.TYPE,
-                "TOOL",
-                PlanningFieldKeys.NAME,
-                "tool-exec"));
+        PlanningStrategyContext strategyContext = new PlanningStrategyContext(planId,
+                tenantId,
+                query,
+                planningContext,
+                complexityScore,
+                cognitiveStrategy,
+                executionStrategy,
+                mode,
+                strategy,
+                steps,
+                planSteps,
+                dependencies,
+                null);
+        log.info("规则规划调度开始, tenantId={}, planId={}, strategy={}, mode={}, cognitive={}",
+                tenantId,
+                planId,
+                strategy,
+                mode,
+                cognitiveStrategy);
+        PlanningStrategyResult strategyResult = strategyRegistry.execute(strategyContext);
+        List<StepSpec> resolvedSteps = resolveSteps(strategyResult, steps);
+        List<Map<String, Object>> resolvedPlanSteps = resolvePlanSteps(strategyResult, planSteps);
+        List<Map<String, String>> resolvedDependencies = resolveDependencies(strategyResult, dependencies);
+        String scene = strategyResult != null && strategyResult.getScene() != null
+                ? strategyResult.getScene()
+                : "规则回退";
         return finalizePlan(planId,
                 tenantId,
-                "规则回退",
+                scene,
                 planningContext,
                 executionStrategy,
                 cognitiveStrategy,
                 complexityScore,
-                steps,
-                planSteps,
-                dependencies);
+                resolvedSteps,
+                resolvedPlanSteps,
+                resolvedDependencies);
     }
 
     /**
@@ -295,7 +139,7 @@ public class HeuristicPlanBuilder {
         planningContext.put(PlanningContextKeys.EXECUTION_STRATEGY, executionStrategy);
         planningContext.put(PlanningContextKeys.COGNITIVE_STRATEGY, cognitiveStrategy);
         log.info("规划生成（{}）, tenantId={}, planId={}, summary={}", scene, tenantId, planId, summary);
-        return new PlanResult(planId, summary, steps);
+        return PlanResult.readonly(planId, summary, steps);
     }
 
     private String resolveCognitiveStrategy(PlanningContext planningContext, double complexityScore) {
@@ -307,73 +151,48 @@ public class HeuristicPlanBuilder {
             return strategy;
         }
         if (complexityScore >= 0.7) {
-            return "tree_of_thoughts";
+            return PlanningContextKeys.STRATEGY_TREE_OF_THOUGHTS;
         }
         if (complexityScore >= 0.4) {
-            return "reflection";
+            return PlanningContextKeys.STRATEGY_REFLECTION;
         }
-        return "simple";
+        return PlanningContextKeys.STRATEGY_SIMPLE;
     }
 
-    private String resolveExecutionStrategy(PlanningContext planningContext, double complexityScore) {
+    private String resolveExecutionStrategy(PlanningContext planningContext) {
         String strategy = planningContext.getLowercaseString(PlanningContextKeys.EXECUTION_STRATEGY);
         if (strategy != null) {
             return strategy;
         }
-        if (complexityScore >= 0.7) {
-            return "sequential";
-        }
-        return "sequential";
-    }
-
-    private boolean needsThoughtTree(String cognitiveStrategy, double complexityScore) {
-        if (cognitiveStrategy == null) {
-            return false;
-        }
-        if ("tree_of_thoughts".equalsIgnoreCase(cognitiveStrategy)
-                || "tot".equalsIgnoreCase(cognitiveStrategy)) {
-            return true;
-        }
-        return complexityScore >= 0.8;
-    }
-
-    private boolean shouldUseReact(PlanningContext planningContext, String mode, String strategy) {
-        if ("react".equalsIgnoreCase(mode) || "react".equalsIgnoreCase(strategy)) {
-            return true;
-        }
-        Boolean react = planningContext.getBoolean(PlanningContextKeys.REACT);
-        if (react == null) {
-            react = planningContext.getBoolean(PlanningContextKeys.REACT_ENABLED);
-        }
-        return Boolean.TRUE.equals(react);
-    }
-
-    private boolean isToolsDisabled(PlanningContext planningContext) {
-        Boolean disableTools = planningContext.getBoolean(PlanningContextKeys.DISABLE_TOOLS);
-        if (Boolean.TRUE.equals(disableTools)) {
-            return true;
-        }
-        var toolChoice = planningContext.getToolChoice();
-        return toolChoice != null && toolChoice.getMode() == com.example.agent.capabilities.llm.contract.ModelToolChoice.Mode.NONE;
-    }
-
-    private boolean isChainOfThoughtRequested(String mode, String strategy, String cognitiveStrategy) {
-        return isChainOfThoughtValue(mode)
-                || isChainOfThoughtValue(strategy)
-                || isChainOfThoughtValue(cognitiveStrategy);
-    }
-
-    private boolean isChainOfThoughtValue(String value) {
-        if (value == null || value.isBlank()) {
-            return false;
-        }
-        String normalized = value.trim().toLowerCase(Locale.ROOT);
-        return "cot".equals(normalized)
-                || "chain_of_thought".equals(normalized)
-                || "chain-of-thought".equals(normalized);
+        return PlanningContextKeys.EXECUTION_SEQUENTIAL;
     }
 
     private String safeLowercase(String value) {
         return value != null ? value.toLowerCase(Locale.ROOT) : "";
+    }
+
+    private List<StepSpec> resolveSteps(PlanningStrategyResult strategyResult, List<StepSpec> fallback) {
+        if (strategyResult != null && strategyResult.getSteps() != null && !strategyResult.getSteps().isEmpty()) {
+            return new ArrayList<>(strategyResult.getSteps());
+        }
+        return fallback;
+    }
+
+    private List<Map<String, Object>> resolvePlanSteps(PlanningStrategyResult strategyResult,
+                                                       List<Map<String, Object>> fallback) {
+        if (strategyResult != null && strategyResult.getPlanSteps() != null && !strategyResult.getPlanSteps().isEmpty()) {
+            return new ArrayList<>(strategyResult.getPlanSteps());
+        }
+        return fallback;
+    }
+
+    private List<Map<String, String>> resolveDependencies(PlanningStrategyResult strategyResult,
+                                                          List<Map<String, String>> fallback) {
+        if (strategyResult != null
+                && strategyResult.getDependencies() != null
+                && !strategyResult.getDependencies().isEmpty()) {
+            return new ArrayList<>(strategyResult.getDependencies());
+        }
+        return fallback;
     }
 }

@@ -4,6 +4,15 @@ import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.planning.PlanningContextKeys;
 import com.example.agent.planning.context.PlanningContext;
 import com.example.agent.planning.parser.PlanParser;
+import com.example.agent.planning.strategy.PlanningStrategyRegistry;
+import com.example.agent.planning.strategy.handlers.ChainOfThoughtStrategyHandler;
+import com.example.agent.planning.strategy.handlers.DebateStrategyHandler;
+import com.example.agent.planning.strategy.handlers.DirectLlmStrategyHandler;
+import com.example.agent.planning.strategy.handlers.MultiAgentStrategyHandler;
+import com.example.agent.planning.strategy.handlers.ReactStrategyHandler;
+import com.example.agent.planning.strategy.handlers.ResearchStrategyHandler;
+import com.example.agent.planning.strategy.handlers.ThoughtTreeStrategyHandler;
+import com.example.agent.planning.strategy.handlers.ToolFallbackStrategyHandler;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
@@ -16,7 +25,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class HeuristicPlanBuilderTest {
 
-    private final HeuristicPlanBuilder builder = new HeuristicPlanBuilder(new PlanParser(new ObjectMapper()));
+    private final PlanParser planParser = new PlanParser(new ObjectMapper());
+    private final HeuristicPlanBuilder builder = new HeuristicPlanBuilder(new PlanningStrategyRegistry(List.of(
+            new ChainOfThoughtStrategyHandler(planParser),
+            new ThoughtTreeStrategyHandler(planParser),
+            new MultiAgentStrategyHandler(planParser),
+            new DebateStrategyHandler(planParser),
+            new ResearchStrategyHandler(planParser),
+            new ReactStrategyHandler(planParser),
+            new DirectLlmStrategyHandler(planParser),
+            new ToolFallbackStrategyHandler(planParser)
+    )));
 
     @Test
     void buildGeneratesChainOfThoughtWhenModeCot() {
@@ -81,4 +100,3 @@ class HeuristicPlanBuilderTest {
         assertTrue(complex >= simple);
     }
 }
-

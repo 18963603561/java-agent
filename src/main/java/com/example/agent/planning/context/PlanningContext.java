@@ -5,7 +5,6 @@ import com.example.agent.budget.trim.ContextPruneResult;
 import com.example.agent.capabilities.context.ContextSnapshot;
 import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.planning.PlanningContextKeys;
-import com.example.agent.planning.PlanningFieldKeys;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -251,69 +250,6 @@ public class PlanningContext {
     }
 
     /**
-     * 读取证据包对象。
-     *
-     * @return 证据包对象
-     */
-    public com.example.agent.capabilities.context.EvidencePack getEvidencePack() {
-        Object value = values.get(PlanningContextKeys.EVIDENCE_PACK);
-        if (value instanceof com.example.agent.capabilities.context.EvidencePack pack) {
-            return pack;
-        }
-        return null;
-    }
-
-    /**
-     * 读取记忆统计数量。
-     *
-     * @return 记忆条目数
-     */
-    public Integer getMemoryCount() {
-        Object memoryObj = values.get(PlanningContextKeys.MEMORY);
-        if (memoryObj instanceof Map<?, ?> memoryMap) {
-            Object count = memoryMap.get(PlanningContextKeys.COUNT);
-            if (count instanceof Number number) {
-                return number.intValue();
-            }
-            if (count != null) {
-                try {
-                    return Integer.parseInt(count.toString());
-                } catch (NumberFormatException ex) {
-                    return null;
-                }
-            }
-        }
-        ContextSnapshot snapshot = getContextSnapshot();
-        if (snapshot != null && snapshot.getWorkingMemory() != null) {
-            return snapshot.getWorkingMemory().getWorkingMemoryItems();
-        }
-        return null;
-    }
-
-    /**
-     * 读取证据条目数量。
-     *
-     * @return 证据数量
-     */
-    public Integer getEvidenceCount() {
-        var evidencePack = getEvidencePack();
-        if (evidencePack == null) {
-            return null;
-        }
-        var stats = evidencePack.getStats();
-        if (stats != null && stats.getResearchCount() != null) {
-            return stats.getResearchCount();
-        }
-        if (stats != null && stats.getTotalCount() != null) {
-            return stats.getTotalCount();
-        }
-        if (evidencePack.getEvidences() != null) {
-            return evidencePack.getEvidences().size();
-        }
-        return null;
-    }
-
-    /**
      * 读取工具选择模式名称。
      *
      * @return 模式名称
@@ -345,40 +281,6 @@ public class PlanningContext {
      * @return 摘要上下文映射
      */
     public Map<String, Object> toPromptSummary() {
-        Map<String, Object> summary = new HashMap<>();
-        String snapshotId = getString(PlanningContextKeys.SNAPSHOT_ID);
-        if (snapshotId == null) {
-            ContextSnapshot snapshot = getContextSnapshot();
-            if (snapshot != null && StringUtils.hasText(snapshot.getSnapshotId())) {
-                snapshotId = snapshot.getSnapshotId();
-            }
-        }
-        if (StringUtils.hasText(snapshotId)) {
-            summary.put(PlanningContextKeys.SNAPSHOT_ID, snapshotId);
-        }
-        ContextBudgetAllocation allocation = getContextBudget();
-        Integer tokenBudget = allocation != null ? allocation.getTotalTokens() : null;
-        if (tokenBudget == null) {
-            tokenBudget = getInteger(PlanningContextKeys.BUDGET_THRESHOLD_TOKENS);
-        }
-        if (tokenBudget != null) {
-            summary.put(PlanningFieldKeys.TOKEN_BUDGET, tokenBudget);
-        }
-        Integer memoryItems = getMemoryCount();
-        if (memoryItems != null) {
-            summary.put(PlanningFieldKeys.MEMORY_ITEMS, memoryItems);
-        }
-        List<String> tools = getTools();
-        if (!tools.isEmpty()) {
-            summary.put(PlanningContextKeys.TOOLS, tools);
-        }
-        Integer evidenceCount = getEvidenceCount();
-        if (evidenceCount != null) {
-            summary.put(PlanningFieldKeys.EVIDENCE_COUNT, evidenceCount);
-        }
-        if (summary.isEmpty()) {
-            summary.put(PlanningFieldKeys.SUMMARY, "(summary disabled)");
-        }
-        return summary;
+        return PlanningPromptSummaryFactory.build(this);
     }
 }

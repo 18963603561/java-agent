@@ -13,6 +13,8 @@ import com.example.agent.planning.PlanningContextKeys;
 import com.example.agent.planning.PlanningFieldKeys;
 import com.example.agent.planning.PlanningPromptBuilder;
 import com.example.agent.planning.context.PlanningContext;
+import com.example.agent.planning.parser.PlanParseAttemptResult;
+import com.example.agent.planning.parser.PlanParseErrorTypes;
 import com.example.agent.planning.parser.PlanParseResult;
 import com.example.agent.planning.parser.PlanParser;
 import com.example.agent.planning.telemetry.PlanTelemetry;
@@ -89,13 +91,21 @@ public class LlmPlanEngine {
                                        AtomicLong seqCounter,
                                        PlanningContext planningContext,
                                        String planId) {
+        long start = System.currentTimeMillis();
         PlanningContext resolvedContext = planningContext != null ? planningContext : new PlanningContext(new HashMap<>());
         String tenantId = tenantContext != null ? tenantContext.getTenantId() : null;
         try {
+            long promptStart = System.currentTimeMillis();
             String prompt = planningPromptBuilder.buildPrompt(request, buildContextSummary(resolvedContext));
+            log.debug("规划提示词构建完成, tenantId={}, workflowId={}, planId={}, costMs={}",
+                    tenantId,
+                    workflowId,
+                    planId,
+                    System.currentTimeMillis() - promptStart);
             ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.PLANNER);
             String resolvedTenantId = resolveTenantId(request, resolvedContext);
             String resolvedWorkflowId = resolveWorkflowId(workflowId, resolvedContext);
+            long bundleStart = System.currentTimeMillis();
             planTelemetry.applyPromptBundle(modelRequest,
                     prompt,
                     request,
@@ -107,7 +117,19 @@ public class LlmPlanEngine {
                     resolvedWorkflowId,
                     tenantContext,
                     seqCounter);
+            log.debug("规划提示词打包完成, tenantId={}, workflowId={}, planId={}, costMs={}",
+                    tenantId,
+                    workflowId,
+                    planId,
+                    System.currentTimeMillis() - bundleStart);
+
+            long toolBindStart = System.currentTimeMillis();
             modelToolResolver.applyTooling(modelRequest, request, null, true);
+            log.debug("规划工具绑定完成, tenantId={}, workflowId={}, planId={}, costMs={}",
+                    tenantId,
+                    workflowId,
+                    planId,
+                    System.currentTimeMillis() - toolBindStart);
 
             Map<String, Object> metadata = new HashMap<>();
             metadata.put(PlanningFieldKeys.PLAN_ID, planId);
@@ -133,58 +155,40 @@ public class LlmPlanEngine {
 
             if (response == null || !StringUtils.hasText(response.getContent())) {
                 log.warn("规划模型输出为空, tenantId={}, workflowId={}, planId={}", tenantId, workflowId, planId);
+                planTelemetry.recordPromptTrace(metadata,
+                        prompt,
+                        tenantContext,
+                        workflowId,
+                        seqCounter,
+                        response != null ? response.getModelId() : null,
+                        false,
+                        PlanParseErrorTypes.EMPTY_OUTPUT,
+                        false,
+                        false);
                 return new LlmPlanEngineResult(null);
             }
 
-            String rawContent = response.getContent();
-            String parseErrorType = null;
-            boolean repairAttempted = false;
-            boolean repairSuccess = false;
-            PlanParseResult parsed;
-            try {
-                parsed = planParser.parse(rawContent, request, resolvedContext.mutableValues());
-            } catch (Exception ex) {
-                log.warn("规划解析失败, tenantId={}, workflowId={}, planId={}, reason={}",
-                        tenantId,
-                        workflowId,
-                        planId,
-                        ex.getMessage(),
-                        ex);
-                parsed = null;
-                parseErrorType = "json_parse_error";
-            }
-
-            if (parsed == null || parsed.getSteps() == null || parsed.getSteps().isEmpty()) {
-                if (parseErrorType == null) {
-                    parseErrorType = resolveParseErrorType(rawContent);
-                }
-                repairAttempted = true;
-                long repairStart = System.currentTimeMillis();
-                PlanParseResult repaired = tryRepairPlan(rawContent,
-                        request,
-                        resolvedContext,
-                        tenantId,
-                        workflowId,
-                        planId);
-                planTelemetry.logRepairEnd(tenantId,
-                        workflowId,
-                        planId,
-                        System.currentTimeMillis() - repairStart,
-                        repaired != null && repaired.getSteps() != null && !repaired.getSteps().isEmpty());
-                if (repaired != null && repaired.getSteps() != null && !repaired.getSteps().isEmpty()) {
-                    parsed = repaired;
-                    repairSuccess = true;
-                }
-            }
-
-            if (parsed == null || parsed.getSteps() == null || parsed.getSteps().isEmpty()) {
+            long parseStart = System.currentTimeMillis();
+            LlmPlanAttemptResult parseResult = resolvePlanResult(response.getContent(),
+                    request,
+                    resolvedContext,
+                    tenantId,
+                    workflowId,
+                    planId);
+            log.debug("规划解析阶段完成, tenantId={}, workflowId={}, planId={}, costMs={}, success={}",
+                    tenantId,
+                    workflowId,
+                    planId,
+                    System.currentTimeMillis() - parseStart,
+                    parseResult.isSuccess());
+            if (!parseResult.isSuccess()) {
                 log.warn("规划生成失败, tenantId={}, workflowId={}, planId={}, parseErrorType={}, repairAttempted={}, repairSuccess={}",
                         tenantId,
                         workflowId,
                         planId,
-                        parseErrorType,
-                        repairAttempted,
-                        repairSuccess);
+                        parseResult.getParseErrorType(),
+                        parseResult.isRepairAttempted(),
+                        parseResult.isRepairSuccess());
                 planTelemetry.recordPromptTrace(metadata,
                         prompt,
                         tenantContext,
@@ -192,9 +196,9 @@ public class LlmPlanEngine {
                         seqCounter,
                         response.getModelId(),
                         false,
-                        parseErrorType,
-                        repairAttempted,
-                        repairSuccess);
+                        parseResult.getParseErrorType(),
+                        parseResult.isRepairAttempted(),
+                        parseResult.isRepairSuccess());
                 return new LlmPlanEngineResult(null);
             }
 
@@ -206,14 +210,19 @@ public class LlmPlanEngine {
                     response.getModelId(),
                     true,
                     null,
-                    repairAttempted,
-                    repairSuccess);
-            PlanResult result = new PlanResult(planId, parsed.getSummary(), parsed.getSteps());
+                    parseResult.isRepairAttempted(),
+                    parseResult.isRepairSuccess());
+            PlanResult result = parseResult.getPlanResult();
             log.info("规划生成成功(LLM), tenantId={}, workflowId={}, planId={}, steps={}",
                     tenantId,
                     workflowId,
                     planId,
-                    parsed.getSteps().size());
+                    result.getSteps().size());
+            log.debug("规划总耗时(LLM), tenantId={}, workflowId={}, planId={}, costMs={}",
+                    tenantId,
+                    workflowId,
+                    planId,
+                    System.currentTimeMillis() - start);
             return new LlmPlanEngineResult(result);
         } catch (Exception ex) {
             log.warn("规划模型链路异常, tenantId={}, workflowId={}, planId={}, reason={}",
@@ -226,12 +235,51 @@ public class LlmPlanEngine {
         }
     }
 
-    private PlanParseResult tryRepairPlan(String rawContent,
-                                          TaskRequest request,
-                                          PlanningContext planningContext,
-                                          String tenantId,
-                                          String workflowId,
-                                          String planId) {
+    private LlmPlanAttemptResult resolvePlanResult(String rawContent,
+                                                   TaskRequest request,
+                                                   PlanningContext planningContext,
+                                                   String tenantId,
+                                                   String workflowId,
+                                                   String planId) {
+        PlanParseAttemptResult parseAttempt = planParser.parseAttempt(rawContent,
+                request,
+                planningContext.mutableValues());
+        if (parseAttempt == null) {
+            log.warn("规划解析返回空尝试结果, tenantId={}, workflowId={}, planId={}", tenantId, workflowId, planId);
+            return LlmPlanAttemptResult.failure(PlanParseErrorTypes.JSON_PARSE_ERROR, false, false);
+        }
+        if (parseAttempt.isSuccess()) {
+            PlanResult success = toPlanResult(planId, parseAttempt.getResult());
+            return LlmPlanAttemptResult.success(success, false, false);
+        }
+        String parseErrorType = parseAttempt.getErrorType();
+        long repairStart = System.currentTimeMillis();
+        PlanParseAttemptResult repaired = tryRepairPlan(rawContent,
+                request,
+                planningContext,
+                tenantId,
+                workflowId,
+                planId);
+        planTelemetry.logRepairEnd(tenantId,
+                workflowId,
+                planId,
+                System.currentTimeMillis() - repairStart,
+                repaired != null && repaired.isSuccess());
+        if (repaired != null && repaired.isSuccess()) {
+            PlanResult success = toPlanResult(planId, repaired.getResult());
+            return LlmPlanAttemptResult.success(success, true, true);
+        }
+        return LlmPlanAttemptResult.failure(parseErrorType != null ? parseErrorType : PlanParseErrorTypes.MISSING_STEPS,
+                true,
+                false);
+    }
+
+    private PlanParseAttemptResult tryRepairPlan(String rawContent,
+                                                 TaskRequest request,
+                                                 PlanningContext planningContext,
+                                                 String tenantId,
+                                                 String workflowId,
+                                                 String planId) {
         if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
             return null;
         }
@@ -257,24 +305,17 @@ public class LlmPlanEngine {
         if (!StringUtils.hasText(repaired)) {
             return null;
         }
-        try {
-            return planParser.parse(repaired, request, planningContext.mutableValues());
-        } catch (Exception ex) {
-            log.warn("规划修复结果解析失败, tenantId={}, workflowId={}, planId={}, reason={}",
+        PlanParseAttemptResult repairedAttempt = planParser.parseAttempt(repaired,
+                request,
+                planningContext.mutableValues());
+        if (!repairedAttempt.isSuccess()) {
+            log.warn("规划修复结果解析失败, tenantId={}, workflowId={}, planId={}, errorType={}",
                     tenantId,
                     workflowId,
                     planId,
-                    ex.getMessage(),
-                    ex);
-            return null;
+                    repairedAttempt.getErrorType());
         }
-    }
-
-    private String resolveParseErrorType(String rawContent) {
-        if (!StringUtils.hasText(rawContent)) {
-            return "empty_output";
-        }
-        return "missing_field";
+        return repairedAttempt;
     }
 
     private Map<String, Object> buildContextSummary(PlanningContext planningContext) {
@@ -318,5 +359,12 @@ public class LlmPlanEngine {
      */
     public String newPlanId() {
         return UUID.randomUUID().toString();
+    }
+
+    private PlanResult toPlanResult(String planId, PlanParseResult parseResult) {
+        if (parseResult == null || parseResult.getSteps() == null || parseResult.getSteps().isEmpty()) {
+            return null;
+        }
+        return PlanResult.readonly(planId, parseResult.getSummary(), parseResult.getSteps());
     }
 }

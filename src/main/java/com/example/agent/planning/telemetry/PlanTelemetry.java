@@ -8,10 +8,8 @@ import com.example.agent.budget.token.ContextBudgetAllocation;
 import com.example.agent.budget.trim.ContextPruneResult;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
-import com.example.agent.capabilities.llm.client.ModelInvocationService;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.prompt.PromptBundle;
-import com.example.agent.capabilities.llm.prompt.PromptTrace;
 import com.example.agent.planning.PlanningFieldKeys;
 import com.example.agent.streaming.payload.ContextEventPublisher;
 import com.example.agent.streaming.payload.ContextSnapshotStage;
@@ -36,7 +34,7 @@ public class PlanTelemetry {
     private final PromptAssembler promptAssembler;
     private final ContextAssembler contextAssembler;
     private final ContextEventPublisher contextEventPublisher;
-    private final ModelInvocationService modelInvocationService;
+    private final PlanningPromptTraceService planningPromptTraceService;
 
     /**
      * 构造规划遥测组件。
@@ -44,16 +42,16 @@ public class PlanTelemetry {
      * @param promptAssembler 提示词组装器
      * @param contextAssembler 上下文组装器
      * @param contextEventPublisher 上下文事件发布器
-     * @param modelInvocationService 模型调用服务
+     * @param planningPromptTraceService 提示词追踪服务
      */
     public PlanTelemetry(PromptAssembler promptAssembler,
                          ContextAssembler contextAssembler,
                          ContextEventPublisher contextEventPublisher,
-                         ModelInvocationService modelInvocationService) {
+                         PlanningPromptTraceService planningPromptTraceService) {
         this.promptAssembler = promptAssembler;
         this.contextAssembler = contextAssembler;
         this.contextEventPublisher = contextEventPublisher;
-        this.modelInvocationService = modelInvocationService;
+        this.planningPromptTraceService = planningPromptTraceService;
     }
 
     /**
@@ -136,18 +134,19 @@ public class PlanTelemetry {
                                   String parseErrorType,
                                   boolean repairAttempted,
                                   boolean repairSuccess) {
-        PromptTrace trace = PromptTrace.fromMetadata(metadata);
-        if (trace == null) {
-            trace = PromptTrace.fromPrompt(PlanningFieldKeys.SCENE_PLANNER, promptText);
-        }
-        if (trace == null) {
+        if (planningPromptTraceService == null) {
             return;
         }
-        trace.setParseSuccess(parseSuccess);
-        trace.setParseErrorType(parseErrorType);
-        trace.setRepairAttempted(repairAttempted);
-        trace.setRepairSuccess(repairSuccess);
-        modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "plan", modelId);
+        planningPromptTraceService.recordPromptTrace(metadata,
+                promptText,
+                tenantContext,
+                workflowId,
+                seqCounter,
+                modelId,
+                parseSuccess,
+                parseErrorType,
+                repairAttempted,
+                repairSuccess);
     }
 
     /**

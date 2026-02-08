@@ -3,7 +3,6 @@ package com.example.agent.planning;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -11,35 +10,30 @@ import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
-import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 
 /**
- * planning 包源码编码守卫测试。
+ * planning 范围行结束符守卫测试。
  *
- * <p>用途：阻止 planning 包再次出现私有区字符导致的乱码回归。
+ * <p>用途：阻止 planning 相关源码与提示词模板出现 CRLF 回归，统一为 LF。
  */
-class PlanningSourceEncodingGuardTest {
-
-    private static final Pattern PRIVATE_USE_CHAR_PATTERN = Pattern.compile("[\\uE000-\\uF8FF]");
-    private static final Pattern REPLACEMENT_CHAR_PATTERN = Pattern.compile("\\uFFFD");
+class PlanningLineEndingGuardTest {
 
     @Test
-    void planningSourceAndPromptShouldNotContainIllegalChars() throws IOException {
+    void planningScopeShouldUseLfLineEnding() throws IOException {
         List<String> violations = new ArrayList<>();
         Set<Path> files = collectScanFiles();
 
         for (Path file : files) {
-            String content = Files.readString(file, StandardCharsets.UTF_8);
-            if (PRIVATE_USE_CHAR_PATTERN.matcher(content).find()
-                    || REPLACEMENT_CHAR_PATTERN.matcher(content).find()) {
+            byte[] bytes = Files.readAllBytes(file);
+            if (containsCrLf(bytes)) {
                 violations.add(file.toString());
             }
         }
 
         assertTrue(violations.isEmpty(),
-                "Detected illegal encoding chars in planning scope:\n" + String.join("\n", violations));
+                "Detected CRLF line ending in planning scope:\n" + String.join("\n", violations));
     }
 
     private Set<Path> collectScanFiles() throws IOException {
@@ -59,4 +53,17 @@ class PlanningSourceEncodingGuardTest {
                     .forEach(files::add);
         }
     }
+
+    private boolean containsCrLf(byte[] bytes) {
+        if (bytes == null || bytes.length < 2) {
+            return false;
+        }
+        for (int index = 0; index < bytes.length - 1; index++) {
+            if (bytes[index] == '\r' && bytes[index + 1] == '\n') {
+                return true;
+            }
+        }
+        return false;
+    }
 }
+

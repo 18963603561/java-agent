@@ -44,4 +44,18 @@ public class PlanResult {
     public void setSteps(List<StepSpec> steps) {
         this.steps = steps;
     }
+
+    /**
+     * 创建只读规划结果实例。
+     *
+     * @param planId 规划标识
+     * @param summary 规划摘要
+     * @param steps 规划步骤
+     * @return 新的规划结果
+     */
+    public static PlanResult readonly(String planId, String summary, List<StepSpec> steps) {
+        return new PlanResult(planId,
+                summary,
+                steps != null ? List.copyOf(steps) : List.of());
+    }
 }

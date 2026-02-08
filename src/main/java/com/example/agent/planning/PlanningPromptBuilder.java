@@ -8,6 +8,7 @@ import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -31,6 +32,7 @@ public class PlanningPromptBuilder {
     private final ObjectMapper objectMapper;
     private final ResourceLoader resourceLoader;
     private final String templatePath;
+    private final AtomicReference<String> templateCache = new AtomicReference<>();
 
     public PlanningPromptBuilder(ObjectMapper objectMapper,
                                  ResourceLoader resourceLoader,
@@ -67,12 +69,22 @@ public class PlanningPromptBuilder {
     }
 
     private String loadTemplate() {
+        String cached = templateCache.get();
+        if (cached != null) {
+            log.debug("规划模板缓存命中, templatePath={}", templatePath);
+            return cached;
+        }
         Resource resource = resourceLoader.getResource(templatePath);
         if (resource == null || !resource.exists()) {
             throw new IllegalStateException("planner_prompt_template_missing");
         }
         try (InputStream inputStream = resource.getInputStream()) {
-            return new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            String loaded = new String(inputStream.readAllBytes(), StandardCharsets.UTF_8);
+            templateCache.compareAndSet(null, loaded);
+            log.info("规划模板缓存已初始化, templatePath={}, templateLength={}",
+                    templatePath,
+                    loaded.length());
+            return templateCache.get();
         } catch (IOException ex) {
             throw new IllegalStateException("planner_prompt_template_read_failed", ex);
         }

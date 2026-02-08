@@ -20,11 +20,24 @@ import com.example.agent.orchestration.multiagent.MultiAgentCoordinator;
 import com.example.agent.planning.PlannerProperties;
 import com.example.agent.planning.PlannerService;
 import com.example.agent.planning.PlanningPromptBuilder;
+import com.example.agent.planning.approval.PlanningApprovalService;
 import com.example.agent.planning.builder.HeuristicPlanBuilder;
+import com.example.agent.planning.capability.PlanningCapabilityService;
+import com.example.agent.planning.capability.PlanningRecommendationMapper;
 import com.example.agent.planning.context.PlanningContextMapper;
 import com.example.agent.planning.engine.LlmPlanEngine;
 import com.example.agent.planning.parser.PlanParser;
+import com.example.agent.planning.strategy.PlanningStrategyRegistry;
+import com.example.agent.planning.strategy.handlers.ChainOfThoughtStrategyHandler;
+import com.example.agent.planning.strategy.handlers.DebateStrategyHandler;
+import com.example.agent.planning.strategy.handlers.DirectLlmStrategyHandler;
+import com.example.agent.planning.strategy.handlers.MultiAgentStrategyHandler;
+import com.example.agent.planning.strategy.handlers.ReactStrategyHandler;
+import com.example.agent.planning.strategy.handlers.ResearchStrategyHandler;
+import com.example.agent.planning.strategy.handlers.ThoughtTreeStrategyHandler;
+import com.example.agent.planning.strategy.handlers.ToolFallbackStrategyHandler;
 import com.example.agent.planning.telemetry.PlanTelemetry;
+import com.example.agent.planning.telemetry.PlanningPromptTraceService;
 import com.example.agent.reasoning.cot.ChainOfThoughtService;
 import com.example.agent.reasoning.debate.DebateCoordinator;
 import com.example.agent.reasoning.thoughttree.ThoughtNode;
@@ -112,10 +125,11 @@ class AgentRuntimeApprovalIntegrationTest {
         ContextEventPublisher plannerContextEventPublisher = Mockito.mock(ContextEventPublisher.class);
         ObjectMapper plannerObjectMapper = new ObjectMapper();
         PlanParser planParser = new PlanParser(plannerObjectMapper);
+        PlanningPromptTraceService planningPromptTraceService = new PlanningPromptTraceService(modelInvocationService);
         PlanTelemetry planTelemetry = new PlanTelemetry(promptAssembler,
                 plannerContextAssembler,
                 plannerContextEventPublisher,
-                modelInvocationService);
+                planningPromptTraceService);
         LlmPlanEngine llmPlanEngine = new LlmPlanEngine(modelInvocationService,
                 Mockito.mock(com.example.agent.capabilities.llm.tooling.ModelToolResolver.class),
                 new PlanningPromptBuilder(plannerObjectMapper,
@@ -125,10 +139,25 @@ class AgentRuntimeApprovalIntegrationTest {
                 plannerObjectMapper,
                 planParser,
                 planTelemetry);
-        HeuristicPlanBuilder heuristicPlanBuilder = new HeuristicPlanBuilder(planParser);
+        PlanningStrategyRegistry strategyRegistry = new PlanningStrategyRegistry(List.of(
+                new ChainOfThoughtStrategyHandler(planParser),
+                new ThoughtTreeStrategyHandler(planParser),
+                new MultiAgentStrategyHandler(planParser),
+                new DebateStrategyHandler(planParser),
+                new ResearchStrategyHandler(planParser),
+                new ReactStrategyHandler(planParser),
+                new DirectLlmStrategyHandler(planParser),
+                new ToolFallbackStrategyHandler(planParser)
+        ));
+        HeuristicPlanBuilder heuristicPlanBuilder = new HeuristicPlanBuilder(strategyRegistry);
+        PlanningCapabilityService planningCapabilityService = new PlanningCapabilityService(
+                evaluator,
+                heuristicPlanBuilder,
+                new PlanningRecommendationMapper());
         PlannerService plannerService = new PlannerService(
                 plannerProperties,
-                evaluator,
+                planningCapabilityService,
+                new PlanningApprovalService(),
                 llmPlanEngine,
                 heuristicPlanBuilder,
                 new PlanningContextMapper());
@@ -302,4 +331,3 @@ class AgentRuntimeApprovalIntegrationTest {
         }
     }
 }
-
