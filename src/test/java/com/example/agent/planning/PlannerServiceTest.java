@@ -1,35 +1,40 @@
 package com.example.agent.planning;
 
-import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.ContextAssembler;
 import com.example.agent.capabilities.context.PromptAssemblyInput;
-import com.example.agent.governance.evaluation.CapabilityBoundaryEvaluator;
-import com.example.agent.governance.evaluation.CapabilityEvaluationProperties;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.contract.ModelToolChoice;
-import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.prompt.PromptBundle;
 import com.example.agent.capabilities.llm.prompt.PromptMessage;
 import com.example.agent.capabilities.llm.prompt.PromptRole;
 import com.example.agent.capabilities.llm.prompt.PromptTrace;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
-import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.capabilities.llm.support.ValidationSupport;
+import com.example.agent.governance.evaluation.CapabilityBoundaryEvaluator;
+import com.example.agent.governance.evaluation.CapabilityEvaluationProperties;
+import com.example.agent.planning.builder.HeuristicPlanBuilder;
+import com.example.agent.planning.context.PlanningContextMapper;
+import com.example.agent.planning.engine.LlmPlanEngine;
+import com.example.agent.planning.parser.PlanParser;
+import com.example.agent.planning.telemetry.PlanTelemetry;
 import com.example.agent.runtime.model.StepSpec;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.streaming.payload.ContextSnapshotStage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Mockito;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.DefaultResourceLoader;
-import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
-import org.mockito.ArgumentCaptor;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -44,7 +49,6 @@ class PlannerServiceTest {
     @Test
     void planReturnsToolStepForSimpleQueryWithFallback() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
-        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
         com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
@@ -53,8 +57,13 @@ class PlannerServiceTest {
         properties.setLlmEnabled(false);
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
+        PlannerService plannerService = newPlannerService(modelInvocationService,
+                promptAssembler,
+                contextAssembler,
+                contextEventPublisher,
+                properties,
+                evaluator,
+                Mockito.mock(JsonOutputRepairService.class));
 
         TaskRequest request = new TaskRequest();
         request.setQuery("ping");
@@ -73,7 +82,6 @@ class PlannerServiceTest {
     @Test
     void planReturnsLlmStepWhenToolsDisabled() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
-        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
         com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
@@ -82,8 +90,13 @@ class PlannerServiceTest {
         properties.setLlmEnabled(false);
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
+        PlannerService plannerService = newPlannerService(modelInvocationService,
+                promptAssembler,
+                contextAssembler,
+                contextEventPublisher,
+                properties,
+                evaluator,
+                Mockito.mock(JsonOutputRepairService.class));
 
         TaskRequest request = new TaskRequest();
         request.setQuery("ping");
@@ -99,7 +112,6 @@ class PlannerServiceTest {
     @Test
     void planUsesLlmWhenEnabled() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
-        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
         com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
@@ -108,8 +120,13 @@ class PlannerServiceTest {
         properties.setLlmEnabled(true);
         properties.setFallbackEnabled(false);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
+        PlannerService plannerService = newPlannerService(modelInvocationService,
+                promptAssembler,
+                contextAssembler,
+                contextEventPublisher,
+                properties,
+                evaluator,
+                Mockito.mock(JsonOutputRepairService.class));
 
         String content = """
                 {
@@ -136,7 +153,6 @@ class PlannerServiceTest {
     @Test
     void planPromptUsesContextSummary() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
-        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
         com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
@@ -145,9 +161,13 @@ class PlannerServiceTest {
         properties.setLlmEnabled(true);
         properties.setFallbackEnabled(false);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher,
-                Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
+        PlannerService plannerService = newPlannerService(modelInvocationService,
+                promptAssembler,
+                contextAssembler,
+                contextEventPublisher,
+                properties,
+                evaluator,
+                Mockito.mock(JsonOutputRepairService.class));
 
         String content = """
                 {
@@ -186,7 +206,6 @@ class PlannerServiceTest {
     @Test
     void disabledEvaluationDoesNotAffectPlanning() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
-        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
         com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
@@ -195,8 +214,13 @@ class PlannerServiceTest {
         properties.setLlmEnabled(false);
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
+        PlannerService plannerService = newPlannerService(modelInvocationService,
+                promptAssembler,
+                contextAssembler,
+                contextEventPublisher,
+                properties,
+                evaluator,
+                Mockito.mock(JsonOutputRepairService.class));
 
         TaskRequest request = new TaskRequest();
         request.setQuery("ping");
@@ -210,7 +234,6 @@ class PlannerServiceTest {
     @Test
     void planPublishesPlanAssembledStageEvent() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
-        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
         com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
@@ -219,8 +242,13 @@ class PlannerServiceTest {
         properties.setLlmEnabled(true);
         properties.setFallbackEnabled(false);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, Mockito.mock(JsonOutputRepairService.class), buildPromptBuilder());
+        PlannerService plannerService = newPlannerService(modelInvocationService,
+                promptAssembler,
+                contextAssembler,
+                contextEventPublisher,
+                properties,
+                evaluator,
+                Mockito.mock(JsonOutputRepairService.class));
 
         String content = """
                 {
@@ -274,20 +302,25 @@ class PlannerServiceTest {
     @Test
     void planRepairsOutputWithExtraText() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
-        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
         com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
                 com.example.agent.streaming.payload.ContextEventPublisher.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
-                metricsPublisher);
+                metricsPublisher,
+                new ValidationSupport());
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(true);
         properties.setFallbackEnabled(false);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, repairService, buildPromptBuilder());
+        PlannerService plannerService = newPlannerService(modelInvocationService,
+                promptAssembler,
+                contextAssembler,
+                contextEventPublisher,
+                properties,
+                evaluator,
+                repairService);
 
         String badContent = "解释: {\"summary\":\"llm-plan\",\"steps\":[{\"type\":\"TOOL\",\"input\":{}}]} 后缀";
         String repaired = """
@@ -318,20 +351,25 @@ class PlannerServiceTest {
     @Test
     void planFallsBackWhenRepairFails() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
-        ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         ContextAssembler contextAssembler = Mockito.mock(ContextAssembler.class);
         com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher = Mockito.mock(
                 com.example.agent.streaming.payload.ContextEventPublisher.class);
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
         JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
-                metricsPublisher);
+                metricsPublisher,
+                new ValidationSupport());
         PlannerProperties properties = new PlannerProperties();
         properties.setLlmEnabled(true);
         properties.setFallbackEnabled(true);
         CapabilityBoundaryEvaluator evaluator = buildEvaluator(false);
-        PlannerService plannerService = new PlannerService(modelInvocationService, modelToolResolver, promptAssembler,
-                properties, evaluator, new ObjectMapper(), contextAssembler, contextEventPublisher, repairService, buildPromptBuilder());
+        PlannerService plannerService = newPlannerService(modelInvocationService,
+                promptAssembler,
+                contextAssembler,
+                contextEventPublisher,
+                properties,
+                evaluator,
+                repairService);
 
         String badContent = "无法解析的输出";
         when(modelInvocationService.invoke(any(ModelRequest.class), any(ModelScene.class),
@@ -358,10 +396,32 @@ class PlannerServiceTest {
         assertFalse(Boolean.TRUE.equals(trace.getRepairSuccess()));
     }
 
-
-    private PlanningPromptBuilder buildPromptBuilder() {
-        return new PlanningPromptBuilder(new ObjectMapper(), new DefaultResourceLoader(),
-                "classpath:prompts/planning/planner-plan-prompt.md");
+    private PlannerService newPlannerService(ModelInvocationService modelInvocationService,
+                                             PromptAssembler promptAssembler,
+                                             ContextAssembler contextAssembler,
+                                             com.example.agent.streaming.payload.ContextEventPublisher contextEventPublisher,
+                                             PlannerProperties properties,
+                                             CapabilityBoundaryEvaluator evaluator,
+                                             JsonOutputRepairService repairService) {
+        ObjectMapper objectMapper = new ObjectMapper();
+        PlanParser planParser = new PlanParser(objectMapper);
+        PlanTelemetry planTelemetry = new PlanTelemetry(promptAssembler, contextAssembler, contextEventPublisher,
+                modelInvocationService);
+        LlmPlanEngine llmPlanEngine = new LlmPlanEngine(modelInvocationService,
+                Mockito.mock(com.example.agent.capabilities.llm.tooling.ModelToolResolver.class),
+                new PlanningPromptBuilder(objectMapper,
+                        new DefaultResourceLoader(),
+                        "classpath:prompts/planning/planner-plan-prompt.md"),
+                repairService,
+                objectMapper,
+                planParser,
+                planTelemetry);
+        HeuristicPlanBuilder heuristicPlanBuilder = new HeuristicPlanBuilder(planParser);
+        return new PlannerService(properties,
+                evaluator,
+                llmPlanEngine,
+                heuristicPlanBuilder,
+                new PlanningContextMapper());
     }
 
     private CapabilityBoundaryEvaluator buildEvaluator(boolean enabled) {
@@ -373,5 +433,3 @@ class PlannerServiceTest {
         return new CapabilityBoundaryEvaluator(evalProps, publisher, eventStreamService);
     }
 }
-
-

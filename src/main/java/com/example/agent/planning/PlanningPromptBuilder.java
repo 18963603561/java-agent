@@ -1,6 +1,7 @@
 package com.example.agent.planning;
 
 import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.planning.PlanningFieldKeys;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.io.IOException;
 import java.io.InputStream;
@@ -55,8 +56,8 @@ public class PlanningPromptBuilder {
 
     private String serializePromptContext(TaskRequest request, Map<String, Object> contextSummary) {
         Map<String, Object> promptContext = new HashMap<>();
-        promptContext.put("query", request != null ? request.getQuery() : null);
-        promptContext.put("contextSummary", contextSummary == null ? Map.of() : contextSummary);
+        promptContext.put(PlanningFieldKeys.QUERY, request != null ? request.getQuery() : null);
+        promptContext.put(PlanningFieldKeys.CONTEXT_SUMMARY, contextSummary == null ? Map.of() : contextSummary);
         try {
             return objectMapper.writeValueAsString(promptContext);
         } catch (Exception ex) {
@@ -77,4 +78,3 @@ public class PlanningPromptBuilder {
         }
     }
 }
-

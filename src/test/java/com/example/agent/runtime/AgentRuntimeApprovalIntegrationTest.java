@@ -1,40 +1,67 @@
 package com.example.agent.runtime;
 
-import com.example.agent.capabilities.tools.enforcement.EnforcementGateway;
-import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.ContextAssembler;
+import com.example.agent.capabilities.context.ContextBuilder;
 import com.example.agent.capabilities.context.EvidencePackService;
-import com.example.agent.streaming.domain.EventType;
-import com.example.agent.streaming.domain.StreamEvent;
-import com.example.agent.governance.evaluation.CapabilityBoundaryEvaluator;
-import com.example.agent.governance.evaluation.CapabilityEvaluationProperties;
+import com.example.agent.capabilities.context.research.ResearchPipeline;
+import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.prompt.PromptAssembler;
+import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.capabilities.memory.MemoryRecallResult;
 import com.example.agent.capabilities.memory.MemoryRecallService;
 import com.example.agent.capabilities.memory.MemoryWriteService;
-import com.example.agent.capabilities.llm.client.ModelInvocationService;
-import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
-import com.example.agent.capabilities.llm.prompt.PromptAssembler;
-import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
-import com.example.agent.streaming.observability.TracingPublisher;
+import com.example.agent.capabilities.tools.enforcement.EnforcementGateway;
+import com.example.agent.capabilities.tools.hook.HookManager;
+import com.example.agent.capabilities.tools.validation.ToolArgumentValidatorRuntime;
+import com.example.agent.governance.evaluation.CapabilityBoundaryEvaluator;
+import com.example.agent.governance.evaluation.CapabilityEvaluationProperties;
+import com.example.agent.orchestration.multiagent.MultiAgentCoordinator;
 import com.example.agent.planning.PlannerProperties;
 import com.example.agent.planning.PlannerService;
 import com.example.agent.planning.PlanningPromptBuilder;
+import com.example.agent.planning.builder.HeuristicPlanBuilder;
+import com.example.agent.planning.context.PlanningContextMapper;
+import com.example.agent.planning.engine.LlmPlanEngine;
+import com.example.agent.planning.parser.PlanParser;
+import com.example.agent.planning.telemetry.PlanTelemetry;
 import com.example.agent.reasoning.cot.ChainOfThoughtService;
 import com.example.agent.reasoning.debate.DebateCoordinator;
 import com.example.agent.reasoning.thoughttree.ThoughtNode;
-import com.example.agent.reasoning.thoughttree.ThoughtTreeService;
 import com.example.agent.reasoning.thoughttree.ThoughtTreeResult;
+import com.example.agent.reasoning.thoughttree.ThoughtTreeService;
 import com.example.agent.reflection.ReflectionReport;
 import com.example.agent.reflection.ReflectionResult;
 import com.example.agent.reflection.ReflectionService;
-import com.example.agent.capabilities.context.research.ResearchPipeline;
-import com.example.agent.streaming.sse.EventStreamService;
+import com.example.agent.runtime.control.ExecutionControlService;
+import com.example.agent.runtime.control.ExecutionControlState;
+import com.example.agent.runtime.control.RuntimeApprovalGate;
+import com.example.agent.runtime.control.RuntimeExecutionGate;
+import com.example.agent.runtime.engine.AgentRuntime;
+import com.example.agent.runtime.engine.RuntimeContextUpdateService;
+import com.example.agent.runtime.engine.RuntimeEventDispatchService;
+import com.example.agent.runtime.engine.StepExecutionCoordinator;
+import com.example.agent.runtime.finalize.RuntimeFinalizationService;
+import com.example.agent.runtime.llm.LlmStepService;
+import com.example.agent.runtime.model.RuntimeResult;
+import com.example.agent.runtime.output.FinalOutputService;
+import com.example.agent.runtime.prepare.RuntimePreparationService;
+import com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder;
+import com.example.agent.runtime.react.ReactLoopService;
+import com.example.agent.runtime.recovery.RetryPolicy;
+import com.example.agent.runtime.recovery.StepFailureRecoveryService;
+import com.example.agent.runtime.step.StepExecutionDelegate;
+import com.example.agent.runtime.step.StepRecord;
+import com.example.agent.runtime.step.StepRuntimeService;
+import com.example.agent.runtime.step.StepState;
+import com.example.agent.runtime.step.contract.StepExecutionOutput;
+import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
+import com.example.agent.security.auth.TenantContext;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
+import com.example.agent.streaming.observability.TracingPublisher;
 import com.example.agent.streaming.payload.ContextEventPublisher;
-import com.example.agent.capabilities.context.ContextBuilder;
-import com.example.agent.capabilities.tools.hook.HookManager;
-import com.example.agent.capabilities.tools.validation.ToolArgumentValidatorRuntime;
-import com.example.agent.orchestration.multiagent.MultiAgentCoordinator;
+import com.example.agent.streaming.sse.EventStreamService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
@@ -49,33 +76,9 @@ import org.mockito.Mockito;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.core.io.DefaultResourceLoader;
-import com.example.agent.runtime.control.ExecutionControlService;
-import com.example.agent.runtime.control.ExecutionControlState;
-import com.example.agent.runtime.control.RuntimeApprovalGate;
-import com.example.agent.runtime.control.RuntimeExecutionGate;
-import com.example.agent.runtime.engine.AgentRuntime;
-import com.example.agent.runtime.engine.RuntimeContextUpdateService;
-import com.example.agent.runtime.engine.RuntimeEventDispatchService;
-import com.example.agent.runtime.engine.StepExecutionCoordinator;
-import com.example.agent.runtime.llm.LlmStepService;
-import com.example.agent.runtime.react.ReactLoopService;
-import com.example.agent.runtime.model.RuntimeResult;
-import com.example.agent.runtime.prepare.RuntimePreparationService;
-import com.example.agent.runtime.finalize.RuntimeFinalizationService;
-import com.example.agent.runtime.recovery.StepFailureRecoveryService;
-import com.example.agent.runtime.recovery.RetryPolicy;
-import com.example.agent.runtime.step.StepExecutionDelegate;
-import com.example.agent.runtime.step.contract.StepExecutionOutput;
-import com.example.agent.runtime.step.StepRecord;
-import com.example.agent.runtime.step.StepRuntimeService;
-import com.example.agent.runtime.step.StepState;
-import com.example.agent.runtime.output.FinalOutputService;
-import com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder;
-import com.example.agent.runtime.summary.StepOutputSummaryBuilder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -104,18 +107,31 @@ class AgentRuntimeApprovalIntegrationTest {
         plannerProperties.setLlmEnabled(false);
         plannerProperties.setFallbackEnabled(true);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        ContextAssembler plannerContextAssembler = Mockito.mock(ContextAssembler.class);
+        ContextEventPublisher plannerContextEventPublisher = Mockito.mock(ContextEventPublisher.class);
+        ObjectMapper plannerObjectMapper = new ObjectMapper();
+        PlanParser planParser = new PlanParser(plannerObjectMapper);
+        PlanTelemetry planTelemetry = new PlanTelemetry(promptAssembler,
+                plannerContextAssembler,
+                plannerContextEventPublisher,
+                modelInvocationService);
+        LlmPlanEngine llmPlanEngine = new LlmPlanEngine(modelInvocationService,
+                Mockito.mock(com.example.agent.capabilities.llm.tooling.ModelToolResolver.class),
+                new PlanningPromptBuilder(plannerObjectMapper,
+                        new DefaultResourceLoader(),
+                        "classpath:prompts/planning/planner-plan-prompt.md"),
+                Mockito.mock(JsonOutputRepairService.class),
+                plannerObjectMapper,
+                planParser,
+                planTelemetry);
+        HeuristicPlanBuilder heuristicPlanBuilder = new HeuristicPlanBuilder(planParser);
         PlannerService plannerService = new PlannerService(
-                Mockito.mock(ModelInvocationService.class),
-                Mockito.mock(ModelToolResolver.class),
-                promptAssembler,
                 plannerProperties,
                 evaluator,
-                new ObjectMapper(),
-                Mockito.mock(ContextAssembler.class),
-                Mockito.mock(ContextEventPublisher.class),
-                Mockito.mock(JsonOutputRepairService.class),
-                new PlanningPromptBuilder(new ObjectMapper(), new DefaultResourceLoader(),
-                        "classpath:prompts/planning/planner-plan-prompt.md"));
+                llmPlanEngine,
+                heuristicPlanBuilder,
+                new PlanningContextMapper());
 
         ExecutionControlService executionControlService = new ExecutionControlService();
         StepRuntimeService stepRuntimeService = mock(StepRuntimeService.class);
@@ -282,7 +298,8 @@ class AgentRuntimeApprovalIntegrationTest {
 
         @Override
         public void publishEvent(ApplicationEvent event) {
-            // 濞戞挸绉撮ˇ鈺呮偠?ApplicationEvent 闁告帒妫欓弫?
+            // 兼容 ApplicationEvent 发布方法
         }
     }
 }
+

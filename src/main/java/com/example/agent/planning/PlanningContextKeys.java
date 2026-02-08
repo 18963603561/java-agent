@@ -44,6 +44,7 @@ public final class PlanningContextKeys {
 
     public static final String MEMORY = "memory";
     public static final String COUNT = "count";
+    public static final String EVIDENCE_PACK = "evidencePack";
 
     private PlanningContextKeys() {
     }
