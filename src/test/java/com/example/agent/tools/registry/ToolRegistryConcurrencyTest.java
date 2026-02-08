@@ -1,6 +1,6 @@
 package com.example.agent.tools.registry;
 
-import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -90,8 +90,8 @@ class ToolRegistryConcurrencyTest {
         assertEquals(false, remain.contains("x-tool-4"));
     }
 
-    private McpToolDefinition buildTool(String name) {
-        return new McpToolDefinition(
+    private ToolDefinition buildTool(String name) {
+        return new ToolDefinition(
                 name,
                 "v1",
                 "test-tool",
@@ -100,4 +100,3 @@ class ToolRegistryConcurrencyTest {
                 List.of("test"));
     }
 }
-

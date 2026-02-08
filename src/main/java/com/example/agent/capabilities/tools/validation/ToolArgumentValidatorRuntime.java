@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.tools.validation;
 
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
-import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +49,7 @@ public class ToolArgumentValidatorRuntime {
         if (toolRegistry == null || !StringUtils.hasText(toolName)) {
             return missing;
         }
-        McpToolDefinition definition = toolRegistry.getDefinition(toolName);
+        ToolDefinition definition = toolRegistry.getDefinition(toolName);
         if (definition == null || definition.getInputSchema() == null) {
             return missing;
         }

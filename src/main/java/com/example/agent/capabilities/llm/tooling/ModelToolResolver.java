@@ -4,10 +4,10 @@ import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.capabilities.llm.contract.ModelToolDefinition;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.streaming.observability.MetricsPublisher;
-import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
 import com.example.agent.capabilities.tools.ToolCatalogService;
 import com.example.agent.capabilities.tools.ToolQuery;
 import com.example.agent.capabilities.tools.ToolSummary;
@@ -230,12 +230,12 @@ public class ModelToolResolver {
     }
 
     private List<ModelToolDefinition> resolveToolsFromDefinitions() {
-        List<McpToolDefinition> definitions = toolRegistry.listDefinitions();
+        List<ToolDefinition> definitions = toolRegistry.listDefinitions();
         if (definitions == null || definitions.isEmpty()) {
             return List.of();
         }
         List<ModelToolDefinition> tools = new ArrayList<>();
-        for (McpToolDefinition definition : definitions) {
+        for (ToolDefinition definition : definitions) {
             if (definition == null || !StringUtils.hasText(definition.getName())) {
                 continue;
             }
@@ -289,9 +289,9 @@ public class ModelToolResolver {
     }
 
     private ModelToolDefinition resolveToolByNameFull(String toolName) {
-        McpToolDefinition definition = toolCatalogService.getDefinition(toolName);
+        ToolDefinition definition = toolCatalogService.getDefinition(toolName);
         if (definition == null) {
-            for (McpToolDefinition item : toolRegistry.listDefinitions()) {
+            for (ToolDefinition item : toolRegistry.listDefinitions()) {
                 if (item != null && toolName.equalsIgnoreCase(item.getName())) {
                     definition = item;
                     break;
@@ -312,7 +312,7 @@ public class ModelToolResolver {
     private ModelToolDefinition resolveToolByNameOnDemand(String toolName, String tenantId) {
         long startNs = System.nanoTime();
         Map<String, Object> schema = resolveToolSchema(toolName, tenantId, startNs);
-        McpToolDefinition definition = toolCatalogService.getDefinition(toolName);
+        ToolDefinition definition = toolCatalogService.getDefinition(toolName);
         ModelToolDefinition tool = new ModelToolDefinition(toolName,
                 definition != null ? definition.getDescription() : null,
                 objectMapper.valueToTree(schema));

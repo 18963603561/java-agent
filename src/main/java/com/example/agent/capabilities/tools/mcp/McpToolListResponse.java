@@ -1,5 +1,6 @@
 package com.example.agent.capabilities.tools.mcp;
 
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import java.util.List;
 
 /**
@@ -7,24 +8,24 @@ import java.util.List;
  */
 public class McpToolListResponse {
 
-    private List<McpToolDefinition> tools;
+    private List<ToolDefinition> tools;
     private String nextCursor;
     private boolean hasMore;
 
     public McpToolListResponse() {
     }
 
-    public McpToolListResponse(List<McpToolDefinition> tools, String nextCursor, boolean hasMore) {
+    public McpToolListResponse(List<ToolDefinition> tools, String nextCursor, boolean hasMore) {
         this.tools = tools;
         this.nextCursor = nextCursor;
         this.hasMore = hasMore;
     }
 
-    public List<McpToolDefinition> getTools() {
+    public List<ToolDefinition> getTools() {
         return tools;
     }
 
-    public void setTools(List<McpToolDefinition> tools) {
+    public void setTools(List<ToolDefinition> tools) {
         this.tools = tools;
     }
 

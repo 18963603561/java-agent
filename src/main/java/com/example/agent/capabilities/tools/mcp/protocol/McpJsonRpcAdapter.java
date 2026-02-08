@@ -28,17 +28,21 @@ public class McpJsonRpcAdapter {
     private static final String METHOD_TOOLS_LIST = "tools/list";
     private static final String METHOD_TOOLS_CALL = "tools/call";
     private static final String METHOD_INITIALIZE = "initialize";
+    private static final long INIT_CACHE_CLEANUP_INTERVAL_MS = 60_000;
+    private static final long INIT_CACHE_IDLE_EVICT_MS = 30 * 60 * 1000;
+    private static final int MAX_INIT_CACHE_ENTRIES = 512;
 
     private final McpHttpTransport httpTransport;
     private final McpSseSessionManager sseSessionManager;
     /**
      * JSON-RPC 初始化状态缓存，避免重复握手。
      */
-    private final ConcurrentMap<String, Boolean> initializedServers = new ConcurrentHashMap<>();
+    private final ConcurrentMap<String, InitState> initializedServers = new ConcurrentHashMap<>();
     /**
      * JSON-RPC 初始化锁，防止并发重复初始化。
      */
     private final ConcurrentMap<String, Object> initLocks = new ConcurrentHashMap<>();
+    private volatile long lastInitCleanupTimeMs;
 
     public McpJsonRpcAdapter(McpHttpTransport httpTransport,
                              McpSseSessionManager sseSessionManager) {
@@ -110,12 +114,18 @@ public class McpJsonRpcAdapter {
 
     private void ensureInitialized(McpServerProperties.McpServer server, long timeoutSeconds) {
         String initKey = resolveInitKey(server);
-        if (initializedServers.containsKey(initKey)) {
+        long now = System.currentTimeMillis();
+        cleanupInitState(now);
+        InitState existing = initializedServers.get(initKey);
+        if (existing != null && existing.initialized) {
+            existing.lastAccessTimeMs = now;
             return;
         }
         Object lock = initLocks.computeIfAbsent(initKey, key -> new Object());
         synchronized (lock) {
-            if (initializedServers.containsKey(initKey)) {
+            InitState current = initializedServers.get(initKey);
+            if (current != null && current.initialized) {
+                current.lastAccessTimeMs = System.currentTimeMillis();
                 return;
             }
             log.info("MCP initialize start, serverId={}, baseUrl={}", server.getId(), server.getBaseUrl());
@@ -133,11 +143,46 @@ public class McpJsonRpcAdapter {
                         throw buildJsonRpcException(error);
                     }
                 }
-                initializedServers.put(initKey, true);
+                InitState state = new InitState();
+                state.initialized = true;
+                state.lastAccessTimeMs = System.currentTimeMillis();
+                initializedServers.put(initKey, state);
                 log.info("MCP initialize end, serverId={}, baseUrl={}", server.getId(), server.getBaseUrl());
             } catch (ErrorCodeException ex) {
                 log.error("MCP initialize failed, serverId={}, baseUrl={}", server.getId(), server.getBaseUrl(), ex);
                 throw ex;
+            }
+        }
+    }
+
+    /**
+     * 清理初始化状态缓存，避免动态服务场景下状态表无限增长。
+     *
+     * @param now 当前时间戳
+     */
+    private void cleanupInitState(long now) {
+        if (now - lastInitCleanupTimeMs < INIT_CACHE_CLEANUP_INTERVAL_MS) {
+            return;
+        }
+        lastInitCleanupTimeMs = now;
+        for (Map.Entry<String, InitState> entry : initializedServers.entrySet()) {
+            String key = entry.getKey();
+            InitState state = entry.getValue();
+            if (state == null) {
+                initializedServers.remove(key);
+                initLocks.remove(key);
+                continue;
+            }
+            long idleMs = Math.max(0L, now - state.lastAccessTimeMs);
+            boolean idleExpired = idleMs > INIT_CACHE_IDLE_EVICT_MS;
+            boolean overflow = initializedServers.size() > MAX_INIT_CACHE_ENTRIES;
+            if (!idleExpired && !overflow) {
+                continue;
+            }
+            initializedServers.remove(key);
+            initLocks.remove(key);
+            if (log.isDebugEnabled()) {
+                log.debug("MCP init state evicted, key={}, idleMs={}, overflow={}", key, idleMs, overflow);
             }
         }
     }
@@ -282,6 +327,20 @@ public class McpJsonRpcAdapter {
         String errorCode = invalidParams ? "INVALID_REQUEST" : "MCP_UNAVAILABLE";
         String message = resolveJsonRpcErrorMessage(error, "MCP 调用失败");
         return new ErrorCodeException(status, errorCode, message);
+    }
+
+    /**
+     * JSON-RPC 初始化状态。
+     */
+    private static class InitState {
+        /**
+         * 是否已完成初始化。
+         */
+        private boolean initialized;
+        /**
+         * 最近访问时间戳。
+         */
+        private long lastAccessTimeMs;
     }
 
     /**

@@ -10,7 +10,7 @@ import com.example.agent.runtime.raw.ref.RawRef;
 import com.example.agent.runtime.raw.store.RawResultStore;
 import com.example.agent.capabilities.tools.mcp.McpToolCallRequest;
 import com.example.agent.capabilities.tools.mcp.McpToolClient;
-import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.streaming.observability.TracingPublisher;
 import com.example.agent.runtime.recovery.RetryPolicy;
@@ -46,10 +46,10 @@ import com.example.agent.capabilities.tools.validation.ToolArgumentValidator;
 import com.example.agent.capabilities.tools.validation.ToolRequestValidator;
 
 /**
- * 宸ュ叿鎵ц鍣紝璐熻矗宸ュ叿璋冪敤銆佺紦瀛樹笌閲嶈瘯鎺у埗銆?
+ * 工具执行器，负责工具调用、缓存与重试控制。
  *
- * <p>鑱岃矗锛氱粺涓€灏佽宸ュ叿璋冪敤娴佺▼锛屼繚璇佽瘉鎹摼涓庣紦瀛樹竴鑷存€с€?/p>
- * <p>杈圭晫锛氬紓甯哥粺涓€鏄犲皠涓轰笟鍔￠敊璇爜骞惰繘琛屽繀瑕侀噸璇曘€?/p>
+ * <p>职责：统一封装工具调用流程，保证证据链与缓存一致性。</p>
+ * <p>边界：异常统一映射为业务错误码并进行必要重试。</p>
  */
 @Component
 public class ToolExecutor {
@@ -63,43 +63,43 @@ public class ToolExecutor {
     private static final String INTERNAL_EVIDENCE_PACK_ALIAS = "_internalEvidencePack";
 
     /**
-     * 宸ュ叿娉ㄥ唽琛ㄣ€?
+     * 工具注册表。
      */
     private final ToolRegistry toolRegistry;
     /**
-     * MCP 宸ュ叿瀹㈡埛绔€?
+     * MCP 工具客户端。
      */
     private final McpToolClient mcpToolClient;
     /**
-     * 宸ュ叿缁撴灉缂撳瓨銆?
+     * 工具结果缓存。
      */
     private final ToolCache toolCache;
     /**
-     * 娌欑鎵ц鍣ㄣ€?
+     * 沙箱执行器。
      */
     private final SandboxExecutor sandboxExecutor;
     /**
-     * 璁￠噺绠＄悊鍣ㄣ€?
+     * 计量管理器。
      */
     private final TokenBudgetManager tokenBudgetManager;
     /**
-     * 妯″瀷璺敱鍣紝鐢ㄤ簬璁￠噺鍦烘櫙銆?
+     * 模型路由器，用于计量场景。
      */
     private final ModelRouter modelRouter;
     /**
-     * JSON 搴忓垪鍖栫粍浠躲€?
+     * JSON 序列化组件。
      */
     private final ObjectMapper objectMapper;
     /**
-     * 鎸囨爣鍙戝竷鍣ㄣ€?
+     * 指标发布器。
      */
     private final MetricsPublisher metricsPublisher;
     /**
-     * 閾捐矾杩借釜鍙戝竷鍣ㄣ€?
+     * 链路追踪发布器。
      */
     private final TracingPublisher tracingPublisher;
     /**
-     * 鍘熷缁撴灉瀛樺偍鍣ㄣ€?
+     * 原始结果存储器。
      */
     private final RawResultStore rawResultStore;
     /**
@@ -133,43 +133,43 @@ public class ToolExecutor {
     private final ToolArgumentValidator argumentValidator = new ToolArgumentValidator();
 
     /**
-     * 鏄惁鍚敤宸ュ叿缂撳瓨銆?
+     * 是否启用工具缓存。
      */
     @Value("${agent.tool.cache.enabled:true}")
     private boolean cacheEnabled;
 
     /**
-     * 宸ュ叿缂撳瓨 TTL锛堢锛夈€?
+     * 工具缓存 TTL（秒）。
      */
     @Value("${agent.tool.cache.ttl-seconds:300}")
     private long cacheTtlSeconds;
 
     /**
-     * 宸ュ叿璋冪敤鏈€澶ч噸璇曟鏁般€?
+     * 工具调用最大重试次数。
      */
     @Value("${agent.tool.retry.max-attempts:2}")
     private int maxAttempts;
 
     /**
-     * 閲嶈瘯鍩虹寤惰繜锛堟绉掞級銆?
+     * 重试基础延迟（毫秒）。
      */
     @Value("${agent.tool.retry.base-delay-ms:100}")
     private long baseDelayMs;
 
     /**
-     * 閲嶈瘯鏈€澶у欢杩燂紙姣锛夈€?
+     * 重试最大延迟（毫秒）。
      */
     @Value("${agent.tool.retry.max-delay-ms:1000}")
     private long maxDelayMs;
 
     /**
-     * 閲嶈瘯鎶栧姩姣斾緥銆?
+     * 重试抖动比例。
      */
     @Value("${agent.tool.retry.jitter-ratio:0.2}")
     private double jitterRatio;
 
     /**
-     * 榛樿 MCP 鏈嶅姟绔爣璇嗐€?
+     * 默认 MCP 服务端标识。
      */
     @Value("${agent.mcp.default-server-id:mcp-default}")
     private String defaultServerId;
@@ -209,19 +209,19 @@ public class ToolExecutor {
         this.usageRecorder = usageRecorder;
         this.rawResultStore = rawResultStoreProvider.getIfAvailable();
         if (this.rawResultStore == null) {
-            log.warn("鏈娴嬪埌 RawResultStore 瀹炵幇锛屽伐鍏锋墽琛岃緭鍑哄皢璺宠繃 rawRef 瀛樺偍");
+            log.warn("未检测到 RawResultStore 实现，工具执行输出将跳过 rawRef 存储");
         }
     }
 
     /**
-     * 鎵ц宸ュ叿璋冪敤骞惰繑鍥炵粨鏋溿€?
+     * 执行工具调用并返回结果。
      *
-     * @param request 浠诲姟璇锋眰
-     * @param tenantContext 绉熸埛涓婁笅鏂?
-     * @param usageId 璁￠噺骞傜瓑閿?
-     * @param toolName 宸ュ叿鍚嶇О
-     * @param taskId 浠诲姟鏍囪瘑
-     * @return 鎵ц缁撴灉
+     * @param request 任务请求
+     * @param tenantContext 租户上下文
+     * @param usageId 计量幂等键
+     * @param toolName 工具名称
+     * @param taskId 任务标识
+     * @return 执行结果
      */
     public Map<String, Object> execute(TaskRequest request,
                                        TenantContext tenantContext,
@@ -232,15 +232,15 @@ public class ToolExecutor {
     }
 
     /**
-     * 鎵ц宸ュ叿璋冪敤骞惰繑鍥炵粨鏋滐紙浣跨敤澶栭儴浼犲叆鐨勫弬鏁帮級銆?
+     * 执行工具调用并返回结果（使用外部传入的参数）。
      *
-     * @param request 浠诲姟璇锋眰
-     * @param tenantContext 绉熸埛涓婁笅鏂?
-     * @param usageId 璁￠噺骞傜瓑閿?
-     * @param toolName 宸ュ叿鍚嶇О
-     * @param taskId 浠诲姟鏍囪瘑
-     * @param toolArguments 宸ュ叿璋冪敤鍙傛暟
-     * @return 鎵ц缁撴灉
+     * @param request 任务请求
+     * @param tenantContext 租户上下文
+     * @param usageId 计量幂等键
+     * @param toolName 工具名称
+     * @param taskId 任务标识
+     * @param toolArguments 工具调用参数
+     * @return 执行结果
      */
     public Map<String, Object> executeWithArguments(TaskRequest request,
                                                     TenantContext tenantContext,
@@ -264,12 +264,12 @@ public class ToolExecutor {
         ToolInvocationArguments safeArguments = invocationArguments == null ? new ToolInvocationArguments() : invocationArguments;
         String usageId = validatedRequest.getUsageId();
         String taskId = validatedRequest.getTaskId();
-        // 瑙ｆ瀽宸ュ叿鍚嶇О骞跺悎骞跺弬鏁?
+        // 解析工具名称并合并参数
         String resolvedTool = toolRegistry.resolve(validatedToolName);
         Map<String, Object> arguments = new HashMap<>(safeArguments.getValues());
         removeInternalArguments(arguments);
         arguments = validateArguments(resolvedTool, arguments);
-        // 鏋勫缓缂撳瓨閿笌 TTL
+        // 构建缓存键与 TTL
         String cacheKey = buildCacheKey(resolvedTool, arguments);
         Duration ttl = Duration.ofSeconds(Math.max(0, cacheTtlSeconds));
         String traceId = executionTracer.resolveTraceId(validatedTenant, tracingPublisher);
@@ -291,7 +291,7 @@ public class ToolExecutor {
             }
         }
 
-        // 杩涘叆鐪熷疄璋冪敤娴佺▼锛屼娇鐢ㄩ噸璇曠瓥鐣ヤ繚鎶ゅ閮ㄤ緷璧?
+        // 进入真实调用流程，使用重试策略保护外部依赖
         RetryPolicy retryPolicy = new RetryPolicy(baseDelayMs, maxDelayMs, jitterRatio);
         int attempt = 0;
         while (true) {
@@ -354,18 +354,18 @@ public class ToolExecutor {
                 executionTracer.logSystemFailure(log, validatedTenant.getTenantId(), resolvedTool,
                         attempt, traceId, ex);
                 throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE",
-                        "宸ュ叿鎵ц寮傚父");
+                        "工具执行异常");
             }
         }
     }
 
     /**
-     * 灏嗚閲忚褰曡浆鎹负鍙簭鍒楀寲鐨勮緭鍑虹粨鏋勩€?
+     * 将计量记录转换为可序列化的输出结构。
      *
-     * <p>鐢ㄩ€旓細閬垮厤鐩存帴閫忎紶瀵硅薄瀵艰嚧 {@code toString()} 缁撴灉鍑虹幇鍦?raw 杈撳嚭涓紙渚嬪 {@code TokenUsageRecord@xxxx}锛夈€?/p>
+     * <p>用途：避免直接透传对象导致 {@code toString()} 结果出现在 raw 输出中（例如 {@code TokenUsageRecord@xxxx}）。</p>
      *
-     * @param record 璁￠噺璁板綍
-     * @return 鍙簭鍒楀寲鏄犲皠
+     * @param record 计量记录
+     * @return 可序列化映射
      */
     private Map<String, Object> toTokenUsagePayload(TokenUsageRecord record) {
         if (record == null) {
@@ -388,14 +388,14 @@ public class ToolExecutor {
     }
 
     /**
-     * 鏍￠獙骞惰鑼冨寲宸ュ叿鍙傛暟銆?
+     * 校验并规范化工具参数。
      *
-     * @param toolName 宸ュ叿鍚嶇О
-     * @param arguments 鍘熷鍙傛暟
-     * @return 鏍￠獙鍚庣殑鍙傛暟
+     * @param toolName 工具名称
+     * @param arguments 原始参数
+     * @return 校验后的参数
      */
     private Map<String, Object> validateArguments(String toolName, Map<String, Object> arguments) {
-        McpToolDefinition definition = resolveDefinition(toolName);
+        ToolDefinition definition = resolveDefinition(toolName);
         if (definition == null || definition.getInputSchema() == null || definition.getInputSchema().isEmpty()) {
             return arguments;
         }
@@ -403,20 +403,20 @@ public class ToolExecutor {
     }
 
     /**
-     * 鏍规嵁宸ュ叿鍚嶇О瑙ｆ瀽宸ュ叿瀹氫箟銆?
+     * 根据工具名称解析工具定义。
      *
-     * @param toolName 宸ュ叿鍚嶇О
-     * @return 宸ュ叿瀹氫箟
+     * @param toolName 工具名称
+     * @return 工具定义
      */
-    private McpToolDefinition resolveDefinition(String toolName) {
+    private ToolDefinition resolveDefinition(String toolName) {
         if (toolName == null || toolName.isBlank()) {
             return null;
         }
-        List<McpToolDefinition> definitions = toolRegistry.listDefinitions();
+        List<ToolDefinition> definitions = toolRegistry.listDefinitions();
         if (definitions == null || definitions.isEmpty()) {
             return null;
         }
-        for (McpToolDefinition definition : definitions) {
+        for (ToolDefinition definition : definitions) {
             if (definition != null && toolName.equals(definition.getName())) {
                 return definition;
             }
@@ -425,13 +425,13 @@ public class ToolExecutor {
     }
 
     /**
-     * 鏋勫缓 MCP 宸ュ叿璋冪敤璇锋眰銆?
+     * 构建 MCP 工具调用请求。
      *
-     * @param request 浠诲姟璇锋眰
-     * @param toolName 宸ュ叿鍚嶇О
-     * @param arguments 宸ュ叿鍙傛暟
-     * @param usageId 璁￠噺骞傜瓑閿?
-     * @return 璋冪敤璇锋眰
+     * @param request 任务请求
+     * @param toolName 工具名称
+     * @param arguments 工具参数
+     * @param usageId 计量幂等键
+     * @return 调用请求
      */
     private McpToolCallRequest buildCallRequest(TaskRequest request,
                                                 String toolName,
@@ -446,10 +446,10 @@ public class ToolExecutor {
     }
 
     /**
-     * 瑙ｆ瀽 MCP 鏈嶅姟绔爣璇嗐€?
+     * 解析 MCP 服务端标识。
      *
-     * @param request 浠诲姟璇锋眰
-     * @return 鏈嶅姟绔爣璇?
+     * @param request 任务请求
+     * @return 服务端标识
      */
     private String resolveServerId(TaskRequest request) {
         if (request != null && request.getContext() != null) {
@@ -462,10 +462,10 @@ public class ToolExecutor {
     }
 
     /**
-     * 鍩轰簬浠诲姟璇锋眰鏋勫缓宸ュ叿璋冪敤鍙傛暟銆?
+     * 基于任务请求构建工具调用参数。
      *
-     * @param request 浠诲姟璇锋眰
-     * @return 鍙傛暟鏄犲皠
+     * @param request 任务请求
+     * @return 参数映射
      */
     public Map<String, Object> buildArguments(TaskRequest request) {
         Map<String, Object> arguments = executionMapper.toInvocationArguments(request, null).getValues();
@@ -474,11 +474,11 @@ public class ToolExecutor {
     }
 
     /**
-     * 鍚堝苟浠诲姟涓婁笅鏂囦笌澶栭儴浼犲叆鍙傛暟銆?
+     * 合并任务上下文与外部传入参数。
      *
-     * @param request 浠诲姟璇锋眰
-     * @param toolArguments 澶栭儴鍙傛暟
-     * @return 鍚堝苟鍚庣殑鍙傛暟
+     * @param request 任务请求
+     * @param toolArguments 外部参数
+     * @return 合并后的参数
      */
     public Map<String, Object> buildMergedArguments(TaskRequest request, Map<String, Object> toolArguments) {
         Map<String, Object> arguments = executionMapper.toInvocationArguments(request, toolArguments).getValues();
@@ -496,11 +496,11 @@ public class ToolExecutor {
     }
 
     /**
-     * 鏋勫缓宸ュ叿璋冪敤缂撳瓨閿€?
+     * 构建工具调用缓存键。
      *
-     * @param toolName 宸ュ叿鍚嶇О
-     * @param arguments 宸ュ叿鍙傛暟
-     * @return 缂撳瓨閿?
+     * @param toolName 工具名称
+     * @param arguments 工具参数
+     * @return 缓存键
      */
     public String buildCacheKey(String toolName, Map<String, Object> arguments) {
         Map<String, Object> safeArguments = arguments == null ? Map.of() : arguments;
@@ -515,10 +515,10 @@ public class ToolExecutor {
     }
 
     /**
-     * 鐢熸垚宸ュ叿璋冪敤缁撴灉鎽樿锛岀敤浜庤瘉鎹褰曘€?
+     * 生成工具调用结果摘要，用于证据记录。
      *
-     * @param value 鍘熷瀵硅薄
-     * @return 鎽樿瀛楃涓?
+     * @param value 原始对象
+     * @return 摘要字符串
      */
     private String buildDigest(Object value) {
         if (value == null) {
@@ -537,10 +537,10 @@ public class ToolExecutor {
     }
 
     /**
-     * 鐢熸垚 Map 鐨勯敭鎽樿銆?
+     * 生成 Map 的键摘要。
      *
-     * @param map 鐩爣 Map
-     * @return 鎽樿瀛楃涓?
+     * @param map 目标 Map
+     * @return 摘要字符串
      */
     private String buildMapDigest(Map<?, ?> map) {
         if (map == null || map.isEmpty()) {
@@ -565,11 +565,11 @@ public class ToolExecutor {
     }
 
     /**
-     * 鎴柇鏂囨湰闀垮害锛岄伩鍏嶈繃闀胯緭鍑恒€?
+     * 截断文本长度，避免过长输出。
      *
-     * @param value 鍘熷鏂囨湰
-     * @param maxLength 鏈€澶ч暱搴?
-     * @return 鎴柇鍚庣殑鏂囨湰
+     * @param value 原始文本
+     * @param maxLength 最大长度
+     * @return 截断后的文本
      */
     private String truncate(String value, int maxLength) {
         if (value == null || maxLength <= 0) {
@@ -582,10 +582,10 @@ public class ToolExecutor {
     }
 
     /**
-     * 鍒ゆ柇寮傚父鏄惁鍙噸璇曘€?
+     * 判断异常是否可重试。
      *
-     * @param ex 寮傚父
-     * @return 鏄惁鍙噸璇?
+     * @param ex 异常
+     * @return 是否可重试
      */
     private boolean isRetryable(ErrorCodeException ex) {
         String code = ex.getErrorCode();

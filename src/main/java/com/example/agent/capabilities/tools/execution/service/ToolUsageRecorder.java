@@ -59,9 +59,8 @@ public class ToolUsageRecorder {
         input.setOutputTokens(outputTokens);
         input.setTotalTokens(inputTokens + outputTokens);
         TokenUsageRecord record = tokenBudgetManager.recordUsage(input, tenantContext);
-        logger.info("棰勭畻璁￠噺瀹屾垚, tenantId={}, usageId={}, totalTokens={}, cacheHit={}",
+        logger.info("预算计量完成, tenantId={}, usageId={}, totalTokens={}, cacheHit={}",
                 tenantContext.getTenantId(), usageId, record.getTotalTokens(), cacheHit);
         return record;
     }
 }
-

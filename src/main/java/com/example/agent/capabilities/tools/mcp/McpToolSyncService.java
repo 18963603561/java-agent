@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.tools.mcp;
 
 import com.example.agent.capabilities.tools.registry.ToolCache;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.common.error.ErrorCodeException;
@@ -114,7 +115,7 @@ public class McpToolSyncService {
                     server,
                     new McpToolListRequest(),
                     buildSystemContext(serverId));
-            List<McpToolDefinition> tools = response != null && response.getTools() != null
+            List<ToolDefinition> tools = response != null && response.getTools() != null
                     ? new ArrayList<>(response.getTools())
                     : new ArrayList<>();
             if (maxTools > 0 && tools.size() > maxTools) {
@@ -134,7 +135,7 @@ public class McpToolSyncService {
         }
     }
 
-    private void applyToRegistry(String serverId, List<McpToolDefinition> tools, String source) {
+    private void applyToRegistry(String serverId, List<ToolDefinition> tools, String source) {
         if (tools == null || tools.isEmpty()) {
             return;
         }
@@ -148,12 +149,12 @@ public class McpToolSyncService {
         }
     }
 
-    private Set<String> collectNames(List<McpToolDefinition> tools) {
+    private Set<String> collectNames(List<ToolDefinition> tools) {
         Set<String> names = new HashSet<>();
         if (tools == null) {
             return names;
         }
-        for (McpToolDefinition tool : tools) {
+        for (ToolDefinition tool : tools) {
             if (tool != null && StringUtils.hasText(tool.getName())) {
                 names.add(tool.getName());
             }
@@ -212,12 +213,12 @@ public class McpToolSyncService {
         /**
          * 缓存的工具定义列表。
          */
-        private List<McpToolDefinition> tools;
+        private List<ToolDefinition> tools;
 
         private CachedToolList() {
         }
 
-        private CachedToolList(long updatedAt, List<McpToolDefinition> tools) {
+        private CachedToolList(long updatedAt, List<ToolDefinition> tools) {
             this.updatedAt = updatedAt;
             this.tools = tools;
         }
@@ -230,11 +231,11 @@ public class McpToolSyncService {
             this.updatedAt = updatedAt;
         }
 
-        public List<McpToolDefinition> getTools() {
+        public List<ToolDefinition> getTools() {
             return tools;
         }
 
-        public void setTools(List<McpToolDefinition> tools) {
+        public void setTools(List<ToolDefinition> tools) {
             this.tools = tools;
         }
     }

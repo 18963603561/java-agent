@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 /**
  * 工具调用服务。
  *
- * <p>用途：封装沙箱执行、MCP 调用与重试逻辑。</p>
+ * <p>用途：封装沙箱执行与 MCP 单次调用，并统一合并调用结果。</p>
  */
 @Component
 public class ToolInvocationService {

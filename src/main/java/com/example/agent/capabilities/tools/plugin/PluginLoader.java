@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.tools.plugin;
 
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
-import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.annotation.PostConstruct;
@@ -83,13 +83,16 @@ public class PluginLoader {
             log.warn("插件描述解析失败, path={}", descriptorPath);
             return;
         }
-        List<McpToolDefinition> tools = new ArrayList<>();
+        List<ToolDefinition> tools = new ArrayList<>();
         if (descriptor.getToolsFiles() != null) {
             for (String fileName : descriptor.getToolsFiles()) {
                 if (!StringUtils.hasText(fileName)) {
                     continue;
                 }
-                Path toolPath = pluginPath.resolve(fileName);
+                Path toolPath = resolveToolPath(pluginPath, fileName, descriptor.getName());
+                if (toolPath == null) {
+                    continue;
+                }
                 if (!Files.exists(toolPath)) {
                     log.warn("工具定义文件不存在, plugin={}, path={}", descriptor.getName(), toolPath);
                     continue;
@@ -115,7 +118,7 @@ public class PluginLoader {
         }
     }
 
-    private List<McpToolDefinition> readTools(Path toolPath) {
+    private List<ToolDefinition> readTools(Path toolPath) {
         try (InputStream input = Files.newInputStream(toolPath)) {
             JsonNode node = objectMapper.readTree(input);
             if (node == null) {
@@ -128,13 +131,13 @@ public class PluginLoader {
             if (toolsNode == null) {
                 return List.of();
             }
-            List<McpToolDefinition> tools = new ArrayList<>();
+            List<ToolDefinition> tools = new ArrayList<>();
             if (toolsNode.isArray()) {
                 for (JsonNode item : toolsNode) {
-                    tools.add(objectMapper.treeToValue(item, McpToolDefinition.class));
+                    tools.add(objectMapper.treeToValue(item, ToolDefinition.class));
                 }
             } else {
-                tools.add(objectMapper.treeToValue(toolsNode, McpToolDefinition.class));
+                tools.add(objectMapper.treeToValue(toolsNode, ToolDefinition.class));
             }
             return tools;
         } catch (Exception ex) {
@@ -153,5 +156,26 @@ public class PluginLoader {
             return Path.of(toolboxHome, "plugins");
         }
         return Path.of("plugins");
+    }
+
+    /**
+     * 解析插件工具定义文件路径并进行目录边界校验。
+     *
+     * <p>安全说明：仅允许读取插件目录下文件，禁止路径穿越访问目录外文件。</p>
+     *
+     * @param pluginPath 插件目录
+     * @param fileName 描述文件中的相对路径
+     * @param pluginName 插件名称
+     * @return 合法文件路径，不合法时返回 null
+     */
+    private Path resolveToolPath(Path pluginPath, String fileName, String pluginName) {
+        Path normalizedPluginPath = pluginPath.toAbsolutePath().normalize();
+        Path resolvedPath = normalizedPluginPath.resolve(fileName).normalize();
+        if (!resolvedPath.startsWith(normalizedPluginPath)) {
+            log.warn("插件工具定义路径非法, plugin={}, fileName={}, pluginPath={}",
+                    pluginName, fileName, normalizedPluginPath);
+            return null;
+        }
+        return resolvedPath;
     }
 }

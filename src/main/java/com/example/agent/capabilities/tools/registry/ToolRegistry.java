@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.tools.registry;
 
 import com.example.agent.common.error.ErrorCodeException;
-import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +22,7 @@ public class ToolRegistry {
     private static final Logger log = LoggerFactory.getLogger(ToolRegistry.class);
 
     private final Map<String, ToolHandler> handlers = new ConcurrentHashMap<>();
-    private final Map<String, McpToolDefinition> definitions = new ConcurrentHashMap<>();
+    private final Map<String, ToolDefinition> definitions = new ConcurrentHashMap<>();
     /**
      * 工具定义来源映射，用于按来源覆盖与清理。
      */
@@ -39,11 +39,27 @@ public class ToolRegistry {
     /**
      * 解析工具名称。
      *
+     * <p>规则：
+     * <ul>
+     *     <li>空值返回原值。</li>
+     *     <li>去除首尾空白。</li>
+     *     <li>将空白标准化为下划线。</li>
+     *     <li>统一转为小写。</li>
+     * </ul>
+     *
      * @param toolName 工具名称
-     * @return 工具名称
+     * @return 规范化后的工具名称
      */
     public String resolve(String toolName) {
-        return toolName;
+        if (toolName == null) {
+            return null;
+        }
+        String normalized = toolName.trim();
+        if (normalized.isEmpty()) {
+            return normalized;
+        }
+        normalized = normalized.replaceAll("\\s+", "_");
+        return normalized.toLowerCase(java.util.Locale.ROOT);
     }
 
     /**
@@ -51,7 +67,7 @@ public class ToolRegistry {
      *
      * @return 工具定义列表
      */
-    public List<McpToolDefinition> listDefinitions() {
+    public List<ToolDefinition> listDefinitions() {
         definitionLock.readLock().lock();
         try {
             return new ArrayList<>(definitions.values());
@@ -66,7 +82,7 @@ public class ToolRegistry {
      * @param toolName 工具名称
      * @return 工具定义
      */
-    public McpToolDefinition getDefinition(String toolName) {
+    public ToolDefinition getDefinition(String toolName) {
         if (toolName == null) {
             return null;
         }
@@ -103,7 +119,7 @@ public class ToolRegistry {
      *
      * @param toolDefinitions 工具定义列表
      */
-    public void registerDefinitions(List<McpToolDefinition> toolDefinitions) {
+    public void registerDefinitions(List<? extends ToolDefinition> toolDefinitions) {
         registerDefinitions(toolDefinitions, "local", false);
     }
 
@@ -114,14 +130,16 @@ public class ToolRegistry {
      * @param source 来源标识
      * @param overwrite 是否允许覆盖同来源的工具定义
      */
-    public void registerDefinitions(List<McpToolDefinition> toolDefinitions, String source, boolean overwrite) {
+    public void registerDefinitions(List<? extends ToolDefinition> toolDefinitions,
+                                    String source,
+                                    boolean overwrite) {
         if (toolDefinitions == null || toolDefinitions.isEmpty()) {
             return;
         }
         String normalizedSource = source == null ? "unknown" : source.trim();
         definitionLock.writeLock().lock();
         try {
-            for (McpToolDefinition definition : toolDefinitions) {
+            for (ToolDefinition definition : toolDefinitions) {
                 if (definition == null || definition.getName() == null || definition.getName().isBlank()) {
                     continue;
                 }
@@ -210,7 +228,7 @@ public class ToolRegistry {
     }
 
     private void registerDefaults() {
-        McpToolDefinition demo = new McpToolDefinition(
+        ToolDefinition demo = new ToolDefinition(
                 "demo_tool",
                 "v1",
                 "示例工具",

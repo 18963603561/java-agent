@@ -34,6 +34,9 @@ public class McpSseSessionManager {
 
     private static final Logger log = LoggerFactory.getLogger(McpSseSessionManager.class);
     private static final long SSE_RECONNECT_DELAY_MS = 1000;
+    private static final long STATE_CLEANUP_INTERVAL_MS = 60_000;
+    private static final long STATE_IDLE_EVICT_MS = 30 * 60 * 1000;
+    private static final int MAX_STATE_ENTRIES = 512;
     private static final Pattern SESSION_ID_PATTERN = Pattern.compile(
             "session[_-]?id\\\"?\\s*[:=]\\s*\\\"?([a-f0-9\\-]{36})",
             Pattern.CASE_INSENSITIVE);
@@ -43,6 +46,7 @@ public class McpSseSessionManager {
 
     private final ConcurrentMap<String, SseSessionState> sseSessions = new ConcurrentHashMap<>();
     private final ConcurrentMap<String, Object> sseLocks = new ConcurrentHashMap<>();
+    private volatile long lastCleanupTimeMs;
 
     /**
      * 确保存在可用 SSE 会话。
@@ -56,11 +60,13 @@ public class McpSseSessionManager {
         if (!StringUtils.hasText(sseUrl)) {
             return null;
         }
+        long now = System.currentTimeMillis();
+        cleanupExpiredStates(now);
         String sessionKey = resolveSseKey(server);
         SseSessionState state = sseSessions.computeIfAbsent(sessionKey, key -> new SseSessionState());
         Object lock = sseLocks.computeIfAbsent(sessionKey, key -> new Object());
         synchronized (lock) {
-            long now = System.currentTimeMillis();
+            state.lastAccessTimeMs = now;
             boolean hasSession = StringUtils.hasText(state.sessionId);
             boolean refreshNeeded = hasSession && isRefreshNeeded(server, state, now);
             if (!isWorkerAlive(state)) {
@@ -73,6 +79,7 @@ public class McpSseSessionManager {
             }
         }
         String sessionId = waitForSessionId(state, timeoutSeconds);
+        state.lastAccessTimeMs = System.currentTimeMillis();
         if (!StringUtils.hasText(sessionId)) {
             log.error("MCP SSE session unavailable, serverId={}, url={}", server.getId(), sseUrl);
             throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE", "MCP SSE 会话不可用");
@@ -153,6 +160,51 @@ public class McpSseSessionManager {
     private boolean isWorkerAlive(SseSessionState state) {
         Thread worker = state != null ? state.worker : null;
         return worker != null && worker.isAlive();
+    }
+
+    /**
+     * 清理长期未访问的会话状态，避免状态表无限增长。
+     *
+     * <p>策略：按固定周期触发；当状态闲置超过阈值或总数超限时，执行回收。</p>
+     *
+     * @param now 当前时间戳
+     */
+    private void cleanupExpiredStates(long now) {
+        if (now - lastCleanupTimeMs < STATE_CLEANUP_INTERVAL_MS) {
+            return;
+        }
+        lastCleanupTimeMs = now;
+        for (Map.Entry<String, SseSessionState> entry : sseSessions.entrySet()) {
+            String key = entry.getKey();
+            SseSessionState state = entry.getValue();
+            if (state == null) {
+                removeState(key, null);
+                continue;
+            }
+            long idleMs = Math.max(0L, now - state.lastAccessTimeMs);
+            boolean idleExpired = idleMs > STATE_IDLE_EVICT_MS;
+            boolean overflow = sseSessions.size() > MAX_STATE_ENTRIES;
+            if (!idleExpired && !overflow) {
+                continue;
+            }
+            removeState(key, state);
+            if (log.isDebugEnabled()) {
+                log.debug("MCP SSE state evicted, key={}, idleMs={}, overflow={}", key, idleMs, overflow);
+            }
+        }
+    }
+
+    private void removeState(String key, SseSessionState state) {
+        if (state != null) {
+            Thread worker = state.worker;
+            if (worker != null) {
+                worker.interrupt();
+            }
+            closeSseStream(state);
+            clearSession(state);
+        }
+        sseSessions.remove(key);
+        sseLocks.remove(key);
     }
 
     private void startSseWorker(McpServerProperties.McpServer server,
@@ -298,6 +350,10 @@ public class McpSseSessionManager {
          */
         private volatile long lastRefreshTimeMs;
         /**
+         * 最近访问时间戳。
+         */
+        private volatile long lastAccessTimeMs;
+        /**
          * SSE 线程。
          */
         private volatile Thread worker;
@@ -311,4 +367,3 @@ public class McpSseSessionManager {
         private final Object streamLock = new Object();
     }
 }
-

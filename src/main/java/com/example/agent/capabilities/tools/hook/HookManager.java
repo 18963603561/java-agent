@@ -156,21 +156,15 @@ public class HookManager {
                                       Map<String, Object> payload,
                                       boolean enforceBlock) {
         if (!hookProperties.isEnabled()) {
-            HookDecision decision = new HookDecision(true, "disabled", Collections.emptyMap());
-            recordExecution("hook_disabled", hookType, tenantContext, stepRecord, toolName, decision,
-                    false, Instant.now(), Instant.now(), 0);
-            return decision;
+            return recordSkippedDecision(hookType, tenantContext, stepRecord, toolName,
+                    "hook_disabled", "disabled");
         }
         List<HookHandler> handlers = resolveOrderedHandlers();
         HookDecision finalDecision = new HookDecision(true, "ok", Collections.emptyMap());
-        HookContext context = new HookContext(hookType, toolName,
-                stepRecord != null ? stepRecord.getStepId() : null,
-                tenantContext != null ? tenantContext.getTenantId() : null,
-                payload == null ? Collections.emptyMap() : payload);
+        HookContext context = buildHookContext(hookType, toolName, stepRecord, tenantContext, payload);
         if (handlers.isEmpty()) {
-            recordExecution("hook_default", hookType, tenantContext, stepRecord, toolName, finalDecision,
-                    false, Instant.now(), Instant.now(), 0);
-            return finalDecision;
+            return recordSkippedDecision(hookType, tenantContext, stepRecord, toolName,
+                    "hook_default", "ok");
         }
         for (HookHandler handler : handlers) {
             if (handler == null) {
@@ -188,6 +182,36 @@ public class HookManager {
             }
         }
         return finalDecision;
+    }
+
+    /**
+     * 构建 Hook 执行上下文。
+     */
+    private HookContext buildHookContext(HookType hookType,
+                                         String toolName,
+                                         StepRecord stepRecord,
+                                         TenantContext tenantContext,
+                                         Map<String, Object> payload) {
+        return new HookContext(hookType, toolName,
+                stepRecord != null ? stepRecord.getStepId() : null,
+                tenantContext != null ? tenantContext.getTenantId() : null,
+                payload == null ? Collections.emptyMap() : payload);
+    }
+
+    /**
+     * 记录未实际执行处理器的默认决策。
+     */
+    private HookDecision recordSkippedDecision(HookType hookType,
+                                               TenantContext tenantContext,
+                                               StepRecord stepRecord,
+                                               String toolName,
+                                               String hookId,
+                                               String reason) {
+        HookDecision decision = new HookDecision(true, reason, Collections.emptyMap());
+        Instant now = Instant.now();
+        recordExecution(hookId, hookType, tenantContext, stepRecord, toolName,
+                decision, false, now, now, 0);
+        return decision;
     }
 
     private HookExecutionResult executeWithTimeout(HookHandler handler,

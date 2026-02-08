@@ -71,7 +71,7 @@ public class ToolExecutionTracer {
         if (log == null) {
             return;
         }
-        log.info("宸ュ叿缂撳瓨鍛戒腑, tenantId={}, tool={}, usageId={}, traceId={}", tenantId, toolName, usageId, traceId);
+        log.info("工具缓存命中, tenantId={}, tool={}, usageId={}, traceId={}", tenantId, toolName, usageId, traceId);
     }
 
     /**
@@ -93,7 +93,7 @@ public class ToolExecutionTracer {
         if (log == null) {
             return;
         }
-        log.info("宸ュ叿鎵ц寮€濮? tenantId={}, tool={}, attempt={}, usageId={}, traceId={}",
+        log.info("工具执行开始, tenantId={}, tool={}, attempt={}, usageId={}, traceId={}",
                 tenantId, toolName, attempt, usageId, traceId);
     }
 
@@ -114,7 +114,7 @@ public class ToolExecutionTracer {
         if (log == null) {
             return;
         }
-        log.info("宸ュ叿鎵ц瀹屾垚, tenantId={}, tool={}, usageId={}, traceId={}", tenantId, toolName, usageId, traceId);
+        log.info("工具执行完成, tenantId={}, tool={}, usageId={}, traceId={}", tenantId, toolName, usageId, traceId);
     }
 
     /**
@@ -136,7 +136,7 @@ public class ToolExecutionTracer {
         if (log == null) {
             return;
         }
-        log.warn("宸ュ叿鎵ц鍙噸璇? tenantId={}, tool={}, attempt={}, errorCode={}, traceId={}",
+        log.warn("工具执行可重试, tenantId={}, tool={}, attempt={}, errorCode={}, traceId={}",
                 tenantId, toolName, attempt, errorCode, traceId);
     }
 
@@ -161,7 +161,7 @@ public class ToolExecutionTracer {
         if (log == null) {
             return;
         }
-        log.error("宸ュ叿鎵ц澶辫触, tenantId={}, tool={}, attempt={}, errorCode={}, traceId={}",
+        log.error("工具执行失败, tenantId={}, tool={}, attempt={}, errorCode={}, traceId={}",
                 tenantId, toolName, attempt, errorCode, traceId, ex);
     }
 
@@ -184,7 +184,7 @@ public class ToolExecutionTracer {
         if (log == null) {
             return;
         }
-        log.warn("宸ュ叿鎵ц寮傚父鍙噸璇? tenantId={}, tool={}, attempt={}, traceId={}",
+        log.warn("工具执行异常可重试, tenantId={}, tool={}, attempt={}, traceId={}",
                 tenantId, toolName, attempt, traceId, ex);
     }
 
@@ -207,7 +207,7 @@ public class ToolExecutionTracer {
         if (log == null) {
             return;
         }
-        log.error("宸ュ叿鎵ц寮傚父, tenantId={}, tool={}, attempt={}, traceId={}",
+        log.error("工具执行异常, tenantId={}, tool={}, attempt={}, traceId={}",
                 tenantId, toolName, attempt, traceId, ex);
     }
 
@@ -222,4 +222,3 @@ public class ToolExecutionTracer {
         return Map.of("tool", toolName, "hasResult", result != null && !result.isEmpty());
     }
 }
-

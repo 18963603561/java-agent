@@ -4,6 +4,7 @@ import com.example.agent.capabilities.tools.mcp.protocol.McpJsonRpcAdapter;
 import com.example.agent.capabilities.tools.mcp.protocol.McpRestAdapter;
 import com.example.agent.capabilities.tools.mcp.strategy.McpCallStrategy;
 import com.example.agent.capabilities.tools.mcp.strategy.McpCallStrategyResolver;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.common.error.ErrorCodeException;
@@ -118,38 +119,9 @@ public class McpToolClient {
         boolean allowLocal = strategy != McpCallStrategy.REMOTE_ONLY;
         log.info("MCP tools/list start, tenantId={}, serverId={}, strategy={}, mergeLocal={}",
                 validatedTenant.getTenantId(), serverId, strategy.name().toLowerCase(Locale.ROOT), mergeLocalTools);
-
-        McpToolListResponse response;
-        if (strategy == McpCallStrategy.LOCAL_ONLY || !allowRemote) {
-            response = listToolsLocal(validatedRequest);
-        } else if (strategy == McpCallStrategy.LOCAL_FIRST) {
-            response = listToolsLocal(validatedRequest);
-            if (mergeLocalTools && allowRemote) {
-                try {
-                    McpToolListResponse remote = listToolsRemoteWithRetry(server, validatedRequest, validatedTenant, serverId);
-                    response = mergeToolLists(response, remote);
-                } catch (ErrorCodeException ex) {
-                    log.warn("MCP tools/list remote merge failed, fallback local, tenantId={}, serverId={}, code={}",
-                            validatedTenant.getTenantId(), serverId, ex.getErrorCode());
-                }
-            }
-        } else {
-            try {
-                response = listToolsRemoteWithRetry(server, validatedRequest, validatedTenant, serverId);
-                if (mergeLocalTools && allowLocal) {
-                    McpToolListResponse local = listToolsLocal(validatedRequest);
-                    response = mergeToolLists(response, local);
-                }
-            } catch (ErrorCodeException ex) {
-                if (allowLocal && fallbackToLocal && strategyResolver.isFallbackTrigger(ex)) {
-                    log.warn("MCP tools/list fallback to local, tenantId={}, serverId={}, code={}",
-                            validatedTenant.getTenantId(), serverId, ex.getErrorCode());
-                    response = listToolsLocal(validatedRequest);
-                } else {
-                    throw ex;
-                }
-            }
-        }
+        McpToolListResponse response = executeListByStrategy(
+                strategy, allowRemote, allowLocal, server,
+                validatedRequest, validatedTenant, serverId);
 
         log.info("MCP tools/list end, tenantId={}, serverId={}, count={}",
                 validatedTenant.getTenantId(), serverId, response.getTools().size());
@@ -211,57 +183,166 @@ public class McpToolClient {
         log.info("MCP tools/call start, tenantId={}, serverId={}, toolName={}, callId={}, strategy={}, localAvailable={}",
                 validatedTenant.getTenantId(), serverId, toolName, validatedRequest.getCallId(),
                 strategy.name().toLowerCase(Locale.ROOT), localAvailable);
+        return executeCallByStrategy(strategy, allowRemote, allowLocal, localAvailable,
+                server, validatedRequest, validatedTenant, serverId, rateKey);
+    }
 
+    /**
+     * 按策略执行工具列表查询。
+     */
+    private McpToolListResponse executeListByStrategy(McpCallStrategy strategy,
+                                                      boolean allowRemote,
+                                                      boolean allowLocal,
+                                                      McpServerProperties.McpServer server,
+                                                      McpToolListRequest validatedRequest,
+                                                      TenantContext validatedTenant,
+                                                      String serverId) {
+        if (strategy == McpCallStrategy.LOCAL_ONLY || !allowRemote) {
+            return listToolsLocal(validatedRequest);
+        }
+        if (strategy == McpCallStrategy.LOCAL_FIRST) {
+            return executeListLocalFirst(allowRemote, server, validatedRequest, validatedTenant, serverId);
+        }
+        return executeListRemotePreferred(allowLocal, server, validatedRequest, validatedTenant, serverId);
+    }
+
+    /**
+     * 本地优先策略执行列表查询。
+     */
+    private McpToolListResponse executeListLocalFirst(boolean allowRemote,
+                                                      McpServerProperties.McpServer server,
+                                                      McpToolListRequest validatedRequest,
+                                                      TenantContext validatedTenant,
+                                                      String serverId) {
+        McpToolListResponse local = listToolsLocal(validatedRequest);
+        if (!mergeLocalTools || !allowRemote) {
+            return local;
+        }
+        try {
+            McpToolListResponse remote = listToolsRemoteWithRetry(server, validatedRequest, validatedTenant, serverId);
+            return mergeToolLists(local, remote);
+        } catch (ErrorCodeException ex) {
+            log.warn("MCP tools/list remote merge failed, fallback local, tenantId={}, serverId={}, code={}",
+                    validatedTenant.getTenantId(), serverId, ex.getErrorCode());
+            return local;
+        }
+    }
+
+    /**
+     * 远端优先策略执行列表查询。
+     */
+    private McpToolListResponse executeListRemotePreferred(boolean allowLocal,
+                                                           McpServerProperties.McpServer server,
+                                                           McpToolListRequest validatedRequest,
+                                                           TenantContext validatedTenant,
+                                                           String serverId) {
+        try {
+            McpToolListResponse remote = listToolsRemoteWithRetry(server, validatedRequest, validatedTenant, serverId);
+            if (mergeLocalTools && allowLocal) {
+                McpToolListResponse local = listToolsLocal(validatedRequest);
+                return mergeToolLists(remote, local);
+            }
+            return remote;
+        } catch (ErrorCodeException ex) {
+            if (allowLocal && fallbackToLocal && strategyResolver.isFallbackTrigger(ex)) {
+                log.warn("MCP tools/list fallback to local, tenantId={}, serverId={}, code={}",
+                        validatedTenant.getTenantId(), serverId, ex.getErrorCode());
+                return listToolsLocal(validatedRequest);
+            }
+            throw ex;
+        }
+    }
+
+    /**
+     * 按策略执行工具调用。
+     */
+    private McpToolCallResponse executeCallByStrategy(McpCallStrategy strategy,
+                                                      boolean allowRemote,
+                                                      boolean allowLocal,
+                                                      boolean localAvailable,
+                                                      McpServerProperties.McpServer server,
+                                                      McpToolCallRequest validatedRequest,
+                                                      TenantContext validatedTenant,
+                                                      String serverId,
+                                                      String rateKey) {
         if (strategy == McpCallStrategy.LOCAL_ONLY) {
             return callToolLocal(validatedRequest);
         }
-
         if (strategy == McpCallStrategy.LOCAL_FIRST) {
-            if (localAvailable) {
-                try {
-                    McpToolCallResponse localResponse = callToolLocal(validatedRequest);
-                    log.info("MCP tools/call local success, tenantId={}, toolName={}, callId={}",
-                            validatedTenant.getTenantId(), toolName, validatedRequest.getCallId());
-                    return localResponse;
-                } catch (Exception ex) {
-                    log.warn("MCP tools/call local failed, try remote, tenantId={}, toolName={}, callId={}",
-                            validatedTenant.getTenantId(), toolName, validatedRequest.getCallId(), ex);
-                }
-            }
-            if (!allowRemote) {
-                if (!localAvailable) {
-                    throw new ErrorCodeException(HttpStatus.NOT_FOUND, "NOT_FOUND", "工具不存在");
-                }
-                throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE", "远端 MCP 不可用");
-            }
-            return callToolRemoteWithRetry(server, validatedRequest, validatedTenant, serverId, rateKey);
+            return executeCallLocalFirst(allowRemote, localAvailable, server,
+                    validatedRequest, validatedTenant, serverId, rateKey);
         }
+        return executeCallRemotePreferred(allowRemote, allowLocal, localAvailable, server,
+                validatedRequest, validatedTenant, serverId, rateKey);
+    }
 
+    /**
+     * 本地优先策略执行工具调用。
+     */
+    private McpToolCallResponse executeCallLocalFirst(boolean allowRemote,
+                                                      boolean localAvailable,
+                                                      McpServerProperties.McpServer server,
+                                                      McpToolCallRequest validatedRequest,
+                                                      TenantContext validatedTenant,
+                                                      String serverId,
+                                                      String rateKey) {
+        if (localAvailable) {
+            try {
+                McpToolCallResponse localResponse = callToolLocal(validatedRequest);
+                log.info("MCP tools/call local success, tenantId={}, toolName={}, callId={}",
+                        validatedTenant.getTenantId(), validatedRequest.getToolName(), validatedRequest.getCallId());
+                return localResponse;
+            } catch (Exception ex) {
+                log.warn("MCP tools/call local failed, try remote, tenantId={}, toolName={}, callId={}",
+                        validatedTenant.getTenantId(), validatedRequest.getToolName(), validatedRequest.getCallId(), ex);
+            }
+        }
+        if (!allowRemote) {
+            throw unavailableForCall(localAvailable);
+        }
+        return callToolRemoteWithRetry(server, validatedRequest, validatedTenant, serverId, rateKey);
+    }
+
+    /**
+     * 远端优先策略执行工具调用。
+     */
+    private McpToolCallResponse executeCallRemotePreferred(boolean allowRemote,
+                                                           boolean allowLocal,
+                                                           boolean localAvailable,
+                                                           McpServerProperties.McpServer server,
+                                                           McpToolCallRequest validatedRequest,
+                                                           TenantContext validatedTenant,
+                                                           String serverId,
+                                                           String rateKey) {
         if (!allowRemote) {
             if (allowLocal && localAvailable) {
                 log.warn("MCP tools/call remote disabled, fallback local, tenantId={}, toolName={}, callId={}",
-                        validatedTenant.getTenantId(), toolName, validatedRequest.getCallId());
+                        validatedTenant.getTenantId(), validatedRequest.getToolName(), validatedRequest.getCallId());
                 return callToolLocal(validatedRequest);
             }
-            if (!localAvailable) {
-                throw new ErrorCodeException(HttpStatus.NOT_FOUND, "NOT_FOUND", "工具不存在");
-            }
-            throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE", "远端 MCP 不可用");
+            throw unavailableForCall(localAvailable);
         }
-
         try {
             McpToolCallResponse response = callToolRemoteWithRetry(server, validatedRequest, validatedTenant, serverId, rateKey);
             log.info("MCP tools/call success, tenantId={}, serverId={}, toolName={}, callId={}",
-                    validatedTenant.getTenantId(), serverId, toolName, validatedRequest.getCallId());
+                    validatedTenant.getTenantId(), serverId, validatedRequest.getToolName(), validatedRequest.getCallId());
             return response;
         } catch (ErrorCodeException ex) {
             if (allowLocal && localAvailable && fallbackToLocal && strategyResolver.isFallbackTrigger(ex)) {
                 log.warn("MCP tools/call fallback local, tenantId={}, serverId={}, toolName={}, callId={}, code={}",
-                        validatedTenant.getTenantId(), serverId, toolName, validatedRequest.getCallId(), ex.getErrorCode());
+                        validatedTenant.getTenantId(), serverId, validatedRequest.getToolName(),
+                        validatedRequest.getCallId(), ex.getErrorCode());
                 return callToolLocal(validatedRequest);
             }
             throw ex;
         }
+    }
+
+    private ErrorCodeException unavailableForCall(boolean localAvailable) {
+        if (!localAvailable) {
+            return new ErrorCodeException(HttpStatus.NOT_FOUND, "NOT_FOUND", "工具不存在");
+        }
+        return new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "MCP_UNAVAILABLE", "远端 MCP 不可用");
     }
 
     /**
@@ -334,10 +415,10 @@ public class McpToolClient {
         if (primary == null && secondary == null) {
             return new McpToolListResponse(List.of(), null, false);
         }
-        List<McpToolDefinition> merged = new ArrayList<>();
-        Map<String, McpToolDefinition> seen = new HashMap<>();
+        List<ToolDefinition> merged = new ArrayList<>();
+        Map<String, ToolDefinition> seen = new HashMap<>();
         if (primary != null && primary.getTools() != null) {
-            for (McpToolDefinition tool : primary.getTools()) {
+            for (ToolDefinition tool : primary.getTools()) {
                 if (tool == null) {
                     continue;
                 }
@@ -349,7 +430,7 @@ public class McpToolClient {
             }
         }
         if (secondary != null && secondary.getTools() != null) {
-            for (McpToolDefinition tool : secondary.getTools()) {
+            for (ToolDefinition tool : secondary.getTools()) {
                 if (tool == null) {
                     continue;
                 }
@@ -371,11 +452,11 @@ public class McpToolClient {
     }
 
     private McpToolListResponse listToolsLocal(McpToolListRequest request) {
-        List<McpToolDefinition> tools = new ArrayList<>(toolRegistry.listDefinitions());
+        List<ToolDefinition> tools = new ArrayList<>(toolRegistry.listDefinitions());
         int startIndex = resolveStartIndex(request.getCursor(), tools.size());
         int size = request.getSize() != null && request.getSize() > 0 ? request.getSize() : tools.size();
         int endIndex = Math.min(startIndex + size, tools.size());
-        List<McpToolDefinition> page = startIndex < endIndex
+        List<ToolDefinition> page = startIndex < endIndex
                 ? tools.subList(startIndex, endIndex)
                 : List.of();
 

@@ -2,6 +2,7 @@ package com.example.agent.tools;
 
 import com.example.agent.capabilities.tools.registry.ToolCache;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
@@ -10,7 +11,6 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.ObjectProvider;
 import com.example.agent.capabilities.tools.DefaultToolCatalog;
-import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
 import com.example.agent.capabilities.tools.mcp.McpToolSyncService;
 import com.example.agent.capabilities.tools.ToolQuery;
 import com.example.agent.capabilities.tools.ToolSummary;
@@ -33,7 +33,7 @@ class DefaultToolCatalogTest {
     void listSummariesReturnsRegisteredTools() {
         ToolRegistry registry = new ToolRegistry();
         registry.registerDefinitions(List.of(
-                new McpToolDefinition("tool_a", "v1", "a",
+                new ToolDefinition("tool_a", "v1", "a",
                         Map.of("type", "object"), Map.of("type", "object"), List.of("demo"))
         ));
 
@@ -94,10 +94,10 @@ class DefaultToolCatalogTest {
     @Test
     void listSummariesFiltersByAllowedScopes() {
         ToolRegistry registry = new ToolRegistry();
-        McpToolDefinition readTool = new McpToolDefinition("tool_read", "v1", "read",
+        ToolDefinition readTool = new ToolDefinition("tool_read", "v1", "read",
                 Map.of("type", "object"), Map.of("type", "object"), List.of("demo"));
         readTool.setAuthScope("scope.read");
-        McpToolDefinition writeTool = new McpToolDefinition("tool_write", "v1", "write",
+        ToolDefinition writeTool = new ToolDefinition("tool_write", "v1", "write",
                 Map.of("type", "object"), Map.of("type", "object"), List.of("demo"));
         writeTool.setAuthScope("scope.write");
         registry.registerDefinitions(List.of(readTool, writeTool), "test", true);
@@ -122,10 +122,10 @@ class DefaultToolCatalogTest {
     @Test
     void listSummariesFiltersByLocale() {
         ToolRegistry registry = new ToolRegistry();
-        McpToolDefinition zhTool = new McpToolDefinition("tool_zh", "v1", "zh",
+        ToolDefinition zhTool = new ToolDefinition("tool_zh", "v1", "zh",
                 Map.of("type", "object"), Map.of("type", "object"), List.of("demo"));
         zhTool.setSupportedLocales(List.of("zh-CN", "en-US"));
-        McpToolDefinition enTool = new McpToolDefinition("tool_en", "v1", "en",
+        ToolDefinition enTool = new ToolDefinition("tool_en", "v1", "en",
                 Map.of("type", "object"), Map.of("type", "object"), List.of("demo"));
         enTool.setSupportedLocales(List.of("en-US"));
         registry.registerDefinitions(List.of(zhTool, enTool), "test", true);

@@ -2,6 +2,7 @@ package com.example.agent.capabilities.tools;
 
 import com.example.agent.capabilities.tools.registry.ToolCache;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.time.Duration;
@@ -15,7 +16,6 @@ import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
 import com.example.agent.capabilities.tools.mcp.McpToolSyncService;
 
 /**
@@ -53,12 +53,12 @@ public class DefaultToolCatalog implements ToolCatalogService {
     @Override
     public List<ToolSummary> listSummaries(ToolQuery query) {
         refreshRemoteTools("list_summaries");
-        List<McpToolDefinition> definitions = toolRegistry.listDefinitions();
+        List<ToolDefinition> definitions = toolRegistry.listDefinitions();
         if (definitions == null || definitions.isEmpty()) {
             return List.of();
         }
         List<ToolSummary> summaries = new ArrayList<>();
-        for (McpToolDefinition definition : definitions) {
+        for (ToolDefinition definition : definitions) {
             if (definition == null || !StringUtils.hasText(definition.getName())) {
                 continue;
             }
@@ -82,18 +82,18 @@ public class DefaultToolCatalog implements ToolCatalogService {
     }
 
     @Override
-    public McpToolDefinition getDefinition(String toolName) {
+    public ToolDefinition getDefinition(String toolName) {
         refreshRemoteTools("get_definition");
         if (!StringUtils.hasText(toolName)) {
             return null;
         }
         String cacheKey = "tool:def:" + toolName;
         Object cached = toolCache.getIfFresh(cacheKey, Duration.ofSeconds(Math.max(1, definitionCacheTtlSeconds)));
-        McpToolDefinition fromCache = convertCached(cached);
+        ToolDefinition fromCache = convertCached(cached);
         if (fromCache != null) {
             return fromCache;
         }
-        McpToolDefinition definition = toolRegistry.getDefinition(toolName);
+        ToolDefinition definition = toolRegistry.getDefinition(toolName);
         if (definition != null) {
             toolCache.put(cacheKey, definition, Duration.ofSeconds(Math.max(1, definitionCacheTtlSeconds)));
         }
@@ -117,7 +117,7 @@ public class DefaultToolCatalog implements ToolCatalogService {
             log.info("工具输入结构缓存命中, tool={}", toolName);
             return schema;
         }
-        McpToolDefinition definition = toolRegistry.getDefinition(toolName);
+        ToolDefinition definition = toolRegistry.getDefinition(toolName);
         if (definition == null || definition.getInputSchema() == null || definition.getInputSchema().isEmpty()) {
             log.info("工具输入结构不存在, tool={}", toolName);
             return null;
@@ -141,7 +141,7 @@ public class DefaultToolCatalog implements ToolCatalogService {
         }
     }
 
-    private boolean matchesTags(McpToolDefinition definition, ToolQuery query) {
+    private boolean matchesTags(ToolDefinition definition, ToolQuery query) {
         if (query == null || query.getRequiredTags() == null || query.getRequiredTags().isEmpty()) {
             return true;
         }
@@ -165,7 +165,7 @@ public class DefaultToolCatalog implements ToolCatalogService {
      * @param query 查询条件
      * @return 是否命中范围规则
      */
-    private boolean matchesScopes(McpToolDefinition definition, ToolQuery query) {
+    private boolean matchesScopes(ToolDefinition definition, ToolQuery query) {
         if (query == null || query.getAllowedScopes() == null || query.getAllowedScopes().isEmpty()) {
             return true;
         }
@@ -190,7 +190,7 @@ public class DefaultToolCatalog implements ToolCatalogService {
      * @param query 查询条件
      * @return 是否命中语言规则
      */
-    private boolean matchesLocale(McpToolDefinition definition, ToolQuery query) {
+    private boolean matchesLocale(ToolDefinition definition, ToolQuery query) {
         if (query == null || !StringUtils.hasText(query.getLocale())) {
             return true;
         }
@@ -219,13 +219,13 @@ public class DefaultToolCatalog implements ToolCatalogService {
         return locale.trim().replace('_', '-').toLowerCase(Locale.ROOT);
     }
 
-    private McpToolDefinition convertCached(Object cached) {
-        if (cached instanceof McpToolDefinition definition) {
+    private ToolDefinition convertCached(Object cached) {
+        if (cached instanceof ToolDefinition definition) {
             return definition;
         }
         if (cached instanceof Map<?, ?> map) {
             try {
-                return objectMapper.convertValue(map, McpToolDefinition.class);
+                return objectMapper.convertValue(map, ToolDefinition.class);
             } catch (IllegalArgumentException ex) {
                 log.warn("工具缓存转换失败");
                 return null;
@@ -237,7 +237,13 @@ public class DefaultToolCatalog implements ToolCatalogService {
     @SuppressWarnings("unchecked")
     private Map<String, Object> convertSchemaCached(Object cached) {
         if (cached instanceof Map<?, ?> map) {
-            return (Map<String, Object>) map;
+            try {
+                Map<String, Object> converted = objectMapper.convertValue(cached, Map.class);
+                return converted != null ? converted : null;
+            } catch (IllegalArgumentException ex) {
+                log.warn("工具结构缓存转换失败");
+                return null;
+            }
         }
         return null;
     }

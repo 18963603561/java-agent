@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.tools;
 
-import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import java.util.List;
 import java.util.Map;
 
@@ -23,7 +23,7 @@ public interface ToolCatalogService {
      * @param toolName 工具名称
      * @return 工具定义
      */
-    McpToolDefinition getDefinition(String toolName);
+    ToolDefinition getDefinition(String toolName);
 
     /**
      * 查询工具输入结构。

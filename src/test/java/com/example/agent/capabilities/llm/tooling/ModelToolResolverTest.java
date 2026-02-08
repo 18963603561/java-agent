@@ -5,7 +5,7 @@ import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.capabilities.tools.ToolCatalogService;
 import com.example.agent.capabilities.tools.ToolSummary;
-import com.example.agent.capabilities.tools.mcp.McpToolDefinition;
+import com.example.agent.capabilities.tools.model.ToolDefinition;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.capabilities.tools.skill.SkillDefinition;
 import com.example.agent.capabilities.tools.skill.SkillRegistry;
@@ -143,7 +143,7 @@ class ModelToolResolverTest {
                 new ObjectMapper(), metricsPublisher, new ToolingContextMapper());
 
         when(toolRegistry.listDefinitions()).thenReturn(List.of(
-                new McpToolDefinition("tool_a", "v1", "a",
+                new ToolDefinition("tool_a", "v1", "a",
                         Map.of("type", "object"), Map.of("type", "object"), List.of())
         ));
 
@@ -171,9 +171,9 @@ class ModelToolResolverTest {
         ModelToolResolver resolver = new ModelToolResolver(toolRegistry, skillRegistry, toolCatalog,
                 new ObjectMapper(), metricsPublisher, new ToolingContextMapper());
 
-        McpToolDefinition toolA = new McpToolDefinition("tool_a", "v1", "a",
+        ToolDefinition toolA = new ToolDefinition("tool_a", "v1", "a",
                 Map.of("type", "object"), Map.of("type", "object"), List.of());
-        McpToolDefinition toolB = new McpToolDefinition("tool_b", "v1", "b",
+        ToolDefinition toolB = new ToolDefinition("tool_b", "v1", "b",
                 Map.of("type", "object"), Map.of("type", "object"), List.of());
 
         when(toolRegistry.listDefinitions()).thenReturn(List.of(toolA, toolB));
@@ -204,7 +204,7 @@ class ModelToolResolverTest {
         ReflectionTestUtils.setField(resolver, "toolInjectMode", "full");
 
         when(toolRegistry.listDefinitions()).thenReturn(List.of(
-                new McpToolDefinition("tool_a", "v1", "a",
+                new ToolDefinition("tool_a", "v1", "a",
                         Map.of("type", "object"), Map.of("type", "object"), List.of())
         ));
         when(skillRegistry.listDefinitions()).thenReturn(List.of());
