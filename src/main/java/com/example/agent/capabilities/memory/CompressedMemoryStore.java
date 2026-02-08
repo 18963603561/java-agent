@@ -70,7 +70,7 @@ public class CompressedMemoryStore {
         compressed.setSummary(summary);
         compressed.setConversationSummary(conversationSummary);
         compressed.setWorkingMemorySummary(workingMemorySummary);
-        compressed.setLayer("compressed");
+        compressed.setLayer(MemoryLayer.COMPRESSED.value());
         compressed.setTenantId(tenantContext.getTenantId());
         Instant now = Instant.now();
         compressed.setCreatedAt(now);
@@ -141,7 +141,7 @@ public class CompressedMemoryStore {
             if (record == null) {
                 continue;
             }
-            if ("compressed".equalsIgnoreCase(record.getLayer())) {
+            if (MemoryLayer.isCompressed(record.getLayer())) {
                 continue;
             }
             if (StringUtils.hasText(record.getContent())) {
@@ -189,7 +189,7 @@ public class CompressedMemoryStore {
             return items;
         }
         for (MemoryRecord record : records) {
-            if (record == null || "compressed".equalsIgnoreCase(record.getLayer())) {
+            if (record == null || MemoryLayer.isCompressed(record.getLayer())) {
                 continue;
             }
             String text = resolveRecordText(record);
@@ -212,7 +212,7 @@ public class CompressedMemoryStore {
         int startIndex = Math.max(0, records.size() - maxCount);
         for (int i = startIndex; i < records.size(); i++) {
             MemoryRecord record = records.get(i);
-            if (record == null || "compressed".equalsIgnoreCase(record.getLayer())) {
+            if (record == null || MemoryLayer.isCompressed(record.getLayer())) {
                 continue;
             }
             String text = resolveRecordText(record);
@@ -271,7 +271,7 @@ public class CompressedMemoryStore {
             if (record == null) {
                 continue;
             }
-            if ("compressed".equalsIgnoreCase(record.getLayer())) {
+            if (MemoryLayer.isCompressed(record.getLayer())) {
                 filtered.add(record);
             }
         }

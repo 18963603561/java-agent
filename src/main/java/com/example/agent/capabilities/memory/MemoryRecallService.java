@@ -33,8 +33,6 @@ public class MemoryRecallService {
     private static final String CONTEXT_RECALL_MAX_RECORD_CHARS = "memoryRecallMaxRecordChars";
     private static final String CONTEXT_POLICY_KEY = "contextPolicy";
     private static final String CONTEXT_POLICY_FALLBACK_KEY = "policy";
-    private static final List<String> DEFAULT_RETRIEVAL_PRIORITY = List.of("SEMANTIC", "RECENT", "SUMMARY");
-
     /**
      * 记忆存取服务。
      */
@@ -115,7 +113,7 @@ public class MemoryRecallService {
                 properties.isIncludeCompressed());
 
         ContextPolicy policy = resolvePolicyFromContext(effectiveContext);
-        List<String> retrievalPriority = resolveRetrievalPriority(policy);
+        List<RetrievalPriority> retrievalPriority = resolveRetrievalPriority(policy);
         boolean enableSensitiveMask = resolveSensitiveMask(policy);
         if (metricsPublisher != null) {
             metricsPublisher.incrementWithTags("context_retrieval_priority_used_total",
@@ -241,18 +239,18 @@ public class MemoryRecallService {
     /**
      * 解析检索优先级并补齐默认顺序。
      */
-    private List<String> resolveRetrievalPriority(ContextPolicy policy) {
-        List<String> resolved = new ArrayList<>();
+    private List<RetrievalPriority> resolveRetrievalPriority(ContextPolicy policy) {
+        List<RetrievalPriority> resolved = new ArrayList<>();
         List<String> configured = policy != null ? policy.getRetrievalPriority() : null;
         if (configured != null) {
             for (String value : configured) {
-                String normalized = normalizePriorityValue(value);
+                RetrievalPriority normalized = normalizePriorityValue(value);
                 if (normalized != null && !resolved.contains(normalized)) {
                     resolved.add(normalized);
                 }
             }
         }
-        for (String value : DEFAULT_RETRIEVAL_PRIORITY) {
+        for (RetrievalPriority value : RetrievalPriority.defaultOrder()) {
             if (!resolved.contains(value)) {
                 resolved.add(value);
             }
@@ -260,15 +258,8 @@ public class MemoryRecallService {
         return resolved;
     }
 
-    private String normalizePriorityValue(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        String upper = value.trim().toUpperCase(Locale.ROOT);
-        return switch (upper) {
-            case "RECENT", "SEMANTIC", "SUMMARY" -> upper;
-            default -> null;
-        };
+    private RetrievalPriority normalizePriorityValue(String value) {
+        return RetrievalPriority.parse(value);
     }
 
     /**
@@ -281,14 +272,14 @@ public class MemoryRecallService {
         return Boolean.TRUE.equals(policy.getEnableSensitiveMask());
     }
 
-    private String formatPriorityTag(List<String> retrievalPriority) {
+    private String formatPriorityTag(List<RetrievalPriority> retrievalPriority) {
         if (retrievalPriority == null || retrievalPriority.isEmpty()) {
             return "default";
         }
         List<String> tags = new ArrayList<>();
-        for (String value : retrievalPriority) {
-            if (StringUtils.hasText(value)) {
-                tags.add(value.trim().toLowerCase(Locale.ROOT));
+        for (RetrievalPriority value : retrievalPriority) {
+            if (value != null) {
+                tags.add(value.name().toLowerCase(Locale.ROOT));
             }
         }
         return tags.isEmpty() ? "default" : String.join(">", tags);
@@ -364,7 +355,7 @@ public class MemoryRecallService {
             if (record == null) {
                 continue;
             }
-            if (!"compressed".equalsIgnoreCase(record.getLayer())) {
+            if (!MemoryLayer.isCompressed(record.getLayer())) {
                 filtered.add(record);
             }
         }

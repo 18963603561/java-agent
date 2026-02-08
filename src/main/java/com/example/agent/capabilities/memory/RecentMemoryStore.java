@@ -28,7 +28,7 @@ public class RecentMemoryStore {
             return null;
         }
         if (!StringUtils.hasText(record.getLayer())) {
-            record.setLayer("recent");
+            record.setLayer(MemoryLayer.RECENT.value());
         }
         return memoryRepository.save(record);
     }
@@ -69,7 +69,7 @@ public class RecentMemoryStore {
                 continue;
             }
             String layer = record.getLayer();
-            if (!StringUtils.hasText(layer) || "recent".equalsIgnoreCase(layer)) {
+            if (!StringUtils.hasText(layer) || MemoryLayer.isRecent(layer)) {
                 filtered.add(record);
             }
         }

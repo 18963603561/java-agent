@@ -145,7 +145,7 @@ public class JdbcMemoryRepository implements MemoryRepository {
                               AND expires_at IS NOT NULL AND expires_at <= ?
                             """, tenantId, nowTs);
         } catch (DataAccessException ex) {
-            log.error("璁板繂娓呯悊澶辫触, tenantId={}", tenantId, ex);
+            log.error("记忆清理失败, tenantId={}, cutoff={}", tenantId, now, ex);
             return 0;
         }
     }

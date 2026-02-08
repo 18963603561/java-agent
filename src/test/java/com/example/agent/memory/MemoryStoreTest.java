@@ -26,6 +26,7 @@ import com.example.agent.capabilities.memory.VectorStore;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class MemoryStoreTest {
@@ -180,6 +181,109 @@ class MemoryStoreTest {
 
         store.search(query, tenantContext);
         assertEquals(1, repository.getDeleteCalls());
+    }
+
+    @Test
+    void saveReturnsNullWhenRecordMissing() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryStore store = buildStore(repository, policyProps(100, 1000, 3600, 0));
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        MemoryRecord saved = store.save(null, tenantContext);
+        assertNull(saved);
+    }
+
+    @Test
+    void saveReturnsNullWhenTenantContextMissing() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryStore store = buildStore(repository, policyProps(100, 1000, 3600, 0));
+        MemoryRecord record = new MemoryRecord();
+        record.setSessionId("session-1");
+        record.setContent("payload");
+
+        MemoryRecord saved = store.save(record, null);
+        assertNull(saved);
+    }
+
+    @Test
+    void searchReturnsEmptyWhenQueryMissing() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryStore store = buildStore(repository, policyProps(100, 1000, 3600, 0));
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        MemorySearchResult result = store.search(null, tenantContext);
+        assertNotNull(result);
+        assertTrue(result.getRecords().isEmpty());
+    }
+
+    @Test
+    void compressReturnsNullWhenRequestMissing() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryStore store = buildStore(repository, policyProps(100, 1000, 3600, 0));
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        MemoryRecord compressed = store.compress(null, tenantContext);
+        assertNull(compressed);
+    }
+
+    @Test
+    void compressReturnsNullWhenSessionMissing() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryStore store = buildStore(repository, policyProps(100, 1000, 3600, 0));
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        CompressionRequest request = new CompressionRequest();
+        request.setSessionId(" ");
+        MemoryRecord compressed = store.compress(request, tenantContext);
+        assertNull(compressed);
+    }
+
+    @Test
+    void inMemoryRepositoryShouldKeepSingleRecordWhenSaveSameMemoryId() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryStore store = buildStore(repository, policyProps(100, 1000, 3600, 0));
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        MemoryRecord record = new MemoryRecord();
+        record.setMemoryId("fixed-memory-id");
+        record.setSessionId("session-upsert");
+        record.setContent("v1");
+        store.save(record, tenantContext);
+
+        MemoryRecord updated = new MemoryRecord();
+        updated.setMemoryId("fixed-memory-id");
+        updated.setSessionId("session-upsert");
+        updated.setContent("v2");
+        store.save(updated, tenantContext);
+
+        List<MemoryRecord> records = repository.findBySession("tenant-a", "session-upsert");
+        assertEquals(1, records.size());
+        assertEquals("v2", records.get(0).getContent());
+    }
+
+    @Test
+    void inMemoryRepositoryShouldMoveRecordAcrossSessionWhenSessionChanged() {
+        InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        MemoryStore store = buildStore(repository, policyProps(100, 1000, 3600, 0));
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
+
+        MemoryRecord record = new MemoryRecord();
+        record.setMemoryId("moving-memory-id");
+        record.setSessionId("session-old");
+        record.setContent("old-session");
+        store.save(record, tenantContext);
+
+        MemoryRecord moved = new MemoryRecord();
+        moved.setMemoryId("moving-memory-id");
+        moved.setSessionId("session-new");
+        moved.setContent("new-session");
+        store.save(moved, tenantContext);
+
+        List<MemoryRecord> oldRecords = repository.findBySession("tenant-a", "session-old");
+        List<MemoryRecord> newRecords = repository.findBySession("tenant-a", "session-new");
+        assertTrue(oldRecords.isEmpty());
+        assertEquals(1, newRecords.size());
+        assertEquals("new-session", newRecords.get(0).getContent());
     }
 
     private MemoryStore buildStore(InMemoryMemoryRepository repository, MemoryPolicyProperties policyProperties) {

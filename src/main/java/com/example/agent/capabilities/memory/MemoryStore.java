@@ -5,7 +5,6 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
@@ -22,7 +21,6 @@ import org.springframework.util.StringUtils;
 public class MemoryStore {
 
     private static final Logger log = LoggerFactory.getLogger(MemoryStore.class);
-    private static final List<String> DEFAULT_RETRIEVAL_PRIORITY = List.of("SEMANTIC", "RECENT", "SUMMARY");
 
     private final MemoryRepository memoryRepository;
     private final ObjectProvider<VectorStore> vectorStoreProvider;
@@ -63,6 +61,14 @@ public class MemoryStore {
      * @return 保存后的记录
      */
     public MemoryRecord save(MemoryRecord record, TenantContext tenantContext) {
+        if (!hasValidTenantContext(tenantContext)) {
+            log.warn("记忆保存跳过, reason=tenant_invalid");
+            return null;
+        }
+        if (record == null) {
+            log.warn("记忆保存跳过, tenantId={}, reason=record_missing", tenantContext.getTenantId());
+            return null;
+        }
         if (record.getMemoryId() == null || record.getMemoryId().isBlank()) {
             record.setMemoryId(UUID.randomUUID().toString());
         }
@@ -119,32 +125,38 @@ public class MemoryStore {
      */
     public MemorySearchResult search(MemoryQuery query,
                                      TenantContext tenantContext,
-                                     List<String> retrievalPriority) {
+                                     List<RetrievalPriority> retrievalPriority) {
+        if (!hasValidTenantContext(tenantContext)) {
+            log.warn("记忆检索跳过, reason=tenant_invalid");
+            return new MemorySearchResult(List.of());
+        }
+        if (query == null) {
+            log.warn("记忆检索跳过, tenantId={}, reason=query_missing", tenantContext.getTenantId());
+            return new MemorySearchResult(List.of());
+        }
         int limit = query.getLimit() != null && query.getLimit() > 0 ? query.getLimit() : 10;
         cleanupExpiredIfNeeded(tenantContext, "search");
         List<MemoryRecord> aggregated = new ArrayList<>();
         if (query != null && StringUtils.hasText(query.getQuery())) {
-            List<String> priorityOrder = normalizeRetrievalPriority(retrievalPriority);
-            for (String priority : priorityOrder) {
+            List<RetrievalPriority> priorityOrder = normalizeRetrievalPriority(retrievalPriority);
+            for (RetrievalPriority priority : priorityOrder) {
                 if (aggregated.size() >= limit) {
                     break;
                 }
                 switch (priority) {
-                    case "RECENT" -> {
+                    case RECENT -> {
                         List<MemoryRecord> recent = recentMemoryStore.search(
                                 tenantContext.getTenantId(), query.getSessionId(), query.getQuery(), limit);
                         mergeRecords(aggregated, recent, limit);
                     }
-                    case "SEMANTIC" -> {
+                    case SEMANTIC -> {
                         List<MemoryRecord> semantic = semanticMemoryStore.search(query, tenantContext, limit);
                         mergeRecords(aggregated, semantic, limit);
                     }
-                    case "SUMMARY" -> {
+                    case SUMMARY -> {
                         List<MemoryRecord> compressed = compressedMemoryStore.search(
                                 tenantContext.getTenantId(), query.getSessionId(), query.getQuery(), limit);
                         mergeRecords(aggregated, compressed, limit);
-                    }
-                    default -> {
                     }
                 }
             }
@@ -156,33 +168,21 @@ public class MemoryStore {
         return new MemorySearchResult(filtered);
     }
 
-    private List<String> normalizeRetrievalPriority(List<String> retrievalPriority) {
-        List<String> resolved = new ArrayList<>();
+    private List<RetrievalPriority> normalizeRetrievalPriority(List<RetrievalPriority> retrievalPriority) {
+        List<RetrievalPriority> resolved = new ArrayList<>();
         if (retrievalPriority != null) {
-            for (String value : retrievalPriority) {
-                String normalized = normalizePriorityValue(value);
-                if (normalized != null && !resolved.contains(normalized)) {
-                    resolved.add(normalized);
+            for (RetrievalPriority value : retrievalPriority) {
+                if (value != null && !resolved.contains(value)) {
+                    resolved.add(value);
                 }
             }
         }
-        for (String value : DEFAULT_RETRIEVAL_PRIORITY) {
+        for (RetrievalPriority value : RetrievalPriority.defaultOrder()) {
             if (!resolved.contains(value)) {
                 resolved.add(value);
             }
         }
         return resolved;
-    }
-
-    private String normalizePriorityValue(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        String upper = value.trim().toUpperCase(Locale.ROOT);
-        return switch (upper) {
-            case "RECENT", "SEMANTIC", "SUMMARY" -> upper;
-            default -> null;
-        };
     }
 
     /**
@@ -193,6 +193,18 @@ public class MemoryStore {
      * @return 压缩后的记忆记录
      */
     public MemoryRecord compress(CompressionRequest request, TenantContext tenantContext) {
+        if (!hasValidTenantContext(tenantContext)) {
+            log.warn("记忆压缩跳过, reason=tenant_invalid");
+            return null;
+        }
+        if (request == null) {
+            log.warn("记忆压缩跳过, tenantId={}, reason=request_missing", tenantContext.getTenantId());
+            return null;
+        }
+        if (!StringUtils.hasText(request.getSessionId())) {
+            log.warn("记忆压缩跳过, tenantId={}, reason=session_missing", tenantContext.getTenantId());
+            return null;
+        }
         cleanupExpiredIfNeeded(tenantContext, "compress");
         List<MemoryRecord> records = memoryRepository.findBySession(
                 tenantContext.getTenantId(), request.getSessionId());
@@ -279,5 +291,15 @@ public class MemoryStore {
         } else {
             log.debug("过期记忆清理无数据, tenantId={}, reason={}", tenantId, reason);
         }
+    }
+
+    /**
+     * 校验租户上下文是否有效。
+     *
+     * @param tenantContext 租户上下文
+     * @return 是否有效
+     */
+    private boolean hasValidTenantContext(TenantContext tenantContext) {
+        return tenantContext != null && StringUtils.hasText(tenantContext.getTenantId());
     }
 }

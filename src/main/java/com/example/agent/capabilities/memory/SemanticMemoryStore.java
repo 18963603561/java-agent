@@ -65,7 +65,7 @@ public class SemanticMemoryStore {
                 continue;
             }
             String layer = record.getLayer();
-            if (!StringUtils.hasText(layer) || !"compressed".equalsIgnoreCase(layer)) {
+            if (!StringUtils.hasText(layer) || !MemoryLayer.isCompressed(layer)) {
                 filtered.add(record);
             }
         }

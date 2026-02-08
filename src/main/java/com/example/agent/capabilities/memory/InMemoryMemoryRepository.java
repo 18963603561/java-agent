@@ -26,10 +26,17 @@ public class InMemoryMemoryRepository implements MemoryRepository {
         if (record == null || !StringUtils.hasText(record.getMemoryId())) {
             return null;
         }
-        records.put(record.getMemoryId(), record);
-        String key = buildSessionKey(record.getTenantId(), record.getSessionId());
-        sessionIndex.computeIfAbsent(key, k -> Collections.synchronizedList(new ArrayList<>()))
-                .add(record);
+        MemoryRecord previous = records.put(record.getMemoryId(), record);
+        if (previous != null) {
+            removeFromSessionIndex(previous.getMemoryId(), previous.getTenantId(), previous.getSessionId());
+        }
+        String sessionKey = buildSessionKey(record.getTenantId(), record.getSessionId());
+        List<MemoryRecord> indexed = sessionIndex.computeIfAbsent(
+                sessionKey, key -> Collections.synchronizedList(new ArrayList<>()));
+        synchronized (indexed) {
+            indexed.removeIf(item -> sameMemory(item, record.getMemoryId()));
+            indexed.add(record);
+        }
         return record;
     }
 
@@ -82,18 +89,45 @@ public class InMemoryMemoryRepository implements MemoryRepository {
             if (isExpired(record, now)) {
                 iterator.remove();
                 removed++;
-                String key = buildSessionKey(record.getTenantId(), record.getSessionId());
-                List<MemoryRecord> list = sessionIndex.get(key);
-                if (list != null) {
-                    synchronized (list) {
-                        list.removeIf(item -> item != null
-                                && record.getMemoryId() != null
-                                && record.getMemoryId().equals(item.getMemoryId()));
-                    }
-                }
+                removeFromSessionIndex(record.getMemoryId(), record.getTenantId(), record.getSessionId());
             }
         }
         return removed;
+    }
+
+    /**
+     * 从会话索引中删除指定记忆，避免索引出现重复或脏数据。
+     *
+     * @param memoryId 记忆标识
+     * @param tenantId 租户标识
+     * @param sessionId 会话标识
+     */
+    private void removeFromSessionIndex(String memoryId, String tenantId, String sessionId) {
+        if (!StringUtils.hasText(memoryId)) {
+            return;
+        }
+        String sessionKey = buildSessionKey(tenantId, sessionId);
+        List<MemoryRecord> indexed = sessionIndex.get(sessionKey);
+        if (indexed == null) {
+            return;
+        }
+        synchronized (indexed) {
+            indexed.removeIf(item -> sameMemory(item, memoryId));
+            if (indexed.isEmpty()) {
+                sessionIndex.remove(sessionKey, indexed);
+            }
+        }
+    }
+
+    /**
+     * 判断索引项是否与目标 memoryId 指向同一条记忆。
+     *
+     * @param item 索引项
+     * @param memoryId 目标记忆标识
+     * @return 是否相同
+     */
+    private boolean sameMemory(MemoryRecord item, String memoryId) {
+        return item != null && StringUtils.hasText(item.getMemoryId()) && item.getMemoryId().equals(memoryId);
     }
 
     private boolean matches(MemoryRecord record, String lowerQuery) {

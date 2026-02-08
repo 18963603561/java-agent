@@ -100,7 +100,7 @@ public class MemoryWriteService {
                 record.setTaskId(taskId);
                 record.setContent(trimText(text, properties.getMaxRecordChars()));
                 record.setSummary(trimText(text, properties.getMaxSummaryChars()));
-                record.setLayer("recent");
+                record.setLayer(MemoryLayer.RECENT.value());
                 if (saveSafely(record, tenantContext)) {
                     saved++;
                 }
@@ -122,7 +122,7 @@ public class MemoryWriteService {
                 record.setTaskId(taskId);
                 record.setContent(trimText(outputRedaction.getRedactedText(), properties.getMaxRecordChars()));
                 record.setSummary(trimText(summaryRedaction.getRedactedText(), properties.getMaxSummaryChars()));
-                record.setLayer("recent");
+                record.setLayer(MemoryLayer.RECENT.value());
                 if (saveSafely(record, tenantContext)) {
                     saved++;
                 }
@@ -174,7 +174,7 @@ public class MemoryWriteService {
         record.setTaskId(taskId);
         record.setContent(trimText(redaction.getRedactedText(), properties.getMaxRecordChars()));
         record.setSummary(trimText(redaction.getRedactedText(), properties.getMaxSummaryChars()));
-        record.setLayer("recent");
+        record.setLayer(MemoryLayer.RECENT.value());
         saveSafely(record, tenantContext);
     }
 

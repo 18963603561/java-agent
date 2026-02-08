@@ -57,7 +57,7 @@ public class MemoryPolicy {
             return false;
         }
         return records.stream()
-                .filter(record -> "compressed".equalsIgnoreCase(record.getLayer()))
+                .filter(record -> MemoryLayer.isCompressed(record.getLayer()))
                 .filter(record -> record.getCreatedAt() != null)
                 .anyMatch(record -> Duration.between(record.getCreatedAt(), now).getSeconds()
                         < properties.getMinCompressIntervalSeconds());
@@ -90,7 +90,7 @@ public class MemoryPolicy {
                 continue;
             }
             String layer = record.getLayer();
-            if (!StringUtils.hasText(layer) || !"compressed".equalsIgnoreCase(layer)) {
+            if (!StringUtils.hasText(layer) || !MemoryLayer.isCompressed(layer)) {
                 filtered.add(record);
             }
         }
