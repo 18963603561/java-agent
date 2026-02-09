@@ -28,6 +28,21 @@ public class ApprovalProperties {
     private int timeoutSeconds = 300;
 
     /**
+     * 待审批请求的内存保留时长（秒）。
+     */
+    private int pendingTtlSeconds = 1800;
+
+    /**
+     * 待审批请求的最大缓存数量。
+     */
+    private int pendingMaxSize = 2000;
+
+    /**
+     * 待审批缓存清理周期（秒）。
+     */
+    private int cleanupIntervalSeconds = 30;
+
+    /**
      * 获取是否启用工具审批。
      *
      * @return 是否启用工具审批
@@ -54,5 +69,29 @@ public class ApprovalProperties {
 
     public void setTimeoutSeconds(int timeoutSeconds) {
         this.timeoutSeconds = timeoutSeconds;
+    }
+
+    public int getPendingTtlSeconds() {
+        return pendingTtlSeconds;
+    }
+
+    public void setPendingTtlSeconds(int pendingTtlSeconds) {
+        this.pendingTtlSeconds = pendingTtlSeconds;
+    }
+
+    public int getPendingMaxSize() {
+        return pendingMaxSize;
+    }
+
+    public void setPendingMaxSize(int pendingMaxSize) {
+        this.pendingMaxSize = pendingMaxSize;
+    }
+
+    public int getCleanupIntervalSeconds() {
+        return cleanupIntervalSeconds;
+    }
+
+    public void setCleanupIntervalSeconds(int cleanupIntervalSeconds) {
+        this.cleanupIntervalSeconds = cleanupIntervalSeconds;
     }
 }

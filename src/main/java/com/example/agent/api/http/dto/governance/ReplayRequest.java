@@ -1,4 +1,4 @@
-package com.example.agent.governance.replay;
+package com.example.agent.api.http.dto.governance;
 
 /**
  * 回放请求。
@@ -45,3 +45,4 @@ public class ReplayRequest {
         this.mode = mode;
     }
 }
+

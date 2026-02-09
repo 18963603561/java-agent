@@ -1,31 +1,27 @@
 package com.example.agent.governance.replay;
 
+import com.example.agent.governance.replay.domain.ReplayCommand;
+import com.example.agent.governance.replay.domain.ReplayEventFactory;
+import com.example.agent.governance.replay.domain.ReplayItem;
+import com.example.agent.governance.replay.domain.ReplayItemAssembler;
+import com.example.agent.governance.replay.domain.ReplayResult;
+import com.example.agent.governance.replay.domain.ReplaySessionStore;
+import com.example.agent.governance.replay.domain.ReplaySessionStoreProperties;
+import com.example.agent.governance.replay.domain.ReplayTaskSnapshot;
+import com.example.agent.governance.replay.domain.ReplayTaskResolver;
+import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.common.error.ErrorCodeException;
-import com.example.agent.api.http.dto.TaskStatusResponse;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
-import com.example.agent.history.eventlog.EventLogRecord;
-import com.example.agent.history.eventlog.EventLogRepository;
 import com.example.agent.streaming.observability.MetricsPublisher;
-import com.example.agent.orchestration.task.TaskQueryService;
-import com.example.agent.runtime.step.StepRecord;
-import com.example.agent.runtime.step.StepRuntimeService;
-import com.example.agent.runtime.step.StepState;
 import com.example.agent.streaming.sse.EventStreamService;
 import java.time.Instant;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 /**
@@ -36,241 +32,175 @@ public class ReplayService {
 
     private static final Logger log = LoggerFactory.getLogger(ReplayService.class);
 
-    private final TaskQueryService taskQueryService;
-    private final EventLogRepository eventLogRepository;
-    private final StepRuntimeService stepRuntimeService;
+    private static final int DEFAULT_SESSION_TTL_SECONDS = 1800;
+    private static final int DEFAULT_SESSION_MAX_SIZE = 2000;
+    private static final int DEFAULT_CLEANUP_INTERVAL_SECONDS = 30;
+
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
     private final MetricsPublisher metricsPublisher;
+    private final ReplayProperties replayProperties;
+    private final ReplayTaskResolver replayTaskResolver;
+    private final ReplayItemAssembler replayItemAssembler;
+    private final ReplayEventFactory replayEventFactory;
+    private final ReplaySessionStore replaySessionStore;
+    private final GovernanceTelemetry governanceTelemetry;
 
-    private final ConcurrentHashMap<String, ReplaySession> sessions = new ConcurrentHashMap<>();
-
-    public ReplayService(TaskQueryService taskQueryService,
-                         EventLogRepository eventLogRepository,
-                         StepRuntimeService stepRuntimeService,
-                         ApplicationEventPublisher eventPublisher,
+    public ReplayService(ApplicationEventPublisher eventPublisher,
                          EventStreamService eventStreamService,
-                         MetricsPublisher metricsPublisher) {
-        this.taskQueryService = taskQueryService;
-        this.eventLogRepository = eventLogRepository;
-        this.stepRuntimeService = stepRuntimeService;
+                         MetricsPublisher metricsPublisher,
+                         ReplayProperties replayProperties,
+                         ReplayTaskResolver replayTaskResolver,
+                         ReplayItemAssembler replayItemAssembler,
+                         ReplayEventFactory replayEventFactory,
+                         ReplaySessionStore replaySessionStore) {
+        this(eventPublisher,
+                eventStreamService,
+                metricsPublisher,
+                replayProperties,
+                replayTaskResolver,
+                replayItemAssembler,
+                replayEventFactory,
+                replaySessionStore,
+                new GovernanceTelemetry(metricsPublisher));
+    }
+
+    @Autowired
+    public ReplayService(ApplicationEventPublisher eventPublisher,
+                         EventStreamService eventStreamService,
+                         MetricsPublisher metricsPublisher,
+                         ReplayProperties replayProperties,
+                         ReplayTaskResolver replayTaskResolver,
+                         ReplayItemAssembler replayItemAssembler,
+                         ReplayEventFactory replayEventFactory,
+                         ReplaySessionStore replaySessionStore,
+                         GovernanceTelemetry governanceTelemetry) {
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
         this.metricsPublisher = metricsPublisher;
+        this.replayProperties = replayProperties;
+        this.replayTaskResolver = replayTaskResolver;
+        this.replayItemAssembler = replayItemAssembler;
+        this.replayEventFactory = replayEventFactory;
+        this.replaySessionStore = replaySessionStore;
+        this.governanceTelemetry = governanceTelemetry;
     }
 
     /**
      * 执行回放。
      *
-     * @param request 回放请求
+     * @param command 回放命令
      * @param tenantContext 租户上下文
      * @return 回放响应
      */
-    public ReplayResponse replay(ReplayRequest request, TenantContext tenantContext) {
-        TaskStatusResponse task = resolveTask(request, tenantContext);
+    public ReplayResult replay(ReplayCommand command, TenantContext tenantContext) {
+        log.info("治理链路开始, domain={}, action={}, result={}, tenantId={}, workflowId={}, taskId={}, requestId={}, traceId={}",
+                "replay",
+                "replay",
+                "started",
+                tenantContext != null ? tenantContext.getTenantId() : null,
+                null,
+                command != null ? command.getTaskId() : null,
+                tenantContext != null ? tenantContext.getRequestId() : null,
+                tenantContext != null ? tenantContext.getTraceId() : null);
+        ReplayTaskSnapshot task = replayTaskResolver.resolveTask(command, tenantContext);
 
         String replayId = UUID.randomUUID().toString();
         ReplaySession session = new ReplaySession();
         session.setReplayId(replayId);
-        session.setTaskId(request.getTaskId());
+        session.setTaskId(command.getTaskId());
         session.setStatus("RUNNING");
         session.setTenantId(tenantContext.getTenantId());
         session.setStartedAt(Instant.now());
-        sessions.put(replayId, session);
+        session.setLastAccessedAt(Instant.now());
+        replaySessionStore.put(replayId, session, resolveSessionStoreProperties());
 
         metricsPublisher.increment("replay.count");
+        governanceTelemetry.increment("replay.run.total",
+                "domain", "replay",
+                "action", "run",
+                "result", "started");
 
         String replayStreamId = "replay-" + replayId;
         AtomicLong seqCounter = eventStreamService.sequenceCounter(tenantContext.getTenantId(), replayStreamId);
-        publishReplayEvent(tenantContext, replayStreamId, seqCounter, replayId, EventType.REPLAY_STARTED);
+        publishReplayEvent(tenantContext.getTenantId(), replayStreamId, seqCounter, replayId, EventType.REPLAY_STARTED);
 
-        List<ReplayItem> items = buildReplayItems(tenantContext, task.getWorkflowId());
-        log.info("回放开始, tenantId={}, replayId={}, workflowId={}, items={}",
-                tenantContext.getTenantId(), replayId, task.getWorkflowId(), items.size());
+        java.util.List<ReplayItem> items = replayItemAssembler.assemble(tenantContext, task.getWorkflowId());
         for (ReplayItem item : items) {
-            StreamEvent event = item.toStreamEvent(replayStreamId, tenantContext.getTenantId(), seqCounter);
+            StreamEvent event = replayEventFactory.buildReplayItemEvent(replayStreamId,
+                    tenantContext.getTenantId(),
+                    seqCounter,
+                    item.getTimestamp(),
+                    item.getEventRecord(),
+                    item.getStepRecord());
             eventPublisher.publishEvent(event);
         }
 
         session.setStatus("COMPLETED");
         session.setCompletedAt(Instant.now());
-        publishReplayEvent(tenantContext, replayStreamId, seqCounter, replayId, EventType.REPLAY_COMPLETED);
+        session.setLastAccessedAt(Instant.now());
+        publishReplayEvent(tenantContext.getTenantId(), replayStreamId, seqCounter, replayId, EventType.REPLAY_COMPLETED);
 
-        log.info("回放完成, tenantId={}, replayId={}, taskId={}",
-                tenantContext.getTenantId(), replayId, request.getTaskId());
-        return new ReplayResponse(replayId, "COMPLETED", session.getStartedAt(), session.getCompletedAt());
+        governanceTelemetry.increment("replay.run.total",
+                "domain", "replay",
+                "action", "run",
+                "result", "completed");
+        log.info("治理链路结束, domain={}, action={}, result={}, tenantId={}, workflowId={}, taskId={}, requestId={}, traceId={}, replayId={}",
+                "replay",
+                "replay",
+                "completed",
+                tenantContext != null ? tenantContext.getTenantId() : null,
+                task != null ? task.getWorkflowId() : null,
+                command != null ? command.getTaskId() : null,
+                tenantContext != null ? tenantContext.getRequestId() : null,
+                tenantContext != null ? tenantContext.getTraceId() : null,
+                replayId);
+
+        return new ReplayResult(replayId, "COMPLETED", session.getStartedAt(), session.getCompletedAt());
     }
 
-    private TaskStatusResponse resolveTask(ReplayRequest request, TenantContext tenantContext) {
-        try {
-            TaskStatusResponse task = taskQueryService.getTask(request.getTaskId(), tenantContext);
-            if (task == null) {
-                throw new ErrorCodeException(HttpStatus.NOT_FOUND, "REPLAY_NOT_FOUND", "回放任务不存在");
-            }
-            return task;
-        } catch (RuntimeException ex) {
-            logReplayNotFound(tenantContext, request.getTaskId());
-            throw new ErrorCodeException(HttpStatus.NOT_FOUND, "REPLAY_NOT_FOUND", "回放任务不存在");
-        }
+    /**
+     * 获取回放会话数量，仅用于测试与诊断。
+     *
+     * @return 会话数量
+     */
+    public int sessionCount() {
+        return replaySessionStore.size(resolveSessionStoreProperties());
     }
 
-    private List<ReplayItem> buildReplayItems(TenantContext tenantContext, String workflowId) {
-        List<ReplayItem> items = new ArrayList<>();
-        List<EventLogRecord> events = eventLogRepository.findByWorkflow(tenantContext.getTenantId(), workflowId);
-        for (EventLogRecord record : events) {
-            items.add(ReplayItem.fromEvent(record));
-        }
-        List<StepRecord> steps = stepRuntimeService.getSteps(workflowId, tenantContext);
-        for (StepRecord step : steps) {
-            items.add(ReplayItem.fromStep(step));
-        }
-        items.sort((left, right) -> {
-            long leftSeq = left.getOriginalSeq();
-            long rightSeq = right.getOriginalSeq();
-            if (leftSeq > 0 && rightSeq > 0 && leftSeq != rightSeq) {
-                return Long.compare(leftSeq, rightSeq);
-            }
-            return left.getTimestamp().compareTo(right.getTimestamp());
-        });
-        return items;
-    }
-
-    private void publishReplayEvent(TenantContext tenantContext,
+    private void publishReplayEvent(String tenantId,
                                     String replayStreamId,
                                     AtomicLong seqCounter,
                                     String replayId,
                                     EventType type) {
-        long seq = seqCounter.incrementAndGet();
-        StreamEvent event = new StreamEvent();
-        event.setEventId(replayStreamId + ":" + seq);
-        event.setSchemaVersion("v1");
-        event.setWorkflowId(replayStreamId);
-        event.setType(type);
-        event.setTimestamp(Instant.now());
-        event.setSeq(seq);
-        event.setStreamId(replayStreamId);
-        event.setTenantId(tenantContext.getTenantId());
-        event.setPayload(Map.of("replayId", replayId));
+        StreamEvent event = replayEventFactory.buildLifecycleEvent(replayStreamId, tenantId, seqCounter, replayId, type);
         eventPublisher.publishEvent(event);
     }
 
-    private void logReplayNotFound(TenantContext tenantContext, String taskId) {
-        log.warn("REPLAY_NOT_FOUND, tenantId={}, userId={}, traceId={}, requestId={}, taskId={}",
-                tenantContext.getTenantId(),
-                tenantContext.getUserId(),
-                tenantContext.getTraceId(),
-                tenantContext.getRequestId(),
-                taskId);
+    private int getSessionTtlSeconds() {
+        if (replayProperties == null) {
+            return DEFAULT_SESSION_TTL_SECONDS;
+        }
+        return Math.max(1, replayProperties.getSessionTtlSeconds());
     }
 
-    private static class ReplayItem {
-        private final Instant timestamp;
-        private final long originalSeq;
-        private final EventLogRecord eventRecord;
-        private final StepRecord stepRecord;
-
-        private ReplayItem(Instant timestamp, long originalSeq, EventLogRecord eventRecord, StepRecord stepRecord) {
-            this.timestamp = timestamp;
-            this.originalSeq = originalSeq;
-            this.eventRecord = eventRecord;
-            this.stepRecord = stepRecord;
+    private int getSessionMaxSize() {
+        if (replayProperties == null) {
+            return DEFAULT_SESSION_MAX_SIZE;
         }
+        return Math.max(1, replayProperties.getSessionMaxSize());
+    }
 
-        private static ReplayItem fromEvent(EventLogRecord record) {
-            Instant ts = record.getTimestamp() != null ? record.getTimestamp() : Instant.EPOCH;
-            return new ReplayItem(ts, parseSeq(record.getEventId()), record, null);
+    private int getCleanupIntervalSeconds() {
+        if (replayProperties == null) {
+            return DEFAULT_CLEANUP_INTERVAL_SECONDS;
         }
+        return Math.max(1, replayProperties.getCleanupIntervalSeconds());
+    }
 
-        private static ReplayItem fromStep(StepRecord step) {
-            Instant ts = step.getCompletedAt() != null ? step.getCompletedAt()
-                    : (step.getStartedAt() != null ? step.getStartedAt() : Instant.EPOCH);
-            long seq = step.getStepSeq();
-            return new ReplayItem(ts, seq, null, step);
-        }
-
-        private Instant getTimestamp() {
-            return timestamp;
-        }
-
-        private long getOriginalSeq() {
-            return originalSeq;
-        }
-
-        private StreamEvent toStreamEvent(String replayStreamId, String tenantId, AtomicLong seqCounter) {
-            long seq = seqCounter.incrementAndGet();
-            StreamEvent event = new StreamEvent();
-            event.setEventId(replayStreamId + ":" + seq);
-            event.setSchemaVersion("v1");
-            event.setWorkflowId(replayStreamId);
-            event.setTimestamp(timestamp);
-            event.setSeq(seq);
-            event.setStreamId(replayStreamId);
-            event.setTenantId(tenantId);
-            if (eventRecord != null) {
-                event.setType(resolveEventType(eventRecord.getType()));
-                Map<String, Object> payload = new HashMap<>();
-                payload.put("originalEventId", eventRecord.getEventId());
-                payload.put("payload", eventRecord.getPayload());
-                event.setPayload(payload);
-                return event;
-            }
-            if (stepRecord != null) {
-                event.setType(resolveStepEvent(stepRecord));
-                Map<String, Object> payload = new HashMap<>();
-                payload.put("stepId", stepRecord.getStepId());
-                payload.put("stepSeq", stepRecord.getStepSeq());
-                payload.put("status", stepRecord.getStatus() != null ? stepRecord.getStatus().name() : null);
-                payload.put("type", stepRecord.getType());
-                payload.put("attempt", stepRecord.getAttempt());
-                if (stepRecord.getErrorCode() != null) {
-                    payload.put("errorCode", stepRecord.getErrorCode());
-                }
-                if (stepRecord.getOutput() != null) {
-                    payload.put("output", stepRecord.getOutput());
-                }
-                event.setPayload(payload);
-                return event;
-            }
-            event.setType(EventType.ERROR_OCCURRED);
-            event.setPayload(Map.of("error", "replay_event_missing"));
-            return event;
-        }
-
-        private static EventType resolveEventType(String type) {
-            if (type == null) {
-                return EventType.ERROR_OCCURRED;
-            }
-            try {
-                return EventType.valueOf(type);
-            } catch (IllegalArgumentException ex) {
-                return EventType.ERROR_OCCURRED;
-            }
-        }
-
-        private static EventType resolveStepEvent(StepRecord step) {
-            StepState state = step.getStatus();
-            if (state == StepState.FAILED) {
-                return EventType.STEP_FAILED;
-            }
-            if (state == StepState.COMPLETED) {
-                return EventType.STEP_COMPLETED;
-            }
-            return EventType.STEP_STARTED;
-        }
-
-        private static long parseSeq(String eventId) {
-            if (eventId == null) {
-                return 0;
-            }
-            int index = eventId.lastIndexOf(':');
-            if (index < 0 || index == eventId.length() - 1) {
-                return 0;
-            }
-            try {
-                return Long.parseLong(eventId.substring(index + 1));
-            } catch (NumberFormatException ex) {
-                return 0;
-            }
-        }
+    private ReplaySessionStoreProperties resolveSessionStoreProperties() {
+        return new ReplaySessionStoreProperties(getSessionTtlSeconds(),
+                getSessionMaxSize(),
+                getCleanupIntervalSeconds());
     }
 }

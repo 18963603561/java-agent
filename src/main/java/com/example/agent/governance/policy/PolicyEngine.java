@@ -1,5 +1,7 @@
 package com.example.agent.governance.policy;
 
+import com.example.agent.governance.policy.domain.PolicyEvaluationCommand;
+import com.example.agent.governance.policy.domain.PolicyEvaluationResult;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import java.util.List;
@@ -26,23 +28,31 @@ public class PolicyEngine {
     /**
      * 评估策略请求。
      *
-     * @param request 策略请求
+     * @param command 策略评估命令
      * @param tenantContext 租户上下文
      * @return 策略决策
      */
-    public PolicyDecision evaluate(PolicyRequest request, TenantContext tenantContext) {
+    public PolicyEvaluationResult evaluate(PolicyEvaluationCommand command, TenantContext tenantContext) {
         String evaluationId = UUID.randomUUID().toString();
-        String risk = extractRisk(request.getInput());
+        String risk = extractRisk(command != null ? command.getInput() : null);
         if ("high".equalsIgnoreCase(risk)) {
             metricsPublisher.increment("policy.deny.count");
             log.warn("策略拒绝, tenantId={}, policyId={}, action={}, resource={}",
-                    tenantContext.getTenantId(), request.getPolicyId(), request.getAction(), request.getResource());
-            return new PolicyDecision(request.getPolicyId(), "DENY", "high_risk",
+                    tenantContext.getTenantId(),
+                    command != null ? command.getPolicyId() : null,
+                    command != null ? command.getAction() : null,
+                    command != null ? command.getResource() : null);
+            return new PolicyEvaluationResult(command != null ? command.getPolicyId() : null,
+                    "DENY", "high_risk",
                     evaluationId, List.of("risk_high"));
         }
         log.info("策略通过, tenantId={}, policyId={}, action={}, resource={}",
-                tenantContext.getTenantId(), request.getPolicyId(), request.getAction(), request.getResource());
-        return new PolicyDecision(request.getPolicyId(), "ALLOW", "ok",
+                tenantContext.getTenantId(),
+                command != null ? command.getPolicyId() : null,
+                command != null ? command.getAction() : null,
+                command != null ? command.getResource() : null);
+        return new PolicyEvaluationResult(command != null ? command.getPolicyId() : null,
+                "ALLOW", "ok",
                 evaluationId, List.of("default_allow"));
     }
 

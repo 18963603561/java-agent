@@ -1,8 +1,8 @@
 package com.example.agent.api.http.controller;
 
 import com.example.agent.governance.approval.ApprovalService;
-import com.example.agent.governance.approval.ToolApprovalDecisionRequest;
-import com.example.agent.governance.approval.ToolApprovalDecisionResponse;
+import com.example.agent.api.http.dto.governance.ToolApprovalDecisionRequest;
+import com.example.agent.api.http.dto.governance.ToolApprovalDecisionResponse;
 import com.example.agent.security.auth.AuthService;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.security.auth.UserContext;

@@ -5,9 +5,11 @@ import com.example.agent.security.auth.TenantContext;
 import com.example.agent.security.auth.UserContext;
 import com.example.agent.common.response.ApiResponse;
 import com.example.agent.common.error.ErrorCodeException;
-import com.example.agent.governance.policy.PolicyDecision;
+import com.example.agent.api.http.dto.governance.PolicyEvaluateRequest;
+import com.example.agent.api.http.dto.governance.PolicyEvaluateResponse;
 import com.example.agent.governance.policy.PolicyEngine;
-import com.example.agent.governance.policy.PolicyRequest;
+import com.example.agent.governance.policy.domain.PolicyEvaluationCommand;
+import com.example.agent.governance.policy.domain.PolicyEvaluationResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -44,26 +46,34 @@ public class PolicyController {
      * @return 策略评估结果
      */
     @PostMapping("/api/v1/policy/evaluate")
-    public ApiResponse<PolicyDecision> evaluate(@RequestBody PolicyRequest request,
-                                                @RequestHeader(value = "X-API-Key", required = false) String apiKey,
-                                                ServerWebExchange exchange) {
+    public ApiResponse<PolicyEvaluateResponse> evaluate(@RequestBody PolicyEvaluateRequest request,
+                                                        @RequestHeader(value = "X-API-Key", required = false) String apiKey,
+                                                        ServerWebExchange exchange) {
         TenantContext tenantContext = authenticate(exchange, apiKey);
-        PolicyDecision decision = policyEngine.evaluate(request, tenantContext);
-        if (decision != null && "DENY".equalsIgnoreCase(decision.getDecision())) {
+        PolicyEvaluationCommand command = new PolicyEvaluationCommand(request.getPolicyId(),
+                request.getAction(),
+                request.getResource(),
+                request.getInput());
+        PolicyEvaluationResult result = policyEngine.evaluate(command, tenantContext);
+        if (result != null && "DENY".equalsIgnoreCase(result.getDecision())) {
             log.warn("策略拒绝, tenantId={}, userId={}, traceId={}, requestId={}, policyId={}, evaluationId={}",
                     tenantContext.getTenantId(),
                     tenantContext.getUserId(),
                     tenantContext.getTraceId(),
                     tenantContext.getRequestId(),
-                    decision.getPolicyId(),
-                    decision.getEvaluationId());
+                    result.getPolicyId(),
+                    result.getEvaluationId());
             throw new ErrorCodeException(HttpStatus.FORBIDDEN, "POLICY_DENIED",
-                    decision.getReason() == null ? "策略拒绝" : decision.getReason());
+                    result.getReason() == null ? "策略拒绝" : result.getReason());
         }
+        PolicyEvaluateResponse response = new PolicyEvaluateResponse(result != null ? result.getPolicyId() : null,
+                result != null ? result.getDecision() : null,
+                result != null ? result.getReason() : null,
+                result != null ? result.getEvaluationId() : null,
+                result != null ? result.getMatchedRules() : null);
         log.info("策略评估完成, tenantId={}, policyId={}, decision={}",
-                tenantContext.getTenantId(), decision != null ? decision.getPolicyId() : null,
-                decision != null ? decision.getDecision() : null);
-        return ApiResponse.success(decision, tenantContext.getTraceId(), tenantContext.getRequestId());
+                tenantContext.getTenantId(), response.getPolicyId(), response.getDecision());
+        return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
     }
 
     private TenantContext authenticate(ServerWebExchange exchange, String apiKey) {

@@ -5,8 +5,10 @@ import com.example.agent.security.auth.TenantContext;
 import com.example.agent.security.auth.UserContext;
 import com.example.agent.common.response.ApiResponse;
 import com.example.agent.common.error.ErrorCodeException;
-import com.example.agent.governance.replay.ReplayRequest;
-import com.example.agent.governance.replay.ReplayResponse;
+import com.example.agent.api.http.dto.governance.ReplayRequest;
+import com.example.agent.api.http.dto.governance.ReplayResponse;
+import com.example.agent.governance.replay.domain.ReplayCommand;
+import com.example.agent.governance.replay.domain.ReplayResult;
 import com.example.agent.governance.replay.ReplayService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,7 +50,15 @@ public class ReplayController {
                                               @RequestHeader(value = "X-API-Key", required = false) String apiKey,
                                               ServerWebExchange exchange) {
         TenantContext tenantContext = authenticate(exchange, apiKey);
-        ReplayResponse response = replayService.replay(request, tenantContext);
+        ReplayCommand command = new ReplayCommand(request.getTaskId(),
+                request.getFromStepId(),
+                request.getToStepId(),
+                request.getMode());
+        ReplayResult result = replayService.replay(command, tenantContext);
+        ReplayResponse response = new ReplayResponse(result.getReplayId(),
+                result.getStatus(),
+                result.getStartedAt(),
+                result.getCompletedAt());
         log.info("回放接口完成, tenantId={}, replayId={}, taskId={}",
                 tenantContext.getTenantId(), response.getReplayId(), request.getTaskId());
         return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());

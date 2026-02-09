@@ -26,6 +26,38 @@ agent:
     force-approval-above-risk: true
     budget-threshold-tokens: 10000
     default-strategy: tool
+    base-risk-score: 0.2
+    complexity-risk-weight: 0.4
+    missing-tool-summary-risk-weight: 0.2
+    failure-type-risk-weight-per-item: 0.05
+    failure-type-risk-weight-max: 0.2
+    budget-risk-complexity-threshold: 0.7
+    budget-risk-token-threshold: 3000
+    budget-risk-weight: 0.1
+    high-risk-strategy: thought_tree
+    research-keywords:
+      - 调研
+      - 研究
+      - 资料
+      - 来源
+      - 证据
+      - 报告
+    debate-keywords:
+      - 辩论
+      - 利弊
+      - 对比
+      - 比较
+      - 观点
+    risk-rules:
+      enabled: true
+      whitelist: []
+      blacklist: []
+    strategy-rules:
+      enabled: true
+      whitelist: []
+      blacklist: []
+    tenants: {}
+    scenes: {}
   idempotency:
     redis-enabled: true
   tool:

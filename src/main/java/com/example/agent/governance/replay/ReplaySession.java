@@ -14,6 +14,11 @@ public class ReplaySession {
     private Instant completedAt;
     private String tenantId;
 
+    /**
+     * 最后活跃时间，用于会话过期清理。
+     */
+    private Instant lastAccessedAt;
+
     public ReplaySession() {
     }
 
@@ -63,5 +68,13 @@ public class ReplaySession {
 
     public void setTenantId(String tenantId) {
         this.tenantId = tenantId;
+    }
+
+    public Instant getLastAccessedAt() {
+        return lastAccessedAt;
+    }
+
+    public void setLastAccessedAt(Instant lastAccessedAt) {
+        this.lastAccessedAt = lastAccessedAt;
     }
 }

@@ -20,7 +20,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEventPublisher;
-import org.springframework.test.util.ReflectionTestUtils;
 import com.example.agent.capabilities.tools.enforcement.EnforcementGateway;
 import com.example.agent.capabilities.tools.execution.ToolExecutor;
 
@@ -135,12 +134,7 @@ class HighRiskToolApprovalFlowTest {
         assertNotNull(result);
         assertEquals(Boolean.TRUE, result.get("ok"));
         verify(toolExecutor, times(1)).execute(any(), any(), anyString(), anyString(), anyString());
-
-        @SuppressWarnings("unchecked")
-        Map<String, Object> pending = (Map<String, Object>) ReflectionTestUtils.getField(approvalService,
-                "pendingApprovals");
-        assertNotNull(pending);
-        assertTrue(pending.isEmpty());
+        assertEquals(0, approvalService.pendingCount());
     }
 
     private ApprovalService buildApprovalService(int timeoutSeconds) {
@@ -163,11 +157,9 @@ class HighRiskToolApprovalFlowTest {
 
     private String waitForPendingRequestId(ApprovalService approvalService) throws InterruptedException {
         for (int i = 0; i < 20; i++) {
-            @SuppressWarnings("unchecked")
-            Map<String, Object> pending = (Map<String, Object>) ReflectionTestUtils.getField(approvalService,
-                    "pendingApprovals");
-            if (pending != null && !pending.isEmpty()) {
-                return pending.keySet().iterator().next();
+            String requestId = approvalService.findAnyPendingRequestId("tenant-a", "workflow-a");
+            if (requestId != null) {
+                return requestId;
             }
             TimeUnit.MILLISECONDS.sleep(50);
         }

@@ -1,5 +1,9 @@
 package com.example.agent.governance.evaluation;
 
+import com.example.agent.governance.evaluation.domain.CapabilityRuleHit;
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * 能力边界评估结果，包含风险等级与策略建议。
  */
@@ -44,6 +48,11 @@ public class CapabilityEvaluationResult {
      * 是否跳过评估。
      */
     private boolean skipped;
+
+    /**
+     * 命中规则摘要。
+     */
+    private List<CapabilityRuleHit> ruleHits = new ArrayList<>();
 
     public double getComplexityScore() {
         return complexityScore;
@@ -107,5 +116,13 @@ public class CapabilityEvaluationResult {
 
     public void setSkipped(boolean skipped) {
         this.skipped = skipped;
+    }
+
+    public List<CapabilityRuleHit> getRuleHits() {
+        return ruleHits;
+    }
+
+    public void setRuleHits(List<CapabilityRuleHit> ruleHits) {
+        this.ruleHits = ruleHits;
     }
 }

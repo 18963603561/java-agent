@@ -214,11 +214,12 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
                     // 幂等未命中时创建任务并写入存储。
                     TaskRecord record = createTask(request, tenantContext);
                     // 提交后台执行，失败则返回 503。
-                    submitAsyncOrThrow(request, tenantContext, record, executionMode);
+                    java.util.concurrent.CompletableFuture<Void> future = submitAsyncOrThrow(request, tenantContext,
+                            record, executionMode);
                     // 记录幂等键，避免重复处理。
                     storeIdempotency(tenantId, idempotencyKey, record.getTaskId());
                     publishTaskAccepted(tenantContext, record);
-                    return waitIfSync(request, tenantContext, record, executionMode);
+                    return waitIfSync(request, tenantContext, record, executionMode, future);
                 } finally {
                     // 清理本地锁对象，避免内存占用。
                     idempotencyLocks.remove(lockKey, lock);
@@ -228,9 +229,10 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
 
         // 无幂等键时直接创建任务并进入路由。
         TaskRecord record = createTask(request, tenantContext);
-        submitAsyncOrThrow(request, tenantContext, record, executionMode);
+        java.util.concurrent.CompletableFuture<Void> future = submitAsyncOrThrow(request, tenantContext, record,
+                executionMode);
         publishTaskAccepted(tenantContext, record);
-        return waitIfSync(request, tenantContext, record, executionMode);
+        return waitIfSync(request, tenantContext, record, executionMode, future);
     }
 
     /**
@@ -407,6 +409,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         TaskRecord latest = taskRepository.findById(tenantContext.getTenantId(), record.getTaskId());
         // 进入运行时前将任务状态置为运行中。
         updateTaskStatus(latest, "RUNNING", null);
+        updateInMemoryRecord(record, "RUNNING", null);
         long startedSeq = seqCounter.incrementAndGet();
         publishEvent(buildEvent(tenantContext, workflowId, EventType.WORKFLOW_STARTED, startedSeq,
                 Map.of("message", "workflow started")));
@@ -420,7 +423,9 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
                         tenantContext.getTenantId(), record.getTaskId(), workflowId, resolveTraceId(tenantContext));
             }
             // 执行成功后写入最终结果。
-            updateTaskStatus(latest, "COMPLETED", buildResultPayload(runtimeResult));
+            Map<String, Object> payload = buildResultPayload(runtimeResult);
+            updateTaskStatus(latest, "COMPLETED", payload);
+            updateInMemoryRecord(record, "COMPLETED", payload);
         } catch (RuntimeException ex) {
             // 捕获异常并发布错误事件，标记任务失败。
             log.error("任务路由失败, tenantId={}, taskId={}, workflowId={}, traceId={}",
@@ -430,7 +435,9 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
             publishEvent(buildEvent(tenantContext, workflowId, EventType.ERROR_OCCURRED, errorSeq,
                     Map.of("error", ex.getMessage() == null ? "route_failed" : ex.getMessage())));
             String errorMessage = ex.getMessage() == null ? "route_failed" : ex.getMessage();
-            updateTaskStatus(latest, "FAILED", Map.of("error", errorMessage));
+            Map<String, Object> payload = Map.of("error", errorMessage);
+            updateTaskStatus(latest, "FAILED", payload);
+            updateInMemoryRecord(record, "FAILED", payload);
             throw ex;
         } finally {
             // 无论成功或失败都发布完成事件，并记录耗时指标。
@@ -631,8 +638,7 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
         }
         java.util.concurrent.CompletableFuture<Void> future = taskExecutionService.getFuture(record.getTaskId());
         if (future == null) {
-            log.info("同步等待未命中执行器, taskId={}, status={}", record.getTaskId(), record.getStatus());
-            return buildAcceptedResponse(record, true);
+            return buildSyncResponseWithoutFuture(tenantContext, record);
         }
         return waitIfSync(request, tenantContext, record, executionMode, future);
     }
@@ -641,9 +647,12 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
                                     TenantContext tenantContext,
                                     TaskRecord record,
                                     TaskRequest.ExecutionMode executionMode) {
-        java.util.concurrent.CompletableFuture<Void> future = taskExecutionService.getFuture(record.getTaskId());
-        if (future == null || executionMode != TaskRequest.ExecutionMode.SYNC) {
+        if (executionMode != TaskRequest.ExecutionMode.SYNC) {
             return buildAcceptedResponse(record, false);
+        }
+        java.util.concurrent.CompletableFuture<Void> future = taskExecutionService.getFuture(record.getTaskId());
+        if (future == null) {
+            return buildSyncResponseWithoutFuture(tenantContext, record);
         }
         return waitIfSync(request, tenantContext, record, executionMode, future);
     }
@@ -675,10 +684,97 @@ public class TaskOrchestrator implements TaskSubmissionService, TaskQueryService
                 log.warn("同步等待任务异常完成, taskId={}, workflowId={}", record.getTaskId(),
                         record.getWorkflowId(), ex.getCause());
             }
-            TaskRecord latest = taskRepository.findById(tenantContext.getTenantId(), record.getTaskId());
-            return buildCompletedResponse(latest != null ? latest : record);
+            TaskRecord candidate = waitForSyncResult(tenantContext, record);
+            if (candidate != null && (candidate.getResult() != null || isTerminalStatus(candidate.getStatus()))) {
+                return buildCompletedResponse(candidate);
+            }
+            log.info("同步等待结束但结果未收敛, taskId={}, workflowId={}, status={}",
+                    record.getTaskId(), record.getWorkflowId(),
+                    candidate == null ? null : candidate.getStatus());
+            return buildAcceptedResponse(candidate != null ? candidate : record, true);
         } finally {
             syncSemaphore.release();
+        }
+    }
+
+    /**
+     * 在执行器未命中时构建同步响应。
+     *
+     * <p>输入：租户上下文与任务记录。</p>
+     * <p>输出：若任务已完成则返回完成响应，否则返回运行中响应。</p>
+     * <p>边界：仓储中找不到任务时回退入参记录。</p>
+     *
+     * @param tenantContext 租户上下文
+     * @param record 任务记录
+     * @return 同步模式下的响应
+     */
+    private TaskResponse buildSyncResponseWithoutFuture(TenantContext tenantContext, TaskRecord record) {
+        TaskRecord candidate = waitForSyncResult(tenantContext, record);
+        if (candidate != null && (candidate.getResult() != null || isTerminalStatus(candidate.getStatus()))) {
+            return buildCompletedResponse(candidate);
+        }
+        log.info("同步等待未命中执行器, taskId={}, status={}", record.getTaskId(),
+                candidate == null ? record.getStatus() : candidate.getStatus());
+        return buildAcceptedResponse(candidate != null ? candidate : record, true);
+    }
+
+    /**
+     * 在短窗口内轮询任务结果，降低异步写入与读取间的时序抖动。
+     *
+     * <p>输入：租户上下文与任务记录。</p>
+     * <p>输出：优先返回已完成且包含结果的任务记录。</p>
+     * <p>边界：轮询窗口超时后返回当前最新快照，不抛出异常。</p>
+     *
+     * @param tenantContext 租户上下文
+     * @param inMemoryRecord 内存中的任务记录
+     * @return 收敛后的任务记录
+     */
+    private TaskRecord waitForSyncResult(TenantContext tenantContext, TaskRecord inMemoryRecord) {
+        if (tenantContext == null || inMemoryRecord == null) {
+            return inMemoryRecord;
+        }
+        long deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(120);
+        TaskRecord candidate = null;
+        while (System.nanoTime() <= deadline) {
+            TaskRecord persisted = taskRepository.findById(tenantContext.getTenantId(), inMemoryRecord.getTaskId());
+            candidate = preferCompletedRecord(inMemoryRecord, persisted);
+            if (candidate == null) {
+                break;
+            }
+            if (candidate.getResult() != null || isTerminalStatus(candidate.getStatus())) {
+                return candidate;
+            }
+            try {
+                TimeUnit.MILLISECONDS.sleep(10);
+            } catch (InterruptedException ex) {
+                Thread.currentThread().interrupt();
+                return candidate;
+            }
+        }
+        return candidate != null ? candidate : inMemoryRecord;
+    }
+
+    private TaskRecord preferCompletedRecord(TaskRecord inMemoryRecord, TaskRecord persistedRecord) {
+        if (persistedRecord == null) {
+            return inMemoryRecord;
+        }
+        if (persistedRecord.getResult() != null) {
+            return persistedRecord;
+        }
+        if (inMemoryRecord != null && inMemoryRecord.getResult() != null) {
+            return inMemoryRecord;
+        }
+        return persistedRecord;
+    }
+
+    private void updateInMemoryRecord(TaskRecord record, String status, Map<String, Object> result) {
+        if (record == null) {
+            return;
+        }
+        record.setStatus(status);
+        record.setUpdatedAt(Instant.now());
+        if (result != null) {
+            record.setResult(result);
         }
     }
 

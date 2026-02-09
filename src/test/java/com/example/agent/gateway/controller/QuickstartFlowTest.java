@@ -1,10 +1,10 @@
 package com.example.agent.gateway.controller;
 
 import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.api.http.dto.governance.PolicyEvaluateRequest;
+import com.example.agent.api.http.dto.governance.ReplayRequest;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
-import com.example.agent.governance.replay.ReplayRequest;
-import com.example.agent.governance.policy.PolicyRequest;
 import com.example.agent.capabilities.tools.mcp.McpToolCallRequest;
 import java.time.Duration;
 import java.util.List;
@@ -151,7 +151,7 @@ class QuickstartFlowTest {
                 .jsonPath("$.data.callId").isEqualTo("call-001")
                 .jsonPath("$.data.status").isEqualTo("SUCCESS");
 
-        PolicyRequest policyRequest = new PolicyRequest();
+        PolicyEvaluateRequest policyRequest = new PolicyEvaluateRequest();
         policyRequest.setPolicyId("default");
         policyRequest.setAction("submit");
         policyRequest.setResource("task");

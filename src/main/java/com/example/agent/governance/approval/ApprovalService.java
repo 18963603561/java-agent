@@ -1,18 +1,20 @@
 package com.example.agent.governance.approval;
 
 import com.example.agent.common.error.ErrorCodeException;
+import com.example.agent.governance.approval.domain.ApprovalArgsDigestBuilder;
+import com.example.agent.governance.approval.domain.ApprovalDecisionAwaiter;
+import com.example.agent.governance.approval.domain.ApprovalStoreProperties;
+import com.example.agent.governance.approval.domain.PendingApprovalRecord;
+import com.example.agent.governance.approval.domain.PendingApprovalStore;
+import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
 import com.example.agent.streaming.observability.MetricsPublisher;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.TimeoutException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -25,16 +27,53 @@ public class ApprovalService {
 
     private static final Logger log = LoggerFactory.getLogger(ApprovalService.class);
 
-    private static final int MAX_DIGEST_CHARS = 800;
-    private static final int MAX_DIGEST_KEYS = 20;
+    private static final int DEFAULT_TIMEOUT_SECONDS = 300;
+    private static final int DEFAULT_PENDING_TTL_SECONDS = 1800;
+    private static final int DEFAULT_PENDING_MAX_SIZE = 2000;
+    private static final int DEFAULT_CLEANUP_INTERVAL_SECONDS = 30;
 
     private final ApprovalProperties properties;
     private final MetricsPublisher metricsPublisher;
-    private final ConcurrentHashMap<String, PendingApproval> pendingApprovals = new ConcurrentHashMap<>();
+    private final PendingApprovalStore pendingApprovalStore;
+    private final ApprovalDecisionAwaiter approvalDecisionAwaiter;
+    private final ApprovalArgsDigestBuilder approvalArgsDigestBuilder;
+    private final GovernanceTelemetry governanceTelemetry;
 
     public ApprovalService(ApprovalProperties properties, MetricsPublisher metricsPublisher) {
+        this(properties,
+                metricsPublisher,
+                new PendingApprovalStore(metricsPublisher),
+                new ApprovalDecisionAwaiter(),
+                new ApprovalArgsDigestBuilder(),
+                new GovernanceTelemetry(metricsPublisher));
+    }
+
+    public ApprovalService(ApprovalProperties properties,
+                           MetricsPublisher metricsPublisher,
+                           PendingApprovalStore pendingApprovalStore,
+                           ApprovalDecisionAwaiter approvalDecisionAwaiter,
+                           ApprovalArgsDigestBuilder approvalArgsDigestBuilder) {
+        this(properties,
+                metricsPublisher,
+                pendingApprovalStore,
+                approvalDecisionAwaiter,
+                approvalArgsDigestBuilder,
+                new GovernanceTelemetry(metricsPublisher));
+    }
+
+    @Autowired
+    public ApprovalService(ApprovalProperties properties,
+                           MetricsPublisher metricsPublisher,
+                           PendingApprovalStore pendingApprovalStore,
+                           ApprovalDecisionAwaiter approvalDecisionAwaiter,
+                           ApprovalArgsDigestBuilder approvalArgsDigestBuilder,
+                           GovernanceTelemetry governanceTelemetry) {
         this.properties = properties;
         this.metricsPublisher = metricsPublisher;
+        this.pendingApprovalStore = pendingApprovalStore;
+        this.approvalDecisionAwaiter = approvalDecisionAwaiter;
+        this.approvalArgsDigestBuilder = approvalArgsDigestBuilder;
+        this.governanceTelemetry = governanceTelemetry;
     }
 
     /**
@@ -71,9 +110,45 @@ public class ApprovalService {
      */
     public int getTimeoutSeconds() {
         if (properties == null) {
-            return 300;
+            return DEFAULT_TIMEOUT_SECONDS;
         }
         return Math.max(1, properties.getTimeoutSeconds());
+    }
+
+    /**
+     * 获取待审批缓存保留时长（秒）。
+     *
+     * @return 保留时长
+     */
+    public int getPendingTtlSeconds() {
+        if (properties == null) {
+            return DEFAULT_PENDING_TTL_SECONDS;
+        }
+        return Math.max(1, properties.getPendingTtlSeconds());
+    }
+
+    /**
+     * 获取待审批缓存最大容量。
+     *
+     * @return 最大容量
+     */
+    public int getPendingMaxSize() {
+        if (properties == null) {
+            return DEFAULT_PENDING_MAX_SIZE;
+        }
+        return Math.max(1, properties.getPendingMaxSize());
+    }
+
+    /**
+     * 获取清理周期（秒）。
+     *
+     * @return 清理周期
+     */
+    public int getCleanupIntervalSeconds() {
+        if (properties == null) {
+            return DEFAULT_CLEANUP_INTERVAL_SECONDS;
+        }
+        return Math.max(1, properties.getCleanupIntervalSeconds());
     }
 
     /**
@@ -94,10 +169,14 @@ public class ApprovalService {
         String requestId = UUID.randomUUID().toString();
         long createdAt = System.currentTimeMillis();
         CompletableFuture<ApprovalDecision> future = new CompletableFuture<>();
-        PendingApproval pending = new PendingApproval(tenantId, workflowId, snapshotId, toolName, argsDigest,
+        PendingApprovalRecord pending = new PendingApprovalRecord(tenantId, workflowId, snapshotId, toolName, argsDigest,
                 createdAt, future);
-        pendingApprovals.put(requestId, pending);
+        pendingApprovalStore.put(requestId, pending, resolveStoreProperties());
         incrementMetric("approval_requested_total");
+        governanceTelemetry.increment("approval.request.total",
+                "domain", "approval",
+                "action", "request",
+                "result", "pending");
         log.info("审批请求已创建, tenantId={}, workflowId={}, requestId={}, toolName={}",
                 tenantId, workflowId, requestId, toolName);
         return new ApprovalHandle(requestId, future, createdAt);
@@ -111,39 +190,16 @@ public class ApprovalService {
      * @return 审批结果
      */
     public ApprovalDecision awaitDecision(ApprovalHandle handle, int timeoutSeconds) {
+        int effectiveTimeout = timeoutSeconds > 0 ? timeoutSeconds : getTimeoutSeconds();
         if (handle == null || handle.getFuture() == null) {
             return ApprovalDecision.rejected(null, "approval_handle_missing");
         }
-        int effectiveTimeout = timeoutSeconds > 0 ? timeoutSeconds : getTimeoutSeconds();
         try {
-            ApprovalDecision decision = handle.getFuture().get(effectiveTimeout, TimeUnit.SECONDS);
+            ApprovalDecision decision = approvalDecisionAwaiter.await(handle, effectiveTimeout);
             recordDecisionMetrics(handle, decision);
-            return decision;
-        // 异常捕获：记录上下文并按当前策略处理
-        } catch (TimeoutException ex) {
-            ApprovalDecision decision = ApprovalDecision.timeout(handle.getRequestId(), "timeout");
-            handle.getFuture().complete(decision);
-            recordDecisionMetrics(handle, decision);
-            incrementMetric("approval_timeout_total");
-            log.warn("审批等待超时, requestId={}, timeoutSeconds={}", handle.getRequestId(), effectiveTimeout);
-            return decision;
-        // 异常捕获：记录上下文并按当前策略处理
-        } catch (InterruptedException ex) {
-            Thread.currentThread().interrupt();
-            ApprovalDecision decision = ApprovalDecision.rejected(handle.getRequestId(), "interrupted");
-            handle.getFuture().complete(decision);
-            recordDecisionMetrics(handle, decision);
-            log.warn("审批等待中断, requestId={}", handle.getRequestId());
-            return decision;
-        // 异常捕获：记录上下文并按当前策略处理
-        } catch (ExecutionException ex) {
-            ApprovalDecision decision = ApprovalDecision.rejected(handle.getRequestId(), "decision_failed");
-            handle.getFuture().complete(decision);
-            recordDecisionMetrics(handle, decision);
-            log.warn("审批等待异常, requestId={}", handle.getRequestId(), ex);
             return decision;
         } finally {
-            pendingApprovals.remove(handle.getRequestId());
+            pendingApprovalStore.remove(handle.getRequestId());
         }
     }
 
@@ -165,21 +221,45 @@ public class ApprovalService {
         if (!StringUtils.hasText(requestId)) {
             throw new ErrorCodeException(HttpStatus.BAD_REQUEST, "APPROVAL_REQUEST_MISSING", "requestId 不能为空");
         }
-        PendingApproval pending = pendingApprovals.get(requestId);
+        PendingApprovalRecord pending = pendingApprovalStore.get(requestId, resolveStoreProperties());
         if (pending == null) {
             throw new ErrorCodeException(HttpStatus.NOT_FOUND, "APPROVAL_NOT_FOUND", "审批请求不存在");
         }
-        if (!matchTenant(tenantId, pending.tenantId) || !matchWorkflow(workflowId, pending.workflowId)) {
+        if (!matchTenant(tenantId, pending.getTenantId()) || !matchWorkflow(workflowId, pending.getWorkflowId())) {
             throw new ErrorCodeException(HttpStatus.FORBIDDEN, "APPROVAL_TENANT_MISMATCH", "租户或工作流不匹配");
         }
         ApprovalDecision decision = approved
                 ? ApprovalDecision.approved(requestId, reason)
                 : ApprovalDecision.rejected(requestId, reason);
-        pending.future.complete(decision);
-        pendingApprovals.remove(requestId);
+        pending.getFuture().complete(decision);
+        pendingApprovalStore.remove(requestId);
+        governanceTelemetry.increment("approval.decide.total",
+                "domain", "approval",
+                "action", "decide",
+                "result", approved ? "approved" : "rejected");
         log.info("审批决策已提交, tenantId={}, workflowId={}, requestId={}, approved={}, reason={}",
                 tenantId, workflowId, requestId, approved, normalizeReason(reason));
         return decision;
+    }
+
+    /**
+     * 获取当前待审批数量，仅用于测试与诊断。
+     *
+     * @return 待审批数量
+     */
+    public int pendingCount() {
+        return pendingApprovalStore.size(resolveStoreProperties());
+    }
+
+    /**
+     * 查询任意一个匹配租户与工作流的待审批请求标识，仅用于测试与诊断。
+     *
+     * @param tenantId 租户标识
+     * @param workflowId 工作流标识
+     * @return 请求标识，未命中时返回空
+     */
+    public String findAnyPendingRequestId(String tenantId, String workflowId) {
+        return pendingApprovalStore.findRequestId(tenantId, workflowId, resolveStoreProperties());
     }
 
     /**
@@ -189,10 +269,7 @@ public class ApprovalService {
      * @return 参数摘要
      */
     public String buildArgsDigest(Map<String, Object> arguments) {
-        if (arguments == null) {
-            return null;
-        }
-        return buildDigest(arguments);
+        return approvalArgsDigestBuilder.buildArgsDigest(arguments);
     }
 
     private boolean matchTenant(String tenantId, String expected) {
@@ -214,8 +291,13 @@ public class ApprovalService {
             return;
         }
         incrementMetricWithTags("approval_decision_total", "approved", String.valueOf(decision.isApproved()));
+        governanceTelemetry.increment("approval.decision.total",
+                "domain", "approval",
+                "action", "await",
+                "result", decision.isApproved() ? "approved" : (decision.isTimeout() ? "timeout" : "rejected"));
         long durationMs = System.currentTimeMillis() - handle.getCreatedAtEpochMs();
         recordTime("approval_wait_duration_ms", Math.max(0, durationMs));
+        governanceTelemetry.time("approval.await.duration_ms", Math.max(0, durationMs));
     }
 
     private void incrementMetric(String name) {
@@ -243,105 +325,8 @@ public class ApprovalService {
         return reason;
     }
 
-    private String buildDigest(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof Map<?, ?> map) {
-            return buildMapDigest(map);
-        }
-        if (value instanceof List<?> list) {
-            return "list(size=" + list.size() + ")";
-        }
-        if (value instanceof String text) {
-            return truncate(text, MAX_DIGEST_CHARS);
-        }
-        return truncate(value.toString(), MAX_DIGEST_CHARS);
+    private ApprovalStoreProperties resolveStoreProperties() {
+        return new ApprovalStoreProperties(getPendingTtlSeconds(), getPendingMaxSize(), getCleanupIntervalSeconds());
     }
 
-    private String buildMapDigest(Map<?, ?> map) {
-        if (map == null || map.isEmpty()) {
-            return "{}";
-        }
-        List<String> keys = new ArrayList<>();
-        for (Object key : map.keySet()) {
-            if (key == null) {
-                continue;
-            }
-            keys.add(key.toString());
-            if (keys.size() >= MAX_DIGEST_KEYS) {
-                break;
-            }
-        }
-        StringBuilder builder = new StringBuilder("keys=").append(keys);
-        if (map.size() > keys.size()) {
-            builder.append("...");
-        }
-        builder.append(",size=").append(map.size());
-        return truncate(builder.toString(), MAX_DIGEST_CHARS);
-    }
-
-    private String truncate(String value, int maxLength) {
-        if (value == null || maxLength <= 0) {
-            return value;
-        }
-        if (value.length() <= maxLength) {
-            return value;
-        }
-        return value.substring(0, maxLength);
-    }
-
-    static class PendingApproval {
-        private final String tenantId;
-        private final String workflowId;
-        private final String snapshotId;
-        private final String toolName;
-        private final String argsDigest;
-        private final long createdAtEpochMs;
-        private final CompletableFuture<ApprovalDecision> future;
-
-        PendingApproval(String tenantId,
-                        String workflowId,
-                        String snapshotId,
-                        String toolName,
-                        String argsDigest,
-                        long createdAtEpochMs,
-                        CompletableFuture<ApprovalDecision> future) {
-            this.tenantId = tenantId;
-            this.workflowId = workflowId;
-            this.snapshotId = snapshotId;
-            this.toolName = toolName;
-            this.argsDigest = argsDigest;
-            this.createdAtEpochMs = createdAtEpochMs;
-            this.future = future;
-        }
-
-        public String getTenantId() {
-            return tenantId;
-        }
-
-        public String getWorkflowId() {
-            return workflowId;
-        }
-
-        public String getSnapshotId() {
-            return snapshotId;
-        }
-
-        public String getToolName() {
-            return toolName;
-        }
-
-        public String getArgsDigest() {
-            return argsDigest;
-        }
-
-        public long getCreatedAtEpochMs() {
-            return createdAtEpochMs;
-        }
-
-        public CompletableFuture<ApprovalDecision> getFuture() {
-            return future;
-        }
-    }
 }

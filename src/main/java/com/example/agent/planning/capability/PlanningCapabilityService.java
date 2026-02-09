@@ -77,6 +77,14 @@ public class PlanningCapabilityService {
                 evaluation != null && evaluation.isSkipped(),
                 evaluation != null && evaluation.isShouldAskApproval(),
                 evaluation != null ? evaluation.getRecommendedStrategy() : null);
+        if (evaluation != null && evaluation.getRuleHits() != null && !evaluation.getRuleHits().isEmpty()) {
+            log.debug("能力评估命中规则, tenantId={}, workflowId={}, hits={}",
+                    tenantContext != null ? tenantContext.getTenantId() : null,
+                    workflowId,
+                    evaluation.getRuleHits().stream()
+                            .map(hit -> hit.getRuleType() + ":" + hit.getRuleId() + "@" + hit.getVersion())
+                            .toList());
+        }
         return evaluation;
     }
 
@@ -162,4 +170,3 @@ public class PlanningCapabilityService {
         return planningContext.getStringList(PlanningContextKeys.FAILURE_TYPES);
     }
 }
-

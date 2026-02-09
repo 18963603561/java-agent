@@ -276,6 +276,91 @@ agent:
     # 默认项:
     # - tool
     default-strategy: tool
+    # 说明: 风险基线分值
+    # 可选项:
+    # - 0.0-1.0
+    # 默认项:
+    # - 0.2
+    base-risk-score: 0.2
+    # 说明: 复杂度超过阈值的风险加权
+    # 可选项:
+    # - 0.0-1.0
+    # 默认项:
+    # - 0.4
+    complexity-risk-weight: 0.4
+    # 说明: 工具摘要缺失的风险加权
+    # 可选项:
+    # - 0.0-1.0
+    # 默认项:
+    # - 0.2
+    missing-tool-summary-risk-weight: 0.2
+    # 说明: 单个失败类型风险加权
+    # 可选项:
+    # - 0.0-1.0
+    # 默认项:
+    # - 0.05
+    failure-type-risk-weight-per-item: 0.05
+    # 说明: 失败类型风险加权上限
+    # 可选项:
+    # - 0.0-1.0
+    # 默认项:
+    # - 0.2
+    failure-type-risk-weight-max: 0.2
+    # 说明: 预算压力触发复杂度阈值
+    # 可选项:
+    # - 0.0-1.0
+    # 默认项:
+    # - 0.7
+    budget-risk-complexity-threshold: 0.7
+    # 说明: 预算压力触发令牌阈值
+    # 可选项:
+    # - 非负整数
+    # 默认项:
+    # - 3000
+    budget-risk-token-threshold: 3000
+    # 说明: 预算压力风险加权
+    # 可选项:
+    # - 0.0-1.0
+    # 默认项:
+    # - 0.1
+    budget-risk-weight: 0.1
+    # 说明: 高风险默认策略
+    # 可选项:
+    # - thought_tree
+    # - tool
+    # - memory
+    # 默认项:
+    # - thought_tree
+    high-risk-strategy: thought_tree
+    # 说明: 调研关键词列表
+    research-keywords:
+      - 调研
+      - 研究
+      - 资料
+      - 来源
+      - 证据
+      - 报告
+    # 说明: 辩论关键词列表
+    debate-keywords:
+      - 辩论
+      - 利弊
+      - 对比
+      - 比较
+      - 观点
+    # 说明: 风险规则启停与过滤配置（可通过白名单/黑名单控制）
+    risk-rules:
+      enabled: true
+      whitelist: []
+      blacklist: []
+    # 说明: 策略规则启停与过滤配置（可通过白名单/黑名单控制）
+    strategy-rules:
+      enabled: true
+      whitelist: []
+      blacklist: []
+    # 说明: 按租户覆盖规则集，键为租户标识
+    tenants: {}
+    # 说明: 按场景覆盖规则集，键为场景标识
+    scenes: {}
   storage:
     # 说明: 存储方式
     # 可选项:
@@ -940,6 +1025,9 @@ agent:
     # 默认项:
     # - 100
     max-per-minute: 100
+    max-keys: 20000
+    entry-ttl-seconds: 3600
+    cleanup-interval-seconds: 30
   circuit:
     # 说明: 失败阈值
     # 可选项:
@@ -953,6 +1041,13 @@ agent:
     # 默认项:
     # - 30
     open-seconds: 30
+    max-keys: 20000
+    state-ttl-seconds: 3600
+    cleanup-interval-seconds: 30
+  replay:
+    session-ttl-seconds: 1800
+    session-max-size: 2000
+    cleanup-interval-seconds: 30
   tool:
     # 说明: 工具注入模式
     # 可选项:
@@ -987,6 +1082,9 @@ agent:
       # 默认项:
       # - 300
       timeout-seconds: 300
+      pending-ttl-seconds: 1800
+      pending-max-size: 2000
+      cleanup-interval-seconds: 30
     cache:
       # 说明: 启用缓存
       # 可选项:

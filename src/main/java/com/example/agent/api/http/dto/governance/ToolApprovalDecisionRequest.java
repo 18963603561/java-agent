@@ -1,4 +1,4 @@
-package com.example.agent.governance.approval;
+package com.example.agent.api.http.dto.governance;
 
 /**
  * 工具审批决策请求。
@@ -70,3 +70,4 @@ public class ToolApprovalDecisionRequest {
         this.reason = reason;
     }
 }
+

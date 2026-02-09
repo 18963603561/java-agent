@@ -1,4 +1,4 @@
-package com.example.agent.governance.replay;
+package com.example.agent.api.http.dto.governance;
 
 import java.time.Instant;
 
@@ -54,3 +54,4 @@ public class ReplayResponse {
         this.completedAt = completedAt;
     }
 }
+

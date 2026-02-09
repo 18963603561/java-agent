@@ -1,18 +1,18 @@
-package com.example.agent.governance.policy;
+package com.example.agent.api.http.dto.governance;
 
 import java.util.Map;
 
 /**
- * 策略评估请求。
+ * 策略评估接口请求。
  */
-public class PolicyRequest {
+public class PolicyEvaluateRequest {
 
     private String policyId;
     private String action;
     private String resource;
     private Map<String, Object> input;
 
-    public PolicyRequest() {
+    public PolicyEvaluateRequest() {
     }
 
     public String getPolicyId() {
@@ -47,3 +47,4 @@ public class PolicyRequest {
         this.input = input;
     }
 }
+

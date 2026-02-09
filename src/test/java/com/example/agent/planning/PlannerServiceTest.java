@@ -17,6 +17,13 @@ import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.capabilities.llm.support.ValidationSupport;
 import com.example.agent.governance.evaluation.CapabilityBoundaryEvaluator;
 import com.example.agent.governance.evaluation.CapabilityEvaluationProperties;
+import com.example.agent.governance.evaluation.domain.BudgetPressureRiskRule;
+import com.example.agent.governance.evaluation.domain.ComplexityThresholdRiskRule;
+import com.example.agent.governance.evaluation.domain.DebateKeywordStrategyRule;
+import com.example.agent.governance.evaluation.domain.FailureTypesRiskRule;
+import com.example.agent.governance.evaluation.domain.HighRiskThoughtTreeStrategyRule;
+import com.example.agent.governance.evaluation.domain.MissingToolSummaryRiskRule;
+import com.example.agent.governance.evaluation.domain.ResearchKeywordStrategyRule;
 import com.example.agent.planning.approval.PlanningApprovalService;
 import com.example.agent.planning.builder.HeuristicPlanBuilder;
 import com.example.agent.planning.capability.PlanningCapabilityService;
@@ -459,6 +466,17 @@ class PlannerServiceTest {
         ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
         com.example.agent.streaming.sse.EventStreamService eventStreamService = Mockito.mock(
                 com.example.agent.streaming.sse.EventStreamService.class);
-        return new CapabilityBoundaryEvaluator(evalProps, publisher, eventStreamService);
+        return new CapabilityBoundaryEvaluator(evalProps,
+                publisher,
+                eventStreamService,
+                List.of(
+                        new ComplexityThresholdRiskRule(),
+                        new MissingToolSummaryRiskRule(),
+                        new FailureTypesRiskRule(),
+                        new BudgetPressureRiskRule()),
+                List.of(
+                        new ResearchKeywordStrategyRule(),
+                        new DebateKeywordStrategyRule(),
+                        new HighRiskThoughtTreeStrategyRule()));
     }
 }

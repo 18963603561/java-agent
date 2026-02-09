@@ -1,18 +1,25 @@
 package com.example.agent.governance;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.api.http.dto.TaskStatusResponse;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.history.eventlog.EventLogRecord;
 import com.example.agent.history.eventlog.EventLogRepository;
 import com.example.agent.history.eventlog.InMemoryEventLogRepository;
 import com.example.agent.streaming.observability.MetricsPublisher;
-import com.example.agent.orchestration.task.TaskQueryService;
+import com.example.agent.orchestration.task.TaskRecord;
+import com.example.agent.orchestration.task.TaskRepository;
 import com.example.agent.runtime.step.StepRecord;
 import com.example.agent.runtime.step.StepRuntimeService;
 import com.example.agent.runtime.step.StepState;
 import com.example.agent.streaming.sse.EventStreamService;
+import com.example.agent.governance.replay.domain.ReplayCommand;
+import com.example.agent.governance.replay.domain.ReplayEventFactory;
+import com.example.agent.governance.replay.domain.ReplayItemAssembler;
+import com.example.agent.governance.replay.domain.ReplayResult;
+import com.example.agent.governance.replay.domain.ReplaySessionStore;
+import com.example.agent.governance.replay.domain.ReplayTaskResolver;
+import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
@@ -20,13 +27,14 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEventPublisher;
-import com.example.agent.governance.replay.ReplayRequest;
-import com.example.agent.governance.replay.ReplayResponse;
+import com.example.agent.governance.replay.ReplayProperties;
 import com.example.agent.governance.replay.ReplayService;
+import org.springframework.http.HttpStatus;
+import com.example.agent.common.error.ErrorCodeException;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.mockito.ArgumentMatchers.any;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -34,7 +42,7 @@ class ReplayServiceTest {
 
     @Test
     void replayPublishesEventsInOrder() {
-        TaskQueryService taskQueryService = Mockito.mock(TaskQueryService.class);
+        TaskRepository taskRepository = Mockito.mock(TaskRepository.class);
         EventLogRepository eventLogRepository = new InMemoryEventLogRepository();
         StepRuntimeService stepRuntimeService = Mockito.mock(StepRuntimeService.class);
         EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
@@ -42,8 +50,8 @@ class ReplayServiceTest {
         CollectingEventPublisher eventPublisher = new CollectingEventPublisher();
 
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req", "trace");
-        TaskStatusResponse status = new TaskStatusResponse("task-1", "wf-1", "COMPLETED", Instant.now(), null);
-        when(taskQueryService.getTask(anyString(), any())).thenReturn(status);
+        TaskRecord status = buildTaskRecord("tenant-a", "task-1", "wf-1", "COMPLETED");
+        when(taskRepository.findById("tenant-a", "task-1")).thenReturn(status);
 
         EventLogRecord record = new EventLogRecord();
         record.setEventId("wf-1:1");
@@ -64,14 +72,17 @@ class ReplayServiceTest {
 
         when(eventStreamService.sequenceCounter(anyString(), anyString())).thenReturn(new AtomicLong(0));
 
-        ReplayService replayService = new ReplayService(taskQueryService, eventLogRepository, stepRuntimeService,
-                eventPublisher, eventStreamService, metricsPublisher);
+        ReplayService replayService = buildReplayService(taskRepository,
+                eventLogRepository,
+                stepRuntimeService,
+                eventPublisher,
+                eventStreamService,
+                metricsPublisher,
+                buildReplayProperties());
 
-        ReplayRequest request = new ReplayRequest();
-        request.setTaskId("task-1");
-        request.setMode("full");
+        ReplayCommand command = new ReplayCommand("task-1", null, null, "full");
 
-        ReplayResponse response = replayService.replay(request, tenantContext);
+        ReplayResult response = replayService.replay(command, tenantContext);
         assertNotNull(response.getReplayId());
 
         List<StreamEvent> events = eventPublisher.getStreamEvents();
@@ -79,6 +90,133 @@ class ReplayServiceTest {
         assertEquals(EventType.WORKFLOW_STARTED, events.get(1).getType());
         assertEquals(EventType.STEP_COMPLETED, events.get(2).getType());
         assertEquals(EventType.REPLAY_COMPLETED, events.get(events.size() - 1).getType());
+    }
+
+    @Test
+    void replayTaskNotFoundShouldReturnReplayNotFound() {
+        TaskRepository taskRepository = Mockito.mock(TaskRepository.class);
+        EventLogRepository eventLogRepository = new InMemoryEventLogRepository();
+        StepRuntimeService stepRuntimeService = Mockito.mock(StepRuntimeService.class);
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        CollectingEventPublisher eventPublisher = new CollectingEventPublisher();
+
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req", "trace");
+        when(taskRepository.findById("tenant-a", "task-404")).thenReturn(null);
+
+        ReplayService replayService = buildReplayService(taskRepository,
+                eventLogRepository,
+                stepRuntimeService,
+                eventPublisher,
+                eventStreamService,
+                metricsPublisher,
+                buildReplayProperties());
+
+        ReplayCommand command = new ReplayCommand("task-404", null, null, "full");
+
+        ErrorCodeException ex = assertThrows(ErrorCodeException.class,
+                () -> replayService.replay(command, tenantContext));
+        assertEquals("REPLAY_NOT_FOUND", ex.getErrorCode());
+        assertEquals(HttpStatus.NOT_FOUND, ex.getStatusCode());
+    }
+
+    @Test
+    void replayTaskQueryFailureShouldReturnServiceUnavailable() {
+        TaskRepository taskRepository = Mockito.mock(TaskRepository.class);
+        EventLogRepository eventLogRepository = new InMemoryEventLogRepository();
+        StepRuntimeService stepRuntimeService = Mockito.mock(StepRuntimeService.class);
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        CollectingEventPublisher eventPublisher = new CollectingEventPublisher();
+
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req", "trace");
+        when(taskRepository.findById("tenant-a", "task-500"))
+                .thenThrow(new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "TASK_QUERY_FAILED", "task query failed"));
+
+        ReplayService replayService = buildReplayService(taskRepository,
+                eventLogRepository,
+                stepRuntimeService,
+                eventPublisher,
+                eventStreamService,
+                metricsPublisher,
+                buildReplayProperties());
+
+        ReplayCommand command = new ReplayCommand("task-500", null, null, "full");
+
+        ErrorCodeException ex = assertThrows(ErrorCodeException.class,
+                () -> replayService.replay(command, tenantContext));
+        assertEquals("REPLAY_TASK_QUERY_FAILED", ex.getErrorCode());
+        assertEquals(HttpStatus.SERVICE_UNAVAILABLE, ex.getStatusCode());
+    }
+
+    @Test
+    void replayUnexpectedExceptionShouldReturnInternalServerError() {
+        TaskRepository taskRepository = Mockito.mock(TaskRepository.class);
+        EventLogRepository eventLogRepository = new InMemoryEventLogRepository();
+        StepRuntimeService stepRuntimeService = Mockito.mock(StepRuntimeService.class);
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        CollectingEventPublisher eventPublisher = new CollectingEventPublisher();
+
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req", "trace");
+        when(taskRepository.findById("tenant-a", "task-ex"))
+                .thenThrow(new IllegalStateException("boom"));
+
+        ReplayService replayService = buildReplayService(taskRepository,
+                eventLogRepository,
+                stepRuntimeService,
+                eventPublisher,
+                eventStreamService,
+                metricsPublisher,
+                buildReplayProperties());
+
+        ReplayCommand command = new ReplayCommand("task-ex", null, null, "full");
+
+        ErrorCodeException ex = assertThrows(ErrorCodeException.class,
+                () -> replayService.replay(command, tenantContext));
+        assertEquals("REPLAY_TASK_QUERY_EXCEPTION", ex.getErrorCode());
+        assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.getStatusCode());
+    }
+
+    private ReplayProperties buildReplayProperties() {
+        ReplayProperties properties = new ReplayProperties();
+        properties.setSessionTtlSeconds(1);
+        properties.setCleanupIntervalSeconds(1);
+        properties.setSessionMaxSize(2000);
+        return properties;
+    }
+
+    private ReplayService buildReplayService(TaskRepository taskRepository,
+                                             EventLogRepository eventLogRepository,
+                                             StepRuntimeService stepRuntimeService,
+                                             ApplicationEventPublisher eventPublisher,
+                                             EventStreamService eventStreamService,
+                                             MetricsPublisher metricsPublisher,
+                                             ReplayProperties replayProperties) {
+        ReplayTaskResolver taskResolver = new ReplayTaskResolver(taskRepository);
+        ReplayItemAssembler itemAssembler = new ReplayItemAssembler(eventLogRepository, stepRuntimeService);
+        ReplayEventFactory replayEventFactory = new ReplayEventFactory();
+        ReplaySessionStore sessionStore = new ReplaySessionStore(metricsPublisher);
+        GovernanceTelemetry governanceTelemetry = new GovernanceTelemetry(metricsPublisher);
+        return new ReplayService(eventPublisher,
+                eventStreamService,
+                metricsPublisher,
+                replayProperties,
+                taskResolver,
+                itemAssembler,
+                replayEventFactory,
+                sessionStore,
+                governanceTelemetry);
+    }
+
+    private TaskRecord buildTaskRecord(String tenantId, String taskId, String workflowId, String status) {
+        TaskRecord record = new TaskRecord();
+        record.setTenantId(tenantId);
+        record.setTaskId(taskId);
+        record.setWorkflowId(workflowId);
+        record.setStatus(status);
+        record.setUpdatedAt(Instant.now());
+        return record;
     }
 
     private static class CollectingEventPublisher implements ApplicationEventPublisher {

@@ -48,8 +48,34 @@ class CapabilityBoundaryEvaluatorTest {
         assertEquals(CapabilityRiskLevel.HIGH, result.getRiskLevel());
         assertNotEquals("tool", result.getRecommendedStrategy());
         assertTrue(result.isShouldAskApproval());
+        assertTrue(result.getRuleHits() != null && !result.getRuleHits().isEmpty());
         assertTrue(publisher.events.stream().anyMatch(event ->
                 event.getType() == EventType.CAPABILITY_EVAL_RISK_RAISED));
+    }
+
+    @Test
+    void disabledRuleShouldNotBeHitByEvaluator() {
+        CapabilityEvaluationProperties properties = new CapabilityEvaluationProperties();
+        properties.setEnabled(true);
+        properties.setRiskThreshold(0.6);
+        CapabilityEvaluationProperties.RuleSelection riskRules = new CapabilityEvaluationProperties.RuleSelection();
+        riskRules.setBlacklist(List.of("missing_tool_summary"));
+        properties.setRiskRules(riskRules);
+
+        TestEventPublisher publisher = new TestEventPublisher();
+        CapabilityBoundaryEvaluator evaluator = new CapabilityBoundaryEvaluator(
+                properties, publisher, Mockito.mock(com.example.agent.streaming.sse.EventStreamService.class));
+
+        CapabilityEvaluationInput input = new CapabilityEvaluationInput();
+        input.setTaskDescription("普通任务");
+        input.setToolSummary("");
+        input.setComplexityScore(0.1);
+
+        CapabilityEvaluationResult result = evaluator.evaluate(
+                input, new TenantContext("t-1", "u-1", List.of(), "req", "trace"),
+                "wf-1", new AtomicLong(0));
+
+        assertTrue(result.getRuleHits().stream().noneMatch(hit -> "missing_tool_summary".equals(hit.getRuleId())));
     }
 
     static class TestEventPublisher implements ApplicationEventPublisher {

@@ -1,17 +1,30 @@
 package com.example.agent.governance.evaluation;
 
+import com.example.agent.governance.evaluation.domain.BudgetPressureRiskRule;
+import com.example.agent.governance.evaluation.domain.CapabilityRuleBinding;
+import com.example.agent.governance.evaluation.domain.CapabilityRuleHit;
+import com.example.agent.governance.evaluation.domain.CapabilityRuleRegistry;
+import com.example.agent.governance.evaluation.domain.CapabilityRiskRule;
+import com.example.agent.governance.evaluation.domain.CapabilityStrategyRule;
+import com.example.agent.governance.evaluation.domain.ComplexityThresholdRiskRule;
+import com.example.agent.governance.evaluation.domain.DebateKeywordStrategyRule;
+import com.example.agent.governance.evaluation.domain.FailureTypesRiskRule;
+import com.example.agent.governance.evaluation.domain.HighRiskThoughtTreeStrategyRule;
+import com.example.agent.governance.evaluation.domain.MissingToolSummaryRiskRule;
+import com.example.agent.governance.evaluation.domain.ResearchKeywordStrategyRule;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.streaming.sse.EventStreamService;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
-import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -28,13 +41,38 @@ public class CapabilityBoundaryEvaluator {
     private final CapabilityEvaluationProperties properties;
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
+    private final CapabilityRuleRegistry capabilityRuleRegistry;
 
     public CapabilityBoundaryEvaluator(CapabilityEvaluationProperties properties,
                                        ApplicationEventPublisher eventPublisher,
                                        EventStreamService eventStreamService) {
+        this(properties,
+                eventPublisher,
+                eventStreamService,
+                defaultRiskRules(),
+                defaultStrategyRules());
+    }
+
+    public CapabilityBoundaryEvaluator(CapabilityEvaluationProperties properties,
+                                       ApplicationEventPublisher eventPublisher,
+                                       EventStreamService eventStreamService,
+                                       List<CapabilityRiskRule> riskRules,
+                                       List<CapabilityStrategyRule> strategyRules) {
+        this(properties,
+                eventPublisher,
+                eventStreamService,
+                new CapabilityRuleRegistry(riskRules, strategyRules));
+    }
+
+    @Autowired
+    public CapabilityBoundaryEvaluator(CapabilityEvaluationProperties properties,
+                                       ApplicationEventPublisher eventPublisher,
+                                       EventStreamService eventStreamService,
+                                       CapabilityRuleRegistry capabilityRuleRegistry) {
         this.properties = properties;
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
+        this.capabilityRuleRegistry = capabilityRuleRegistry;
     }
 
     /**
@@ -70,12 +108,17 @@ public class CapabilityBoundaryEvaluator {
         startedPayload.put("toolSummary", input != null ? input.getToolSummary() : null);
         publishEvent(tenantContext, workflowId, seqCounter, EventType.CAPABILITY_EVAL_STARTED, startedPayload);
 
+        String tenantId = tenantContext != null ? tenantContext.getTenantId() : null;
+        String scene = resolveScene(input);
+        capabilityRuleRegistry.logRegistrySummary(tenantId, scene, properties);
+
         double complexityScore = input != null && input.getComplexityScore() != null
                 ? input.getComplexityScore()
                 : estimateComplexity(input != null ? input.getTaskDescription() : null);
-        double riskScore = evaluateRiskScore(input, complexityScore);
+        List<CapabilityRuleHit> ruleHits = new ArrayList<>();
+        double riskScore = evaluateRiskScore(input, complexityScore, tenantId, scene, ruleHits);
         CapabilityRiskLevel riskLevel = resolveRiskLevel(riskScore);
-        String recommendedStrategy = resolveStrategy(input, complexityScore, riskLevel);
+        String recommendedStrategy = resolveStrategy(input, complexityScore, riskLevel, tenantId, scene, ruleHits);
         boolean shouldAskApproval = properties.isForceApprovalAboveRisk() && riskLevel == CapabilityRiskLevel.HIGH;
         boolean shouldDecompose = complexityScore >= properties.getComplexityThreshold()
                 && riskLevel == CapabilityRiskLevel.HIGH;
@@ -88,6 +131,7 @@ public class CapabilityBoundaryEvaluator {
         result.setShouldAskApproval(shouldAskApproval);
         result.setShouldDecompose(shouldDecompose);
         result.setStopEarlyReason(stopEarlyReason);
+        result.setRuleHits(ruleHits);
 
         Map<String, Object> completedPayload = new HashMap<>();
         completedPayload.put("complexityScore", complexityScore);
@@ -96,6 +140,7 @@ public class CapabilityBoundaryEvaluator {
         completedPayload.put("recommendedStrategy", recommendedStrategy);
         completedPayload.put("shouldAskApproval", shouldAskApproval);
         completedPayload.put("shouldDecompose", shouldDecompose);
+        completedPayload.put("ruleHits", toRuleHitSummary(ruleHits));
         if (StringUtils.hasText(stopEarlyReason)) {
             completedPayload.put("stopEarlyReason", stopEarlyReason);
         }
@@ -109,29 +154,46 @@ public class CapabilityBoundaryEvaluator {
             publishEvent(tenantContext, workflowId, seqCounter, EventType.CAPABILITY_EVAL_RISK_RAISED, riskPayload);
         }
 
-        log.info("能力边界评估完成, riskLevel={}, complexityScore={}, recommendedStrategy={}",
-                riskLevel, complexityScore, recommendedStrategy);
+        log.info("能力边界评估完成, tenantId={}, workflowId={}, riskLevel={}, complexityScore={}, recommendedStrategy={}, hitRules={}",
+                tenantId,
+                workflowId,
+                riskLevel,
+                complexityScore,
+                recommendedStrategy,
+                toRuleHitSummary(ruleHits));
         return result;
     }
 
-    private double evaluateRiskScore(CapabilityEvaluationInput input, double complexityScore) {
-        double riskScore = 0.2;
-        if (complexityScore >= properties.getComplexityThreshold()) {
-            riskScore += 0.4;
+    private double evaluateRiskScore(CapabilityEvaluationInput input,
+                                     double complexityScore,
+                                     String tenantId,
+                                     String scene,
+                                     List<CapabilityRuleHit> ruleHits) {
+        double riskScore = clampScore(properties.getBaseRiskScore());
+        List<CapabilityRuleBinding<CapabilityRiskRule>> activeRules = capabilityRuleRegistry.activeRiskRules(
+                tenantId,
+                scene,
+                properties);
+        for (CapabilityRuleBinding<CapabilityRiskRule> binding : activeRules) {
+            if (binding == null || binding.getRule() == null || binding.getMetadata() == null) {
+                continue;
+            }
+            CapabilityRiskRule rule = binding.getRule();
+            double delta = Math.max(0, rule.score(input, complexityScore, properties));
+            if (delta <= 0) {
+                continue;
+            }
+            riskScore += delta;
+            CapabilityRuleHit hit = CapabilityRuleHit.riskHit(binding.getMetadata(), delta, complexityScore);
+            ruleHits.add(hit);
+            log.debug("能力评估风险规则命中, ruleId={}, version={}, priority={}, delta={}, complexityScore={}",
+                    binding.getMetadata().getRuleId(),
+                    binding.getMetadata().getVersion(),
+                    binding.getMetadata().getPriority(),
+                    delta,
+                    complexityScore);
         }
-        if (input == null || !StringUtils.hasText(input.getToolSummary())) {
-            riskScore += 0.2;
-        }
-        if (input != null && input.getFailureTypes() != null && !input.getFailureTypes().isEmpty()) {
-            riskScore += Math.min(0.2, input.getFailureTypes().size() * 0.05);
-        }
-        int budgetThreshold = input != null && input.getBudgetThresholdTokens() > 0
-                ? input.getBudgetThresholdTokens()
-                : properties.getBudgetThresholdTokens();
-        if (budgetThreshold > 0 && complexityScore >= 0.7 && budgetThreshold < 3000) {
-            riskScore += 0.1;
-        }
-        return Math.min(1.0, riskScore);
+        return clampScore(riskScore);
     }
 
     private CapabilityRiskLevel resolveRiskLevel(double riskScore) {
@@ -146,17 +208,34 @@ public class CapabilityBoundaryEvaluator {
 
     private String resolveStrategy(CapabilityEvaluationInput input,
                                    double complexityScore,
-                                   CapabilityRiskLevel riskLevel) {
-        String description = input != null ? input.getTaskDescription() : null;
-        String lower = description == null ? "" : description.toLowerCase(Locale.ROOT);
-        if (containsKeyword(lower, List.of("调研", "研究", "资料", "来源", "证据", "报告"))) {
-            return "research";
-        }
-        if (containsKeyword(lower, List.of("辩论", "利弊", "对比", "比较", "观点"))) {
-            return "debate";
-        }
-        if (riskLevel == CapabilityRiskLevel.HIGH || complexityScore >= properties.getComplexityThreshold()) {
-            return "thought_tree";
+                                   CapabilityRiskLevel riskLevel,
+                                   String tenantId,
+                                   String scene,
+                                   List<CapabilityRuleHit> ruleHits) {
+        List<CapabilityRuleBinding<CapabilityStrategyRule>> activeRules = capabilityRuleRegistry.activeStrategyRules(
+                tenantId,
+                scene,
+                properties);
+        for (CapabilityRuleBinding<CapabilityStrategyRule> binding : activeRules) {
+            if (binding == null || binding.getRule() == null || binding.getMetadata() == null) {
+                continue;
+            }
+            CapabilityStrategyRule rule = binding.getRule();
+            String strategy = rule.resolve(input, complexityScore, riskLevel, properties);
+            if (StringUtils.hasText(strategy)) {
+                CapabilityRuleHit hit = CapabilityRuleHit.strategyHit(
+                        binding.getMetadata(),
+                        strategy,
+                        riskLevel != null ? riskLevel.name() : null,
+                        complexityScore);
+                ruleHits.add(hit);
+                log.debug("能力评估策略规则命中, ruleId={}, version={}, priority={}, strategy={}",
+                        binding.getMetadata().getRuleId(),
+                        binding.getMetadata().getVersion(),
+                        binding.getMetadata().getPriority(),
+                        strategy);
+                return strategy;
+            }
         }
         return properties.getDefaultStrategy();
     }
@@ -174,16 +253,46 @@ public class CapabilityBoundaryEvaluator {
         return null;
     }
 
-    private boolean containsKeyword(String text, List<String> keywords) {
-        if (!StringUtils.hasText(text) || keywords == null) {
-            return false;
+    private String resolveScene(CapabilityEvaluationInput input) {
+        if (input == null || !StringUtils.hasText(input.getPlanSummary())) {
+            return "default";
         }
-        for (String keyword : keywords) {
-            if (StringUtils.hasText(keyword) && text.contains(keyword)) {
-                return true;
-            }
+        return input.getPlanSummary().trim();
+    }
+
+    private List<String> toRuleHitSummary(List<CapabilityRuleHit> ruleHits) {
+        if (ruleHits == null || ruleHits.isEmpty()) {
+            return List.of();
         }
-        return false;
+        return ruleHits.stream()
+                .filter(hit -> hit != null)
+                .map(hit -> hit.getRuleType() + ":" + hit.getRuleId() + "@" + hit.getVersion() + "(" + hit.getSummary() + ")")
+                .toList();
+    }
+
+    private double clampScore(double score) {
+        if (score < 0) {
+            return 0;
+        }
+        if (score > 1) {
+            return 1;
+        }
+        return score;
+    }
+
+    private static List<CapabilityRiskRule> defaultRiskRules() {
+        return List.of(
+                new ComplexityThresholdRiskRule(),
+                new MissingToolSummaryRiskRule(),
+                new FailureTypesRiskRule(),
+                new BudgetPressureRiskRule());
+    }
+
+    private static List<CapabilityStrategyRule> defaultStrategyRules() {
+        return List.of(
+                new ResearchKeywordStrategyRule(),
+                new DebateKeywordStrategyRule(),
+                new HighRiskThoughtTreeStrategyRule());
     }
 
     private double estimateComplexity(String query) {

@@ -1,11 +1,11 @@
-package com.example.agent.governance.policy;
+package com.example.agent.governance.policy.domain;
 
 import java.util.List;
 
 /**
- * 策略评估结果。
+ * 策略评估领域结果。
  */
-public class PolicyDecision {
+public class PolicyEvaluationResult {
 
     private String policyId;
     private String decision;
@@ -13,11 +13,14 @@ public class PolicyDecision {
     private String evaluationId;
     private List<String> matchedRules;
 
-    public PolicyDecision() {
+    public PolicyEvaluationResult() {
     }
 
-    public PolicyDecision(String policyId, String decision, String reason,
-                          String evaluationId, List<String> matchedRules) {
+    public PolicyEvaluationResult(String policyId,
+                                  String decision,
+                                  String reason,
+                                  String evaluationId,
+                                  List<String> matchedRules) {
         this.policyId = policyId;
         this.decision = decision;
         this.reason = reason;
@@ -65,3 +68,4 @@ public class PolicyDecision {
         this.matchedRules = matchedRules;
     }
 }
+
