@@ -1,6 +1,6 @@
 package com.example.agent.budget.token;
 
-import com.example.agent.capabilities.context.ContextPolicy;
+import com.example.agent.capabilities.context.model.ContextPolicy;
 
 /**
  * 上下文预算分配请求。

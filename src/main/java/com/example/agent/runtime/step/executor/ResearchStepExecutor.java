@@ -1,8 +1,8 @@
 package com.example.agent.runtime.step.executor;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.EvidencePackService;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.evidence.EvidencePackService;
 import com.example.agent.capabilities.context.research.ResearchCitation;
 import com.example.agent.capabilities.context.research.ResearchPipeline;
 import com.example.agent.capabilities.context.research.ResearchRunResult;

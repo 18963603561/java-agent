@@ -1,13 +1,13 @@
 package com.example.agent.budget.trim;
 
-import com.example.agent.capabilities.context.ContextPolicy;
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.DomainKnowledge;
-import com.example.agent.capabilities.context.EvidenceItem;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.LongTermMemory;
-import com.example.agent.capabilities.context.MemoryRef;
-import com.example.agent.capabilities.context.WorkingMemory;
+import com.example.agent.capabilities.context.model.ContextPolicy;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.model.DomainKnowledge;
+import com.example.agent.capabilities.context.evidence.EvidenceItem;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.model.LongTermMemory;
+import com.example.agent.capabilities.context.model.MemoryRef;
+import com.example.agent.capabilities.context.model.WorkingMemory;
 import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import java.util.ArrayList;
@@ -207,9 +207,9 @@ public class DefaultContextPruner implements ContextPruner {
         if (knowledge.getCitations().size() <= max) {
             return;
         }
-        List<com.example.agent.capabilities.context.Citation> kept = new ArrayList<>(knowledge.getCitations().subList(0, max));
+        List<com.example.agent.capabilities.context.model.Citation> kept = new ArrayList<>(knowledge.getCitations().subList(0, max));
         for (int i = max; i < knowledge.getCitations().size(); i++) {
-            com.example.agent.capabilities.context.Citation citation = knowledge.getCitations().get(i);
+            com.example.agent.capabilities.context.model.Citation citation = knowledge.getCitations().get(i);
             PrunedItem item = new PrunedItem();
             item.setItemType("citation");
             item.setItemId(citation != null ? citation.getSource() : null);

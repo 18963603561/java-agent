@@ -1,18 +1,88 @@
 package com.example.agent.context;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.example.agent.streaming.observability.MetricsPublisher;
+import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
-import com.example.agent.capabilities.context.EvidenceItem;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.EvidenceStats;
-import com.example.agent.capabilities.context.EvidenceType;
+import com.example.agent.capabilities.context.evidence.EvidenceItem;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.evidence.EvidencePackService;
+import com.example.agent.capabilities.context.evidence.EvidenceStats;
+import com.example.agent.capabilities.context.evidence.EvidenceType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 
 class EvidencePackTest {
+
+    @Test
+    void removePackReturnsTrueWhenPackExists() {
+        EvidencePackService service = new EvidencePackService(new MetricsPublisher(new SimpleMeterRegistry()));
+        service.getOrCreatePack("tenant-a", "workflow-a", "snapshot-a");
+
+        boolean removed = service.removePack("tenant-a", "workflow-a");
+
+        assertEquals(true, removed);
+        assertEquals(null, service.getPack("tenant-a", "workflow-a"));
+    }
+
+    @Test
+    void getOrCreatePackRejectsBlankKey() {
+        EvidencePackService service = new EvidencePackService(new MetricsPublisher(new SimpleMeterRegistry()));
+        try {
+            service.getOrCreatePack("", "wf", "snap");
+        } catch (IllegalArgumentException ex) {
+            assertEquals("tenantId/workflowId must not be blank", ex.getMessage());
+            return;
+        }
+        throw new AssertionError("预期抛出 IllegalArgumentException");
+    }
+
+    @Test
+    void contextWriteUsesUnifiedEvidencePackKey() {
+        EvidencePackService service = new EvidencePackService(new MetricsPublisher(new SimpleMeterRegistry()));
+        Map<String, Object> context = new java.util.HashMap<>();
+        EvidencePack pack = service.getOrCreatePack(context, "tenant-key", "workflow-key", "snap-1");
+
+        assertNotNull(pack);
+        assertEquals(pack, context.get(com.example.agent.capabilities.context.runtime.ContextRuntimeKeys.EVIDENCE_PACK));
+    }
+
+    @Test
+    void expiredPackShouldBeEvictedAndRecreated() {
+        EvidencePackService service = new EvidencePackService(new MetricsPublisher(new SimpleMeterRegistry()), 1);
+        EvidencePack first = service.getOrCreatePack("tenant-exp", "workflow-exp", "snap-1");
+        first.setCreatedAt(Instant.now().minusSeconds(3600));
+
+        EvidencePack recreated = service.getOrCreatePack("tenant-exp", "workflow-exp", "snap-2");
+
+        assertNotNull(recreated);
+        assertEquals("snap-2", recreated.getSnapshotId());
+    }
+
+    @Test
+    void removePackReturnsFalseWhenPackNotExists() {
+        EvidencePackService service = new EvidencePackService(new MetricsPublisher(new SimpleMeterRegistry()));
+
+        boolean removed = service.removePack("tenant-missing", "workflow-missing");
+
+        assertEquals(false, removed);
+    }
+
+    @Test
+    void removePackThenCreateAgainWorks() {
+        EvidencePackService service = new EvidencePackService(new MetricsPublisher(new SimpleMeterRegistry()));
+        service.getOrCreatePack("tenant-b", "workflow-b", "snapshot-1");
+        service.removePack("tenant-b", "workflow-b");
+
+        EvidencePack recreated = service.getOrCreatePack("tenant-b", "workflow-b", "snapshot-2");
+
+        assertNotNull(recreated);
+        assertEquals("snapshot-2", recreated.getSnapshotId());
+    }
 
     @Test
     void recomputeStatsCounts() {

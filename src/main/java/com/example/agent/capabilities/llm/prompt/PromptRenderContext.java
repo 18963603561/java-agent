@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.llm.prompt;
 
-import com.example.agent.capabilities.context.ContextSnapshot;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
 
 /**
  * 提示词渲染最小上下文，只承载白名单决策字段。

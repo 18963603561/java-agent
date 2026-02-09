@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.llm.tooling;
 
 import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
 import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.capabilities.tools.skill.SkillDefinition;
 import com.example.agent.capabilities.tools.skill.SkillRoute;
@@ -76,12 +77,13 @@ public class ToolingContextMapper {
     }
 
     private ModelToolChoice resolveToolChoice(TaskRequest taskRequest, Map<String, Object> stepInput) {
-        ModelToolChoice fromStep = ModelToolChoice.fromRaw(stepInput != null ? stepInput.get("toolChoice") : null);
+        ModelToolChoice fromStep = ModelToolChoice.fromRaw(
+                stepInput != null ? stepInput.get(ContextRuntimeKeys.TOOL_CHOICE) : null);
         if (fromStep != null) {
             return fromStep;
         }
         if (stepInput != null && stepInput.get("context") instanceof Map<?, ?> contextMap) {
-            ModelToolChoice fromContext = ModelToolChoice.fromRaw(contextMap.get("toolChoice"));
+            ModelToolChoice fromContext = ModelToolChoice.fromRaw(contextMap.get(ContextRuntimeKeys.TOOL_CHOICE));
             if (fromContext != null) {
                 return fromContext;
             }
@@ -91,7 +93,7 @@ public class ToolingContextMapper {
                 return taskRequest.getToolChoice();
             }
             if (taskRequest.getContext() != null) {
-                return ModelToolChoice.fromRaw(taskRequest.getContext().get("toolChoice"));
+                return ModelToolChoice.fromRaw(taskRequest.getContext().get(ContextRuntimeKeys.TOOL_CHOICE));
             }
         }
         return null;
@@ -168,7 +170,7 @@ public class ToolingContextMapper {
         if (skillDefinition == null || skillDefinition.getConstraints() == null) {
             return null;
         }
-        return ModelToolChoice.fromRaw(skillDefinition.getConstraints().get("toolChoice"));
+        return ModelToolChoice.fromRaw(skillDefinition.getConstraints().get(ContextRuntimeKeys.TOOL_CHOICE));
     }
 
     private String asText(Object value) {
@@ -192,4 +194,3 @@ public class ToolingContextMapper {
         return false;
     }
 }
-

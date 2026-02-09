@@ -1,10 +1,10 @@
 package com.example.agent.budget;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.LongTermMemory;
-import com.example.agent.capabilities.context.MemoryRef;
-import com.example.agent.capabilities.context.WorkingMemory;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.model.LongTermMemory;
+import com.example.agent.capabilities.context.model.MemoryRef;
+import com.example.agent.capabilities.context.model.WorkingMemory;
 import com.example.agent.capabilities.memory.model.ConversationSummary;
 import com.example.agent.capabilities.memory.model.MemoryRecord;
 import com.example.agent.capabilities.memory.MemoryStore;

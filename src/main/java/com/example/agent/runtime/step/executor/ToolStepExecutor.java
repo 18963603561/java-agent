@@ -1,8 +1,9 @@
 package com.example.agent.runtime.step.executor;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.EvidencePackService;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.evidence.EvidencePackService;
+import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
 import com.example.agent.capabilities.tools.enforcement.EnforcementGateway;
 import com.example.agent.capabilities.tools.hook.HookManager;
 import com.example.agent.capabilities.tools.validation.ToolArgumentValidatorRuntime;
@@ -236,7 +237,7 @@ public class ToolStepExecutor implements StepTypeExecutor {
         Map<String, Object> toolChoice = new HashMap<>();
         toolChoice.put("mode", "specified");
         toolChoice.put("toolName", toolName);
-        stepInput.put("toolChoice", toolChoice);
+        stepInput.put(ContextRuntimeKeys.TOOL_CHOICE, toolChoice);
         log.info("TOOL 步骤补齐 toolChoice, workflowId={}, stepId={}, tool={}",
                 workflowId, stepId, toolName);
     }
@@ -245,12 +246,12 @@ public class ToolStepExecutor implements StepTypeExecutor {
         if (stepInput == null) {
             return false;
         }
-        if (stepInput.get("toolChoice") != null) {
+        if (stepInput.get(ContextRuntimeKeys.TOOL_CHOICE) != null) {
             return true;
         }
         Object context = stepInput.get("context");
         if (context instanceof Map<?, ?> contextMap) {
-            return contextMap.get("toolChoice") != null;
+            return contextMap.get(ContextRuntimeKeys.TOOL_CHOICE) != null;
         }
         return false;
     }
@@ -359,7 +360,7 @@ public class ToolStepExecutor implements StepTypeExecutor {
         }
         EvidencePack pack = evidencePackService.getPack(tenantContext.getTenantId(), workflowId);
         if (pack != null) {
-            runtimeContext.put("evidencePack", pack);
+            runtimeContext.put(ContextRuntimeKeys.EVIDENCE_PACK, pack);
         }
     }
 

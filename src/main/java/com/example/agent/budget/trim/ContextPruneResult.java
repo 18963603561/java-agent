@@ -1,6 +1,6 @@
 package com.example.agent.budget.trim;
 
-import com.example.agent.capabilities.context.ContextSnapshot;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
 import java.util.List;
 
 /**

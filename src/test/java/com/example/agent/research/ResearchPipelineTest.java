@@ -27,6 +27,54 @@ import static org.mockito.Mockito.when;
 class ResearchPipelineTest {
 
     @Test
+    void runSingleArgumentDelegatesToFullPipeline() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
+                metricsPublisher);
+        ResearchPipeline pipeline = new ResearchPipeline(modelInvocationService, promptAssembler, new ObjectMapper(),
+                eventPublisher, eventStreamService, repairService);
+
+        String content = "{\"citations\":[{\"source\":\"official\",\"snippet\":\"detail\"}]}";
+        when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.RESEARCH),
+                any(), any(), any(), eq("research"), any()))
+                .thenReturn(new ModelResponse("research", content, 10, 10));
+
+        List<ResearchCitation> citations = pipeline.run("query");
+
+        assertFalse(citations.isEmpty());
+        assertEquals("official", citations.get(0).getSource());
+    }
+
+    @Test
+    void runSingleArgumentFallsBackWhenModelOutputInvalid() {
+        ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
+                metricsPublisher);
+        ResearchPipeline pipeline = new ResearchPipeline(modelInvocationService, promptAssembler, new ObjectMapper(),
+                eventPublisher, eventStreamService, repairService);
+
+        when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.RESEARCH),
+                any(), any(), any(), eq("research"), any()))
+                .thenReturn(new ModelResponse("research", "invalid", 10, 10));
+        when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.CHEAP),
+                any(), any(), any(), eq("json_repair"), any()))
+                .thenReturn(new ModelResponse("repair", "", 10, 10));
+
+        List<ResearchCitation> citations = pipeline.run("query");
+
+        assertFalse(citations.isEmpty());
+        assertEquals("local", citations.get(0).getSource());
+    }
+
+    @Test
     void researchRepairsOutputWithExtraText() {
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);

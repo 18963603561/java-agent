@@ -1,17 +1,17 @@
 package com.example.agent.budget.trim;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.DomainKnowledge;
-import com.example.agent.capabilities.context.EvidenceItem;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.LongTermMemory;
-import com.example.agent.capabilities.context.MemoryRef;
-import com.example.agent.capabilities.context.RoleBoundary;
-import com.example.agent.capabilities.context.TaskIntent;
-import com.example.agent.capabilities.context.ToolCallState;
-import com.example.agent.capabilities.context.ToolState;
-import com.example.agent.capabilities.context.WorkingMemory;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.model.DomainKnowledge;
+import com.example.agent.capabilities.context.evidence.EvidenceItem;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.model.LongTermMemory;
+import com.example.agent.capabilities.context.model.MemoryRef;
+import com.example.agent.capabilities.context.model.RoleBoundary;
+import com.example.agent.capabilities.context.model.TaskIntent;
+import com.example.agent.capabilities.context.model.ToolCallState;
+import com.example.agent.capabilities.context.model.ToolState;
+import com.example.agent.capabilities.context.model.WorkingMemory;
 import com.example.agent.capabilities.memory.model.CompressionRequest;
 import com.example.agent.capabilities.memory.model.ConversationSummary;
 import com.example.agent.capabilities.memory.model.MemoryRecord;
@@ -412,7 +412,7 @@ public class ContextCompressionController {
             return 0;
         }
         int total = 0;
-        for (com.example.agent.capabilities.context.Citation citation : knowledge.getCitations()) {
+        for (com.example.agent.capabilities.context.model.Citation citation : knowledge.getCitations()) {
             total += estimateCitationTokens(citation);
         }
         return total;
@@ -501,7 +501,7 @@ public class ContextCompressionController {
         return total;
     }
 
-    private int estimateCitationTokens(com.example.agent.capabilities.context.Citation citation) {
+    private int estimateCitationTokens(com.example.agent.capabilities.context.model.Citation citation) {
         if (citation == null) {
             return 0;
         }

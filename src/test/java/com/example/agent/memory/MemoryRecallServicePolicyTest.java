@@ -2,7 +2,7 @@ package com.example.agent.memory;
 
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.context.ContextPolicy;
+import com.example.agent.capabilities.context.model.ContextPolicy;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.security.redaction.RedactionProperties;
 import com.example.agent.security.redaction.RedactionService;

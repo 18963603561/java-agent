@@ -5,7 +5,7 @@ import com.example.agent.budget.token.TokenBudgetManager;
 import com.example.agent.budget.token.TokenUsageRecord;
 import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.context.EvidencePack;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
 import com.example.agent.capabilities.llm.provider.ModelDefinition;
 import com.example.agent.capabilities.llm.provider.ModelRouter;
 import com.example.agent.streaming.observability.MetricsPublisher;

@@ -5,8 +5,12 @@ import com.example.agent.budget.trim.ContextTrimReport;
 import com.example.agent.capabilities.context.ContextBuildRequest;
 import com.example.agent.capabilities.context.ContextBuildResult;
 import com.example.agent.capabilities.context.ContextBuilder;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.EvidencePackService;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.evidence.EvidencePackService;
+import com.example.agent.capabilities.context.builder.exception.ContextBuildException;
+import com.example.agent.capabilities.context.runtime.ContextRuntimeViews;
+import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
+import com.example.agent.capabilities.context.runtime.MutableContextRuntimeView;
 import com.example.agent.capabilities.memory.recall.MemoryRecallResult;
 import com.example.agent.capabilities.memory.recall.MemoryRecallService;
 import com.example.agent.capabilities.tools.hook.HookManager;
@@ -123,15 +127,14 @@ public class RuntimePreparationService {
 
     private RuntimeContext initRuntimeContext(TaskRequest request, String workflowId) {
         Map<String, Object> runtimeContext = new HashMap<>();
+        MutableContextRuntimeView runtimeView = ContextRuntimeViews.mutable(runtimeContext, log, null);
         if (request != null && request.getContext() != null) {
             runtimeContext.putAll(request.getContext());
         }
         if (request != null && request.getToolChoice() != null) {
-            runtimeContext.put("toolChoice", request.getToolChoice());
+            runtimeView.putToolChoice(request.getToolChoice());
         }
-        if (workflowId != null && !workflowId.isBlank()) {
-            runtimeContext.putIfAbsent("workflowId", workflowId);
-        }
+        runtimeView.putWorkflowIdIfAbsent(workflowId);
         return new RuntimeContext(runtimeContext);
     }
 
@@ -142,12 +145,13 @@ public class RuntimePreparationService {
         if (runtimeContext == null || recallResult == null || !recallResult.isUsed()) {
             return;
         }
+        MutableContextRuntimeView runtimeView = ContextRuntimeViews.mutable(runtimeContext, log, null);
         Map<String, Object> memoryContext = new HashMap<>();
         memoryContext.put("summary", recallResult.getSummary());
         memoryContext.put("records", recallResult.getRecords());
         memoryContext.put("count", recallResult.getCount());
         memoryContext.put("reason", recallResult.getReason());
-        runtimeContext.put("memory", memoryContext);
+        runtimeView.putMemory(memoryContext);
     }
 
     /**
@@ -208,10 +212,11 @@ public class RuntimePreparationService {
                 || workflowId == null || workflowId.isBlank()) {
             return;
         }
+        MutableContextRuntimeView runtimeView = ContextRuntimeViews.mutable(runtimeContext, log, null);
         try {
             EvidencePack pack = evidencePackService.getPack(tenantContext.getTenantId(), workflowId);
             if (pack != null) {
-                runtimeContext.put("evidencePack", pack);
+                runtimeView.putEvidencePack(pack);
             }
         } catch (RuntimeException ex) {
             log.error("证据包同步失败, tenantId={}, workflowId={}",
@@ -249,6 +254,15 @@ public class RuntimePreparationService {
                         result.getSnapshot(), result.getBudgetAllocation(), result.getPruneResult(), result.getMetrics());
             }
             return result;
+        } catch (ContextBuildException ex) {
+            log.error("上下文快照构建失败, tenantId={}, workflowId={}, taskId={}, stage={}, errorCode={}",
+                    tenantContext != null ? tenantContext.getTenantId() : null,
+                    workflowId,
+                    taskId,
+                    ex.getStage(),
+                    ex.getErrorCode(),
+                    ex);
+            throw ex;
         } catch (RuntimeException ex) {
             log.error("上下文快照构建失败, tenantId={}, workflowId={}, taskId={}",
                     tenantContext != null ? tenantContext.getTenantId() : null,
@@ -266,12 +280,13 @@ public class RuntimePreparationService {
         if (runtimeContext == null || buildResult == null) {
             return;
         }
+        MutableContextRuntimeView runtimeView = ContextRuntimeViews.mutable(runtimeContext, log, null);
         if (buildResult.getSnapshot() != null) {
-            runtimeContext.put("contextSnapshot", buildResult.getSnapshot());
+            runtimeView.putContextSnapshot(buildResult.getSnapshot());
             String snapshotId = buildResult.getSnapshot().getSnapshotId();
             if (snapshotId != null && !snapshotId.isBlank()) {
-                runtimeContext.putIfAbsent("snapshotId", snapshotId);
-                Object evidenceObj = runtimeContext.get("evidencePack");
+                runtimeView.putSnapshotIdIfAbsent(snapshotId);
+                Object evidenceObj = runtimeContext.get(ContextRuntimeKeys.EVIDENCE_PACK);
                 if (evidenceObj instanceof EvidencePack pack
                         && (pack.getSnapshotId() == null || pack.getSnapshotId().isBlank())) {
                     pack.setSnapshotId(snapshotId);
@@ -279,10 +294,10 @@ public class RuntimePreparationService {
             }
         }
         if (buildResult.getBudgetAllocation() != null) {
-            runtimeContext.put("contextBudget", buildResult.getBudgetAllocation());
+            runtimeView.putContextBudget(buildResult.getBudgetAllocation());
         }
         if (buildResult.getPruneResult() != null) {
-            runtimeContext.put("contextPrune", buildResult.getPruneResult());
+            runtimeView.putContextPrune(buildResult.getPruneResult());
         }
     }
 

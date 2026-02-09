@@ -5,6 +5,7 @@ import com.example.agent.budget.token.TokenBudgetManager;
 import com.example.agent.budget.token.TokenUsageRecord;
 import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
 import com.example.agent.capabilities.llm.provider.ModelRouter;
 import com.example.agent.runtime.raw.ref.RawRef;
 import com.example.agent.runtime.raw.store.RawResultStore;
@@ -58,7 +59,6 @@ public class ToolExecutor {
 
     private static final int MAX_DIGEST_CHARS = 800;
     private static final int MAX_DIGEST_KEYS = 20;
-    private static final String CONTEXT_EVIDENCE_PACK = "evidencePack";
     private static final String INTERNAL_EVIDENCE_PACK = "EvidencePack";
     private static final String INTERNAL_EVIDENCE_PACK_ALIAS = "_internalEvidencePack";
 
@@ -490,7 +490,7 @@ public class ToolExecutor {
         if (arguments == null || arguments.isEmpty()) {
             return;
         }
-        arguments.remove(CONTEXT_EVIDENCE_PACK);
+        arguments.remove(ContextRuntimeKeys.EVIDENCE_PACK);
         arguments.remove(INTERNAL_EVIDENCE_PACK);
         arguments.remove(INTERNAL_EVIDENCE_PACK_ALIAS);
     }

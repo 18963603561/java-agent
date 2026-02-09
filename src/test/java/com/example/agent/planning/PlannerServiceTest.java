@@ -1,8 +1,8 @@
 package com.example.agent.planning;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.context.ContextAssembler;
-import com.example.agent.capabilities.context.PromptAssemblyInput;
+import com.example.agent.capabilities.context.assembly.ContextAssembler;
+import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
@@ -282,7 +282,7 @@ class PlannerServiceTest {
 
         PromptAssemblyInput input = new PromptAssemblyInput();
         input.setBudgetUsedTokens(Map.of("total", 100));
-        when(contextAssembler.assemble(any(), any(), any(), any(), any(), any(), any(), any()))
+        when(contextAssembler.assemble(any()))
                 .thenReturn(input);
 
         TaskRequest request = new TaskRequest();

@@ -8,10 +8,10 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
-import com.example.agent.capabilities.context.EvidenceItem;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.EvidencePackService;
-import com.example.agent.capabilities.context.EvidenceType;
+import com.example.agent.capabilities.context.evidence.EvidenceItem;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.evidence.EvidencePackService;
+import com.example.agent.capabilities.context.evidence.EvidenceType;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

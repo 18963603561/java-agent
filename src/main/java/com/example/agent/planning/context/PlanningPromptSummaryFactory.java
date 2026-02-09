@@ -1,9 +1,9 @@
 package com.example.agent.planning.context;
 
 import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.EvidenceStats;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.evidence.EvidenceStats;
 import com.example.agent.planning.PlanningContextKeys;
 import com.example.agent.planning.PlanningFieldKeys;
 import java.util.HashMap;

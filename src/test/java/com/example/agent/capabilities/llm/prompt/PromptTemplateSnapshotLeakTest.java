@@ -1,10 +1,10 @@
 package com.example.agent.capabilities.llm.prompt;
 
-import com.example.agent.capabilities.context.AuditMetadata;
-import com.example.agent.capabilities.context.BudgetState;
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.RoleBoundary;
-import com.example.agent.capabilities.context.RuntimeMeta;
+import com.example.agent.capabilities.context.model.AuditMetadata;
+import com.example.agent.capabilities.context.model.BudgetState;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.model.RoleBoundary;
+import com.example.agent.capabilities.context.model.RuntimeMeta;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import com.example.agent.capabilities.llm.prompt.PromptMessage;

@@ -9,9 +9,10 @@ import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.prompt.PromptBundle;
+import com.example.agent.capabilities.llm.prompt.PromptTrace;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.capabilities.llm.repair.JsonOutputSchema;
-import com.example.agent.capabilities.llm.prompt.PromptTrace;
+import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
 import com.example.agent.streaming.sse.EventStreamService;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -28,7 +29,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * 娣卞害鐮旂┒娴佺▼锛岃礋璐ｇ粍缁囨绱笌寮曠敤杈撳嚭銆?
+ * 研究流水线，负责调用模型产出研究引用并在失败时执行修复与兜底。
  */
 @Service
 public class ResearchPipeline {
@@ -42,6 +43,16 @@ public class ResearchPipeline {
     private final EventStreamService eventStreamService;
     private final JsonOutputRepairService jsonOutputRepairService;
 
+    /**
+     * 构造研究流水线。
+     *
+     * @param modelInvocationService 模型调用服务
+     * @param promptAssembler 提示词装配器
+     * @param objectMapper JSON 序列化器
+     * @param eventPublisher 事件发布器
+     * @param eventStreamService 流事件序号服务
+     * @param jsonOutputRepairService JSON 修复服务
+     */
     public ResearchPipeline(ModelInvocationService modelInvocationService,
                             PromptAssembler promptAssembler,
                             ObjectMapper objectMapper,
@@ -57,24 +68,23 @@ public class ResearchPipeline {
     }
 
     /**
-     * 鎵ц鐮旂┒娴佺▼銆?
+     * 执行研究并返回引用列表。
      *
-     * @param query 鏌ヨ闂
-     * @return 寮曠敤鍒楄〃
+     * @param query 研究查询
+     * @return 引用列表
      */
     public List<ResearchCitation> run(String query) {
-        log.info("鐮旂┒娴佺▼鍚姩, queryLength={}", query == null ? 0 : query.length());
-        return List.of();
+        return runWithRawRef(query, null, null, null).getCitations();
     }
 
     /**
-     * 甯﹁繍琛屼笂涓嬫枃鐨勭爺绌跺叆鍙ｏ紝鐢ㄤ簬鍙戝竷浜嬩欢銆?
+     * 在租户与工作流上下文下执行研究。
      *
-     * @param query 鏌ヨ闂
-     * @param tenantContext 绉熸埛涓婁笅鏂?
-     * @param workflowId 宸ヤ綔娴佹爣璇?
-     * @param seqCounter 浜嬩欢搴忓垪璁℃暟鍣?
-     * @return 寮曠敤鍒楄〃
+     * @param query 研究查询
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param seqCounter 流序号计数器
+     * @return 引用列表
      */
     public List<ResearchCitation> run(String query,
                                       TenantContext tenantContext,
@@ -84,18 +94,20 @@ public class ResearchPipeline {
     }
 
     /**
-     * 甯﹀師濮嬪紩鐢ㄨ繑鍥炵殑鐮旂┒鍏ュ彛銆?
+     * 执行研究并返回引用列表与模型原始引用。
      *
-     * @param query 鏌ヨ闂
-     * @param tenantContext 绉熸埛涓婁笅鏂?
-     * @param workflowId 宸ヤ綔娴佹爣璇?
-     * @param seqCounter 浜嬩欢搴忓垪璁℃暟鍣?
-     * @return 鐮旂┒鎵ц缁撴灉
+     * @param query 研究查询
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param seqCounter 流序号计数器
+     * @return 研究结果
      */
     public ResearchRunResult runWithRawRef(String query,
                                            TenantContext tenantContext,
                                            String workflowId,
                                            AtomicLong seqCounter) {
+        int queryLength = query == null ? 0 : query.length();
+        log.info("研究流水线开始, workflowId={}, queryLength={}", workflowId, queryLength);
         String prompt = buildPrompt(query);
         ModelRequest request = new ModelRequest(prompt, ModelScene.RESEARCH);
         applyPromptBundle(request, prompt);
@@ -115,34 +127,58 @@ public class ResearchPipeline {
         );
         String rawContent = response != null ? response.getContent() : null;
         String rawRef = response != null ? response.getRawRef() : null;
-        boolean repairAttempted = false;
-        boolean repairSuccess = false;
-        String parseErrorType = null;
-        List<ResearchCitation> citations = parseCitations(rawContent);
-        if (citations.isEmpty()) {
-            parseErrorType = resolveParseErrorType(rawContent);
-            repairAttempted = true;
-            List<ResearchCitation> repaired = tryRepairCitations(rawContent, query);
-            if (!repaired.isEmpty()) {
-                citations = repaired;
-                repairSuccess = true;
-            }
-        }
-        if (citations.isEmpty()) {
-            log.warn("鐮旂┒寮曠敤淇澶辫触, queryLength={}", query == null ? 0 : query.length());
-            recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
-                    response != null ? response.getModelId() : null, false, parseErrorType,
-                    repairAttempted, repairSuccess);
+
+        ParseOutcome parseOutcome = resolveCitations(rawContent, query, workflowId, queryLength);
+        List<ResearchCitation> citations = parseOutcome.getCitations();
+        boolean parseSuccess = !citations.isEmpty();
+        String modelId = response != null ? response.getModelId() : null;
+
+        if (!parseSuccess) {
+            log.warn("研究流水线解析失败并进入兜底, workflowId={}, queryLength={}, parseErrorType={}, repairAttempted={}, repairSuccess={}",
+                    workflowId,
+                    queryLength,
+                    parseOutcome.getParseErrorType(),
+                    parseOutcome.isRepairAttempted(),
+                    parseOutcome.isRepairSuccess());
+            recordPromptTrace(metadata,
+                    prompt,
+                    tenantContext,
+                    workflowId,
+                    seqCounter,
+                    modelId,
+                    false,
+                    parseOutcome.getParseErrorType(),
+                    parseOutcome.isRepairAttempted(),
+                    parseOutcome.isRepairSuccess());
             citations = buildFallbackCitations(query);
         } else {
-            recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
-                    response != null ? response.getModelId() : null, true, null, repairAttempted, repairSuccess);
+            recordPromptTrace(metadata,
+                    prompt,
+                    tenantContext,
+                    workflowId,
+                    seqCounter,
+                    modelId,
+                    true,
+                    null,
+                    parseOutcome.isRepairAttempted(),
+                    parseOutcome.isRepairSuccess());
         }
+
         publishCitationEvents(tenantContext, workflowId, seqCounter, citations);
-        log.info("鐮旂┒娴佺▼瀹屾垚, citations={}", citations.size());
+        log.info("研究流水线完成, workflowId={}, queryLength={}, citations={}, parseSuccess={}",
+                workflowId,
+                queryLength,
+                citations.size(),
+                parseSuccess);
         return new ResearchRunResult(citations, rawRef);
     }
 
+    /**
+     * 构建研究提示词。
+     *
+     * @param query 研究查询
+     * @return 提示词文本
+     */
     private String buildPrompt(String query) {
         Map<String, Object> context = new HashMap<>();
         context.put("query", query);
@@ -150,47 +186,84 @@ public class ResearchPipeline {
         try {
             json = objectMapper.writeValueAsString(context);
         } catch (Exception ex) {
+            log.warn("研究提示词上下文序列化失败, workflowId={}, queryLength={}",
+                    null,
+                    query == null ? 0 : query.length(),
+                    ex);
             json = "{}";
         }
         return """
-            浣犳槸鐮旂┒鍔╂墜锛坮esearch citation extractor锛夈€?
-            浣犵殑浠诲姟锛氫粠 RESEARCH_CONTEXT_JSON 涓彁鍙栤€滃彲杩芥函鐨勭爺绌跺紩鐢紙citations锛夆€濆垪琛紝鐢ㄤ簬瀹¤涓庡洖鏀俱€?
-            
-            銆愬紩鐢ㄥ畾涔夈€?
-            - citation.source锛氬繀椤绘槸鍙畾浣嶇殑鏉ユ簮鏍囪瘑锛屼緥濡?URL銆佹枃妗ｆ爣棰?绔欑偣銆佽鏂囨爣棰?浣滆€?骞翠唤绛夛紱濡傛灉涓婁笅鏂囨病鏈変换浣曟潵婧愪俊鎭紝鍒?source 鍏佽涓虹┖涓诧紝浣嗗繀椤诲湪 snippet 涓鏄庘€渘o_source_provided鈥濄€?
-            - citation.snippet锛氬繀椤绘槸涓?query 鐩稿叧鐨勮瘉鎹墖娈?瑕佺偣鎽樿锛堜笉鏄暱娈靛師鏂囷級锛屾帶鍒跺湪 1~2 鍙ワ紝<= 200 瀛楃銆?
-            
-            銆愯川閲忚鍒欍€?
-            1) 鍙粠涓婁笅鏂囦腑鈥滃凡缁忓嚭鐜?宸叉彁渚涒€濈殑鏉ユ簮鎻愬彇锛岀姝㈢紪閫犳潵婧愭垨鏉滄挵 URL銆?
-            2) 鍘婚噸锛氱浉鍚?source 鍙繚鐣欎竴娆★紱鑻ュ悓涓€ source 鏈夊娈佃瘉鎹紝鍚堝苟涓烘洿绮剧偧鐨?snippet銆?
-            3) 鎺掑簭锛氭寜涓?query 鐨勭浉鍏虫€т粠楂樺埌浣庯紱鍚岀瓑鐩稿叧鍒欐寜鏃堕棿鏂扳啋鏃э紙鑻ヤ笂涓嬫枃鎻愪緵鏃堕棿淇℃伅锛夈€?
-            4) 鏁伴噺鎺у埗锛氭渶澶氳緭鍑?10 鏉★紱涓嶈冻鍒欐寜瀹為檯杈撳嚭銆?
-            5) 鍚堣锛歴nippet 涓嶅緱澶嶅埗澶ф鍘熸枃锛屼笉寰楄秴杩?25 涓嫳鏂囪瘝鎴?200 瀛楃锛堜互鏇翠弗鏍艰€呬负鍑嗭級锛涘彲鐢ㄨ浆杩?鎽樿銆?
-            
-            銆愯緭鍑鸿姹傘€?
-            杈撳嚭蹇呴』鏄崟涓?JSON 瀵硅薄锛屼笉鍏佽浠讳綍棰濆鏂囨湰锛屼笉鍏佽 Markdown/浠ｇ爜鍧椼€?
-            
-            瀛楁绾︽潫锛?
-            1) citations: array锛屽繀椤昏緭鍑猴紝缂轰俊鎭～ []銆?
-            2) citations[*].source: string锛屽彲杈撳嚭绌轰覆銆?
-            3) citations[*].snippet: string锛屽彲杈撳嚭绌轰覆銆?
-            
-            鏈€灏忕ず渚?JSON锛歿"citations":[]}
-            
+            你是一个研究引用抽取器。
+            你会从 RESEARCH_CONTEXT_JSON 中读取查询，并返回 citations 数组。
+
+            输出要求：
+            - citation.source 使用可靠来源名称或 URL，无法确定时写 unknown。
+            - citation.snippet 为与 query 最相关的简短证据片段。
+            - 最多返回 10 条，优先高可信来源。
+
+            输出必须是 JSON，不要输出 Markdown 或额外说明。
+            JSON 结构：
+            1) citations: array
+            2) citations[*].source: string
+            3) citations[*].snippet: string
+
+            允许空结果：{"citations":[]}
+
             RESEARCH_CONTEXT_JSON:%s
             """.formatted(json);
-
     }
 
-    private List<ResearchCitation> parseCitations(String content) {
-        if (content == null || content.isBlank()) {
+    /**
+     * 解析研究引用并在失败时尝试结构修复。
+     *
+     * @param rawContent 模型原始输出
+     * @param query 检索查询
+     * @param workflowId 工作流标识
+     * @param queryLength 查询长度
+     * @return 解析结果
+     */
+    private ParseOutcome resolveCitations(String rawContent,
+                                          String query,
+                                          String workflowId,
+                                          int queryLength) {
+        List<ResearchCitation> parsed = parseCitations(rawContent, workflowId, queryLength, "model_output");
+        if (!parsed.isEmpty()) {
+            return new ParseOutcome(parsed, null, false, false);
+        }
+        String parseErrorType = resolveParseErrorType(rawContent);
+        List<ResearchCitation> repaired = tryRepairCitations(rawContent, query, workflowId, queryLength);
+        if (!repaired.isEmpty()) {
+            return new ParseOutcome(repaired, parseErrorType, true, true);
+        }
+        return new ParseOutcome(List.of(), parseErrorType, true, false);
+    }
+
+    /**
+     * 解析引用 JSON。
+     *
+     * @param content 待解析内容
+     * @param workflowId 工作流标识
+     * @param queryLength 查询长度
+     * @param stage 当前阶段
+     * @return 引用列表
+     */
+    private List<ResearchCitation> parseCitations(String content,
+                                                  String workflowId,
+                                                  int queryLength,
+                                                  String stage) {
+        if (!StringUtils.hasText(content)) {
+            log.warn("研究引用解析输入为空, workflowId={}, stage={}, queryLength={}", workflowId, stage, queryLength);
             return List.of();
         }
         try {
             Map<String, Object> root = objectMapper.readValue(content, new TypeReference<Map<String, Object>>() {
             });
-            Object citationsObj = root.get("citations");
+            Object citationsObj = root.get(ContextRuntimeKeys.CITATIONS);
             if (!(citationsObj instanceof List<?> list)) {
+                log.warn("研究引用解析缺少 citations 字段, workflowId={}, stage={}, queryLength={}",
+                        workflowId,
+                        stage,
+                        queryLength);
                 return List.of();
             }
             List<ResearchCitation> citations = new ArrayList<>();
@@ -206,11 +279,24 @@ public class ResearchPipeline {
             }
             return citations;
         } catch (Exception ex) {
+            log.warn("研究引用解析异常, workflowId={}, stage={}, queryLength={}", workflowId, stage, queryLength, ex);
             return List.of();
         }
     }
 
-    private List<ResearchCitation> tryRepairCitations(String rawContent, String query) {
+    /**
+     * 尝试修复非结构化输出。
+     *
+     * @param rawContent 原始输出
+     * @param query 查询
+     * @param workflowId 工作流标识
+     * @param queryLength 查询长度
+     * @return 修复后的引用列表
+     */
+    private List<ResearchCitation> tryRepairCitations(String rawContent,
+                                                      String query,
+                                                      String workflowId,
+                                                      int queryLength) {
         if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
             return List.of();
         }
@@ -220,16 +306,21 @@ public class ResearchPipeline {
             context.put("query", query);
             contextJson = objectMapper.writeValueAsString(context);
         } catch (Exception ex) {
+            log.warn("研究引用修复上下文序列化失败, workflowId={}, queryLength={}", workflowId, queryLength, ex);
             contextJson = "{}";
         }
         String repaired = jsonOutputRepairService.repair("research", rawContent, JsonOutputSchema.RESEARCH,
                 contextJson, 1);
         if (!StringUtils.hasText(repaired)) {
+            log.warn("研究引用修复未返回有效内容, workflowId={}, queryLength={}", workflowId, queryLength);
             return List.of();
         }
-        return parseCitations(repaired);
+        return parseCitations(repaired, workflowId, queryLength, "repair_output");
     }
 
+    /**
+     * 记录提示词追踪信息。
+     */
     private void recordPromptTrace(Map<String, Object> metadata,
                                    String promptText,
                                    TenantContext tenantContext,
@@ -254,6 +345,12 @@ public class ResearchPipeline {
         modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "research", modelId);
     }
 
+    /**
+     * 解析错误类型。
+     *
+     * @param rawContent 原始输出
+     * @return 错误类型
+     */
     private String resolveParseErrorType(String rawContent) {
         if (!StringUtils.hasText(rawContent)) {
             return "empty_output";
@@ -261,6 +358,12 @@ public class ResearchPipeline {
         return "json_parse_error";
     }
 
+    /**
+     * 构建兜底引用，保证输出结构稳定。
+     *
+     * @param query 查询文本
+     * @return 兜底引用
+     */
     private List<ResearchCitation> buildFallbackCitations(String query) {
         ResearchCitation citation = new ResearchCitation();
         citation.setSource("local");
@@ -269,6 +372,14 @@ public class ResearchPipeline {
         return List.of(citation);
     }
 
+    /**
+     * 发布研究引用新增事件。
+     *
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param seqCounter 序号计数器
+     * @param citations 引用列表
+     */
     private void publishCitationEvents(TenantContext tenantContext,
                                        String workflowId,
                                        AtomicLong seqCounter,
@@ -301,6 +412,12 @@ public class ResearchPipeline {
         }
     }
 
+    /**
+     * 将提示词装配结果写入请求。
+     *
+     * @param request 模型请求
+     * @param prompt 提示词
+     */
     private void applyPromptBundle(ModelRequest request, String prompt) {
         if (promptAssembler == null || request == null) {
             return;
@@ -310,5 +427,64 @@ public class ResearchPipeline {
             request.setMessages(bundle.getMessages());
         }
     }
-}
 
+    /**
+     * 研究解析阶段结果。
+     */
+    private static class ParseOutcome {
+
+        /**
+         * 当前阶段产出的引用列表。
+         */
+        private final List<ResearchCitation> citations;
+
+        /**
+         * 解析失败类型，成功时可为空。
+         */
+        private final String parseErrorType;
+
+        /**
+         * 是否尝试过修复。
+         */
+        private final boolean repairAttempted;
+
+        /**
+         * 修复是否成功。
+         */
+        private final boolean repairSuccess;
+
+        /**
+         * 构造解析阶段结果。
+         *
+         * @param citations 引用列表
+         * @param parseErrorType 错误类型
+         * @param repairAttempted 是否尝试修复
+         * @param repairSuccess 是否修复成功
+         */
+        private ParseOutcome(List<ResearchCitation> citations,
+                             String parseErrorType,
+                             boolean repairAttempted,
+                             boolean repairSuccess) {
+            this.citations = citations;
+            this.parseErrorType = parseErrorType;
+            this.repairAttempted = repairAttempted;
+            this.repairSuccess = repairSuccess;
+        }
+
+        public List<ResearchCitation> getCitations() {
+            return citations;
+        }
+
+        public String getParseErrorType() {
+            return parseErrorType;
+        }
+
+        public boolean isRepairAttempted() {
+            return repairAttempted;
+        }
+
+        public boolean isRepairSuccess() {
+            return repairSuccess;
+        }
+    }
+}

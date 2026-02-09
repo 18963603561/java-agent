@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.llm.prompt;
 
-import com.example.agent.capabilities.context.ContextSnapshot;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
 import java.util.ArrayList;
 import java.util.List;
 import org.springframework.beans.factory.annotation.Value;

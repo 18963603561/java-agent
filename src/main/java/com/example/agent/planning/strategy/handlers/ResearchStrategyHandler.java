@@ -56,7 +56,7 @@ public class ResearchStrategyHandler extends AbstractPlanningStrategyHandler {
         input.put(PlanningFieldKeys.STEP_KEY, stepKey);
         appendStep(context,
                 planParser.buildStepSpec("RESEARCH", input),
-                buildPlanStepMeta(stepKey, "RESEARCH", "deep-research"));
+                buildPlanStepMeta(stepKey, "RESEARCH", "research"));
         addDependency(context, stepKey);
         return normal(context, "深度研究", stepKey);
     }

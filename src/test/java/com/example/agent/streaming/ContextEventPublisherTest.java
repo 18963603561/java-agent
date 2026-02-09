@@ -1,12 +1,12 @@
 package com.example.agent.streaming;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.EvidenceItem;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.EvidenceStats;
-import com.example.agent.capabilities.context.EvidenceType;
-import com.example.agent.capabilities.context.WorkingMemory;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.evidence.EvidenceItem;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.evidence.EvidenceStats;
+import com.example.agent.capabilities.context.evidence.EvidenceType;
+import com.example.agent.capabilities.context.model.WorkingMemory;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.streaming.observability.MetricsPublisher;

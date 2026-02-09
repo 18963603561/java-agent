@@ -1,9 +1,10 @@
 package com.example.agent.planning.telemetry;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.capabilities.context.ContextAssembler;
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.PromptAssemblyInput;
+import com.example.agent.capabilities.context.assembly.ContextAssembler;
+import com.example.agent.capabilities.context.assembly.ContextAssemblyCommand;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
 import com.example.agent.budget.token.ContextBudgetAllocation;
 import com.example.agent.budget.trim.ContextPruneResult;
 import com.example.agent.api.http.dto.TaskRequest;
@@ -13,6 +14,8 @@ import com.example.agent.capabilities.llm.prompt.PromptBundle;
 import com.example.agent.planning.PlanningFieldKeys;
 import com.example.agent.streaming.payload.ContextEventPublisher;
 import com.example.agent.streaming.payload.ContextSnapshotStage;
+import com.example.agent.capabilities.context.runtime.ContextRuntimeViews;
+import com.example.agent.capabilities.context.runtime.MutableContextRuntimeView;
 import java.util.List;
 import java.util.HashMap;
 import java.util.Map;
@@ -84,17 +87,19 @@ public class PlanTelemetry {
         Map<String, Object> assemblyContext = context != null ? new HashMap<>(context) : new HashMap<>();
         PromptAssemblyInput input = null;
         if (contextAssembler != null) {
-            input = contextAssembler.assemble(contextSnapshot,
-                    contextBudget,
-                    null,
-                    contextPrune,
-                    null,
-                    tenantId,
-                    workflowId,
-                    prompt);
+            ContextAssemblyCommand command = ContextAssemblyCommand.builder()
+                    .snapshot(contextSnapshot)
+                    .allocation(contextBudget)
+                    .pruneResult(contextPrune)
+                    .tenantId(tenantId)
+                    .workflowId(workflowId)
+                    .userText(prompt)
+                    .build();
+            input = contextAssembler.assemble(command);
         }
         if (input != null) {
-            assemblyContext.put(PlanningFieldKeys.PROMPT_ASSEMBLY_INPUT, input);
+            MutableContextRuntimeView runtimeView = ContextRuntimeViews.mutable(assemblyContext, log, null);
+            runtimeView.putPromptAssemblyInput(input);
         }
         PromptBundle bundle = promptAssembler.build(prompt, request, assemblyContext);
         if (bundle != null) {

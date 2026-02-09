@@ -1,9 +1,10 @@
 package com.example.agent.capabilities.tools.hook;
 
-import com.example.agent.capabilities.context.EvidenceItem;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.EvidencePackService;
+import com.example.agent.capabilities.context.evidence.EvidenceItem;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.evidence.EvidencePackService;
 import com.example.agent.capabilities.context.research.ResearchCitation;
+import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -112,7 +113,7 @@ public class EvidencePackHookHandler implements HookHandler {
                                         Map<String, Object> payload,
                                         String tenantId,
                                         String workflowId) {
-        Object citationsObj = payload.get("citations");
+        Object citationsObj = payload.get(ContextRuntimeKeys.CITATIONS);
         if (!(citationsObj instanceof List<?> citations) || citations.isEmpty()) {
             return;
         }

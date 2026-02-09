@@ -787,39 +787,6 @@ agent:
         # 默认项:
         # - 2000
         budget-tokens: 2000
-  deep-research:
-    # 说明: 深度研究步骤列表
-    # 可选项:
-    # - 列表
-    # 默认项:
-    # - 包含示例项
-    steps:
-      -
-        # 说明: 步骤名称
-        # 可选项:
-        # - 任意字符串
-        # 默认项:
-        # - gather
-        name: gather
-        # 说明: 模型标识
-        # 可选项:
-        # - 已配置模型标识
-        # 默认项:
-        # - research
-        model-id: research
-      -
-        # 说明: 步骤名称
-        # 可选项:
-        # - 任意字符串
-        # 默认项:
-        # - synthesize
-        name: synthesize
-        # 说明: 模型标识
-        # 可选项:
-        # - 已配置模型标识
-        # 默认项:
-        # - reflect
-        model-id: reflect
   context:
     budget:
       # 说明: 启用上下文预算分配

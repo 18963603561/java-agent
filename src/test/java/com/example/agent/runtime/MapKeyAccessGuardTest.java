@@ -47,7 +47,34 @@ class MapKeyAccessGuardTest {
             "lastStepRawOutput",
             "lastStepRawRef",
             "lastStepRawRefs",
-            "lastStepRawTruncated"
+            "lastStepRawTruncated",
+            "contextSnapshot",
+            "promptAssemblyInput",
+            "contextBudget",
+            "contextPrune",
+            "evidencePack",
+            "workflowId",
+            "toolChoice",
+            "memory",
+            "locale",
+            "outputFormat",
+            "allowedTools",
+            "systemPolicyId",
+            "developerPolicyId",
+            "forbiddenActions",
+            "dataScopes",
+            "riskLevel",
+            "successCriteria",
+            "failurePolicy",
+            "requiredOutput",
+            "constraints",
+            "planSteps",
+            "nextStep",
+            "selectedTools",
+            "lastToolError",
+            "citations",
+            "researchCitations",
+            "longTermMemoryRefs"
     );
 
     private static final List<String> METHODS = List.of(
@@ -73,7 +100,13 @@ class MapKeyAccessGuardTest {
             "src/main/java/com/example/agent/runtime/llm/LlmDecisionService.java",
             List.of("lastStepSummary"),
             "src/main/java/com/example/agent/capabilities/context/DefaultContextBuilder.java",
-            List.of("requiresApproval")
+            List.of(),
+            "src/main/java/com/example/agent/capabilities/context/runtime/ContextRuntimeView.java",
+            List.of("requiresApproval", "citations", "researchCitations", "longTermMemoryRefs",
+                    "evidencePack", "locale", "outputFormat", "allowedTools", "systemPolicyId",
+                    "developerPolicyId", "forbiddenActions", "dataScopes", "riskLevel",
+                    "successCriteria", "failurePolicy", "requiredOutput", "constraints",
+                    "planSteps", "nextStep", "selectedTools", "lastToolError", "tokenBudget")
     );
 
     @Test

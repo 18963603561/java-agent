@@ -1,8 +1,8 @@
 package com.example.agent.capabilities.llm.prompt;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.PromptAssemblyInput;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
 import com.example.agent.capabilities.llm.support.ValidationSupport;
 import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -49,7 +49,7 @@ public class DefaultPromptAssembler implements PromptAssembler {
                                   ValidationSupport validationSupport) {
         this.promptTemplate = promptTemplate;
         this.validationSupport = validationSupport;
-        this.contextResolver = new PromptAssemblyContextResolver(promptTemplate);
+        this.contextResolver = new PromptAssemblyContextResolver(promptTemplate, metricsPublisher);
         PromptTrimMetricsRecorder metricsRecorder = new PromptTrimMetricsRecorder(metricsPublisher);
         this.trimEngine = new PromptTrimEngine(tokenEstimator, metricsRecorder);
     }

@@ -29,7 +29,7 @@ public final class PlanningFieldKeys {
     public static final String TOKEN_BUDGET = "tokenBudget";
     public static final String MEMORY_ITEMS = "memoryItems";
     public static final String EVIDENCE_COUNT = "evidenceCount";
-    public static final String PROMPT_ASSEMBLY_INPUT = "promptAssemblyInput";
+    public static final String PROMPT_ASSEMBLY_INPUT = com.example.agent.capabilities.context.runtime.ContextRuntimeKeys.PROMPT_ASSEMBLY_INPUT;
     public static final String TOTAL = "total";
     public static final String SCENE_PLANNER = "planner";
 

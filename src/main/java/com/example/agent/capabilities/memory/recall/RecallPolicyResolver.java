@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.memory.recall;
 
-import com.example.agent.capabilities.context.ContextPolicy;
+import com.example.agent.capabilities.context.model.ContextPolicy;
 import com.example.agent.capabilities.memory.model.RetrievalPriority;
 import java.util.ArrayList;
 import java.util.List;

@@ -1,12 +1,13 @@
 package com.example.agent.capabilities.llm.prompt;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.PromptAssemblyInput;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
+import com.example.agent.capabilities.context.assembly.PromptContextPolicyApplier;
+import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
 import java.util.ArrayList;
-import java.util.List;
 import java.util.Map;
-import org.springframework.util.StringUtils;
+import com.example.agent.streaming.observability.MetricsPublisher;
 
 /**
  * 提示词装配上下文解析器。
@@ -18,9 +19,12 @@ import org.springframework.util.StringUtils;
 class PromptAssemblyContextResolver {
 
     private final PromptTemplate promptTemplate;
+    private final PromptContextPolicyApplier policyApplier;
 
-    PromptAssemblyContextResolver(PromptTemplate promptTemplate) {
+    PromptAssemblyContextResolver(PromptTemplate promptTemplate,
+                                  MetricsPublisher metricsPublisher) {
         this.promptTemplate = promptTemplate;
+        this.policyApplier = new PromptContextPolicyApplier(metricsPublisher);
     }
 
     /**
@@ -32,13 +36,13 @@ class PromptAssemblyContextResolver {
      */
     ContextSnapshot resolveSnapshot(TaskRequest taskRequest, Map<String, Object> stepInput) {
         if (stepInput != null) {
-            Object snapshot = stepInput.get("contextSnapshot");
+            Object snapshot = stepInput.get(ContextRuntimeKeys.CONTEXT_SNAPSHOT);
             if (snapshot instanceof ContextSnapshot value) {
                 return value;
             }
         }
         if (taskRequest != null && taskRequest.getContext() != null) {
-            Object snapshot = taskRequest.getContext().get("contextSnapshot");
+            Object snapshot = taskRequest.getContext().get(ContextRuntimeKeys.CONTEXT_SNAPSHOT);
             if (snapshot instanceof ContextSnapshot value) {
                 return value;
             }
@@ -55,13 +59,13 @@ class PromptAssemblyContextResolver {
      */
     PromptAssemblyInput resolveAssemblyInput(Map<String, Object> stepInput, TaskRequest taskRequest) {
         if (stepInput != null) {
-            Object value = stepInput.get("promptAssemblyInput");
+            Object value = stepInput.get(ContextRuntimeKeys.PROMPT_ASSEMBLY_INPUT);
             if (value instanceof PromptAssemblyInput input) {
                 return input;
             }
         }
         if (taskRequest != null && taskRequest.getContext() != null) {
-            Object value = taskRequest.getContext().get("promptAssemblyInput");
+            Object value = taskRequest.getContext().get(ContextRuntimeKeys.PROMPT_ASSEMBLY_INPUT);
             if (value instanceof PromptAssemblyInput input) {
                 return input;
             }
@@ -83,37 +87,11 @@ class PromptAssemblyContextResolver {
         if (input == null) {
             return null;
         }
-        if (!StringUtils.hasText(input.getSystemText()) || !StringUtils.hasText(input.getDeveloperText())) {
-            fillSystemDeveloper(input, snapshot);
-        }
-        if (!StringUtils.hasText(input.getUserText())) {
-            input.setUserText(prompt);
-        }
+        policyApplier.applySystemDeveloper(input, snapshot, promptTemplate, true);
+        policyApplier.applyUserText(input, snapshot, prompt, true);
         if (input.getTruncatedSections() == null) {
             input.setTruncatedSections(new ArrayList<>());
         }
         return input;
     }
-
-    private void fillSystemDeveloper(PromptAssemblyInput input, ContextSnapshot snapshot) {
-        if (promptTemplate == null || input == null) {
-            return;
-        }
-        List<PromptMessage> messages = promptTemplate.render(PromptRenderContext.fromSnapshot(snapshot));
-        if (messages == null || messages.isEmpty()) {
-            return;
-        }
-        for (PromptMessage message : messages) {
-            if (message == null || message.getRole() == null) {
-                continue;
-            }
-            if (message.getRole() == PromptRole.SYSTEM && !StringUtils.hasText(input.getSystemText())) {
-                input.setSystemText(message.getContent());
-            }
-            if (message.getRole() == PromptRole.DEVELOPER && !StringUtils.hasText(input.getDeveloperText())) {
-                input.setDeveloperText(message.getContent());
-            }
-        }
-    }
 }
-

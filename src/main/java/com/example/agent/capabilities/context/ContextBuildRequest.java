@@ -4,6 +4,7 @@ import com.example.agent.security.auth.TenantContext;
 import com.example.agent.budget.token.ContextBudgetRequest;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.memory.recall.MemoryRecallResult;
+import com.example.agent.capabilities.context.model.ContextPolicy;
 import com.example.agent.runtime.react.ReactObservation;
 import com.example.agent.capabilities.tools.ToolQuery;
 import java.util.List;
@@ -51,6 +52,8 @@ public class ContextBuildRequest {
 
     /**
      * 上下文装配策略。
+     *
+     * <p>说明：该字段用于显式传入策略对象，解析流程不应回写此字段，避免请求对象污染。
      */
     private ContextPolicy policy;
 

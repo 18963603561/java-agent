@@ -16,11 +16,11 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.EvidencePackService;
-import com.example.agent.capabilities.context.EvidenceType;
-import com.example.agent.capabilities.context.WorkingMemory;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.evidence.EvidencePackService;
+import com.example.agent.capabilities.context.evidence.EvidenceType;
+import com.example.agent.capabilities.context.model.WorkingMemory;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;

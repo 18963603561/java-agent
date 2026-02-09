@@ -1,5 +1,6 @@
 package com.example.agent.capabilities.llm.provider;
 
+import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.runtime.api.RuntimeContextView;
 import com.example.agent.runtime.output.OutputKeys;
@@ -133,12 +134,12 @@ public class LocalFallbackStrategy {
     private String buildLocalLlmStepDecision(Map<String, Object> context) {
         String query = context != null && context.get("query") instanceof String value ? value : "";
         boolean disableTools = false;
-        if (context != null && context.get("constraints") instanceof Map<?, ?> constraints) {
+        if (context != null && context.get(ContextRuntimeKeys.CONSTRAINTS) instanceof Map<?, ?> constraints) {
             disableTools = isTruthy(constraints.get("disableTools"));
         }
         List<String> toolNames = extractToolNames(context != null ? context.get("availableTools") : null);
         String specifiedTool = null;
-        if (context != null && context.get("toolChoice") instanceof Map<?, ?> choice) {
+        if (context != null && context.get(ContextRuntimeKeys.TOOL_CHOICE) instanceof Map<?, ?> choice) {
             Object mode = choice.get("mode");
             if (mode != null && "specified".equalsIgnoreCase(mode.toString())) {
                 Object toolName = choice.get(OutputKeys.TOOL_NAME);
@@ -294,9 +295,9 @@ public class LocalFallbackStrategy {
         if (context.get("context") instanceof Map<?, ?> inner && isTruthy(inner.get("disableTools"))) {
             return true;
         }
-        Object rawChoice = context.get("toolChoice");
+        Object rawChoice = context.get(ContextRuntimeKeys.TOOL_CHOICE);
         if (rawChoice == null && context.get("context") instanceof Map<?, ?> inner) {
-            rawChoice = inner.get("toolChoice");
+            rawChoice = inner.get(ContextRuntimeKeys.TOOL_CHOICE);
         }
         if (rawChoice instanceof Map<?, ?> choice) {
             Object mode = choice.get("mode");
@@ -407,4 +408,3 @@ public class LocalFallbackStrategy {
         }
     }
 }
-

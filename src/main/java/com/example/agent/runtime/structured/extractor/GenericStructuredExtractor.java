@@ -1,5 +1,6 @@
 package com.example.agent.runtime.structured.extractor;
 
+import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -142,7 +143,7 @@ public class GenericStructuredExtractor implements StructuredExtractor {
 
     private ResultKind resolveKind(String stepType, String toolName, Map<String, Object> rawResult) {
         if ("RESEARCH".equalsIgnoreCase(stepType)
-                || rawResult.containsKey("citations")) {
+                || rawResult.containsKey(ContextRuntimeKeys.CITATIONS)) {
             return ResultKind.DOCUMENT_CITATIONS;
         }
         if (rawResult.containsKey("sql")) {

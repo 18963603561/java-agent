@@ -1,9 +1,9 @@
 package com.example.agent.runtime;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.context.ContextAssembler;
+import com.example.agent.capabilities.context.assembly.ContextAssembler;
 import com.example.agent.capabilities.context.ContextBuilder;
-import com.example.agent.capabilities.context.EvidencePackService;
+import com.example.agent.capabilities.context.evidence.EvidencePackService;
 import com.example.agent.capabilities.context.research.ResearchPipeline;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;

@@ -1,12 +1,12 @@
 package com.example.agent.budget;
 
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.EvidenceItem;
-import com.example.agent.capabilities.context.EvidencePack;
-import com.example.agent.capabilities.context.EvidenceType;
-import com.example.agent.capabilities.context.LongTermMemory;
-import com.example.agent.capabilities.context.MemoryRef;
-import com.example.agent.capabilities.context.WorkingMemory;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.evidence.EvidenceItem;
+import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.evidence.EvidenceType;
+import com.example.agent.capabilities.context.model.LongTermMemory;
+import com.example.agent.capabilities.context.model.MemoryRef;
+import com.example.agent.capabilities.context.model.WorkingMemory;
 import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;

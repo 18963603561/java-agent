@@ -10,7 +10,7 @@ public final class PlanningContextKeys {
     public static final String TOOL = "tool";
     public static final String TOOL_NAME = "toolName";
     public static final String TOOLS = "tools";
-    public static final String TOOL_CHOICE = "toolChoice";
+    public static final String TOOL_CHOICE = com.example.agent.capabilities.context.runtime.ContextRuntimeKeys.TOOL_CHOICE;
     public static final String FALLBACK_TOOL = "fallbackTool";
     public static final String DISABLE_TOOLS = "disableTools";
 
@@ -53,16 +53,16 @@ public final class PlanningContextKeys {
     public static final String BUDGET_THRESHOLD_TOKENS = "budgetThresholdTokens";
     public static final String FAILURE_TYPES = "failureTypes";
 
-    public static final String SNAPSHOT_ID = "snapshotId";
-    public static final String CONTEXT_SNAPSHOT = "contextSnapshot";
-    public static final String CONTEXT_BUDGET = "contextBudget";
-    public static final String CONTEXT_PRUNE = "contextPrune";
-    public static final String WORKFLOW_ID = "workflowId";
+    public static final String SNAPSHOT_ID = com.example.agent.capabilities.context.runtime.ContextRuntimeKeys.SNAPSHOT_ID;
+    public static final String CONTEXT_SNAPSHOT = com.example.agent.capabilities.context.runtime.ContextRuntimeKeys.CONTEXT_SNAPSHOT;
+    public static final String CONTEXT_BUDGET = com.example.agent.capabilities.context.runtime.ContextRuntimeKeys.CONTEXT_BUDGET;
+    public static final String CONTEXT_PRUNE = com.example.agent.capabilities.context.runtime.ContextRuntimeKeys.CONTEXT_PRUNE;
+    public static final String WORKFLOW_ID = com.example.agent.capabilities.context.runtime.ContextRuntimeKeys.WORKFLOW_ID;
     public static final String TENANT_ID = "tenantId";
 
-    public static final String MEMORY = "memory";
+    public static final String MEMORY = com.example.agent.capabilities.context.runtime.ContextRuntimeKeys.MEMORY;
     public static final String COUNT = "count";
-    public static final String EVIDENCE_PACK = "evidencePack";
+    public static final String EVIDENCE_PACK = com.example.agent.capabilities.context.runtime.ContextRuntimeKeys.EVIDENCE_PACK;
 
     private PlanningContextKeys() {
     }

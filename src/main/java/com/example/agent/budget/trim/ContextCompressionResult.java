@@ -1,6 +1,6 @@
 package com.example.agent.budget.trim;
 
-import com.example.agent.capabilities.context.ContextSnapshot;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
 
 /**
  * 上下文压缩结果，用于回传触发情况与估算指标。

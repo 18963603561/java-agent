@@ -1,9 +1,9 @@
 package com.example.agent.streaming.payload;
 
-import com.example.agent.capabilities.context.AuditMetadata;
-import com.example.agent.capabilities.context.BudgetState;
-import com.example.agent.capabilities.context.BuildMetrics;
-import com.example.agent.capabilities.context.ToolState;
+import com.example.agent.capabilities.context.model.AuditMetadata;
+import com.example.agent.capabilities.context.model.BudgetState;
+import com.example.agent.capabilities.context.model.BuildMetrics;
+import com.example.agent.capabilities.context.model.ToolState;
 import java.time.Instant;
 
 /**

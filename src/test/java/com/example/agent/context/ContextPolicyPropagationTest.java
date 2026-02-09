@@ -17,7 +17,7 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.test.util.ReflectionTestUtils;
 import com.example.agent.capabilities.context.ContextBuildRequest;
-import com.example.agent.capabilities.context.ContextPolicy;
+import com.example.agent.capabilities.context.model.ContextPolicy;
 import com.example.agent.capabilities.context.DefaultContextBuilder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;

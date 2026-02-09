@@ -1,9 +1,9 @@
 package com.example.agent.capabilities.llm.prompt;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.capabilities.context.ContextSnapshot;
-import com.example.agent.capabilities.context.RoleBoundary;
-import com.example.agent.capabilities.context.RuntimeMeta;
+import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.model.RoleBoundary;
+import com.example.agent.capabilities.context.model.RuntimeMeta;
 import com.example.agent.capabilities.llm.support.ValidationSupport;
 import java.util.HashMap;
 import java.util.List;

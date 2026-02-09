@@ -1,6 +1,6 @@
 package com.example.agent.memory;
 
-import com.example.agent.capabilities.context.ContextPolicy;
+import com.example.agent.capabilities.context.model.ContextPolicy;
 import com.example.agent.capabilities.memory.model.RetrievalPriority;
 import com.example.agent.capabilities.memory.recall.RecallPolicyResolver;
 import com.example.agent.capabilities.memory.recall.RecallPolicySnapshot;
