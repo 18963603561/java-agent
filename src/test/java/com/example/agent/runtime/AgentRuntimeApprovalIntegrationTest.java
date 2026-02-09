@@ -17,6 +17,7 @@ import com.example.agent.capabilities.tools.validation.ToolArgumentValidatorRunt
 import com.example.agent.governance.evaluation.CapabilityBoundaryEvaluator;
 import com.example.agent.governance.evaluation.CapabilityEvaluationProperties;
 import com.example.agent.governance.evaluation.domain.BudgetPressureRiskRule;
+import com.example.agent.governance.evaluation.domain.CapabilityRuleRegistry;
 import com.example.agent.governance.evaluation.domain.ComplexityThresholdRiskRule;
 import com.example.agent.governance.evaluation.domain.DebateKeywordStrategyRule;
 import com.example.agent.governance.evaluation.domain.FailureTypesRiskRule;
@@ -118,10 +119,7 @@ class AgentRuntimeApprovalIntegrationTest {
         evalProps.setRiskThreshold(0.1);
         evalProps.setComplexityThreshold(0.1);
         evalProps.setForceApprovalAboveRisk(true);
-        CapabilityBoundaryEvaluator evaluator = new CapabilityBoundaryEvaluator(
-                evalProps,
-                eventPublisher,
-                Mockito.mock(EventStreamService.class),
+        CapabilityRuleRegistry capabilityRuleRegistry = new CapabilityRuleRegistry(
                 List.of(
                         new ComplexityThresholdRiskRule(),
                         new MissingToolSummaryRiskRule(),
@@ -131,6 +129,11 @@ class AgentRuntimeApprovalIntegrationTest {
                         new ResearchKeywordStrategyRule(),
                         new DebateKeywordStrategyRule(),
                         new HighRiskThoughtTreeStrategyRule()));
+        CapabilityBoundaryEvaluator evaluator = new CapabilityBoundaryEvaluator(
+                evalProps,
+                eventPublisher,
+                Mockito.mock(EventStreamService.class),
+                capabilityRuleRegistry);
 
         PlannerProperties plannerProperties = new PlannerProperties();
         plannerProperties.setLlmEnabled(false);

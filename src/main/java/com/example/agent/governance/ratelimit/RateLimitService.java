@@ -36,10 +36,6 @@ public class RateLimitService {
     @Value("${agent.rate-limit.cleanup-interval-seconds:30}")
     private int cleanupIntervalSeconds;
 
-    public RateLimitService(MetricsPublisher metricsPublisher, RateLimitStore rateLimitStore) {
-        this(metricsPublisher, rateLimitStore, new GovernanceTelemetry(metricsPublisher));
-    }
-
     @Autowired
     public RateLimitService(MetricsPublisher metricsPublisher,
                             RateLimitStore rateLimitStore,

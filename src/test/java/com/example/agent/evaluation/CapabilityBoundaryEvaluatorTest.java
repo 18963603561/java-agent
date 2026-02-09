@@ -15,6 +15,14 @@ import com.example.agent.governance.evaluation.CapabilityEvaluationInput;
 import com.example.agent.governance.evaluation.CapabilityEvaluationProperties;
 import com.example.agent.governance.evaluation.CapabilityEvaluationResult;
 import com.example.agent.governance.evaluation.CapabilityRiskLevel;
+import com.example.agent.governance.evaluation.domain.BudgetPressureRiskRule;
+import com.example.agent.governance.evaluation.domain.CapabilityRuleRegistry;
+import com.example.agent.governance.evaluation.domain.ComplexityThresholdRiskRule;
+import com.example.agent.governance.evaluation.domain.DebateKeywordStrategyRule;
+import com.example.agent.governance.evaluation.domain.FailureTypesRiskRule;
+import com.example.agent.governance.evaluation.domain.HighRiskThoughtTreeStrategyRule;
+import com.example.agent.governance.evaluation.domain.MissingToolSummaryRiskRule;
+import com.example.agent.governance.evaluation.domain.ResearchKeywordStrategyRule;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
@@ -31,8 +39,12 @@ class CapabilityBoundaryEvaluatorTest {
         properties.setForceApprovalAboveRisk(true);
 
         TestEventPublisher publisher = new TestEventPublisher();
+        CapabilityRuleRegistry capabilityRuleRegistry = buildRuleRegistry();
         CapabilityBoundaryEvaluator evaluator = new CapabilityBoundaryEvaluator(
-                properties, publisher, Mockito.mock(com.example.agent.streaming.sse.EventStreamService.class));
+                properties,
+                publisher,
+                Mockito.mock(com.example.agent.streaming.sse.EventStreamService.class),
+                capabilityRuleRegistry);
 
         CapabilityEvaluationInput input = new CapabilityEvaluationInput();
         input.setTaskDescription("请对大型复杂系统进行深入调研并输出综合报告与证据来源，包含风险评估与对比分析");
@@ -63,8 +75,12 @@ class CapabilityBoundaryEvaluatorTest {
         properties.setRiskRules(riskRules);
 
         TestEventPublisher publisher = new TestEventPublisher();
+        CapabilityRuleRegistry capabilityRuleRegistry = buildRuleRegistry();
         CapabilityBoundaryEvaluator evaluator = new CapabilityBoundaryEvaluator(
-                properties, publisher, Mockito.mock(com.example.agent.streaming.sse.EventStreamService.class));
+                properties,
+                publisher,
+                Mockito.mock(com.example.agent.streaming.sse.EventStreamService.class),
+                capabilityRuleRegistry);
 
         CapabilityEvaluationInput input = new CapabilityEvaluationInput();
         input.setTaskDescription("普通任务");
@@ -76,6 +92,50 @@ class CapabilityBoundaryEvaluatorTest {
                 "wf-1", new AtomicLong(0));
 
         assertTrue(result.getRuleHits().stream().noneMatch(hit -> "missing_tool_summary".equals(hit.getRuleId())));
+    }
+
+    @Test
+    void sceneShouldUseExplicitSceneFieldInsteadOfPlanSummary() {
+        CapabilityEvaluationProperties properties = new CapabilityEvaluationProperties();
+        properties.setEnabled(true);
+        CapabilityEvaluationProperties.RuleToggle sceneToggle = new CapabilityEvaluationProperties.RuleToggle();
+        CapabilityEvaluationProperties.RuleSelection sceneStrategySelection = new CapabilityEvaluationProperties.RuleSelection();
+        sceneStrategySelection.setWhitelist(List.of("debate_keyword"));
+        sceneToggle.setStrategyRules(sceneStrategySelection);
+        properties.setScenes(java.util.Map.of("analysis", sceneToggle));
+
+        TestEventPublisher publisher = new TestEventPublisher();
+        CapabilityRuleRegistry capabilityRuleRegistry = buildRuleRegistry();
+        CapabilityBoundaryEvaluator evaluator = new CapabilityBoundaryEvaluator(
+                properties,
+                publisher,
+                Mockito.mock(com.example.agent.streaming.sse.EventStreamService.class),
+                capabilityRuleRegistry);
+
+        CapabilityEvaluationInput input = new CapabilityEvaluationInput();
+        input.setTaskDescription("请做观点对比与辩论分析");
+        input.setPlanSummary("不是场景键");
+        input.setScene("analysis");
+        input.setComplexityScore(0.3);
+
+        CapabilityEvaluationResult result = evaluator.evaluate(
+                input, new TenantContext("t-1", "u-1", List.of(), "req", "trace"),
+                "wf-1", new AtomicLong(0));
+
+        assertEquals("debate", result.getRecommendedStrategy());
+    }
+
+    private CapabilityRuleRegistry buildRuleRegistry() {
+        return new CapabilityRuleRegistry(
+                List.of(
+                        new ComplexityThresholdRiskRule(),
+                        new MissingToolSummaryRiskRule(),
+                        new FailureTypesRiskRule(),
+                        new BudgetPressureRiskRule()),
+                List.of(
+                        new ResearchKeywordStrategyRule(),
+                        new DebateKeywordStrategyRule(),
+                        new HighRiskThoughtTreeStrategyRule()));
     }
 
     static class TestEventPublisher implements ApplicationEventPublisher {

@@ -35,6 +35,7 @@ import com.example.agent.common.error.ErrorCodeException;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.when;
 
@@ -178,6 +179,90 @@ class ReplayServiceTest {
         assertEquals(HttpStatus.INTERNAL_SERVER_ERROR, ex.getStatusCode());
     }
 
+    @Test
+    void replayMissingTaskIdShouldReturnBadRequest() {
+        TaskRepository taskRepository = Mockito.mock(TaskRepository.class);
+        EventLogRepository eventLogRepository = new InMemoryEventLogRepository();
+        StepRuntimeService stepRuntimeService = Mockito.mock(StepRuntimeService.class);
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        CollectingEventPublisher eventPublisher = new CollectingEventPublisher();
+
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req", "trace");
+
+        ReplayService replayService = buildReplayService(taskRepository,
+                eventLogRepository,
+                stepRuntimeService,
+                eventPublisher,
+                eventStreamService,
+                metricsPublisher,
+                buildReplayProperties());
+
+        ReplayCommand command = new ReplayCommand(" ", null, null, "full");
+
+        ErrorCodeException ex = assertThrows(ErrorCodeException.class,
+                () -> replayService.replay(command, tenantContext));
+        assertEquals("REPLAY_TASK_MISSING", ex.getErrorCode());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+    }
+
+    @Test
+    void replayTaskNotFoundShouldEmitSingleNotFoundMetric() {
+        TaskRepository taskRepository = Mockito.mock(TaskRepository.class);
+        EventLogRepository eventLogRepository = new InMemoryEventLogRepository();
+        StepRuntimeService stepRuntimeService = Mockito.mock(StepRuntimeService.class);
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        CollectingEventPublisher eventPublisher = new CollectingEventPublisher();
+
+        TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req", "trace");
+        when(taskRepository.findById("tenant-a", "task-404")).thenReturn(null);
+
+        ReplayService replayService = buildReplayService(taskRepository,
+                eventLogRepository,
+                stepRuntimeService,
+                eventPublisher,
+                eventStreamService,
+                metricsPublisher,
+                buildReplayProperties());
+
+        ReplayCommand command = new ReplayCommand("task-404", null, null, "full");
+
+        assertThrows(ErrorCodeException.class, () -> replayService.replay(command, tenantContext));
+
+        Mockito.verify(metricsPublisher, Mockito.times(1)).incrementWithTags(
+                Mockito.eq("governance.replay.resolve_task.total"),
+                Mockito.eq("domain"), Mockito.eq("replay"),
+                Mockito.eq("action"), Mockito.eq("resolve_task"),
+                Mockito.eq("result"), Mockito.eq("not_found"));
+    }
+
+    @Test
+    void replayMissingTenantShouldReturnBadRequest() {
+        TaskRepository taskRepository = Mockito.mock(TaskRepository.class);
+        EventLogRepository eventLogRepository = new InMemoryEventLogRepository();
+        StepRuntimeService stepRuntimeService = Mockito.mock(StepRuntimeService.class);
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        CollectingEventPublisher eventPublisher = new CollectingEventPublisher();
+
+        ReplayService replayService = buildReplayService(taskRepository,
+                eventLogRepository,
+                stepRuntimeService,
+                eventPublisher,
+                eventStreamService,
+                metricsPublisher,
+                buildReplayProperties());
+
+        ReplayCommand command = new ReplayCommand("task-1", null, null, "full");
+
+        ErrorCodeException ex = assertThrows(ErrorCodeException.class,
+                () -> replayService.replay(command, null));
+        assertEquals("REPLAY_TENANT_MISSING", ex.getErrorCode());
+        assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
+        assertTrue(ex.getMessage().contains("回放请求缺少租户信息"));
+    }
+
     private ReplayProperties buildReplayProperties() {
         ReplayProperties properties = new ReplayProperties();
         properties.setSessionTtlSeconds(1);
@@ -193,11 +278,11 @@ class ReplayServiceTest {
                                              EventStreamService eventStreamService,
                                              MetricsPublisher metricsPublisher,
                                              ReplayProperties replayProperties) {
-        ReplayTaskResolver taskResolver = new ReplayTaskResolver(taskRepository);
+        GovernanceTelemetry governanceTelemetry = new GovernanceTelemetry(metricsPublisher);
+        ReplayTaskResolver taskResolver = new ReplayTaskResolver(taskRepository, governanceTelemetry);
         ReplayItemAssembler itemAssembler = new ReplayItemAssembler(eventLogRepository, stepRuntimeService);
         ReplayEventFactory replayEventFactory = new ReplayEventFactory();
         ReplaySessionStore sessionStore = new ReplaySessionStore(metricsPublisher);
-        GovernanceTelemetry governanceTelemetry = new GovernanceTelemetry(metricsPublisher);
         return new ReplayService(eventPublisher,
                 eventStreamService,
                 metricsPublisher,

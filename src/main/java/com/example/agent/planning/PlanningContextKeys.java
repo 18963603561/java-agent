@@ -44,6 +44,7 @@ public final class PlanningContextKeys {
     public static final String APPROVAL_SOURCE = "approvalSource";
 
     public static final String PLAN_SUMMARY = "planSummary";
+    public static final String SCENE = "scene";
     public static final String PLAN_STEPS = "planSteps";
     public static final String PLAN_DEPENDENCIES = "planDependencies";
 

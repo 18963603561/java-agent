@@ -39,10 +39,6 @@ public class CircuitBreakerManager {
     @Value("${agent.circuit.cleanup-interval-seconds:30}")
     private int cleanupIntervalSeconds;
 
-    public CircuitBreakerManager(MetricsPublisher metricsPublisher, CircuitStateStore circuitStateStore) {
-        this(metricsPublisher, circuitStateStore, new GovernanceTelemetry(metricsPublisher));
-    }
-
     @Autowired
     public CircuitBreakerManager(MetricsPublisher metricsPublisher,
                                  CircuitStateStore circuitStateStore,

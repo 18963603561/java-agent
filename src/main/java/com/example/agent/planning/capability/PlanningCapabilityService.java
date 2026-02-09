@@ -91,6 +91,7 @@ public class PlanningCapabilityService {
     private CapabilityEvaluationInput buildInput(TaskRequest request, PlanningContext planningContext) {
         CapabilityEvaluationInput input = new CapabilityEvaluationInput();
         input.setTaskDescription(request != null ? request.getQuery() : null);
+        input.setScene(resolveScene(planningContext));
         input.setPlanSummary(resolvePlanSummary(planningContext));
         input.setToolSummary(resolveToolSummary(planningContext));
         input.setBudgetThresholdTokens(resolveBudgetThreshold(planningContext));
@@ -132,6 +133,23 @@ public class PlanningCapabilityService {
         }
         String summary = planningContext.getString(PlanningContextKeys.PLAN_SUMMARY);
         return summary != null ? summary : "";
+    }
+
+    /**
+     * 解析评估场景。
+     *
+     * @param planningContext 规划上下文
+     * @return 场景值，缺省返回 default
+     */
+    private String resolveScene(PlanningContext planningContext) {
+        if (planningContext == null) {
+            return "default";
+        }
+        String scene = planningContext.getString(PlanningContextKeys.SCENE);
+        if (scene == null || scene.isBlank()) {
+            return "default";
+        }
+        return scene.trim();
     }
 
     private String resolveToolSummary(PlanningContext planningContext) {

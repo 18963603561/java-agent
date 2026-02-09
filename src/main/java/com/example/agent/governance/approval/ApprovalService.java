@@ -33,43 +33,18 @@ public class ApprovalService {
     private static final int DEFAULT_CLEANUP_INTERVAL_SECONDS = 30;
 
     private final ApprovalProperties properties;
-    private final MetricsPublisher metricsPublisher;
     private final PendingApprovalStore pendingApprovalStore;
     private final ApprovalDecisionAwaiter approvalDecisionAwaiter;
     private final ApprovalArgsDigestBuilder approvalArgsDigestBuilder;
     private final GovernanceTelemetry governanceTelemetry;
 
-    public ApprovalService(ApprovalProperties properties, MetricsPublisher metricsPublisher) {
-        this(properties,
-                metricsPublisher,
-                new PendingApprovalStore(metricsPublisher),
-                new ApprovalDecisionAwaiter(),
-                new ApprovalArgsDigestBuilder(),
-                new GovernanceTelemetry(metricsPublisher));
-    }
-
-    public ApprovalService(ApprovalProperties properties,
-                           MetricsPublisher metricsPublisher,
-                           PendingApprovalStore pendingApprovalStore,
-                           ApprovalDecisionAwaiter approvalDecisionAwaiter,
-                           ApprovalArgsDigestBuilder approvalArgsDigestBuilder) {
-        this(properties,
-                metricsPublisher,
-                pendingApprovalStore,
-                approvalDecisionAwaiter,
-                approvalArgsDigestBuilder,
-                new GovernanceTelemetry(metricsPublisher));
-    }
-
     @Autowired
     public ApprovalService(ApprovalProperties properties,
-                           MetricsPublisher metricsPublisher,
                            PendingApprovalStore pendingApprovalStore,
                            ApprovalDecisionAwaiter approvalDecisionAwaiter,
                            ApprovalArgsDigestBuilder approvalArgsDigestBuilder,
                            GovernanceTelemetry governanceTelemetry) {
         this.properties = properties;
-        this.metricsPublisher = metricsPublisher;
         this.pendingApprovalStore = pendingApprovalStore;
         this.approvalDecisionAwaiter = approvalDecisionAwaiter;
         this.approvalArgsDigestBuilder = approvalArgsDigestBuilder;
@@ -172,7 +147,6 @@ public class ApprovalService {
         PendingApprovalRecord pending = new PendingApprovalRecord(tenantId, workflowId, snapshotId, toolName, argsDigest,
                 createdAt, future);
         pendingApprovalStore.put(requestId, pending, resolveStoreProperties());
-        incrementMetric("approval_requested_total");
         governanceTelemetry.increment("approval.request.total",
                 "domain", "approval",
                 "action", "request",
@@ -290,32 +264,12 @@ public class ApprovalService {
         if (decision == null) {
             return;
         }
-        incrementMetricWithTags("approval_decision_total", "approved", String.valueOf(decision.isApproved()));
         governanceTelemetry.increment("approval.decision.total",
                 "domain", "approval",
                 "action", "await",
                 "result", decision.isApproved() ? "approved" : (decision.isTimeout() ? "timeout" : "rejected"));
         long durationMs = System.currentTimeMillis() - handle.getCreatedAtEpochMs();
-        recordTime("approval_wait_duration_ms", Math.max(0, durationMs));
         governanceTelemetry.time("approval.await.duration_ms", Math.max(0, durationMs));
-    }
-
-    private void incrementMetric(String name) {
-        if (metricsPublisher != null) {
-            metricsPublisher.increment(name);
-        }
-    }
-
-    private void incrementMetricWithTags(String name, String... tags) {
-        if (metricsPublisher != null) {
-            metricsPublisher.incrementWithTags(name, tags);
-        }
-    }
-
-    private void recordTime(String name, long millis) {
-        if (metricsPublisher != null) {
-            metricsPublisher.recordTime(name, millis);
-        }
     }
 
     private String normalizeReason(String reason) {

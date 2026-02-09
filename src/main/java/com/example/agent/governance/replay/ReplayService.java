@@ -38,32 +38,12 @@ public class ReplayService {
 
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
-    private final MetricsPublisher metricsPublisher;
     private final ReplayProperties replayProperties;
     private final ReplayTaskResolver replayTaskResolver;
     private final ReplayItemAssembler replayItemAssembler;
     private final ReplayEventFactory replayEventFactory;
     private final ReplaySessionStore replaySessionStore;
     private final GovernanceTelemetry governanceTelemetry;
-
-    public ReplayService(ApplicationEventPublisher eventPublisher,
-                         EventStreamService eventStreamService,
-                         MetricsPublisher metricsPublisher,
-                         ReplayProperties replayProperties,
-                         ReplayTaskResolver replayTaskResolver,
-                         ReplayItemAssembler replayItemAssembler,
-                         ReplayEventFactory replayEventFactory,
-                         ReplaySessionStore replaySessionStore) {
-        this(eventPublisher,
-                eventStreamService,
-                metricsPublisher,
-                replayProperties,
-                replayTaskResolver,
-                replayItemAssembler,
-                replayEventFactory,
-                replaySessionStore,
-                new GovernanceTelemetry(metricsPublisher));
-    }
 
     @Autowired
     public ReplayService(ApplicationEventPublisher eventPublisher,
@@ -77,7 +57,6 @@ public class ReplayService {
                          GovernanceTelemetry governanceTelemetry) {
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
-        this.metricsPublisher = metricsPublisher;
         this.replayProperties = replayProperties;
         this.replayTaskResolver = replayTaskResolver;
         this.replayItemAssembler = replayItemAssembler;
@@ -115,7 +94,6 @@ public class ReplayService {
         session.setLastAccessedAt(Instant.now());
         replaySessionStore.put(replayId, session, resolveSessionStoreProperties());
 
-        metricsPublisher.increment("replay.count");
         governanceTelemetry.increment("replay.run.total",
                 "domain", "replay",
                 "action", "run",

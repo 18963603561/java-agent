@@ -43,27 +43,6 @@ public class CapabilityBoundaryEvaluator {
     private final EventStreamService eventStreamService;
     private final CapabilityRuleRegistry capabilityRuleRegistry;
 
-    public CapabilityBoundaryEvaluator(CapabilityEvaluationProperties properties,
-                                       ApplicationEventPublisher eventPublisher,
-                                       EventStreamService eventStreamService) {
-        this(properties,
-                eventPublisher,
-                eventStreamService,
-                defaultRiskRules(),
-                defaultStrategyRules());
-    }
-
-    public CapabilityBoundaryEvaluator(CapabilityEvaluationProperties properties,
-                                       ApplicationEventPublisher eventPublisher,
-                                       EventStreamService eventStreamService,
-                                       List<CapabilityRiskRule> riskRules,
-                                       List<CapabilityStrategyRule> strategyRules) {
-        this(properties,
-                eventPublisher,
-                eventStreamService,
-                new CapabilityRuleRegistry(riskRules, strategyRules));
-    }
-
     @Autowired
     public CapabilityBoundaryEvaluator(CapabilityEvaluationProperties properties,
                                        ApplicationEventPublisher eventPublisher,
@@ -254,10 +233,10 @@ public class CapabilityBoundaryEvaluator {
     }
 
     private String resolveScene(CapabilityEvaluationInput input) {
-        if (input == null || !StringUtils.hasText(input.getPlanSummary())) {
+        if (input == null || !StringUtils.hasText(input.getScene())) {
             return "default";
         }
-        return input.getPlanSummary().trim();
+        return input.getScene().trim();
     }
 
     private List<String> toRuleHitSummary(List<CapabilityRuleHit> ruleHits) {
@@ -278,21 +257,6 @@ public class CapabilityBoundaryEvaluator {
             return 1;
         }
         return score;
-    }
-
-    private static List<CapabilityRiskRule> defaultRiskRules() {
-        return List.of(
-                new ComplexityThresholdRiskRule(),
-                new MissingToolSummaryRiskRule(),
-                new FailureTypesRiskRule(),
-                new BudgetPressureRiskRule());
-    }
-
-    private static List<CapabilityStrategyRule> defaultStrategyRules() {
-        return List.of(
-                new ResearchKeywordStrategyRule(),
-                new DebateKeywordStrategyRule(),
-                new HighRiskThoughtTreeStrategyRule());
     }
 
     private double estimateComplexity(String query) {

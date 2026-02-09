@@ -108,19 +108,4 @@ public class GovernanceTelemetry {
         metricsPublisher.recordTime(METRIC_PREFIX + "." + metricSuffix, millis);
     }
 
-    /**
-     * 统一治理指标命名构造。
-     *
-     * @param domain 领域
-     * @param action 动作
-     * @param metric 指标名
-     * @return 完整指标名
-     */
-    public String metricName(String domain, String action, String metric) {
-        String resolvedDomain = StringUtils.hasText(domain) ? domain.trim() : "unknown";
-        String resolvedAction = StringUtils.hasText(action) ? action.trim() : "unknown";
-        String resolvedMetric = StringUtils.hasText(metric) ? metric.trim() : "total";
-        return METRIC_PREFIX + "." + resolvedDomain + "." + resolvedAction + "." + resolvedMetric;
-    }
 }
-

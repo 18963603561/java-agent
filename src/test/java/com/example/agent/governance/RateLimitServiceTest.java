@@ -2,6 +2,7 @@ package com.example.agent.governance;
 
 import com.example.agent.governance.ratelimit.domain.RateLimitStore;
 import com.example.agent.governance.ratelimit.RateLimitService;
+import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -115,7 +116,10 @@ class RateLimitServiceTest {
 
     private RateLimitService buildService(int maxPerMinute, int maxKeys, int ttlSeconds, int cleanupSeconds) {
         MetricsPublisher publisher = new MetricsPublisher(new SimpleMeterRegistry());
-        RateLimitService service = new RateLimitService(publisher, new RateLimitStore(publisher));
+        RateLimitService service = new RateLimitService(
+                publisher,
+                new RateLimitStore(publisher),
+                new GovernanceTelemetry(publisher));
         ReflectionTestUtils.setField(service, "maxPerMinute", maxPerMinute);
         ReflectionTestUtils.setField(service, "maxKeys", maxKeys);
         ReflectionTestUtils.setField(service, "entryTtlSeconds", ttlSeconds);

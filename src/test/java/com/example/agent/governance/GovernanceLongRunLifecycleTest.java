@@ -4,6 +4,9 @@ import com.example.agent.governance.approval.ApprovalDecision;
 import com.example.agent.governance.approval.ApprovalHandle;
 import com.example.agent.governance.approval.ApprovalProperties;
 import com.example.agent.governance.approval.ApprovalService;
+import com.example.agent.governance.approval.domain.ApprovalArgsDigestBuilder;
+import com.example.agent.governance.approval.domain.ApprovalDecisionAwaiter;
+import com.example.agent.governance.approval.domain.PendingApprovalStore;
 import com.example.agent.governance.replay.ReplayProperties;
 import com.example.agent.governance.replay.ReplayService;
 import com.example.agent.governance.replay.domain.ReplayCommand;
@@ -98,7 +101,11 @@ class GovernanceLongRunLifecycleTest {
         properties.setCleanupIntervalSeconds(1);
         properties.setTimeoutSeconds(30);
         MetricsPublisher metricsPublisher = new MetricsPublisher(new SimpleMeterRegistry());
-        return new ApprovalService(properties, metricsPublisher);
+        return new ApprovalService(properties,
+                new PendingApprovalStore(metricsPublisher),
+                new ApprovalDecisionAwaiter(),
+                new ApprovalArgsDigestBuilder(),
+                new GovernanceTelemetry(metricsPublisher));
     }
 
     private ReplayProperties buildReplayProperties() {

@@ -18,6 +18,7 @@ import com.example.agent.capabilities.llm.support.ValidationSupport;
 import com.example.agent.governance.evaluation.CapabilityBoundaryEvaluator;
 import com.example.agent.governance.evaluation.CapabilityEvaluationProperties;
 import com.example.agent.governance.evaluation.domain.BudgetPressureRiskRule;
+import com.example.agent.governance.evaluation.domain.CapabilityRuleRegistry;
 import com.example.agent.governance.evaluation.domain.ComplexityThresholdRiskRule;
 import com.example.agent.governance.evaluation.domain.DebateKeywordStrategyRule;
 import com.example.agent.governance.evaluation.domain.FailureTypesRiskRule;
@@ -466,9 +467,7 @@ class PlannerServiceTest {
         ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
         com.example.agent.streaming.sse.EventStreamService eventStreamService = Mockito.mock(
                 com.example.agent.streaming.sse.EventStreamService.class);
-        return new CapabilityBoundaryEvaluator(evalProps,
-                publisher,
-                eventStreamService,
+        CapabilityRuleRegistry capabilityRuleRegistry = new CapabilityRuleRegistry(
                 List.of(
                         new ComplexityThresholdRiskRule(),
                         new MissingToolSummaryRiskRule(),
@@ -478,5 +477,9 @@ class PlannerServiceTest {
                         new ResearchKeywordStrategyRule(),
                         new DebateKeywordStrategyRule(),
                         new HighRiskThoughtTreeStrategyRule()));
+        return new CapabilityBoundaryEvaluator(evalProps,
+                publisher,
+                eventStreamService,
+                capabilityRuleRegistry);
     }
 }

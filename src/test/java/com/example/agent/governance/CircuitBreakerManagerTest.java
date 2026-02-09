@@ -2,6 +2,7 @@ package com.example.agent.governance;
 
 import com.example.agent.governance.circuitbreaker.CircuitBreakerManager;
 import com.example.agent.governance.circuitbreaker.domain.CircuitStateStore;
+import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.concurrent.CountDownLatch;
@@ -120,7 +121,10 @@ class CircuitBreakerManagerTest {
                                                int stateTtlSeconds,
                                                int cleanupIntervalSeconds) {
         MetricsPublisher publisher = new MetricsPublisher(new SimpleMeterRegistry());
-        CircuitBreakerManager manager = new CircuitBreakerManager(publisher, new CircuitStateStore(publisher));
+        CircuitBreakerManager manager = new CircuitBreakerManager(
+                publisher,
+                new CircuitStateStore(publisher),
+                new GovernanceTelemetry(publisher));
         ReflectionTestUtils.setField(manager, "failureThreshold", failureThreshold);
         ReflectionTestUtils.setField(manager, "openSeconds", openSeconds);
         ReflectionTestUtils.setField(manager, "maxKeys", maxKeys);

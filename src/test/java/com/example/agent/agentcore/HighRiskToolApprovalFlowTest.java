@@ -2,6 +2,10 @@ package com.example.agent.agentcore;
 
 import com.example.agent.governance.approval.ApprovalProperties;
 import com.example.agent.governance.approval.ApprovalService;
+import com.example.agent.governance.approval.domain.ApprovalArgsDigestBuilder;
+import com.example.agent.governance.approval.domain.ApprovalDecisionAwaiter;
+import com.example.agent.governance.approval.domain.PendingApprovalStore;
+import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.api.http.dto.TaskRequest;
@@ -143,7 +147,11 @@ class HighRiskToolApprovalFlowTest {
         properties.setHighRiskTools(List.of("danger_tool"));
         properties.setTimeoutSeconds(timeoutSeconds);
         MetricsPublisher metricsPublisher = new MetricsPublisher(new SimpleMeterRegistry());
-        return new ApprovalService(properties, metricsPublisher);
+        return new ApprovalService(properties,
+                new PendingApprovalStore(metricsPublisher),
+                new ApprovalDecisionAwaiter(),
+                new ApprovalArgsDigestBuilder(),
+                new GovernanceTelemetry(metricsPublisher));
     }
 
     private TaskRequest buildRequest() {

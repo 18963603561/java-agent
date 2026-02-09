@@ -18,6 +18,11 @@ public class CapabilityEvaluationInput {
     private String planSummary;
 
     /**
+     * 评估场景。
+     */
+    private String scene;
+
+    /**
      * 工具清单摘要。
      */
     private String toolSummary;
@@ -51,6 +56,14 @@ public class CapabilityEvaluationInput {
 
     public void setPlanSummary(String planSummary) {
         this.planSummary = planSummary;
+    }
+
+    public String getScene() {
+        return scene;
+    }
+
+    public void setScene(String scene) {
+        this.scene = scene;
     }
 
     public String getToolSummary() {

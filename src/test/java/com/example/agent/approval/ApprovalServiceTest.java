@@ -1,6 +1,10 @@
 package com.example.agent.approval;
 
 import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.governance.approval.domain.ApprovalArgsDigestBuilder;
+import com.example.agent.governance.approval.domain.ApprovalDecisionAwaiter;
+import com.example.agent.governance.approval.domain.PendingApprovalStore;
+import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import org.junit.jupiter.api.Test;
 import com.example.agent.governance.approval.ApprovalService;
@@ -93,6 +97,10 @@ class ApprovalServiceTest {
         properties.setPendingTtlSeconds(ttlSeconds);
         properties.setCleanupIntervalSeconds(cleanupIntervalSeconds);
         MetricsPublisher metricsPublisher = new MetricsPublisher(new SimpleMeterRegistry());
-        return new ApprovalService(properties, metricsPublisher);
+        return new ApprovalService(properties,
+                new PendingApprovalStore(metricsPublisher),
+                new ApprovalDecisionAwaiter(),
+                new ApprovalArgsDigestBuilder(),
+                new GovernanceTelemetry(metricsPublisher));
     }
 }

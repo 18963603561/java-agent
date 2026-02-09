@@ -6,6 +6,10 @@ import com.example.agent.capabilities.tools.execution.ToolExecutor;
 import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.governance.approval.ApprovalProperties;
 import com.example.agent.governance.approval.ApprovalService;
+import com.example.agent.governance.approval.domain.ApprovalArgsDigestBuilder;
+import com.example.agent.governance.approval.domain.ApprovalDecisionAwaiter;
+import com.example.agent.governance.approval.domain.PendingApprovalStore;
+import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -84,8 +88,12 @@ class EnforcementGatewayTest {
         ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
         ApprovalProperties properties = new ApprovalProperties();
         properties.setEnabled(false);
-        ApprovalService approvalService = new ApprovalService(properties, new MetricsPublisher(new SimpleMeterRegistry()));
+        MetricsPublisher metricsPublisher = new MetricsPublisher(new SimpleMeterRegistry());
+        ApprovalService approvalService = new ApprovalService(properties,
+                new PendingApprovalStore(metricsPublisher),
+                new ApprovalDecisionAwaiter(),
+                new ApprovalArgsDigestBuilder(),
+                new GovernanceTelemetry(metricsPublisher));
         return new EnforcementGateway(toolExecutor, publisher, approvalService);
     }
 }
-
