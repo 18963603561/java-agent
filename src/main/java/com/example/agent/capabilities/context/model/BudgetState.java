@@ -1,5 +1,7 @@
 package com.example.agent.capabilities.context.model;
 
+import com.example.agent.budget.core.ContextBudgetAllocationState;
+
 /**
  * 预算状态信息。
  */
@@ -19,6 +21,16 @@ public class BudgetState {
      * 剩余令牌数。
      */
     private Integer remainingTokens;
+
+    /**
+     * 预算分配状态。
+     */
+    private ContextBudgetAllocationState allocationState;
+
+    /**
+     * 预算分配原因编码。
+     */
+    private String allocationReason;
 
     public Integer getAllocatedTokens() {
         return allocatedTokens;
@@ -42,5 +54,21 @@ public class BudgetState {
 
     public void setRemainingTokens(Integer remainingTokens) {
         this.remainingTokens = remainingTokens;
+    }
+
+    public ContextBudgetAllocationState getAllocationState() {
+        return allocationState;
+    }
+
+    public void setAllocationState(ContextBudgetAllocationState allocationState) {
+        this.allocationState = allocationState;
+    }
+
+    public String getAllocationReason() {
+        return allocationReason;
+    }
+
+    public void setAllocationReason(String allocationReason) {
+        this.allocationReason = allocationReason;
     }
 }

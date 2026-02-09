@@ -1,12 +1,13 @@
 package com.example.agent.context;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.token.ContextBudgetAllocator;
-import com.example.agent.budget.token.ContextBudgetProperties;
-import com.example.agent.budget.token.ContextBudgetRequest;
-import com.example.agent.budget.trim.ContextPruneRequest;
-import com.example.agent.budget.trim.ContextPruner;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.core.ContextBudgetAllocationState;
+import com.example.agent.budget.token.application.ContextBudgetAllocator;
+import com.example.agent.budget.config.ContextBudgetProperties;
+import com.example.agent.budget.token.application.ContextBudgetRequest;
+import com.example.agent.budget.trim.model.ContextPruneRequest;
+import com.example.agent.budget.trim.application.ContextPruner;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
@@ -41,6 +42,7 @@ class ContextPolicyPropagationTest {
 
         ContextBudgetAllocation allocation = new ContextBudgetAllocation();
         allocation.setTotalTokens(200);
+        allocation.setAllocationState(ContextBudgetAllocationState.ENABLED);
         when(budgetAllocator.allocate(any(ContextBudgetRequest.class))).thenReturn(allocation);
 
         ContextPolicy policy = new ContextPolicy();
@@ -71,3 +73,6 @@ class ContextPolicyPropagationTest {
         assertEquals(Boolean.FALSE, applied.getEnableSensitiveMask());
     }
 }
+
+
+

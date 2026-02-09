@@ -1,9 +1,9 @@
 package com.example.agent.capabilities.context.builder.budget;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.budget.token.ContextBudgetPolicy;
-import com.example.agent.budget.token.ContextBudgetProperties;
-import com.example.agent.budget.token.ContextBudgetRequest;
+import com.example.agent.budget.core.ContextBudgetPolicy;
+import com.example.agent.budget.config.ContextBudgetProperties;
+import com.example.agent.budget.token.application.ContextBudgetRequest;
 import com.example.agent.capabilities.context.ContextBuildRequest;
 import com.example.agent.capabilities.context.model.ContextPolicy;
 import java.util.Map;
@@ -37,13 +37,14 @@ public class ContextBudgetRequestFactory {
         if (request == null) {
             throw new IllegalArgumentException("context build request must not be null");
         }
-        if (budgetProperties != null && !budgetProperties.isEnabled()) {
-            return null;
-        }
         ContextBudgetRequest source = request.getBudgetRequest();
         ContextBudgetRequest target = new ContextBudgetRequest();
         if (source != null) {
             copyFromProvided(source, target);
+        }
+
+        if (budgetProperties != null && !budgetProperties.isEnabled()) {
+            target.setEnabled(false);
         }
 
         Integer totalTokens = resolveTotalTokens(source, runtimeContext, budgetProperties, defaultTokenBudget);
@@ -154,4 +155,6 @@ public class ContextBudgetRequestFactory {
         return value == null || value.isBlank();
     }
 }
+
+
 

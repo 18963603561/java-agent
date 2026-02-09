@@ -1,7 +1,7 @@
 package com.example.agent.runtime.prepare;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.budget.trim.ContextTrimReport;
+import com.example.agent.budget.trim.model.ContextTrimReport;
 import com.example.agent.capabilities.context.ContextBuildRequest;
 import com.example.agent.capabilities.context.ContextBuildResult;
 import com.example.agent.capabilities.context.ContextBuilder;
@@ -318,4 +318,5 @@ public class RuntimePreparationService {
         return copy;
     }
 }
+
 

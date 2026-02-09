@@ -1,8 +1,8 @@
 package com.example.agent.context;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.budget.token.ContextBudgetProperties;
-import com.example.agent.budget.token.ContextBudgetRequest;
+import com.example.agent.budget.config.ContextBudgetProperties;
+import com.example.agent.budget.token.application.ContextBudgetRequest;
 import com.example.agent.capabilities.context.ContextBuildRequest;
 import com.example.agent.capabilities.context.model.ContextPolicy;
 import com.example.agent.capabilities.context.builder.budget.ContextBudgetRequestFactory;
@@ -12,7 +12,7 @@ import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 class ContextBudgetRequestFactoryTest {
@@ -75,7 +75,7 @@ class ContextBudgetRequestFactoryTest {
     }
 
     @Test
-    void createReturnsNullWhenBudgetDisabled() {
+    void createReturnsDisabledRequestWhenBudgetDisabled() {
         ContextBuildRequest request = baseRequest();
         ContextBudgetProperties properties = budgetProperties(600);
         properties.setEnabled(false);
@@ -87,7 +87,9 @@ class ContextBudgetRequestFactoryTest {
                 properties,
                 400);
 
-        assertNull(resolved);
+        assertNotNull(resolved);
+        assertFalse(resolved.isEnabled());
+        assertEquals(900, resolved.getTotalTokens());
     }
 
     @Test
@@ -136,4 +138,6 @@ class ContextBudgetRequestFactoryTest {
         return properties;
     }
 }
+
+
 

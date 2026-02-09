@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.context;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.budget.token.ContextBudgetRequest;
+import com.example.agent.budget.token.application.ContextBudgetRequest;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.memory.recall.MemoryRecallResult;
 import com.example.agent.capabilities.context.model.ContextPolicy;
@@ -147,4 +147,5 @@ public class ContextBuildRequest {
         this.budgetRequest = budgetRequest;
     }
 }
+
 

@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.context.runtime;
 
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.trim.ContextPruneResult;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.trim.model.ContextPruneResult;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.evidence.EvidencePack;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -133,3 +133,5 @@ public class MutableContextRuntimeView extends ContextRuntimeView {
         values.put(ContextRuntimeKeys.PROMPT_ASSEMBLY_INPUT, promptAssemblyInput);
     }
 }
+
+

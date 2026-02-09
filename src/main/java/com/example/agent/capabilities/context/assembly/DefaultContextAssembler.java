@@ -1,9 +1,9 @@
 package com.example.agent.capabilities.context.assembly;
 
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.trim.ContextCompressionResult;
-import com.example.agent.budget.trim.ContextPruneResult;
-import com.example.agent.budget.trim.ContextTrimReport;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.trim.model.ContextCompressionResult;
+import com.example.agent.budget.trim.model.ContextPruneResult;
+import com.example.agent.budget.trim.model.ContextTrimReport;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.capabilities.llm.prompt.PromptTemplate;
@@ -66,7 +66,7 @@ public class DefaultContextAssembler implements ContextAssembler {
     @Override
     public PromptAssemblyInput assemble(ContextAssemblyCommand command) {
         ContextSnapshot snapshot = command != null ? command.getSnapshot() : null;
-        ContextBudgetAllocation allocation = command != null ? command.getAllocation() : null;
+        ContextBudgetAllocation allocation = command != null ? command.getAllocation() : ContextBudgetAllocation.EMPTY;
         ContextTrimReport trimReport = command != null ? command.getTrimReport() : null;
         ContextPruneResult pruneResult = command != null ? command.getPruneResult() : null;
         ContextCompressionResult compressionResult = command != null ? command.getCompressionResult() : null;
@@ -78,7 +78,7 @@ public class DefaultContextAssembler implements ContextAssembler {
         input.setTenantId(tenantId);
         input.setWorkflowId(workflowId);
         input.setBudgetAllocation(allocation);
-        if (allocation != null && StringUtils.hasText(allocation.getVersion())) {
+        if (allocation.isAllocationEnabled() && StringUtils.hasText(allocation.getVersion())) {
             input.setPolicyVersion(allocation.getVersion());
         }
         policyApplier.applySystemDeveloper(input, snapshot, promptTemplate, false);
@@ -170,4 +170,6 @@ public class DefaultContextAssembler implements ContextAssembler {
         return text == null ? 0 : text.length();
     }
 }
+
+
 

@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.context.builder;
 
 import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.budget.core.ContextBudgetAllocation;
 import com.example.agent.capabilities.context.model.AuditMetadata;
 import com.example.agent.capabilities.context.model.BudgetState;
 import com.example.agent.capabilities.context.model.BuildMetrics;
@@ -36,6 +37,7 @@ import java.util.Map;
 import java.util.UUID;
 import org.slf4j.Logger;
 import org.springframework.util.StringUtils;
+
 
 /**
  * 上下文快照工厂。
@@ -346,14 +348,13 @@ public class ContextSnapshotFactory {
      * @param allocation 预算分配
      * @return 预算状态
      */
-    public BudgetState buildBudgetState(com.example.agent.budget.token.ContextBudgetAllocation allocation) {
+    public BudgetState buildBudgetState(com.example.agent.budget.core.ContextBudgetAllocation allocation) {
         BudgetState state = new BudgetState();
-        if (allocation == null) {
-            return state;
-        }
         state.setAllocatedTokens(allocation.getTotalTokens());
         state.setRemainingTokens(allocation.getTotalTokens() != null ? allocation.getTotalTokens() : null);
         state.setUsedTokens(0);
+        state.setAllocationState(allocation.getAllocationState());
+        state.setAllocationReason(allocation.getAllocationReason());
         return state;
     }
 
@@ -654,4 +655,5 @@ public class ContextSnapshotFactory {
         }
     }
 }
+
 

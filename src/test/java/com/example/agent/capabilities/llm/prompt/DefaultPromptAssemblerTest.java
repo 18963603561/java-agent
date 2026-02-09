@@ -1,7 +1,8 @@
 package com.example.agent.capabilities.llm.prompt;
 
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.trim.ContextSection;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.core.ContextBudgetAllocationState;
+import com.example.agent.budget.core.ContextSection;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
@@ -71,6 +72,7 @@ class DefaultPromptAssemblerTest {
         String longUser = "用户问题:" + "B".repeat(200);
         input.setUserText(longUser);
         ContextBudgetAllocation allocation = new ContextBudgetAllocation();
+        allocation.setAllocationState(ContextBudgetAllocationState.ENABLED);
         EnumMap<ContextSection, Integer> sections = new EnumMap<>(ContextSection.class);
         sections.put(ContextSection.SYSTEM_POLICY, 4);
         sections.put(ContextSection.DEVELOPER_POLICY, 4);
@@ -105,6 +107,7 @@ class DefaultPromptAssemblerTest {
         String longUser = "用户问题:" + "C".repeat(200);
         input.setUserText(longUser);
         ContextBudgetAllocation allocation = new ContextBudgetAllocation();
+        allocation.setAllocationState(ContextBudgetAllocationState.ENABLED);
         EnumMap<ContextSection, Integer> sections = new EnumMap<>(ContextSection.class);
         sections.put(ContextSection.SYSTEM_POLICY, 1);
         sections.put(ContextSection.DEVELOPER_POLICY, 1);
@@ -122,4 +125,5 @@ class DefaultPromptAssemblerTest {
         assertEquals(longUser, bundle.getMessages().get(2).getContent());
     }
 }
+
 

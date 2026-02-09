@@ -15,11 +15,12 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.EnumMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.trim.ContextPruneRequest;
-import com.example.agent.budget.trim.ContextPruneResult;
-import com.example.agent.budget.trim.ContextSection;
-import com.example.agent.budget.trim.DefaultContextPruner;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.core.ContextBudgetAllocationState;
+import com.example.agent.budget.trim.model.ContextPruneRequest;
+import com.example.agent.budget.trim.model.ContextPruneResult;
+import com.example.agent.budget.core.ContextSection;
+import com.example.agent.budget.trim.application.DefaultContextPruner;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -67,6 +68,7 @@ class DefaultContextPrunerPolicyTest {
         snapshot.setWorkingMemory(workingMemory);
 
         ContextBudgetAllocation allocation = new ContextBudgetAllocation();
+        allocation.setAllocationState(ContextBudgetAllocationState.ENABLED);
         EnumMap<ContextSection, Integer> sectionTokens = new EnumMap<>(ContextSection.class);
         sectionTokens.put(ContextSection.WORKING_MEMORY, 1);
         allocation.setSectionTokens(sectionTokens);
@@ -81,4 +83,7 @@ class DefaultContextPrunerPolicyTest {
         assertEquals("working_summary", result.getRemovedItems().get(3).getItemType());
     }
 }
+
+
+
 

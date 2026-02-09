@@ -1,9 +1,9 @@
 package com.example.agent.capabilities.tools.execution.service;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.budget.token.TokenBudgetManager;
-import com.example.agent.budget.token.TokenUsageInput;
-import com.example.agent.budget.token.TokenUsageRecord;
+import com.example.agent.budget.token.application.TokenBudgetManager;
+import com.example.agent.budget.token.model.TokenUsageInput;
+import com.example.agent.budget.token.model.TokenUsageRecord;
 import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.provider.ModelDefinition;
 import com.example.agent.capabilities.llm.provider.ModelRouter;
@@ -64,3 +64,5 @@ public class ToolUsageRecorder {
         return record;
     }
 }
+
+

@@ -1,6 +1,6 @@
 package com.example.agent.planning.context;
 
-import com.example.agent.budget.token.ContextBudgetAllocation;
+import com.example.agent.budget.core.ContextBudgetAllocation;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.evidence.EvidencePack;
 import com.example.agent.capabilities.context.evidence.EvidenceStats;
@@ -72,7 +72,9 @@ public final class PlanningPromptSummaryFactory {
 
     private static Integer resolveTokenBudget(PlanningContext context) {
         ContextBudgetAllocation allocation = context.getContextBudget();
-        Integer tokenBudget = allocation != null ? allocation.getTotalTokens() : null;
+        Integer tokenBudget = allocation != null && allocation.isAllocationEnabled()
+                ? allocation.getTotalTokens()
+                : null;
         if (tokenBudget == null) {
             tokenBudget = context.getInteger(PlanningContextKeys.BUDGET_THRESHOLD_TOKENS);
         }

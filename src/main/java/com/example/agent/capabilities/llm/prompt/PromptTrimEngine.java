@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.llm.prompt;
 
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.trim.ContextSection;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.core.ContextSection;
 import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
 import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import java.util.ArrayList;
@@ -113,7 +113,7 @@ class PromptTrimEngine {
     }
 
     private int resolvePromptBudgetTokens(ContextBudgetAllocation allocation) {
-        if (allocation == null) {
+        if (!allocation.isAllocationEnabled()) {
             return 0;
         }
         Map<ContextSection, Integer> sectionTokens = allocation.getSectionTokens();
@@ -272,5 +272,6 @@ class PromptTrimEngine {
     private record TrimOutcome(String text, int tokensReduced, boolean trimmed) {
     }
 }
+
 
 

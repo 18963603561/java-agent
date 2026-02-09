@@ -1,18 +1,19 @@
 package com.example.agent.context;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.token.ContextBudgetAllocator;
-import com.example.agent.budget.token.ContextBudgetProperties;
-import com.example.agent.budget.token.ContextBudgetRequest;
-import com.example.agent.budget.trim.ContextPruneResult;
-import com.example.agent.budget.trim.ContextPruner;
-import com.example.agent.budget.trim.ContextSection;
-import com.example.agent.budget.trim.ContextTrimReport;
-import com.example.agent.budget.trim.ContextTrimRequest;
-import com.example.agent.budget.trim.ContextTrimResult;
-import com.example.agent.budget.trim.ContextTrimmer;
-import com.example.agent.budget.trim.DefaultContextTrimmer;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.core.ContextBudgetAllocationState;
+import com.example.agent.budget.token.application.ContextBudgetAllocator;
+import com.example.agent.budget.config.ContextBudgetProperties;
+import com.example.agent.budget.token.application.ContextBudgetRequest;
+import com.example.agent.budget.trim.model.ContextPruneResult;
+import com.example.agent.budget.trim.application.ContextPruner;
+import com.example.agent.budget.core.ContextSection;
+import com.example.agent.budget.trim.model.ContextTrimReport;
+import com.example.agent.budget.trim.model.ContextTrimRequest;
+import com.example.agent.budget.trim.model.ContextTrimResult;
+import com.example.agent.budget.trim.application.ContextTrimmer;
+import com.example.agent.budget.trim.application.DefaultContextTrimmer;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.memory.model.ConversationSummary;
 import com.example.agent.capabilities.memory.recall.MemoryRecallResult;
@@ -44,7 +45,10 @@ import com.example.agent.capabilities.context.DefaultContextBuilder;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class DefaultContextBuilderTest {
@@ -69,6 +73,7 @@ class DefaultContextBuilderTest {
 
         ContextBudgetAllocation allocation = new ContextBudgetAllocation();
         allocation.setTotalTokens(2048);
+        allocation.setAllocationState(ContextBudgetAllocationState.ENABLED);
         when(budgetAllocator.allocate(any(ContextBudgetRequest.class))).thenReturn(allocation);
 
         ContextPruneResult pruneResult = new ContextPruneResult();
@@ -168,6 +173,7 @@ class DefaultContextBuilderTest {
 
         ContextBudgetAllocation allocation = new ContextBudgetAllocation();
         allocation.setTotalTokens(80);
+        allocation.setAllocationState(ContextBudgetAllocationState.ENABLED);
         EnumMap<ContextSection, Integer> sectionTokens = new EnumMap<>(ContextSection.class);
         for (ContextSection section : ContextSection.values()) {
             sectionTokens.put(section, 0);
@@ -223,6 +229,7 @@ class DefaultContextBuilderTest {
 
         ContextBudgetAllocation allocation = new ContextBudgetAllocation();
         allocation.setTotalTokens(80);
+        allocation.setAllocationState(ContextBudgetAllocationState.ENABLED);
         when(budgetAllocator.allocate(any(ContextBudgetRequest.class))).thenReturn(allocation);
 
         ContextTrimReport report = new ContextTrimReport();
@@ -252,6 +259,47 @@ class DefaultContextBuilderTest {
         assertNotNull(event.getPayload().get("trimSummary"));
     }
 
+    @Test
+    void buildShouldKeepDisabledAllocationAndSkipPruneAndTrim() {
+        ContextBudgetAllocator budgetAllocator = Mockito.mock(ContextBudgetAllocator.class);
+        ContextPruner contextPruner = Mockito.mock(ContextPruner.class);
+        ContextTrimmer contextTrimmer = Mockito.mock(ContextTrimmer.class);
+        ContextBudgetProperties budgetProperties = new ContextBudgetProperties();
+        budgetProperties.setTotalBudgetTokens(200);
+
+        DefaultContextBuilder builder = new DefaultContextBuilder(null, budgetAllocator, contextPruner,
+                contextTrimmer, null, budgetProperties, null, new MetricsPublisher(new SimpleMeterRegistry()));
+        ReflectionTestUtils.setField(builder, "defaultTokenBudget", 200);
+
+        ContextBudgetAllocation disabledAllocation = ContextBudgetAllocation.disabled(
+                ContextBudgetAllocationState.DISABLED_BY_CONFIG,
+                "config_disabled");
+        when(budgetAllocator.allocate(any(ContextBudgetRequest.class))).thenReturn(disabledAllocation);
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("q");
+        request.setSessionId("s1");
+
+        TenantContext tenantContext = new TenantContext("t1", "u1", List.of(), "req", "trace");
+
+        ContextBuildRequest buildRequest = new ContextBuildRequest();
+        buildRequest.setTaskRequest(request);
+        buildRequest.setTenantContext(tenantContext);
+        buildRequest.setWorkflowId("wf-1");
+
+        ContextBuildResult result = builder.build(buildRequest);
+
+        assertNotNull(result.getBudgetAllocation());
+        assertFalse(result.getBudgetAllocation().isAllocationEnabled());
+        assertEquals(ContextBudgetAllocationState.DISABLED_BY_CONFIG,
+                result.getBudgetAllocation().getAllocationState());
+        assertNotNull(result.getSnapshot().getBudgetState());
+        assertEquals(ContextBudgetAllocationState.DISABLED_BY_CONFIG,
+                result.getSnapshot().getBudgetState().getAllocationState());
+        verify(contextPruner, never()).prune(any());
+        verify(contextTrimmer, never()).trim(any());
+    }
+
     static class TestEventPublisher implements org.springframework.context.ApplicationEventPublisher {
         private final List<StreamEvent> events = new java.util.ArrayList<>();
 
@@ -275,4 +323,8 @@ class DefaultContextBuilderTest {
         }
     }
 }
+
+
+
+
 

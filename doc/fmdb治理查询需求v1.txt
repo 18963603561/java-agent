@@ -1,5 +1,3 @@
-
-你说：
 起始需求：
 	我现在做的这个fagent智能体，我的愿景是他是一个fmdb的数据治理智能体，整体框架搭建好后，后续可以持续补充治理知识，补充上下文和工具（通过toolbox），这样我就希望用户输入一句话如：帮我查询附近一公里购买奶茶的外卖订单，后续有更多场景，当然未来智能体还需要包含运维功能。我如何规划呢，后续重要的在知识库和工具如何跟插件一样补充进去呢
 以下是大模型与问答对话，请帮我先仔细分析上述需求和大模型给出的答复，我期望后续可以以场景方式，也可以通过业务知识库整理方式，最后以治理元数据兜底。，请帮我详细分析，基于现有工程给出可行性方案。
@@ -7728,6 +7726,2112 @@ fmdb.lineage.trace
 fmdb.query.batch（如果有）
 
 我就能把上面的模板里 tool 和 input 改成你真实可调用的格式，并把 requiredSlots 调整成你 Resolver 真正会产出的字段名，让你直接复制进项目跑起来。
+
+
+你说：
+问题1：
+assetType: Entity 中
+- key: status
+    fields: [order_status]
+    type: enum
+    pii: false
+    enumValues: [CREATED, PAID, CANCELLED, FINISHED]，其中enumValues: [CREATED, PAID, CANCELLED, FINISHED]是什么意思，请介绍举例。
+另外key和fields分别代表什么意思，哪一个是真正表里面的字段，还有一个疑问就是中文自然语言描述，是否包含该字段的中文名和多个别名增加语义理解。另外比如 手机号（mobile）可能会在多个Entity 中都存在，但是字段名称都不一样，有的是叫手机（shouji）、有的叫移动电话（yddh）等叫法，那么在Entity/Relation/Metric/Policy/模版中需要注意什么问题？
+另外# 在 entity.order 的 item_keyword 属性里增加 alias（你也可以单独做 synonym 表）
+
+ChatGPT 说：
+先把你问的几个点拆开讲清楚：enumValues 是什么、key/fields 各代表什么、中文/别名怎么放、同一个概念（手机号）在多个 Entity 字段名不同怎么统一、以及你最后那句 “item_keyword 增 alias / synonym 表” 应该怎么做。
+
+1) enumValues: [CREATED, PAID, CANCELLED, FINISHED] 是什么意思？怎么用？
+它表示：这个字段是枚举类型（enum），取值只能在这几个值里（或主要值是这些），用于：
+
+意图解析/过滤值标准化
+用户说“已支付订单”，系统能把“已支付”映射到 PAID，并生成过滤条件 order_status = 'PAID'。
+
+校验与纠错
+LLM 可能生成 order_status='PAYED'（拼错），你可以根据 enumValues 纠正到 PAID。
+
+自动补全/提示
+用户问“订单状态有哪些？”你能直接返回这些枚举值及含义（若你补了 label/desc）。
+
+举例：自然语言 → enum 过滤
+用户：“近7天已支付订单量”
+解析出 filter：status = 已支付
+Resolver 用 enumValues 做映射：已支付 → PAID
+生成 SQL：
+
+WHERE dt >= '2026-02-02' AND order_status = 'PAID'
+你也可以把 enumValues 做成对象带中文 label：
+enumValues: [{value: PAID, label: 已支付}, ...]，更强。
+
+2) key 和 fields 分别是什么意思？哪个是真正表字段？
+你这段结构我建议你这样理解（也是最推荐的落地方式）：
+
+✅ key（语义键 / 规范名）
+跨表/跨实体统一的“语义字段名”
+
+用来让 Intent/Resolver 说同一种“概念”
+
+不等于真实列名
+
+例：
+
+key: status（语义上叫“状态”）
+
+key: mobile（语义上叫“手机号”）
+
+key: user_id（语义上叫“用户ID”）
+
+✅ fields（物理字段名 / 真实列）
+数据库里真正存在的列名
+
+Resolver 最终会把 key 绑定到这些字段上
+
+例：
+
+fields: [order_status] 表示这张表里真实字段叫 order_status
+
+所以：真正表里的字段是 fields 里的值；key 是你治理层统一的语义名称。
+
+为什么 fields 有时候是数组？
+因为一个语义键可能映射多个真实字段，例如你之前的：
+
+item_keyword 可能对应 item_name、item_category
+那么：
+
+key: item_keyword
+fields: [item_name, item_category]
+type: keyword
+编译过滤时就是 OR：
+item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%'
+
+3) 中文自然语言描述、中文名、多个别名要不要放？放哪？
+要放，而且建议分两层放：
+
+A) 字段级别的 aliases（最直接有效）
+用于：用户提“订单状态/支付状态/状态”等，能命中这个 key。
+
+示例：
+
+- key: status
+  fields: [order_status]
+  type: enum
+  aliases: ["状态", "订单状态", "支付状态", "order status"]
+  enumValues:
+    - value: CREATED
+      label: "已创建"
+      aliases: ["创建", "下单", "未支付"]
+    - value: PAID
+      label: "已支付"
+      aliases: ["支付完成", "付款", "已付款"]
+    - value: CANCELLED
+      label: "已取消"
+      aliases: ["取消", "已作废"]
+    - value: FINISHED
+      label: "已完成"
+      aliases: ["完成", "已签收", "已履约"]
+B) 全局 synonym 表（更系统、更好维护）
+当你发现“别名越来越多、跨实体复用很多”，就把 alias 抽到单独的 synonym 表，避免每个 Entity 重复写。
+
+示例（synonyms.yaml）：
+
+concepts:
+  - conceptKey: status
+    aliases: ["状态", "订单状态", "支付状态"]
+  - conceptKey: mobile
+    aliases: ["手机号", "手机", "移动电话", "联系电话", "联系方式"]
+解析流程：先从 synonym 表把“用户说的词”映射到 conceptKey，再到具体 entity 绑定 fields。
+
+4) 同一个概念“手机号”在多个 Entity 里字段名不同，怎么办？（mobile/shouji/yddh…）
+这是你必须提前设计好的“统一语义层”的核心问题。最佳做法是：
+
+✅ 用统一 conceptKey：mobile
+无论底层列名是什么，都统一叫 key: mobile。
+
+entity.user（真实列叫 mobile）
+- key: mobile
+  fields: [mobile]
+  type: phone
+  pii: true
+  aliases: ["手机号", "手机", "移动电话"]
+entity.customer（真实列叫 shouji）
+- key: mobile
+  fields: [shouji]
+  type: phone
+  pii: true
+  aliases: ["手机号", "手机", "移动电话"]
+entity.member（真实列叫 yddh）
+- key: mobile
+  fields: [yddh]
+  type: phone
+  pii: true
+  aliases: ["手机号", "手机", "移动电话"]
+这样用户说“手机号”，Intent 里永远是 filterKey=mobile；Resolver 在不同实体上绑定不同 fields。
+
+5) 那在 Entity / Relation / Metric / Policy / Template 中分别要注意什么？
+我按你提到的五类分别说“最重要的一条”：
+
+5.1 Entity（最关键：语义键统一）
+所有“通用概念”必须统一 key：mobile/status/user_id/store_id/dt/...
+
+不要把底层列名当 key（否则跨表复用失败）
+
+PII 字段必须标注 pii: true + piiCategory
+
+建议你建立一个“Canonical Key 字典”（几十个常用 key），强制大家用它。
+
+5.2 Relation（注意：joinKey 用 key，不用物理列名）
+Relation 不要写 order.store_id = store.id 这种“物理列”，而是写：
+
+fromKey: store_id
+
+toKey: store_id
+
+让 Resolver 去绑定具体列名。
+
+示例：
+
+assetType: Relation
+id: relation.order_to_store
+fromEntity: entity.order
+toEntity: entity.store
+joinKeys:
+  - fromKey: store_id
+    toKey: store_id
+executionHints:
+  strategy: TWO_STEP_LOOKUP
+  preferNoJoin: true
+5.3 Metric（注意：fieldKey 用 key）
+Metric 里不要写 field: order_id（物理列），而要写 fieldKey: order_id。
+
+示例：
+
+aggregation:
+  func: COUNT_DISTINCT
+  fieldKey: order_id
+allowedDimensions: [store_id]
+filters:
+  optional: [mobile, status, item_keyword]
+这样 Metric 可跨不同事实表演化（只要 entity 绑定一致）。
+
+5.4 Policy（注意：按 piiCategory / key 做规则，不按列名）
+Policy 不能写“mask 字段 shouji”，要写“mask mobile”或 “mask piiCategory=PHONE”。
+
+示例：
+
+pii:
+  mask: true
+  byCategory:
+    PHONE: MASK_MOBILE
+    IDCARD: MASK_IDCARD
+否则同一概念在别的表列名不同，你 policy 就漏了。
+
+5.5 Template（注意：模板不关心字段细节，只关心 slots）
+Template 不要出现 mobile/shouji/yddh，它只消费：
+
+compiledSql
+
+dimLookup.table/idField/nameField
+
+limit/topN
+这些都是 Resolver 产出的 slots。
+模板层永远不应感知物理列名，否则模板会被表结构绑死。
+
+6) 你最后一句：在 entity.order 的 item_keyword 属性里增加 alias（或单独 synonym 表）怎么做？
+方案 A：直接在 item_keyword 上加 aliases（快、够用）
+- key: item_keyword
+  fields: [item_name, item_category]
+  type: keyword
+  aliases: ["商品", "商品名", "品类", "类目", "关键字", "关键词", "奶茶", "咖啡"]
+但注意：把“奶茶/咖啡”这种具体值写进 aliases 不一定必要，
+更好的做法是：把“商品/品类/关键词”当 alias，值由用户输入提取。
+
+方案 B：做全局 synonym 表（推荐长期）
+synonyms.yaml：
+
+concepts:
+  - conceptKey: item_keyword
+    aliases: ["商品", "商品关键字", "品类", "类目", "关键词", "关键字"]
+然后 Intent Parser 看到“奶茶”会抽成 value=["奶茶"]，conceptKey 则由 synonym 命中。
+
+7) 给你一个“最佳实践小结”（你照着做就不会乱）
+key = 语义键（统一词典）；fields = 物理列（每表不同）
+
+enumValues 是“允许值集合”，用于映射/纠错/提示
+
+中文名/别名放在 aliases 或全局 synonym 表
+
+跨实体同概念（mobile）用同一个 key，Policy/Metric/Relation 都用 key，不用列名
+
+Template 不碰字段/列名，只消费 Resolver 输出的 slots
+
+如果你愿意，我可以把你现在最常用的“Canonical Keys”给你列一份（例如 30 个：dt、event_time、user_id、mobile、idcard、status、store_id、city_id、item_keyword…），并给出每个 key 的推荐 type/piiCategory/常见 aliases，这样团队后续新增 Entity 就不会各写各的、导致语义层碎裂。
+
+
+你说：
+问题2：
+assetType: Metric中
+dimensions:
+  - key: store
+    fields: [store_id, store_name]
+    viaRelation: relation.order_to_store
+  - key: city
+    fields: [city_id, city_name]
+    viaRelation: relation.order_to_store
+上面的key和哪个节点存在联系呢，另外是否可以同时按门店和城市排名聚合呢，请解释和举例
+
+ChatGPT 说：
+你这段 Metric.dimensions 的写法里，key 的含义和它跟谁“关联”，以及“能不能同时按门店+城市聚合/排名”，我按工程落地角度给你讲清楚（并顺便指出你这段 YAML 里 viaRelation 写 city 的地方可能不太合理，应该是 store_to_city 或 order_to_city）。
+
+1) dimensions[].key 跟哪个节点存在联系？
+1.1 dimensions[].key 本质是“维度语义键”（dimensionKey）
+它应该跟下面三处有联系：
+
+CanonicalIntent.groupBy / groupBys
+用户说“按门店” → intent 里会产生 groupBy=store 或 groupBy=store_id（取决于你定义的 key 体系）。
+然后 Resolver 用这个 key 去 Metric/Entity 里找对应维度。
+
+Entity 的 bindings.dimensions（更推荐把维度绑定放 Entity）
+Metric 中的 dimensions 多数可以引用 Entity 的维度绑定（避免重复）。例如 entity.order 里定义了 store_id 维度 key。
+
+Relation（当维度字段不在事实表时）
+如果维度需要 store_name/city_name 这种维表字段，就需要通过 relation 来补齐（TWO_STEP_LOOKUP 或 join）。
+
+总结一句话：
+dimensions.key 是 Resolver 选择 groupBy 维度时用的“语义入口”，不是数据库字段名。
+
+2) 你写的 fields: [store_id, store_name] 是什么意思？哪个是真字段？
+这里我建议你把它拆成两层表达，会更清晰：
+
+store_id 是事实表里常有的 group key（用于 group by）
+
+store_name 是维表字段，用于 展示/输出，一般不用于 group by（否则会导致 join 或高成本）
+
+所以更清晰的结构（推荐）：
+
+dimensions:
+  - key: store
+    groupFieldKey: store_id
+    displayFieldKey: store_name
+    viaRelation: relation.order_to_store
+如果你坚持用 fields 数组，也要约定顺序/语义，比如：
+
+第一个是 groupKey
+
+第二个是 displayName
+
+否则后续团队一定会乱用。
+
+3) viaRelation 是干嘛的？
+它表示：这个维度的信息不完全在事实表里，需要通过某条关系去补齐。
+
+举例：按门店 Top10
+聚合阶段：只需要 store_id（在订单事实表里）
+
+展示阶段：需要 store_name（在 dim_store）
+
+所以需要 relation.order_to_store 来告诉系统：
+
+用什么 key（store_id）去查 dim_store
+
+是 join 还是 two-step lookup（你场景一般 two-step）
+
+4) 你这里 city 的 viaRelation: relation.order_to_store 合理吗？
+大概率不合理（除非你的 store 维表里带 city_id/city_name，且你愿意通过“order→store→city”链路拿 city）。
+
+通常更正确的是两种：
+
+方案 A：订单事实表本身有 city_id（最优，免查关系）
+- key: city
+  groupFieldKey: city_id
+  displayFieldKey: city_name
+  viaRelation: relation.order_to_city
+方案 B：订单只有 store_id，城市要从 store 维表上拿
+那就应该写成“链式关系”，而不是直接 order_to_store：
+
+- key: city
+  groupFieldKey: city_id
+  displayFieldKey: city_name
+  viaRelationChain:
+    - relation.order_to_store
+    - relation.store_to_city
+你 FMDB join 慢的话，这种 chain 一般会变成：
+
+先按订单聚合拿到 store_id 列表
+
+查 dim_store 得到 city_id
+
+再聚合或再映射（看你的需求）
+
+5) 是否可以同时按门店和城市聚合/排名？可以，但要分清两件事
+5.1 “同时按门店和城市聚合”= 多维 group by（可以）
+就是 SQL 的：
+
+GROUP BY city_id, store_id
+这类结果不是“城市 Top10”也不是“门店 Top10”，而是 (城市,门店) 组合维度的 TopN，比如：
+
+“近7天奶茶订单量按城市+门店Top10（组合）”
+
+示例 SQL（不 join，仅事实表）：
+
+SELECT
+  city_id,
+  store_id,
+  COUNT(DISTINCT order_id) AS order_cnt
+FROM dwd_order_detail
+WHERE dt >= '2026-02-02'
+  AND (item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%')
+GROUP BY city_id, store_id
+ORDER BY order_cnt DESC
+LIMIT 10;
+如果需要展示城市名/门店名，再走 two-step：
+
+批量查 dim_city（city_id→city_name）
+
+批量查 dim_store（store_id→store_name）
+
+代码 merge
+
+5.2 “同时按门店和城市排名”= 两种 TopN（要两次聚合，推荐拆两步）
+如果用户想要的是：
+
+“城市 Top10”（按城市聚合后排序）
+
+同时每个城市里再给“门店 Top10”（城市内排名）
+
+这其实是层级排名（nested ranking），强烈建议拆为多任务计划（两个或三个 step），尤其你不推荐 join。
+
+示例需求：
+“近7天奶茶订单量：城市Top10，每个城市门店Top3”
+
+推荐两阶段（无 join）：
+
+Step1：城市Top10
+
+SELECT city_id AS group_key, COUNT(DISTINCT order_id) AS metric_value
+FROM dwd_order_detail
+WHERE dt >= '2026-02-02'
+  AND (item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%')
+GROUP BY city_id
+ORDER BY metric_value DESC
+LIMIT 10;
+Step2：对这10个城市分别查门店Top3（可以批量 SQL 或循环调用）
+
+若支持 IN (city_id list)：
+
+SELECT city_id, store_id, COUNT(DISTINCT order_id) AS order_cnt
+FROM dwd_order_detail
+WHERE dt >= '2026-02-02'
+  AND city_id IN ( ...top10_city_ids... )
+  AND (item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%')
+GROUP BY city_id, store_id
+-- 然后用窗口函数取每个 city 内 top3（如果 FMDB 不擅长窗口，就拉回代码做）
+窗口函数方案（若可用）：
+
+SELECT * FROM (
+  SELECT
+    city_id, store_id,
+    COUNT(DISTINCT order_id) AS order_cnt,
+    ROW_NUMBER() OVER (PARTITION BY city_id ORDER BY COUNT(DISTINCT order_id) DESC) AS rn
+  FROM dwd_order_detail
+  WHERE ...
+  GROUP BY city_id, store_id
+) t
+WHERE rn <= 3;
+如果你 FMDB 不适合窗口函数，就：
+
+查出 city_id, store_id, order_cnt 全量（在 top10 城市范围内）
+
+用 CODE step 在内存里按 city 分组取 top3（更稳）
+
+6) 这对你的 Metric YAML 应该怎么表达？
+6.1 允许多维 groupBy（推荐在 metric.allowedDimensions + maxGroupByCount 控制）
+allowedDimensions:
+  - store
+  - city
+groupByRules:
+  maxKeys: 2              # 允许同时按2个维度聚合
+  allowedCombos:
+    - [city, store]       # 明确允许 city+store 组合
+6.2 维度定义建议拆清楚 group/display
+dimensions:
+  - key: store
+    groupFieldKey: store_id
+    displayFieldKey: store_name
+    viaRelation: relation.order_to_store
+
+  - key: city
+    groupFieldKey: city_id
+    displayFieldKey: city_name
+    viaRelation: relation.order_to_city   # 或 viaRelationChain
+7) 最关键的落地建议（防止你后面越做越乱）
+dimension.key 必须跟 Intent 的 groupByKey 对齐（统一字典）
+
+fields: [id, name] 这种写法最好改成 groupFieldKey/displayFieldKey
+
+城市维度不要乱挂在 order_to_store 上，除非你明确用 chain
+
+同时按门店+城市完全可以，但要区分：
+
+“组合 TopN”（一次 GROUP BY city,store）
+
+“层级 TopN”（城市 TopN + 每城市门店 TopN，需要多步计划）
+
+如果你愿意，我可以把你这段 Metric.dimensions 改成一套“更不容易踩坑”的标准 YAML，并且给你对应的 Resolver 绑定逻辑（当 groupByKeys=[city,store] 时如何生成 SQL AST，何时触发 dim lookup，两步查如何填 slots）。
+
+
+你说：
+问题3：
+示例：派生指标（把“奶茶”变成过滤，而不是新指标）
+
+如果你希望“奶茶订单量”是可复用概念，可以定义一个“派生指标”：
+
+assetType: Metric
+schemaVersion: 1
+id: metric.order_count_tea
+version: 1.0.0
+status: active
+owner: fmdb-governance
+
+name: Tea Order Count
+aliases: [奶茶订单量]
+
+entity: entity.order
+type: derived
+
+baseMetric: metric.order_count
+filters:
+  - attribute: item_keyword
+    op: contains_any
+    values: ["奶茶"]
+
+
+这样，“奶茶”既可以作为用户临时关键词过滤，也可以沉淀成一个明确的派生指标（看你治理口径是否希望固化）。
+
+上面如果不用派生指标，如何统计“奶茶订单量”呢。如何使用针对临时关键词过滤，这样可以通用。
+
+ChatGPT 说：
+不用派生指标（metric.order_count_tea）也完全可以统计“奶茶订单量”，而且更通用：把“奶茶”当成一次请求里的临时过滤条件（ad-hoc filter），走同一个 metric.order_count 计算链路即可。
+
+下面我按“从用户输入 → Intent → Resolver → SQL → 模板执行”的链路，把“临时关键词过滤”怎么落地讲清楚，并给你可复用的 YAML 规范（在 Entity 里定义 item_keyword 这种 filterKey），这样任何关键词都能用，不会为“奶茶/咖啡/夜宵”建无数派生指标。
+
+1) 不用派生指标时，“奶茶订单量”怎么统计？
+用户输入
+“近7天奶茶订单量按门店Top10”
+
+Intent Parser（LLM）输出（关键点）
+这里 metric 仍然是通用的 metric.order_count，而“奶茶”进入 filters：
+
+{
+  "operation": "METRIC_AGG_TOPN",
+  "metricId": "metric.order_count",
+  "timeRange": "last_7d",
+  "groupBy": ["store"],
+  "filters": [
+    {"key": "item_keyword", "op": "CONTAINS_ANY", "values": ["奶茶"]}
+  ],
+  "topN": 10
+}
+你看：没有 metric.order_count_tea，只有 item_keyword=["奶茶"]。
+
+2) “临时关键词过滤”要通用，关键在 Entity 里定义 filterKey → fields 的绑定
+你必须在 entity.order 里把 item_keyword 定义成一个通用过滤键，并绑定到一个或多个真实字段（比如 item_name/item_category）。
+
+✅ entity.order.yaml（示例）
+assetType: Entity
+id: entity.order
+version: 1.0.0
+storage:
+  source: fmdb
+  table: dwd_order_detail
+
+fields:
+  item_name: { column: item_name, type: string }
+  item_category: { column: item_category, type: string }
+  dt: { column: dt, type: date }
+  order_id: { column: order_id, type: string }
+  store_id: { column: store_id, type: string }
+
+bindings:
+  filters:
+    item_keyword:
+      type: CONTAINS_ANY
+      fieldKeys: [item_name, item_category]
+      aliases: ["商品关键字", "品类关键字", "关键词", "商品", "品类"]
+      compile:
+        mode: OR_LIKE          # 编译成 (a like .. OR b like ..)
+        likePattern: "%{v}%"
+这段的意思是：
+
+用户给 item_keyword=["奶茶"]
+
+Resolver 编译时会把它映射到：
+
+item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%'
+
+这就实现了“临时关键词过滤”的通用性：“奶茶”只是 values 的一个值，换成咖啡/面包也一样走。
+
+3) Resolver 如何把临时过滤编译进 SQL？（通用规则）
+当 Resolver 看到 filters 里有：
+
+{"key":"item_keyword","op":"CONTAINS_ANY","values":["奶茶"]}
+它会根据 entity.bindings.filters.item_keyword：
+
+fieldKeys = [item_name, item_category]
+
+compile.mode = OR_LIKE
+
+pattern = "%{v}%"
+
+编译为 SQL 片段：
+
+( item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%' )
+再与时间分区、其它过滤一起拼成最终聚合 SQL：
+
+SELECT
+  store_id AS group_key,
+  COUNT(DISTINCT order_id) AS metric_value
+FROM dwd_order_detail
+WHERE dt >= date_sub(current_date, 7)
+  AND (item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%')
+GROUP BY store_id
+ORDER BY metric_value DESC
+LIMIT 10
+这里“奶茶”完全是临时值，不需要任何派生指标资产。
+
+4) 这种通用过滤对“统计总量”也一样适用
+用户如果只问：
+
+“近7天奶茶订单量”
+
+Intent：
+
+{
+  "operation": "METRIC_AGG",
+  "metricId": "metric.order_count",
+  "timeRange": "last_7d",
+  "filters": [
+    {"key":"item_keyword","op":"CONTAINS_ANY","values":["奶茶"]}
+  ]
+}
+Resolver 编译 SQL（无 groupBy）：
+
+SELECT COUNT(DISTINCT order_id) AS metric_value
+FROM dwd_order_detail
+WHERE dt >= date_sub(current_date, 7)
+  AND (item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%')
+模板选 METRIC_AGG 的模板执行即可。
+
+5) 为什么“临时关键词过滤”比派生指标更通用？
+临时过滤适合：
+用户随口说的任何关键词：奶茶/咖啡/烤鱼/夜宵……
+
+组合条件：item_keyword=["奶茶","椰子"]，甚至再叠加 status、channel
+
+不需要治理沉淀就能工作
+
+派生指标适合：
+公司希望固化的口径（例如“奶茶订单量”是固定运营指标）
+
+需要统一口径（比如奶茶=多个类目集合+排除某些商品）
+
+需要看板、长期报表、对外对齐
+
+治理建议：默认走临时过滤；只有当出现“高频 + 口径复杂 + 需要对齐”时，才沉淀成 MetricView/派生指标。
+
+6) 让“临时过滤”更稳的两个增强点（很推荐）
+6.1 关键词归一化（同义词/词典）
+用户可能说“奶茶/茶饮/饮品”，你可以做一个可选的 keyword_normalize（非必须）：
+
+如果你有商品类目字典/运营词典：把“奶茶”归一到类目编码
+
+否则就保留原词走 LIKE（最简单可落地）
+
+6.2 防止误用/性能风险（Policy/约束）
+给 item_keyword 加限制：
+
+最多 3 个词
+
+最长 20 字
+
+必须带 dt 分区
+
+超大范围（>90 天）拒绝或提示缩小
+
+7) 最小可落地清单（你照着做就能通用）
+在 Entity 里定义通用 filterKey：item_keyword
+
+绑定到真实字段集合：item_name/item_category
+
+Resolver 实现一个通用编译器：CONTAINS_ANY + OR_LIKE
+
+Intent Parser 只要能把“奶茶”抽成 filters.item_keyword.values=["奶茶"]
+
+Metric 永远用通用 metric.order_count，不要新增 *_tea
+
+如果你愿意，我可以把“filters 的编译规范”也给你标准化成一份 YAML schema（支持 EQ/IN/RANGE/CONTAINS_ANY/REGEX 等）以及对应的 SQL 编译伪代码，直接嵌进你 Resolver 里，这样后续任何临时过滤都能通用。
+
+
+你说：
+问题4：
+示例：policies/pii_fields.yaml
+assetType: Policy
+schemaVersion: 1
+id: policy.pii_fields
+version: 1.0.0
+status: active
+
+rules:
+  - ruleId: pii_idcard
+    match:
+      fieldNames: ["idcard", "id_card_no", "cert_no"]
+    classification: PII_HIGH
+    defaultAction:
+      type: mask
+      maskStyle: idcard_last4
+
+  - ruleId: pii_phone
+    match:
+      fieldNames: ["phone", "mobile"]
+    classification: PII_MED
+    defaultAction:
+      type: mask
+      maskStyle: phone_middle4
+策略里面的ruleId有固定含义吗命名是不是随意，和Entity/Relation/Metric和模版是否存在联系？另外fieldNames里面的字段是不是要统一，比如：多个表里面字段都包含身份证，但是英文字段名不一样，如何解决，是否要统一做映射？
+
+ChatGPT 说：
+下面把你问的 Policy 这段拆开讲：ruleId 有没有固定含义、能不能随意命名、它跟 Entity/Relation/Metric/Template 的关系、以及 fieldNames 在多表字段名不一致时怎么解决（是否要统一映射）。
+
+1) ruleId 有固定含义吗？命名是不是随意？
+没有固定业务含义，它更像“规则的唯一标识/主键”，主要用途是工程化可维护：
+
+日志/审计：记录是哪个规则命中了（便于追踪）
+
+回归测试：golden test 可以断言“必须命中 pii_idcard 规则”
+
+版本演进：规则调整时可以保持 ruleId 不变，或新建 ruleId 表示语义变化
+
+灰度/开关：可以按 ruleId 开关某条规则
+
+推荐命名规范（不随意，但也不需要固定枚举）
+建议可读且稳定，比如：
+
+pii.idcard.detect（识别身份证）
+
+pii.idcard.mask_last4（身份证脱敏策略）
+
+pii.phone.detect
+
+pii.phone.mask_middle4
+
+不建议用 rule1/rule2 这种，因为后续排障很痛苦。
+也不建议把表名写进 ruleId（否则跨表复用差）。
+
+2) ruleId 与 Entity/Relation/Metric/Template 是否存在联系？
+一般不直接引用（不需要像 relationId、metricId 那样被 Resolver 显式绑定），但它们在执行链路中有“间接联系”：
+
+2.1 与 Entity 的关系：最强
+Entity 里通常会标注 pii: true 或 piiCategory: IDCARD/PHONE
+
+Policy 可以来源于两种：
+
+实体先标注（推荐）：Policy 只决定“怎么处理（mask/deny/allow）”
+
+Policy 通过字段名/别名识别（你示例就是这种）
+
+最佳实践：“识别是什么（classification）”尽量靠 Entity/元数据资产；“如何处理（action）”靠 Policy。
+
+2.2 与 Metric 的关系：通过输出约束
+Metric 可能允许明细输出/聚合输出
+
+Policy 根据风险控制输出：比如 AGG_ONLY、或明细字段必须 mask
+
+2.3 与 Template 的关系：通过执行闸门/后处理
+Template 不应该写死 pii 字段名
+
+但 Template 的 FINAL/POST step 可能会调用 policy.apply_mask（或在代码里统一做）
+
+也就是说：Policy 是一个“横切面”，在工具输出 → 最终输出之间统一处理
+
+2.4 与 Relation：通常无直接关系
+Relation 只描述“怎么关联/两步查”
+
+Policy 可能会因为关联扩大数据面而更严格（例如 joinAllowed=false、denyDimLookup=true），这是策略层决策，不是 ruleId 绑定 relation
+
+3) fieldNames 里的字段是不是要统一？多表字段名不一样如何解决？
+你问到核心了：如果多个表都有身份证字段，但列名不同（idcard/id_card_no/cert_no/...），用 fieldNames 这种匹配会越来越长、也容易漏。解决有 3 种层级（从弱到强），推荐你走第 3 种（语义 key + piiCategory）。
+
+方案 A（弱）：Policy 里维护一个“别名集合”
+就是你示例这种：
+
+match:
+  fieldNames: ["idcard", "id_card_no", "cert_no"]
+优点：快
+缺点：会漏、维护成本高、不同团队会不断加新别名
+
+适用：早期临时过渡
+
+方案 B（中）：字段名归一化/词典映射（Synonym/Dictionary）
+你维护一个 field_synonyms.yaml：
+
+concepts:
+  - conceptKey: idcard
+    aliases: ["idcard","id_card_no","cert_no","certificate_no","sfzh","zjhm"]
+  - conceptKey: phone
+    aliases: ["phone","mobile","tel","shouji","yddh","联系电话"]
+然后 Policy 只写 conceptKey：
+
+match:
+  fieldConcepts: ["idcard"]
+优点：比方案 A 好维护
+缺点：仍然依赖“字段名/别名文本”，遇到奇怪字段名仍可能漏
+
+✅ 方案 C（强烈推荐，最通用）：统一语义 key + piiCategory（不要靠列名）
+第一步：在 Entity 里做统一语义绑定（你前面已经在做 key/fields）
+不同表里身份证列名不同，但都统一成 key: idcard：
+
+# entity.a
+- key: idcard
+  fields: [id_card_no]
+  type: idcard
+  pii: true
+  piiCategory: IDCARD
+
+# entity.b
+- key: idcard
+  fields: [cert_no]
+  type: idcard
+  pii: true
+  piiCategory: IDCARD
+第二步：Policy 不匹配 fieldNames，而匹配 piiCategory 或 key
+Policy 写成：
+
+rules:
+  - ruleId: pii.idcard.mask_last4
+    match:
+      piiCategory: IDCARD
+    defaultAction:
+      type: mask
+      maskStyle: idcard_last4
+
+  - ruleId: pii.phone.mask_middle4
+    match:
+      piiCategory: PHONE
+    defaultAction:
+      type: mask
+      maskStyle: phone_middle4
+这样无论列名叫 idcard/id_card_no/cert_no/sfzh/证件号，只要 Entity 标注了 piiCategory: IDCARD，Policy 都能命中。
+
+优点：
+
+最不泛滥
+
+最不漏
+
+Policy 不需要关心各表列名
+
+落地建议：
+
+早期可以同时支持：piiCategory 优先；没有标注时再 fallback 到 fieldNames（双轨过渡）
+
+4) 给你一个“可落地的执行流程”（让你知道策略到底怎么生效）
+Tool / FMDB 查询返回 raw rows（字段是物理列名）
+
+Extractor/Resolver 把结果映射为 StructuredResult，并把字段打上 semanticKey + piiCategory（来自 Entity 绑定）
+
+PolicyEngine 扫描 StructuredResult 的字段元信息：
+
+命中 piiCategory=IDCARD → apply mask style
+
+Finalizer 输出给用户（已脱敏）
+
+Evidence 记录：命中了哪些 ruleId（审计用）
+
+关键点：Policy 建议作用在 结构化结果（带语义/标签） 上，而不是直接在 SQL 文本/物理列名上做字符串匹配。
+
+5) 你示例里的 classification 是什么？有用吗？
+classification: PII_HIGH / PII_MED 很有用，建议保留，因为它让策略更灵活：
+
+高敏（IDCARD）默认 deny 或强脱敏
+
+中敏（PHONE）默认脱敏
+
+低敏（EMAIL）可能允许显示部分
+
+你可以用 classification 做“输出模式”决策：
+
+viewer 角色：PII_HIGH 直接 deny、PII_MED 脱敏
+
+admin 角色：PII_HIGH 脱敏但可查看 last4
+
+6) 最终回答你的两个问题（用一句话落地）
+ruleId：不是固定枚举，但应稳定可读；主要用于审计/回归/灰度，不需要跟 Entity/Metric/Template 直接绑定。
+
+fieldNames：不建议长期靠“列名集合”；最佳做法是 Entity 统一语义 key + piiCategory，Policy 按 category/key 生效，彻底解决多表列名不一致问题。
+
+如果你愿意，我可以把你们常见的 PII 类别（PHONE/IDCARD/NAME/EMAIL/ADDRESS/IMEI/IMSI/MAC 等）整理成一份“PII 分类与默认处理策略”模板，并给出对应的 Entity 字段标注规范（团队照着填就不会漏）。
+
+
+你说：
+问题5：
+Policy（策略资产）中输出粒度规则（明细/聚合/拒绝）的yml格式是什么，有什么作用，请详细介绍和举例。
+
+ChatGPT 说：
+下面给你一套**“Policy（策略资产）里输出粒度规则（明细/聚合/拒绝）”**的可落地 YAML 格式、它在链路中起什么作用、以及 4 个典型例子（订单、PII、FMDB 性能、运维只读）。
+
+你可以把它理解为：在执行前/执行后对“能不能给明细、只能给聚合、必须拒绝”做统一裁决，避免靠提示词“自觉”。
+
+1) 输出粒度规则是什么？有什么作用？
+1.1 定义
+输出粒度（Output Granularity） = 这次请求最终允许输出到什么细节程度：
+
+DENY：拒绝（不给数据，只给解释/引导）
+
+AGG_ONLY：只允许聚合/统计（TopN、总量、分布）
+
+DETAIL_MASKED：允许明细，但敏感字段必须脱敏
+
+DETAIL_FULL：允许明细原文（通常只给高权限/审批后）
+
+1.2 作用点（你落地时会用到）
+策略可以影响链路的三个关键环节：
+
+Template 选择
+
+若 AGG_ONLY → 只能选 METRIC_AGG / TOPN 类模板
+
+若用户要明细但策略不允许 → 自动降级为聚合模板或拒绝
+
+Resolver 编译 SQL
+
+AGG_ONLY 时：禁止 SELECT *、必须聚合、必须 LIMIT
+
+DETAIL_* 时：允许明细，但仍要强制 dt 分区、limit、字段白名单
+
+Finalizer/Extractor 输出裁剪 & 脱敏
+
+允许明细但需要脱敏 → 自动 mask piiCategory 字段
+
+允许聚合 → 只输出 group_key/metric_value 等安全字段
+
+2) 推荐的 Policy YAML 结构（可直接用）
+建议文件：policies/output_granularity.yaml
+
+assetType: Policy
+schemaVersion: 1
+id: policy.output_granularity
+version: 1.0.0
+status: active
+
+# 默认行为（没有任何规则命中时）
+defaultDecision:
+  outputMode: AGG_ONLY
+  reason: "default: minimize sensitive exposure"
+
+rules:
+  - ruleId: og.deny_high_pii_detail_for_viewer
+    priority: 100
+    match:
+      actorRoles: ["viewer"]
+      request:
+        wantsDetail: true
+      data:
+        containsPiiCategoryAny: ["IDCARD", "PHONE", "EMAIL", "ADDRESS"]
+    decision:
+      outputMode: DENY
+      message: "该查询包含敏感信息，当前权限不允许返回明细。可改为聚合统计或申请更高权限。"
+      allowFallback:
+        outputMode: AGG_ONLY
+
+  - ruleId: og.force_agg_on_fmdb_heavy_query
+    priority: 90
+    match:
+      data:
+        source: "fmdb"
+      request:
+        estimatedCostLevelIn: ["HIGH"]
+        wantsJoin: true
+    decision:
+      outputMode: AGG_ONLY
+      reason: "FMDB 多表 join 成本高，强制降级为聚合/两步查询"
+
+  - ruleId: og.allow_masked_detail_for_analyst
+    priority: 80
+    match:
+      actorRoles: ["analyst", "developer"]
+      request:
+        wantsDetail: true
+      data:
+        containsPiiCategoryAny: ["PHONE", "EMAIL"]
+    decision:
+      outputMode: DETAIL_MASKED
+      masking:
+        byCategory:
+          PHONE: phone_middle4
+          EMAIL: email_partial
+      limits:
+        maxRows: 200
+        maxLookbackDays: 30
+
+  - ruleId: og.allow_full_detail_for_admin_with_ticket
+    priority: 70
+    match:
+      actorRoles: ["admin"]
+      request:
+        wantsDetail: true
+      context:
+        approval:
+          required: true
+          present: true
+    decision:
+      outputMode: DETAIL_FULL
+      limits:
+        maxRows: 500
+        maxLookbackDays: 7
+      audit:
+        required: true
+        logFields: ["actor", "ticketId", "queryHash", "piiAccessed"]
+3) 每个字段解释（你问“详细介绍”就按这个落地）
+顶层
+defaultDecision.outputMode：没命中规则时默认输出粒度（推荐默认 AGG_ONLY）
+
+rules[]：一组规则，按 priority 从高到低匹配
+
+rule 内
+ruleId：规则唯一标识（用于审计/回归）
+
+priority：越大越先匹配（避免多规则冲突）
+
+match：匹配条件（建议分三块）
+
+actorRoles：请求者角色
+
+request：这次请求的意图信息（wantsDetail / wantsJoin / operation）
+
+data：语义解析/元数据推导出的数据特征（containsPii / source / cost）
+
+context：上下文，如是否有审批单/工单
+
+decision：命中后怎么做
+
+outputMode：DENY/AGG_ONLY/DETAIL_MASKED/DETAIL_FULL
+
+message：拒绝或降级提示给用户
+
+allowFallback：允许降级路径（比如拒绝明细但允许聚合）
+
+masking：脱敏方案（按 piiCategory）
+
+limits：强制行数、时间范围
+
+audit：强审计字段（运维/敏感读非常建议）
+
+4) 链路里怎么用（从开始到结束你要插哪）
+你可以按这个顺序：
+
+IntentParser 产出 wantsDetail
+
+用户说“最近10笔订单明细” → wantsDetail=true
+
+用户说“订单量Top10” → wantsDetail=false
+
+Resolver 推导 containsPiiCategoryAny、estimatedCostLevel、wantsJoin、source=fmdb
+
+containsPii 来自 Entity 字段标签（piiCategory）
+
+cost 来自你自己的估算模型（或者简单规则：join=HIGH）
+
+PolicyEngine 评估 policy.output_granularity → 得到 outputMode + limits + masking
+
+Planner/TemplateSelector 根据 outputMode 选择模板
+
+DENY → 直接 FINAL（或解释+建议）
+
+AGG_ONLY → 选 METRIC_AGG / TOPN 模板
+
+DETAIL_MASKED/DETAIL_FULL → 选 ENTITY_RECENT_LIST 模板
+
+Compiler 按 policy limits 强制改写 SQL
+
+limit、lookback、禁止 select * 等
+
+Extractor/Finalizer 应用 masking & 字段裁剪，并记录 evidence（命中 ruleId）
+
+5) 4 个非常贴近你的例子
+例子 A：查询某用户最近10笔订单（普通角色）
+用户：查用户 U123 最近10笔订单（含手机号）
+
+wantsDetail=true
+
+containsPii=PHONE
+
+actorRole=viewer
+→ 命中 og.deny_high_pii_detail_for_viewer
+结果：拒绝明细，但给 fallback：可以返回聚合（比如近7天订单数）
+
+例子 B：同样请求但 analyst
+actorRole=analyst
+→ 命中 og.allow_masked_detail_for_analyst
+结果：返回明细，但手机号脱敏：138****1234
+
+例子 C：FMDB join 很重的报表
+用户：近30天奶茶订单量按门店Top10（带门店名）
+
+wantsDetail=false
+
+wantsJoin=true（因为要 name）
+
+source=fmdb
+
+cost=HIGH
+→ 命中 og.force_agg_on_fmdb_heavy_query
+结果：允许输出，但强制 AGG_ONLY 且走 no-join + two-step lookup（模板 B）
+
+例子 D：运维排查（只读）
+你可以再加一条：
+
+operation=OPS_TRIAGE
+
+riskLevel=READ_ONLY
+→ outputMode=AGG_ONLY 或 DETAIL_MASKED（只返回日志片段但打码）
+
+6) 你落地时最建议再加一个文件：输出模式与模板映射表
+比如 policy_mappings.yaml（或写死在代码里）：
+
+outputModeToAllowedTemplates:
+  DENY: ["template.deny_with_guidance"]
+  AGG_ONLY: ["template.metric_agg_no_join", "template.metric_topn_no_join_dimlookup"]
+  DETAIL_MASKED: ["template.entity_recent_list_no_join", "template.multi_query_no_join"]
+  DETAIL_FULL: ["template.entity_recent_list_no_join", "template.multi_query_no_join"]
+这样“策略决定粒度”就能直接驱动“模板选择”，非常通用。
+
+如果你愿意，我下一步可以把 match.request.wantsDetail / wantsJoin / estimatedCostLevel / containsPiiCategoryAny 这些字段的标准 schema 也给你（DecisionContext 规范），并给你一套最小实现的 PolicyEngine 伪代码（优先级、first-match、fallback、audit 输出），你就能在 P1 直接落地跑起来。
+
+
+你说：
+问题6：
+assetType: Entity 中valuesSynonyms:
+  奶茶: ["奶茶", "茶饮", "奶茶饮品"]  和下面
+# 常用属性如何映射到字段（用于语义解析→字段绑定）
+attributes:
+  - key: order_id
+    fields: [order_id]
+    type: string
+    pii: false
+  - key: item_keyword
+    # “奶茶/咖啡/汉堡”这类通常落在商品名/品类字段
+    fields: [item_name, item_category]
+    type: string
+    pii: false
+其中 item_keyword是一个key还是实体的字段，这个请介绍一下。
+
+ChatGPT 说：
+你这段里其实混了两层东西：
+
+valuesSynonyms：值的同义词表（“奶茶/茶饮/奶茶饮品”是同一个值概念）
+
+attributes 里的 item_keyword：语义属性键（attribute key），不是表字段名；它会映射到真实列（item_name/item_category）上去做过滤/检索
+
+我按你问的重点把 item_keyword 讲清楚，并把它和“实体字段”的关系讲透。
+
+1) item_keyword 是一个 key 还是实体字段？
+它是语义层的 key（attribute key / filterKey），不是实体表里的真实字段名。
+
+key（item_keyword）：你在语义层定义的“可被用户提问触发的过滤条件”
+
+fields（item_name, item_category）：真实表字段（物理列名），用于执行查询时落地
+
+所以它的角色是：
+
+用户说“奶茶” → 解析成 filterKey=item_keyword, value=奶茶 → Resolver 绑定到 item_name/item_category → 编译 SQL
+
+你这段 YAML 的含义（翻译成人话）
+- key: item_keyword
+  fields: [item_name, item_category]
+意思就是：
+当用户给出一个“商品关键词”（比如奶茶/咖啡），系统把它放到 item_keyword 这个槽位里，然后查询时用 item_name 或 item_category 来匹配这个词。
+
+2) 为什么要有 item_keyword 这种语义 key？直接用 item_name 不行吗？
+直接用 item_name 不通用，原因有三个：
+
+用户不会说“按 item_name like '%奶茶%'"
+用户说的是“奶茶订单”“茶饮订单”，你需要一个语义入口来承接这些表达。
+
+一个概念常常要映射多个字段
+“奶茶”可能出现在商品名，也可能在品类字段里。item_keyword 允许你一次绑定多个字段（OR like）。
+
+避免场景/表结构变化导致上层 API 变动
+以后订单表字段换了（item_title / category_name），你只要改 fields 绑定，上层 key 不变。
+
+3) valuesSynonyms 跟 item_keyword 是什么关系？
+valuesSynonyms 是 “值层”的归一化
+比如：
+
+valuesSynonyms:
+  奶茶: ["奶茶", "茶饮", "奶茶饮品"]
+意思是：用户说“茶饮”也当作“奶茶”这个规范值（canonical value）。
+
+它通常在 Intent Parser 或 Resolver 的值归一化阶段做：
+
+输入值：茶饮
+
+归一化：奶茶
+
+最终过滤：item_keyword CONTAINS_ANY ["奶茶"]
+
+注意：valuesSynonyms 解决的是“同一个值的不同叫法”，
+item_keyword 解决的是“这个值应该落到哪些字段上去查”。
+
+两者配合起来才稳。
+
+4) 给你一个完整例子（从用户话到 SQL）
+配置（简化版）
+valuesSynonyms:
+  奶茶: ["奶茶", "茶饮", "奶茶饮品"]
+
+attributes:
+  - key: item_keyword
+    fields: [item_name, item_category]
+    type: string
+用户输入
+“近7天茶饮订单量”
+
+解析与绑定
+抽取：关键词 = “茶饮”
+
+值归一化：茶饮 -> 奶茶（来自 valuesSynonyms）
+
+形成过滤：item_keyword = 奶茶
+
+Resolver 编译到字段：
+
+(item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%')
+最终 SQL（示意）：
+
+SELECT COUNT(DISTINCT order_id)
+FROM dwd_order_detail
+WHERE dt >= date_sub(current_date, 7)
+  AND (item_name LIKE '%奶茶%' OR item_category LIKE '%奶茶%')
+5) 你还需要注意：item_keyword vs “真实字段 attributes（order_id 等）”
+在 attributes 里会出现两类 key：
+
+A 类：一对一字段映射（像 order_id）
+- key: order_id
+  fields: [order_id]
+这种 key 基本等同于“规范名”，映射到真实列。
+
+B 类：语义组合/查询槽位（像 item_keyword）
+- key: item_keyword
+  fields: [item_name, item_category]
+这种 key 是“查询意图槽位”，本身不是物理列名。
+
+你可以把 A 类叫 fieldKey，把 B 类叫 filterKey/semanticKey。
+为了减少误解，建议你在 YAML 里把它们分开写，例如：fields 和 filters 两块。
+
+6) 最推荐的更清晰写法（避免团队误解）
+把“字段属性”和“过滤槽位”拆开：
+
+fields:
+  - key: order_id
+    column: order_id
+    type: string
+  - key: dt
+    column: dt
+    type: date
+
+filters:
+  - key: item_keyword
+    type: CONTAINS_ANY
+    fieldKeys: [item_name, item_category]
+    valueSynonymsRef: valuesSynonyms.item_keyword
+这样大家一眼就知道：item_keyword 是 filter，不是 column。
+
+如果你愿意，我可以再帮你把这块“valuesSynonyms 应该放哪里、是 entity 级还是全局级、如何在 IntentParser/Resolver 中应用”的流程也写成一套规范（含推荐的数据结构与优先级：用户输入值 > synonym 归一 > 词典映射 > 默认值）。
+
+
+你说：
+问题7 ：
+assetType: Metric里面如果指标类型为复杂sql，那么是不是就跟实体、关系、模版就没有关系了？
+
+ChatGPT 说：
+不一定。Metric 里写“复杂 SQL”并不等于就和 Entity / Relation / Template 断开关系了——关键看你把它当成哪一种“复杂 SQL”。
+
+我给你一个非常落地的分层结论（建议你按这个标准落地），并解释每一层跟实体/关系/模板的关系。
+
+1) 三种“复杂 SQL 指标”，关系完全不一样
+A. Compiled SQL（编译结果）：复杂是“生成出来的”
+SQL 由 Resolver 根据 metric + entity + filters + dimensions + policy 生成
+
+这类指标强依赖 Entity/Relation（字段绑定、两步查维表、禁 join 等）
+
+Template 也照常用（TopN/Agg/MultiQueryNoJoin）
+
+✅ 这是你现在想要的“通用化”路线，不会断开。
+
+B. Parameterized SQL Template（参数化 SQL 模板）：SQL 固定骨架 + 允许填槽位
+Metric 里存一段 SQL 模板（带 ${dt_start} ${keyword} ${group_by} 等）
+
+Resolver 仍然负责：
+
+校验允许的维度/过滤
+
+填参数
+
+应用 policy（强制 dt、limit、脱敏、禁 join）
+
+Template 仍然可以复用（因为最终还是走 fmdb.query 等工具）
+
+✅ 这类“复杂 SQL”仍然和实体/模板有关系，只是“编译方式”变了。
+
+C. Raw SQL（硬编码 SQL）：一整段 SQL 完全由资产提供、不可安全改写
+例如：
+
+多层子查询
+
+自定义 join
+
+写死表名字段名
+
+甚至包含敏感字段输出
+
+这种情况下：
+
+Entity/Relation 参与度会变弱（因为字段绑定被写死）
+
+Template 仍然可以执行（本质还是一个 TOOL 查询）
+
+但通用性、治理性、可控性会明显下降（policy 很难可靠约束）
+
+⚠️ 这类才接近你说的“跟实体/关系/模板没关系”，但也只是不建议你大量使用。
+
+2) 即使是 Raw SQL，也仍然不建议“完全脱钩”：至少要保留这些关联
+你最少也应该让“复杂 SQL 指标”保留以下元信息，否则后续治理会非常痛苦：
+
+baseEntity / domain / source
+
+输出 schema（输出字段、是否包含 PII）
+
+requiredFilters（比如必须 dt）
+
+allowedTimeRange / limit
+
+policy tags（风险等级）
+
+这样 Policy/TemplateSelector 还能对它做最基本的管控。
+
+3) 推荐的落地做法：把复杂 SQL 指标纳入同一套“模板执行体系”
+3.1 Metric YAML：支持三种 sqlMode
+assetType: Metric
+id: metric.xxx
+version: 1.0.0
+baseEntity: entity.order
+type: SQL
+
+sqlMode: PARAMETERIZED   # COMPILED / PARAMETERIZED / RAW
+
+sqlTemplate: |
+  SELECT ${groupKey} AS group_key,
+         COUNT(DISTINCT ${orderId}) AS metric_value
+  FROM ${baseTable}
+  WHERE dt >= ${dtStart}
+    AND (${keywordClause})
+  GROUP BY ${groupKey}
+  ORDER BY metric_value DESC
+  LIMIT ${topN}
+
+parameters:
+  groupKey:
+    from: dimensionKey
+    allowed: [store_id, city_id]
+  keywordClause:
+    from: filterKey
+    key: item_keyword
+  dtStart:
+    from: timeRange
+  topN:
+    from: intent.topN
+解释：
+
+仍然通过 Entity 去解析 ${baseTable} ${orderId} 等（字段/表绑定）
+
+仍然通过 Policy 去限制 timeRange/topN/禁止 join 等
+
+最终走 TopN 模板执行：fmdb.query(sql=renderedSql)
+
+4) Template 为什么依然有价值？（你最关心“通用”）
+因为 Template 不关心 SQL 从哪来，它只关心slots：
+
+compiledAggSql / renderedSql
+
+needDimLookup / dimLookup.*
+
+topN/limit
+
+所以不管你是：
+
+Resolver 动态编译 SQL（COMPILED）
+
+Metric 自带 SQL 模板（PARAMETERIZED）
+
+Metric 直接给 raw SQL（RAW）
+
+都可以落到同一个模板（Agg/TopN/MultiQueryNoJoin）执行。
+
+模板复用保证了通用链路。
+
+5) 什么时候可以允许 “Raw SQL 指标”？什么时候必须禁止？
+可以允许（少量）
+公司级复杂口径，短期无法拆成 atomic+view（例如复杂漏斗、跨域口径）
+
+但必须：
+
+只读
+
+强制 dt/limit
+
+输出 schema + pii 标签明确
+
+带 golden tests（至少编译/静态检查）
+
+必须禁止（或强审查）
+SQL 内含 join 且你们 FMDB 明确不推荐 join
+
+SQL 输出敏感明细（IDCARD/PHONE）且无审批
+
+SQL 不带分区过滤 dt
+
+SQL 允许无限扫描/无 limit
+
+这时 Policy 可以直接把 outputMode 降级为 AGG_ONLY 或 DENY。
+
+6) 给你一个最实用的结论（落地建议）
+不要把复杂 SQL 当成“脱离语义层的捷径”，否则你会回到“每个场景一段 SQL”的老路。
+
+正确做法是：
+优先 COMPILED（通用） → 不行再 PARAMETERIZED（半通用） → 只有极少数才 RAW（特批）
+
+即便 RAW，也要让它接入 Policy（输出粒度/禁 join/必须 dt/行数限制）和 Template（执行套路/证据链）。
+
+如果你愿意，我可以给你一份“复杂 SQL 指标的治理门禁”清单（静态检查规则 + golden 断言模板），比如自动检测：是否包含 JOIN、是否包含 dt 过滤、是否包含 LIMIT、是否选择了 PII 字段等；并给你一个 sqlMode 的统一 YAML schema，让团队写指标时不会失控。
+
+
+你说：
+问题8：
+阶段 1（P1）：YAML 为源 + 内存索引（非向量先跑通）
+资产存在 repo 的 YAML
+启动构建：
+aliasIndex（HashMap）
+tokenIndex（HashMap<token, Set<assetId>>）
+templateTriggerIndex
+检索：规则 + 词匹配 + 简单打分
+先把两条链路跑通（TopN/RecentList）
+4 个最关键的索引：
+aliasIndex：alias → asset_id 列表
+例如：
+“订单量” → [metric.order_count, metric.order_amount…]
+“订单” → [entity.order]
+“门店” → [entity.store]
+tokenIndex：token → asset_id 列表（倒排简化版）
+从 name/desc/examples/attributes 抽 token 建索引
+templateTriggerIndex：触发词 → template_id
+“Top/Top10/排行/排名” → template.metric_topn_by_dim
+“最近/近N笔” → template.entity_recent_list
+“字段/表结构/有哪些字段” → template.metadata_lookup
+typeFilter / domainFilter / bundleFilter
+只取当前租户/当前发布 bundle 的资产
+查询流程（非向量）：
+解析 query → 分词/归一化（去掉标点、全角半角、大小写）
+用 aliasIndex 命中强候选（高权重）
+用 tokenIndex 扩召回（中权重）
+用 templateTriggerIndex 命中模板（高权重）
+合并去重，得到 TopK
+这个方案的好处：你 P1 不需要引入 ES/向量库就能跑起来。
+
+我还是不明白一个自然语言是如何通过aliasIndex（HashMap）tokenIndex（HashMap<token, Set<assetId>>）templateTriggerIndex最后获取到模版的，请详细说明一下。
+
+ChatGPT 说：
+下面我用**“近7天奶茶订单量按门店Top10”**这句话，完整走一遍你说的 aliasIndex / tokenIndex / templateTriggerIndex 是怎么一步步把自然语言“落到模板”的。你看完就能自己实现一个最小可跑的检索与选模板流程（P1 非向量）。
+
+0) 三个索引到底存什么（先把概念钉死）
+0.1 aliasIndex：“强同义词 → 资产”
+key：别名/简称/常用说法（短语）
+
+value：可能对应的 assetId 列表（metric/entity/relation/template…）
+
+例：
+
+"订单量" -> [metric.order_count, metricview.order_count_paid]
+
+"订单" -> [entity.order]
+
+"门店" -> [entity.store, dim.store]
+
+"Top10" -> [template.metric_topn_by_dim]（也可以放到 triggerIndex）
+
+aliasIndex 命中通常权重最高，因为它是**“人明确写的同义词”**。
+
+0.2 tokenIndex：“分词倒排 → 资产”
+key：token（分词结果）
+
+value：包含该 token 的 assetId 集合
+
+token 来自资产的：name/description/examples/attributes/aliases 等字段，做分词后放进去。
+
+例：metric.order_count 的文本里有 “订单、订单量、count distinct、支付”…
+
+token "订单" -> {metric.order_count, entity.order, …}
+
+token "量" -> {metric.order_count, metric.order_amount, …}
+
+token "门店" -> {entity.store, relation.order_to_store, …}
+
+tokenIndex 用来扩召回，权重中等，容易“噪声”也更大。
+
+0.3 templateTriggerIndex：“触发词 → 模板族/operation”
+key：触发词或模式（Top/排行/最近/字段/表结构…）
+
+value：templateId 或 operation（比如 METRIC_AGG_TOPN）
+
+例：
+
+["top", "top10", "排行", "排名"] -> template.metric_topn_*
+
+["最近", "近", "近N笔"] -> template.entity_recent_list
+
+["字段", "表结构", "有哪些字段"] -> template.metadata_lookup
+
+triggerIndex 是决定“你要用哪类模板”的关键（高权重）。
+
+1) 整体流程总览（你要的“自然语言如何拿到模板”）
+一条 query 进来后，做 5 步：
+
+归一化：大小写/全角半角/去标点/同义词规范（可选）
+
+分词：得到 tokens（例如：近7天、奶茶、订单量、门店、top10）
+
+aliasIndex 命中强候选：短语匹配（“订单量”“门店”）
+
+tokenIndex 扩召回：把 tokens 在倒排表里捞一批相关资产
+
+templateTriggerIndex 命中模板族：识别 top/最近/字段 等触发，得到候选模板集合
+
+合并打分 + 过滤：域/租户/bundle 过滤 + TopK
+
+最终选模板：在候选模板中选一个（可用 operation + 条件 preferNoJoin 等再二次筛）
+
+重点：P1 不做 LLM 规划也可以：模板由 trigger 决定，SQL/slots 由 Resolver 生成。
+
+2) 用实例走一遍：“近7天奶茶订单量按门店Top10”
+Step A：归一化 + 分词
+输入：
+
+近7天奶茶订单量按门店Top10
+
+归一化（示意）：
+
+“Top10” → “top10”
+
+“按”保留或去掉都行
+
+分词 tokens：
+
+["近7天", "奶茶", "订单量", "门店", "top10"]
+
+（你也可以再拆：近/7天，但 P1 不必很精）
+
+Step B：aliasIndex 强命中（短语扫描）
+你做一个“最长短语优先”的扫描（比如从 4-gram 到 1-gram）：
+
+命中 "订单量" → [metric.order_count, metric.order_amount, metricview.order_count_paid]
+
+命中 "门店" → [entity.store, dim.store]
+
+命中 "订单"（如果你也从“订单量”拆出“订单”）→ [entity.order]
+
+得到强候选集合（带高分）：
+
+metric.order_count (+10)
+
+metric.order_amount (+10)
+
+metricview.order_count_paid (+10)
+
+entity.store (+10)
+
+entity.order (+10)
+
+这一步的意义：把“你真正想要的对象”先圈出来。
+
+Step C：tokenIndex 扩召回（倒排）
+对每个 token 去 tokenIndex 拉集合：
+
+token "奶茶" → 可能命中 attribute.item_keyword、entity.order、examples 里提到奶茶的资产
+
+token "top10" → 可能命中 template 或 metric 示例
+
+token "门店" → entity.store / relation.order_to_store
+
+token "订单量"（或拆成订单/量） → metric.order_count / metric.order_amount
+
+token "近7天" → timeRange 规则资产（如果你把 timeRange 也当 asset）
+
+扩召回候选（中等分）：
+
+relation.order_to_store (+3)
+
+template.metric_topn_by_dim (+3)（如果模板文本里有 top10）
+
+attribute.item_keyword (+3)（如果你把属性也做成 asset）
+
+timeRange.last_7d (+3)
+
+tokenIndex 的意义：把 aliasIndex 没覆盖到的“辅助资产”（relation、timeRange、属性）补齐。
+
+Step D：templateTriggerIndex 命中模板族（关键）
+你对原句做触发词匹配（可以用 contains / regex）：
+
+命中触发词：top10（或 “Top10” / “排行” / “排名”）
+
+于是：templateTriggerIndex["top10"] -> template.metric_topn_*
+
+得到模板候选族（高分）：
+
+template.metric_topn_no_join_dimlookup (+10)
+
+template.metric_topn_no_join_idonly (+8)
+
+template.metric_topn_join (+2)（如果你默认 join 不推荐，初始分低）
+
+到这里你已经知道：这句话要走 TopN 模板（而不是 RecentList / MetadataLookup）。
+
+Step E：合并去重 + TopK
+把 alias、token、trigger 三路候选合并：
+
+候选资产 TopK（示意）：
+
+template.metric_topn_no_join_dimlookup
+
+metric.order_count
+
+entity.order
+
+entity.store
+
+relation.order_to_store
+
+attribute.item_keyword
+
+timeRange.last_7d
+
+这组 TopK 就足够让后续 Resolver/Compiler 把 SQL 编出来了。
+
+Step F：怎么“最终选定模板”（你最关心“最后怎么拿到模板”）
+到这一步，你已经有多个模板候选（topn 的几个变体）。最终选哪个？靠 DecisionContext（来自 Resolver + Policy） 再筛一次：
+
+你说 FMDB join 慢 → policy 或 entity.queryHints 会给：preferNoJoin=true
+
+用户要“按门店”通常需要门店名 → needDimLookup=true（如果输出要门店名）
+
+所以 DecisionContext：
+
+operation = METRIC_AGG_TOPN
+
+preferNoJoin = true
+
+needDimLookup = true
+
+然后你在模板条件里匹配：
+
+metric_topn_no_join_dimlookup 的 conditions 满足 → 选它
+
+metric_topn_no_join_idonly 不满足 needDimLookup
+
+join 版 joinAllowed=false 不满足
+
+✅ 最终模板就是：
+template.metric_topn_no_join_dimlookup
+
+注意：这里不需要 LLM：trigger 先定 operation，再用 resolver/policy 选模板变体。
+
+3) 再用另一个例子：“查某用户最近10笔订单”（RecentList）
+tokens：["查", "某用户", "最近", "10笔", "订单"]
+
+aliasIndex 命中："订单" -> entity.order
+
+triggerIndex 命中："最近" / "近N笔" -> template.entity_recent_list
+
+tokenIndex 扩召回：user_id、order_time、dt
+
+最终模板选：
+template.entity_recent_list_no_join
+（policy 可能要求脱敏 → outputMode=DETAIL_MASKED → finalizer 做 mask）
+
+4) 你实现时最容易卡住的点：触发词与“资产候选”怎么配合？
+一句话：
+triggerIndex 先决定“模板族/operation”，assetIndex 再决定“算什么/查什么字段”。
+
+triggerIndex：决定 “TopN / 最近N笔 / 表结构”
+
+alias/token：决定 “metric.order_count / entity.order / groupBy=store / filter=item_keyword=奶茶 / timeRange=last_7d”
+
+5) 给你一段极简“伪代码”（照着写就能跑）
+SearchResult retrieve(String query) {
+  q = normalize(query);
+  tokens = tokenize(q);
+
+  Map<String, Double> score = new HashMap<>();
+
+  // 1) trigger 命中模板族（高权重）
+  List<String> templateCandidates = triggerMatch(q);
+  for (tpl : templateCandidates) score.add(tpl, 10);
+
+  // 2) alias 强命中（高权重）
+  for (phrase : extractPhrases(q)) {
+    for (assetId : aliasIndex.getOrDefault(phrase, empty)) {
+      score.add(assetId, 8);
+    }
+  }
+
+  // 3) token 扩召回（中权重）
+  for (t : tokens) {
+    for (assetId : tokenIndex.getOrDefault(t, emptySet)) {
+      score.add(assetId, 3);
+    }
+  }
+
+  // 4) filter by tenant/domain/bundle
+  candidates = filterByContext(score.keySet(), tenant, bundle, domain);
+
+  // 5) topK
+  return topK(candidates, score);
+}
+
+TemplateId selectTemplate(SearchResult r, DecisionContext dc) {
+  List<TemplateId> tpl = r.templatesForOperation(dc.operation);
+  // 按 applicableWhen + priority 选最优
+  return bestMatch(tpl, dc);
+}
+6) 你现在“还是不明白”的关键点，我用一句话再总结
+自然语言不会“直接”找到某个模板，而是：
+
+triggerIndex 把它归类成 operation（TopN/RecentList/Metadata）
+
+alias/token 把它绑定到 metric/entity/dimension/filter/timeRange 这些资产
+
+resolver/policy 用这些资产推导 decision（preferNoJoin/needDimLookup）
+
+在同 operation 的多个模板变体中，用 decision 选出唯一模板
+
+如果你愿意，我可以再给你一个“可直接复制的索引构建示例”：
+
+一个 metric/order_count 的 YAML 如何抽 tokens/aliases
+
+一个 entity/order 的 YAML 如何抽 tokens/aliases
+
+一个 template/topn 的 YAML 如何抽 triggers
+并给你一个“打分权重表”（比如 alias=8, trigger=10, token=3）+ 冲突处理规则（priority/命中数/最短 plan）。这样你照着实现就能 P1 跑通两条链路。
+
+
+你说：
+如果用Hybrid（混合检索）= 非向量 + 向量 + 结构化 boost方式，数据的存储和查询如何做设计，请详细说明和多场景举例
+
+ChatGPT 说：
+下面给你一套Hybrid（混合检索）= 非向量（alias/token/倒排） + 向量（embedding） + 结构化 boost（域/类型/权限/发布包/时效）的存储 + 查询落地设计。按你现状（YAML 资产在 repo、P1 先跑通、FMDB join 慢、toolbox MCP 有）我会给两种落地路径：
+
+路径 A：轻量自研（内存/本地存储 + 向量库）：最快、最可控，适合你 P1→P2 演进
+
+路径 B：一体化搜索引擎（OpenSearch/ES hybrid）：中后期规模更大、更统一
+
+并给你多场景举例：TopN、RecentList、Metadata、Lineage、Quality、Ops 等，展示“同一套 hybrid 怎么通用”。
+
+1) 你要检索的对象到底是什么（先定“资产对象模型”）
+你检索的不是“文档”，而是“资产（Asset）”。典型包括：
+
+Entity（实体：订单/门店/用户…）
+
+Metric / MetricView（指标/口径）
+
+Relation（关系：order→store…）
+
+Policy（策略：PII/输出粒度/权限）
+
+Template（模板：TopN/Agg/RecentList…）
+
+Attribute/FilterKey（语义字段：item_keyword、mobile、status…）
+
+TimeRange（last_7d/last_30d…）
+
+统一 AssetDoc（索引文档）结构（强烈建议）
+无论你用 A 还是 B，都建议把每个 YAML 资产编译成统一的 AssetDoc：
+
+{
+  "assetId": "metric.order_count",
+  "assetType": "Metric",
+  "domain": "orders",
+  "version": "1.0.0",
+  "bundleId": "prod-202602",
+  "tenant": "t1",
+  "status": "active",
+
+  "name": "订单量",
+  "aliases": ["订单数", "下单量", "order count"],
+  "description": "COUNT_DISTINCT(order_id) ...",
+  "examples": ["近7天订单量按门店Top10", "订单量趋势"],
+
+  "keys": {
+    "dimensions": ["store", "city"],
+    "filters": ["item_keyword", "status", "user_id"],
+    "time": ["dt", "order_time"]
+  },
+
+  "structured": {
+    "piiCategories": [],
+    "riskLevel": "LOW",
+    "preferNoJoin": true
+  },
+
+  "textForVector": "订单量 下单量 count distinct order_id ... 示例 ...",
+  "embedding": [ ... ]   // 向量索引用
+}
+2) Hybrid 的“数据存储”怎么设计（A/B 两条路）
+路径 A：轻量自研（最快落地，适合你）
+存储分 3 块：
+
+资产源（YAML）：repo 里，按 bundle/版本发布
+
+结构化索引（非向量）：内存 HashMap + 倒排（可落盘 RocksDB/SQLite）
+
+向量索引：FAISS / Milvus / pgvector / chroma（任选其一）
+
+A1. 非向量索引（结构化）
+aliasIndex: Map<String, List<assetId>>
+
+tokenIndex: Map<String, Set<assetId>>（倒排）
+
+triggerIndex: Map<String, List<templateId or operation>>
+
+assetStore: Map<assetId, AssetDoc>（原文/元信息）
+
+typeDomainIndex（可选）：domain/type → assetId set（做过滤）
+
+落盘建议：P1 内存就够；P2 可以用 RocksDB/SQLite 存 tokenIndex（避免重建慢）。
+
+A2. 向量索引
+每个 AssetDoc 有 embedding（对 textForVector 生成）
+
+向量库里存：(assetId, vector, metadata{type,domain,tenant,bundle,status})
+
+关键：向量库一定要支持 metadata filter（tenant/bundle/domain/type），否则会乱召回。
+
+路径 B：ES/OpenSearch 一体化 hybrid（中期更省运维）
+你把每个 AssetDoc 写进一个 index（比如 assets_index），其中：
+
+aliases/name/description/examples 作为 text 字段（BM25）
+
+embedding 作为 knn_vector 字段（向量）
+
+domain/type/tenant/bundle/status 作为 keyword 字段（过滤/boost）
+
+查询用 hybrid query：
+
+一个 match/bool（BM25）
+
+一个 knn（向量）
+
+加 function_score（structured boost）
+
+3) Hybrid 的“查询流程”怎么设计（通用的 7 步）
+无论 A/B，本质都是：
+
+Normalize：全角半角、大小写、去标点、数字规范（Top10/前十）
+
+Tokenize：分词（中文可用简单词典 + ngram，P1 足够）
+
+Candidate recall（召回） 三路并行：
+
+规则/短语：aliasIndex（高精）
+
+倒排：tokenIndex/BM25（中等）
+
+向量：vectorTopK（高召回）
+
+Filter（硬过滤）：tenant / bundle / status / domain（必须）
+
+Structured Boost（结构化加权）：按操作类型、数据域、风险、preferNoJoin、权限等加分
+
+Merge & Rerank（融合重排）：三路合并，计算总分，取 TopK
+
+Decision：
+
+选出 operation（TopN/RecentList/Metadata…）
+
+选 metric/entity/relation/policy/template 的最佳组合（给 Resolver/Planner）
+
+4) “结构化 boost”到底怎么做（很关键）
+你可以把 boost 分成 3 类：
+
+4.1 硬过滤（必须满足，否则直接丢）
+tenant == currentTenant
+
+bundleId in activeBundles
+
+status == active
+
+domain in allowedDomains（权限/租户隔离）
+
+4.2 强 boost（决定模板/operation）
+命中 “Top/排行/Top10” → operation=METRIC_AGG_TOPN 大加分
+
+命中 “最近/近N笔” → operation=ENTITY_RECENT_LIST
+
+命中 “字段/表结构” → operation=METADATA_LOOKUP
+
+4.3 弱 boost（决定具体资产）
+assetType == Metric 且 query 有 “订单量/GMV/金额” → +x
+
+preferNoJoin==true 且当前环境 join 不推荐 → +x
+
+piiCategories 与请求需要明细冲突 → 降分或直接触发 policy
+
+建议一个简单的融合打分公式（P1 就能跑）
+设：
+
+s_alias：alias 命中分（0~1）
+
+s_bm25：倒排/BM25 分（0~1）
+
+s_vec：向量相似度归一化（0~1）
+
+boost_struct：结构化加分（可正可负）
+
+总分：
+score = 0.45*s_alias + 0.30*s_bm25 + 0.25*s_vec + boost_struct
+
+你可以先不做复杂学习，先把权重写死，靠 golden tests 调。
+
+5) 多场景举例：同一套 Hybrid 如何通用
+下面每个场景都按“检索 → 选模板/资产 → 输出给 Resolver/Planner”讲清楚。
+
+场景 A：TopN 指标类
+Query：“近7天奶茶订单量按门店Top10”
+
+检索阶段
+aliasIndex 命中：
+
+“订单量” → metric.order_count / metric.order_amount
+
+“门店” → entity.store
+
+triggerIndex 命中：
+
+“Top10/排行” → operation=METRIC_AGG_TOPN + templates(topn*)
+
+向量命中：
+
+metric.order_count（语义相近）
+
+attribute.item_keyword（语义：关键词过滤）
+
+relation.order_to_store（门店维度）
+
+structured boost
+环境策略：join 慢 → preferNoJoin=true → boost no-join 模板
+
+metric.order_count 的 allowedDimensions 包含 store → boost
+
+输出给 Resolver/TemplateSelector
+operation=METRIC_AGG_TOPN
+
+metricCandidate=metric.order_count
+
+dimensionCandidate=store
+
+filterKey=item_keyword value=奶茶
+
+templateCandidate=template.metric_topn_no_join_dimlookup
+
+场景 B：RecentList 明细类
+Query：“查某用户最近10笔订单”
+
+检索
+triggerIndex：“最近/近10笔” → operation=ENTITY_RECENT_LIST
+
+alias/token：“订单”→ entity.order；“用户”→ filterKey=user_id
+
+向量补充：entity.order 的 eventTimeKey/order_time、dt 分区提示
+
+structured boost / policy
+若用户角色是 viewer：detail 允许但需脱敏 → outputMode=DETAIL_MASKED
+
+限制 maxLookbackDays/maxRows
+
+输出
+operation=ENTITY_RECENT_LIST
+
+entity=entity.order
+
+filters: user_id=xxx
+
+limit=10
+
+template=template.entity_recent_list_no_join
+
+场景 C：Metadata 查询（表结构/字段）
+Query：“dwd_order_detail 有哪些字段？手机号字段叫什么？”
+
+检索
+triggerIndex：“有哪些字段/表结构” → operation=METADATA_LOOKUP
+
+tokenIndex/BM25：dwd_order_detail 命中 entity.order（storage.table）
+
+向量命中：attribute.mobile / pii.phone
+
+structured boost
+若 query 含“手机号” → boost attribute.mobile 和 piiCategory=PHONE 的字段定义资产
+
+输出
+operation=METADATA_LOOKUP
+
+targetTable=dwd_order_detail
+
+ask=fields + findFieldByConcept(mobile)
+
+template=template.metadata_lookup
+
+场景 D：LineageTrace（血缘）
+Query：“pay_amount 这个字段从哪里来的？影响哪些表？”
+
+检索
+triggerIndex：“血缘/来源/影响” → operation=LINEAGE_TRACE
+
+alias/token：pay_amount 命中 entity.order.fields / lineage assets
+
+向量：lineage.trace 模板、relation/lineage docs
+
+structured boost
+深度默认 3，且必须可审计 evidence → boost lineage 模板
+
+输出
+operation=LINEAGE_TRACE
+
+from={table:dwd_order_detail, field:pay_amount}
+
+template=template.lineage_trace
+
+场景 E：QualityCheck（质量规则）
+Query：“手机号字段缺失率高不高？近7天检查一下”
+
+检索
+triggerIndex：“缺失率/质量/检查” → operation=QUALITY_CHECK
+
+token/alias：手机号→ conceptKey=mobile → attribute.mobile
+
+向量召回：质量规则 assets（rule.null_rate、rule.format_phone）
+
+structured boost
+rule 与字段 piiCategory=PHONE 高相关 → boost
+
+默认只允许聚合结果（不返回明细手机号）
+
+输出
+operation=QUALITY_CHECK
+
+target={entity:entity.user, fieldKey:mobile}
+
+rules=[null_rate, format_check]
+
+template=template.quality_check_basic
+
+场景 F：OpsReadOnly（运维只读排查）
+Query：“服务A今天频繁报错，帮我看下近1小时告警+日志”
+
+检索
+triggerIndex：“告警/日志/报错/近1小时” → operation=OPS_TRIAGE
+
+token/向量：ops.tools（logs.search/alerts.recent/metrics.query）
+
+structured boost
+riskLevel=READ_ONLY（强制）→ 只选只读模板
+
+证据链强制（audit/evidence）→ boost ops_readonly 模板
+
+输出
+operation=OPS_TRIAGE
+
+template=template.ops_readonly_triage
+
+tools=[ops.logs.search, ops.alerts.recent, ops.metrics.query]
+
+6) Hybrid 中“数据如何更新/版本隔离/多租户”怎么做（关键工程点）
+你前面强调 bundle/版本/回归，这里建议：
+
+资产按 bundle 发布：例如 bundleId=prod-20260209
+
+索引带 bundleId：查询时只看 active bundle（灰度可多 bundle）
+
+索引构建两阶段：
+
+build new bundle index → 校验通过 → 切换 activeBundles
+
+回滚：切回上一个 bundle 即可
+
+多租户：assetDoc 中带 tenant（或 tenant=global），查询过滤 tenant in {global, currentTenant}
+
+7) 你能直接落地的“最省力实现路线”（贴合你 P1）
+P1（你现在就做）
+非向量：aliasIndex + tokenIndex + triggerIndex（内存）
+
+向量：先不引入，或用最简单的本地 FAISS（可选）
+
+structured boost：只做 4 个字段
+assetType/domain/bundle/status + preferNoJoin
+
+先跑通两条链路：TopN / RecentList。
+
+P2（再加）
+引入向量库（FAISS/Milvus/pgvector 任一）
+
+引入 rerank（可选）：对 Top50 做一次小模型/LLM rerank（但你可以先不用）
+
+资产扩展到 lineage/quality/ops
+
+8) 一个“完整查询输出”的样例（你系统内部应返回什么）
+对 query：“近7天奶茶订单量按门店Top10”
+Hybrid 检索模块最终输出给 Resolver 的建议应该长这样：
+
+{
+  "operation": "METRIC_AGG_TOPN",
+  "templateCandidates": [
+    {"id":"template.metric_topn_no_join_dimlookup","score":0.92},
+    {"id":"template.metric_topn_no_join_idonly","score":0.78}
+  ],
+  "assetCandidates": {
+    "metrics": [
+      {"id":"metric.order_count","score":0.88},
+      {"id":"metric.order_amount","score":0.62}
+    ],
+    "entities": [
+      {"id":"entity.order","score":0.81},
+      {"id":"entity.store","score":0.75}
+    ],
+    "relations": [
+      {"id":"relation.order_to_store","score":0.70}
+    ],
+    "filters": [
+      {"key":"item_keyword","score":0.66}
+    ]
+  }
+}
+后续 Resolver 再做 强约束校验（allowedDimensions/requiredFilters/policy），最终定一个模板和编译 SQL。
+
+如果你愿意，我可以进一步把“Hybrid 检索模块”的数据结构与代码骨架给你（Java）：
+
+AssetDoc、AssetIndexBuilder（从 YAML 抽 alias/token/textForVector）
+
+HybridRetriever（三路召回 + 结构化 boost + merge）
+
+TemplateSelector（trigger/operation + DecisionContext 匹配 applicableWhen）
+并给你一套可跑的 golden tests：同一句 query 必须选中哪个 operation、召回必须包含哪些 assetId。这样你 P1/P2 就能一步步演进到完整通用。
 
 
 

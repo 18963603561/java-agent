@@ -1,9 +1,9 @@
 package com.example.agent.capabilities.context.assembly;
 
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.trim.ContextCompressionResult;
-import com.example.agent.budget.trim.ContextPruneResult;
-import com.example.agent.budget.trim.ContextTrimReport;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.trim.model.ContextCompressionResult;
+import com.example.agent.budget.trim.model.ContextPruneResult;
+import com.example.agent.budget.trim.model.ContextTrimReport;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 
 /**
@@ -21,7 +21,7 @@ public class ContextAssemblyCommand {
     /**
      * 预算分配结果。
      */
-    private ContextBudgetAllocation allocation;
+    private ContextBudgetAllocation allocation = ContextBudgetAllocation.EMPTY;
 
     /**
      * 裁剪报告。
@@ -75,7 +75,7 @@ public class ContextAssemblyCommand {
     }
 
     public void setAllocation(ContextBudgetAllocation allocation) {
-        this.allocation = allocation;
+        this.allocation = allocation == null ? ContextBudgetAllocation.EMPTY : allocation;
     }
 
     public ContextTrimReport getTrimReport() {
@@ -178,3 +178,5 @@ public class ContextAssemblyCommand {
         }
     }
 }
+
+

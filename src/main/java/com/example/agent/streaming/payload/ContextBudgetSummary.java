@@ -1,11 +1,22 @@
 package com.example.agent.streaming.payload;
 
+import com.example.agent.budget.core.ContextBudgetAllocationState;
 import java.util.Map;
 
 /**
  * 上下文预算摘要，用于事件载荷中的预算统计。
  */
 public class ContextBudgetSummary {
+
+    /**
+     * 预算分配状态。
+     */
+    private ContextBudgetAllocationState allocationState;
+
+    /**
+     * 预算分配原因编码。
+     */
+    private String allocationReason;
 
     /**
      * 总预算令牌数。
@@ -44,5 +55,21 @@ public class ContextBudgetSummary {
 
     public void setSectionTokens(Map<String, Integer> sectionTokens) {
         this.sectionTokens = sectionTokens;
+    }
+
+    public ContextBudgetAllocationState getAllocationState() {
+        return allocationState;
+    }
+
+    public void setAllocationState(ContextBudgetAllocationState allocationState) {
+        this.allocationState = allocationState;
+    }
+
+    public String getAllocationReason() {
+        return allocationReason;
+    }
+
+    public void setAllocationReason(String allocationReason) {
+        this.allocationReason = allocationReason;
     }
 }

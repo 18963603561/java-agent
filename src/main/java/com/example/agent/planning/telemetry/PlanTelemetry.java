@@ -5,8 +5,8 @@ import com.example.agent.capabilities.context.assembly.ContextAssembler;
 import com.example.agent.capabilities.context.assembly.ContextAssemblyCommand;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.trim.ContextPruneResult;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.trim.model.ContextPruneResult;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
@@ -257,3 +257,5 @@ public class PlanTelemetry {
         return sum;
     }
 }
+
+

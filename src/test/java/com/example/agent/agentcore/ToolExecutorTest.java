@@ -1,8 +1,8 @@
 package com.example.agent.agentcore;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.budget.token.TokenBudgetManager;
-import com.example.agent.budget.token.TokenUsageRecord;
+import com.example.agent.budget.token.application.TokenBudgetManager;
+import com.example.agent.budget.token.model.TokenUsageRecord;
 import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.evidence.EvidencePack;
@@ -367,3 +367,5 @@ class ToolExecutorTest {
                 rawResultStoreProvider);
     }
 }
+
+

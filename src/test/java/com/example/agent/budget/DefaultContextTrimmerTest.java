@@ -13,13 +13,14 @@ import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.util.EnumMap;
 import java.util.List;
 import org.junit.jupiter.api.Test;
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.token.ContextBudgetProperties;
-import com.example.agent.budget.trim.ContextSection;
-import com.example.agent.budget.trim.DefaultContextTrimmer;
-import com.example.agent.budget.token.ContextBudgetPolicy;
-import com.example.agent.budget.trim.ContextTrimRequest;
-import com.example.agent.budget.trim.ContextTrimResult;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.core.ContextBudgetAllocationState;
+import com.example.agent.budget.config.ContextBudgetProperties;
+import com.example.agent.budget.core.ContextSection;
+import com.example.agent.budget.trim.application.DefaultContextTrimmer;
+import com.example.agent.budget.core.ContextBudgetPolicy;
+import com.example.agent.budget.trim.model.ContextTrimRequest;
+import com.example.agent.budget.trim.model.ContextTrimResult;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -171,6 +172,26 @@ class DefaultContextTrimmerTest {
         assertNull(result.getReport());
     }
 
+    @Test
+    void trimSkippedWhenAllocationDisabled() {
+        ContextBudgetProperties properties = new ContextBudgetProperties();
+        DefaultContextTrimmer trimmer = buildTrimmer(properties);
+
+        WorkingMemory memory = new WorkingMemory();
+        memory.setSummary("a".repeat(200));
+
+        ContextSnapshot snapshot = new ContextSnapshot();
+        snapshot.setWorkingMemory(memory);
+
+        ContextBudgetAllocation allocation = ContextBudgetAllocation.disabled(
+                ContextBudgetAllocationState.DISABLED_BY_CONFIG,
+                "config_disabled");
+
+        ContextTrimResult result = trimmer.trim(new ContextTrimRequest(snapshot, allocation, new ContextBudgetPolicy()));
+
+        assertNull(result.getReport());
+    }
+
     private DefaultContextTrimmer buildTrimmer(ContextBudgetProperties properties) {
         return new DefaultContextTrimmer(new TokenEstimator(), new MetricsPublisher(new SimpleMeterRegistry()),
                 properties);
@@ -179,6 +200,7 @@ class DefaultContextTrimmerTest {
     private ContextBudgetAllocation buildAllocation(int totalTokens, EnumMap<ContextSection, Integer> sectionTokens) {
         ContextBudgetAllocation allocation = new ContextBudgetAllocation();
         allocation.setTotalTokens(totalTokens);
+        allocation.setAllocationState(ContextBudgetAllocationState.ENABLED);
         allocation.setSectionTokens(sectionTokens);
         return allocation;
     }
@@ -211,4 +233,7 @@ class DefaultContextTrimmerTest {
         return total;
     }
 }
+
+
+
 

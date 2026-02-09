@@ -1,20 +1,22 @@
 package com.example.agent.capabilities.context;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.token.ContextBudgetAllocator;
-import com.example.agent.budget.token.ContextBudgetPolicy;
-import com.example.agent.budget.token.ContextBudgetProperties;
-import com.example.agent.budget.token.ContextBudgetRequest;
-import com.example.agent.budget.trim.ContextCompressionController;
-import com.example.agent.budget.trim.ContextCompressionRequest;
-import com.example.agent.budget.trim.ContextCompressionResult;
-import com.example.agent.budget.trim.ContextPruneRequest;
-import com.example.agent.budget.trim.ContextPruneResult;
-import com.example.agent.budget.trim.ContextPruner;
-import com.example.agent.budget.trim.ContextTrimRequest;
-import com.example.agent.budget.trim.ContextTrimResult;
-import com.example.agent.budget.trim.ContextTrimmer;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.core.ContextBudgetAllocationState;
+import com.example.agent.budget.token.application.ContextBudgetAllocator;
+import com.example.agent.budget.core.ContextBudgetPolicy;
+import com.example.agent.budget.config.ContextBudgetProperties;
+import com.example.agent.budget.token.application.ContextBudgetRequest;
+import com.example.agent.budget.trim.application.ContextCompressionService;
+import com.example.agent.budget.trim.model.ContextCompressionRequest;
+import com.example.agent.budget.trim.model.ContextCompressionResult;
+import com.example.agent.budget.trim.model.ContextPruneRequest;
+import com.example.agent.budget.trim.model.ContextPruneResult;
+import com.example.agent.budget.trim.application.ContextPruner;
+import com.example.agent.budget.trim.model.ContextTrimReport;
+import com.example.agent.budget.trim.model.ContextTrimRequest;
+import com.example.agent.budget.trim.model.ContextTrimResult;
+import com.example.agent.budget.trim.application.ContextTrimmer;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.memory.recall.MemoryRecallResult;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -70,7 +72,7 @@ public class DefaultContextBuilder implements ContextBuilder {
     /**
      * 压缩控制器，用于触发摘要压缩。
      */
-    private final ContextCompressionController compressionController;
+    private final ContextCompressionService compressionService;
     /**
      * 预算配置属性。
      */
@@ -111,7 +113,7 @@ public class DefaultContextBuilder implements ContextBuilder {
      * @param budgetAllocator 预算分配器
      * @param contextPruner 剪枝器
      * @param contextTrimmer 裁剪器
-     * @param compressionController 压缩控制器
+     * @param compressionService 压缩服务
      * @param budgetProperties 预算配置
      * @param contextEventPublisher 事件发布器
      * @param metricsPublisher 指标发布器
@@ -121,7 +123,7 @@ public class DefaultContextBuilder implements ContextBuilder {
                                  ContextBudgetAllocator budgetAllocator,
                                  ContextPruner contextPruner,
                                  ContextTrimmer contextTrimmer,
-                                 ContextCompressionController compressionController,
+                                 ContextCompressionService compressionService,
                                  ContextBudgetProperties budgetProperties,
                                  ContextEventPublisher contextEventPublisher,
                                  MetricsPublisher metricsPublisher,
@@ -131,7 +133,7 @@ public class DefaultContextBuilder implements ContextBuilder {
         this.budgetAllocator = budgetAllocator;
         this.contextPruner = contextPruner;
         this.contextTrimmer = contextTrimmer;
-        this.compressionController = compressionController;
+        this.compressionService = compressionService;
         this.budgetProperties = budgetProperties;
         this.contextEventPublisher = contextEventPublisher;
         this.metricsPublisher = metricsPublisher;
@@ -146,7 +148,7 @@ public class DefaultContextBuilder implements ContextBuilder {
                                  ContextBudgetAllocator budgetAllocator,
                                  ContextPruner contextPruner,
                                  ContextTrimmer contextTrimmer,
-                                 ContextCompressionController compressionController,
+                                 ContextCompressionService compressionService,
                                  ContextBudgetProperties budgetProperties,
                                  ContextEventPublisher contextEventPublisher,
                                  MetricsPublisher metricsPublisher) {
@@ -154,7 +156,7 @@ public class DefaultContextBuilder implements ContextBuilder {
                 budgetAllocator,
                 contextPruner,
                 contextTrimmer,
-                compressionController,
+                compressionService,
                 budgetProperties,
                 contextEventPublisher,
                 metricsPublisher,
@@ -246,11 +248,19 @@ public class DefaultContextBuilder implements ContextBuilder {
 
             ContextBudgetAllocation allocation = budgetAllocator != null && budgetRequest != null
                     ? budgetAllocator.allocate(budgetRequest)
-                    : null;
+                    : ContextBudgetAllocation.disabled(ContextBudgetAllocationState.DISABLED_BY_DEPENDENCY,
+                    "allocator_unavailable");
             snapshot.setBudgetState(buildBudgetState(allocation));
+            log.info("上下文预算状态, tenantId={}, workflowId={}, taskId={}, allocationState={}, allocationReason={}, totalTokens={}",
+                    tenantId,
+                    workflowId,
+                    taskId,
+                    allocation.getAllocationState(),
+                    allocation.getAllocationReason(),
+                    allocation.getTotalTokens());
 
             ContextPruneResult pruneResult = null;
-            if (contextPruner != null && allocation != null) {
+            if (contextPruner != null && allocation.isAllocationEnabled()) {
                 pruneResult = contextPruner.prune(new ContextPruneRequest(snapshot, allocation, policy));
                 if (pruneResult != null && pruneResult.getPrunedSnapshot() != null) {
                     snapshot = pruneResult.getPrunedSnapshot();
@@ -258,7 +268,7 @@ public class DefaultContextBuilder implements ContextBuilder {
             }
 
             ContextTrimResult trimResult = null;
-            if (contextTrimmer != null && allocation != null) {
+            if (contextTrimmer != null && allocation.isAllocationEnabled()) {
                 ContextBudgetPolicy budgetPolicy = budgetRequest != null ? budgetRequest.getBudgetPolicy() : null;
                 trimResult = contextTrimmer.trim(new ContextTrimRequest(snapshot, allocation, budgetPolicy));
                 if (trimResult != null && trimResult.getTrimmedSnapshot() != null) {
@@ -269,10 +279,10 @@ public class DefaultContextBuilder implements ContextBuilder {
                     trimResult != null ? trimResult.getReport() : null);
 
             ContextCompressionResult compressionResult = null;
-            if (compressionController != null && allocation != null) {
+            if (compressionService != null && allocation.isAllocationEnabled()) {
                 String sessionId = taskRequest != null ? taskRequest.getSessionId()
                         : runtimeMeta != null ? runtimeMeta.getSessionId() : null;
-                compressionResult = compressionController.compressIfNeeded(new ContextCompressionRequest(
+                compressionResult = compressionService.compressIfNeeded(new ContextCompressionRequest(
                         snapshot,
                         allocation,
                         trimResult != null ? trimResult.getReport() : null,
@@ -367,7 +377,7 @@ public class DefaultContextBuilder implements ContextBuilder {
                                   String workflowId,
                                   ContextSnapshot snapshot,
                                   ContextBudgetAllocation allocation,
-                                  com.example.agent.budget.trim.ContextTrimReport trimReport) {
+                                  ContextTrimReport trimReport) {
         if (contextEventPublisher == null || tenantContext == null || workflowId == null || trimReport == null) {
             return;
         }
@@ -424,12 +434,11 @@ public class DefaultContextBuilder implements ContextBuilder {
      */
     private BudgetState buildBudgetState(ContextBudgetAllocation allocation) {
         BudgetState state = new BudgetState();
-        if (allocation == null) {
-            return state;
-        }
         state.setAllocatedTokens(allocation.getTotalTokens());
         state.setRemainingTokens(allocation.getTotalTokens() != null ? allocation.getTotalTokens() : null);
         state.setUsedTokens(0);
+        state.setAllocationState(allocation.getAllocationState());
+        state.setAllocationReason(allocation.getAllocationReason());
         return state;
     }
 
@@ -481,4 +490,8 @@ public class DefaultContextBuilder implements ContextBuilder {
     }
 
 }
+
+
+
+
 

@@ -1,8 +1,8 @@
 package com.example.agent.capabilities.context;
 
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.trim.ContextPruneResult;
-import com.example.agent.budget.trim.ContextTrimReport;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.trim.model.ContextPruneResult;
+import com.example.agent.budget.trim.model.ContextTrimReport;
 import com.example.agent.capabilities.context.model.BuildMetrics;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 
@@ -85,3 +85,5 @@ public class ContextBuildResult {
         return metrics;
     }
 }
+
+

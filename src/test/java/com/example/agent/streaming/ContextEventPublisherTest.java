@@ -7,6 +7,7 @@ import com.example.agent.capabilities.context.evidence.EvidencePack;
 import com.example.agent.capabilities.context.evidence.EvidenceStats;
 import com.example.agent.capabilities.context.evidence.EvidenceType;
 import com.example.agent.capabilities.context.model.WorkingMemory;
+import com.example.agent.budget.core.ContextBudgetAllocationState;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -19,12 +20,14 @@ import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
+import com.example.agent.streaming.payload.ContextBudgetSummary;
 import com.example.agent.streaming.payload.ContextEventPublisher;
 import com.example.agent.streaming.sse.EventStreamService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ContextEventPublisherTest {
 
@@ -173,6 +176,29 @@ class ContextEventPublisherTest {
         assertEquals(0, payload.get("evidenceTruncationCount"));
         assertEquals(0, payload.get("evidenceApproxChars"));
         assertNull(payload.get("evidencePackVersion"));
+    }
+
+    @Test
+    void publishSnapshotShouldEmitDisabledBudgetSummaryWhenAllocationMissing() {
+        TestEventPublisher eventPublisher = new TestEventPublisher();
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService,
+                new MetricsPublisher(new SimpleMeterRegistry()));
+
+        ContextSnapshot snapshot = new ContextSnapshot();
+        snapshot.setSnapshotId("snap-budget-null");
+        snapshot.setWorkingMemory(new WorkingMemory());
+
+        TenantContext tenantContext = new TenantContext("t5", "u5", List.of(), "req", "trace");
+        publisher.publishSnapshot(tenantContext, "wf-5", new AtomicLong(0), snapshot, null, null, null);
+
+        StreamEvent event = eventPublisher.findFirst(EventType.CONTEXT_SNAPSHOT_CREATED);
+        assertNotNull(event);
+        Object budgetSummaryObj = event.getPayload().get("budgetSummary");
+        assertTrue(budgetSummaryObj instanceof ContextBudgetSummary);
+        ContextBudgetSummary summary = (ContextBudgetSummary) budgetSummaryObj;
+        assertEquals(ContextBudgetAllocationState.DISABLED_BY_DEPENDENCY, summary.getAllocationState());
+        assertEquals("missing_allocation", summary.getAllocationReason());
     }
 
     static class TestEventPublisher implements ApplicationEventPublisher {

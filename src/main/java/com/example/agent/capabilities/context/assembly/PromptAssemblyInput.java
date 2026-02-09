@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.context.assembly;
 
-import com.example.agent.budget.token.ContextBudgetAllocation;
+import com.example.agent.budget.core.ContextBudgetAllocation;
 import java.util.List;
 import java.util.Map;
 
@@ -45,9 +45,9 @@ public class PromptAssemblyInput {
     private String policyVersion;
 
     /**
-     * 预算分配结果，可为空。
+     * 预算分配结果，默认使用禁用态空分配对象。
      */
-    private ContextBudgetAllocation budgetAllocation;
+    private ContextBudgetAllocation budgetAllocation = ContextBudgetAllocation.EMPTY;
 
     /**
      * 租户标识，可为空。
@@ -125,7 +125,7 @@ public class PromptAssemblyInput {
     }
 
     public void setBudgetAllocation(ContextBudgetAllocation budgetAllocation) {
-        this.budgetAllocation = budgetAllocation;
+        this.budgetAllocation = budgetAllocation == null ? ContextBudgetAllocation.EMPTY : budgetAllocation;
     }
 
     public String getTenantId() {
@@ -152,3 +152,4 @@ public class PromptAssemblyInput {
         this.assemblyMetadata = assemblyMetadata;
     }
 }
+

@@ -1,7 +1,7 @@
 package com.example.agent.planning.context;
 
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.trim.ContextPruneResult;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.trim.model.ContextPruneResult;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.planning.PlanningContextKeys;
@@ -284,3 +284,5 @@ public class PlanningContext {
         return PlanningPromptSummaryFactory.build(this);
     }
 }
+
+

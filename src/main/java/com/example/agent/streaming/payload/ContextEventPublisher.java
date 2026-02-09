@@ -1,12 +1,14 @@
 package com.example.agent.streaming.payload;
 
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.trim.ContextCompressionResult;
-import com.example.agent.budget.trim.ContextPruneResult;
-import com.example.agent.budget.trim.ContextSection;
-import com.example.agent.budget.trim.ContextTrimReport;
-import com.example.agent.budget.trim.PrunedItem;
+import com.example.agent.budget.core.ContextBudgetAllocationState;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.trim.model.ContextCompressionResult;
+import com.example.agent.budget.trim.model.ContextPruneResult;
+import com.example.agent.budget.core.ContextSection;
+import com.example.agent.budget.trim.model.ContextTrimReport;
+import com.example.agent.budget.trim.model.ContextTrimStats;
+import com.example.agent.budget.trim.model.PrunedItem;
 import com.example.agent.capabilities.context.model.BuildMetrics;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.model.DomainKnowledge;
@@ -250,8 +252,8 @@ public class ContextEventPublisher {
         summary.setBeforeTokens(trimReport.getTotalBeforeTokens());
         summary.setAfterTokens(trimReport.getTotalAfterTokens());
         if (trimReport.getRemovedItemsBySection() != null && !trimReport.getRemovedItemsBySection().isEmpty()) {
-            Map<String, com.example.agent.budget.trim.ContextTrimStats> removedBySection = new HashMap<>();
-            for (Map.Entry<com.example.agent.budget.trim.ContextSection, com.example.agent.budget.trim.ContextTrimStats> entry
+            Map<String, ContextTrimStats> removedBySection = new HashMap<>();
+            for (Map.Entry<com.example.agent.budget.core.ContextSection, ContextTrimStats> entry
                     : trimReport.getRemovedItemsBySection().entrySet()) {
                 if (entry.getKey() != null) {
                     removedBySection.put(entry.getKey().name(), entry.getValue());
@@ -471,9 +473,14 @@ public class ContextEventPublisher {
 
     private ContextBudgetSummary buildBudgetSummary(ContextBudgetAllocation allocation) {
         if (allocation == null) {
-            return null;
+            allocation = ContextBudgetAllocation.disabled(
+                    ContextBudgetAllocationState.DISABLED_BY_DEPENDENCY,
+                    "missing_allocation"
+            );
         }
         ContextBudgetSummary summary = new ContextBudgetSummary();
+        summary.setAllocationState(allocation.getAllocationState());
+        summary.setAllocationReason(allocation.getAllocationReason());
         summary.setTotalTokens(allocation.getTotalTokens());
         summary.setReservedTokens(allocation.getReservedTokens());
         if (allocation.getSectionTokens() != null && !allocation.getSectionTokens().isEmpty()) {
@@ -771,3 +778,5 @@ public class ContextEventPublisher {
         }
     }
 }
+
+

@@ -5,16 +5,19 @@ import java.util.EnumMap;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
-import com.example.agent.budget.token.ContextBudgetAllocation;
-import com.example.agent.budget.token.ContextBudgetPolicy;
-import com.example.agent.budget.token.ContextBudgetProperties;
-import com.example.agent.budget.token.ContextBudgetRequest;
-import com.example.agent.budget.token.DefaultContextBudgetAllocator;
-import com.example.agent.budget.token.TokenBudgetManager;
-import com.example.agent.budget.trim.ContextSection;
+import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.budget.core.ContextBudgetAllocationState;
+import com.example.agent.budget.core.ContextBudgetPolicy;
+import com.example.agent.budget.config.ContextBudgetProperties;
+import com.example.agent.budget.token.application.ContextBudgetRequest;
+import com.example.agent.budget.token.application.DefaultContextBudgetAllocator;
+import com.example.agent.budget.token.application.TokenBudgetManager;
+import com.example.agent.budget.core.ContextSection;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class ContextBudgetAllocatorTest {
 
@@ -47,6 +50,8 @@ class ContextBudgetAllocatorTest {
         ContextBudgetAllocation allocation = allocator.allocate(request);
 
         assertNotNull(allocation);
+        assertTrue(allocation.isAllocationEnabled());
+        assertEquals(ContextBudgetAllocationState.ENABLED, allocation.getAllocationState());
         assertEquals(1000, allocation.getTotalTokens());
         assertEquals(100, allocation.getReservedTokens());
 
@@ -72,6 +77,7 @@ class ContextBudgetAllocatorTest {
         ContextBudgetAllocation allocation = allocator.allocate(request);
 
         assertNotNull(allocation);
+        assertTrue(allocation.isAllocationEnabled());
         assertEquals(0, allocation.getTotalTokens());
         int sum = 0;
         for (Integer value : allocation.getSectionTokens().values()) {
@@ -112,4 +118,49 @@ class ContextBudgetAllocatorTest {
         }
         assertEquals(100, sum);
     }
+
+    @Test
+    void allocateReturnsDisabledAllocationWhenRequestDisabled() {
+        ContextBudgetProperties properties = new ContextBudgetProperties();
+        properties.setEnabled(true);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        TokenBudgetManager tokenBudgetManager = Mockito.mock(TokenBudgetManager.class);
+        DefaultContextBudgetAllocator allocator = new DefaultContextBudgetAllocator(
+                properties, metricsPublisher, tokenBudgetManager);
+
+        ContextBudgetRequest request = new ContextBudgetRequest();
+        request.setEnabled(false);
+
+        ContextBudgetAllocation allocation = allocator.allocate(request);
+
+        assertNotNull(allocation);
+        assertFalse(allocation.isAllocationEnabled());
+        assertEquals(ContextBudgetAllocationState.DISABLED_BY_REQUEST, allocation.getAllocationState());
+        assertEquals("request_disabled", allocation.getAllocationReason());
+        assertEquals(0, allocation.getTotalTokens());
+    }
+
+    @Test
+    void allocateReturnsDisabledAllocationWhenConfigDisabled() {
+        ContextBudgetProperties properties = new ContextBudgetProperties();
+        properties.setEnabled(false);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        TokenBudgetManager tokenBudgetManager = Mockito.mock(TokenBudgetManager.class);
+        DefaultContextBudgetAllocator allocator = new DefaultContextBudgetAllocator(
+                properties, metricsPublisher, tokenBudgetManager);
+
+        ContextBudgetRequest request = new ContextBudgetRequest();
+        request.setEnabled(true);
+        request.setTotalTokens(256);
+
+        ContextBudgetAllocation allocation = allocator.allocate(request);
+
+        assertNotNull(allocation);
+        assertFalse(allocation.isAllocationEnabled());
+        assertEquals(ContextBudgetAllocationState.DISABLED_BY_CONFIG, allocation.getAllocationState());
+        assertEquals("config_disabled", allocation.getAllocationReason());
+        assertEquals(0, allocation.getTotalTokens());
+    }
 }
+
+

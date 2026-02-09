@@ -1,6 +1,6 @@
 package com.example.agent.streaming.payload;
 
-import com.example.agent.budget.trim.ContextTrimStats;
+import com.example.agent.budget.trim.model.ContextTrimStats;
 import java.util.List;
 import java.util.Map;
 
@@ -74,3 +74,4 @@ public class ContextTrimSummary {
         this.reasons = reasons;
     }
 }
+
