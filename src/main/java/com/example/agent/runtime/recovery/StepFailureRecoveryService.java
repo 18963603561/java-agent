@@ -13,28 +13,30 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
- * 说明：此处注释已修复。
+ * 步骤失败恢复服务。
+ * <p>负责在步骤执行异常后进行失败分类、恢复策略选择，并在可行时执行兜底工具。</p>
  */
 @Service
 public class StepFailureRecoveryService {
 
     private static final Logger log = LoggerFactory.getLogger(StepFailureRecoveryService.class);
 
-    /**
-     * 说明：此处注释已修复。
-     */
+    /** 步骤执行委托器，用于执行兜底工具。 */
     private final StepExecutionDelegate stepExecutionDelegate;
 
-    /**
-     * 说明：此处注释已修复。
-     */
+    /** 失败分类器，用于将异常映射到失败类型。 */
     private final FailureClassifier failureClassifier;
 
-    /**
-     * 说明：此处注释已修复。
-     */
+    /** 恢复策略管理器，用于根据上下文选择恢复动作。 */
     private final RecoveryStrategyManager recoveryStrategyManager;
 
+    /**
+     * 使用配置项构造恢复服务。
+     *
+     * @param stepExecutionDelegate 步骤执行委托器
+     * @param maxRetries 最大重试次数
+     * @param maxDecompose 最大重规划次数
+     */
     @Autowired
     public StepFailureRecoveryService(StepExecutionDelegate stepExecutionDelegate,
                                       @Value("${agent.runtime.max-retries:1}") int maxRetries,
@@ -42,6 +44,13 @@ public class StepFailureRecoveryService {
         this(stepExecutionDelegate, new FailureClassifier(), new RecoveryStrategyManager(maxRetries, maxDecompose));
     }
 
+    /**
+     * 直接注入组件构造恢复服务。
+     *
+     * @param stepExecutionDelegate 步骤执行委托器
+     * @param failureClassifier 失败分类器
+     * @param recoveryStrategyManager 恢复策略管理器
+     */
     public StepFailureRecoveryService(StepExecutionDelegate stepExecutionDelegate,
                                       FailureClassifier failureClassifier,
                                       RecoveryStrategyManager recoveryStrategyManager) {
@@ -53,7 +62,14 @@ public class StepFailureRecoveryService {
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 根据失败信息计算恢复结果。
+     * <p>当策略为 FALLBACK 且存在兜底工具时，会尝试直接执行兜底工具。</p>
+     *
+     * @param executionRequest 步骤执行请求
+     * @param attempt 当前尝试次数
+     * @param decomposeAttempts 当前重规划次数
+     * @param error 原始异常
+     * @return 恢复决策结果
      */
     public StepFailureRecoveryResult recover(StepExecutionRequest executionRequest,
                                              int attempt,
@@ -79,7 +95,12 @@ public class StepFailureRecoveryService {
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 尝试执行兜底工具。
+     *
+     * @param executionRequest 步骤执行请求
+     * @param fallbackTool 兜底工具名称
+     * @param originalError 原始异常
+     * @return 恢复结果
      */
     private StepFailureRecoveryResult tryFallback(StepExecutionRequest executionRequest,
                                                   String fallbackTool,
@@ -126,7 +147,12 @@ public class StepFailureRecoveryService {
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 解析可用的兜底工具。
+     * <p>优先读取步骤输入中的 fallbackTool，其次读取请求 context 中的 fallbackTool。</p>
+     *
+     * @param request 任务请求
+     * @param step 步骤定义
+     * @return 兜底工具名称，无则返回 null
      */
     private String resolveFallbackTool(TaskRequest request, StepSpec step) {
         Map<String, Object> stepInput = resolveStepInput(step);
@@ -145,6 +171,12 @@ public class StepFailureRecoveryService {
         return null;
     }
 
+    /**
+     * 解析步骤输入映射。
+     *
+     * @param step 步骤定义
+     * @return 输入映射，无则返回 null
+     */
     private Map<String, Object> resolveStepInput(StepSpec step) {
         if (step == null) {
             return null;
@@ -153,6 +185,12 @@ public class StepFailureRecoveryService {
         return input == null || input.isEmpty() ? null : input;
     }
 
+    /**
+     * 解析异常消息。
+     *
+     * @param throwable 异常对象
+     * @return 异常消息，空值时返回 step_failed
+     */
     private String resolveErrorMessage(Throwable throwable) {
         if (throwable == null) {
             return "step_failed";
@@ -161,13 +199,12 @@ public class StepFailureRecoveryService {
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 步骤失败恢复结果。
+     * <p>封装策略决策、最终动作、异常信息以及可选兜底输出。</p>
      */
     public static class StepFailureRecoveryResult {
 
-        /**
-         * 说明：此处注释已修复。
-         */
+        /** 恢复动作枚举。 */
         public enum Action {
             RETRY,
             REPLAN,
@@ -182,6 +219,16 @@ public class StepFailureRecoveryService {
         private final StepExecutionOutput fallbackOutput;
         private final Throwable originalError;
 
+        /**
+         * 构造恢复结果对象。
+         *
+         * @param action 恢复动作
+         * @param strategy 恢复策略
+         * @param error 当前错误
+         * @param fallbackTool 兜底工具
+         * @param fallbackOutput 兜底输出
+         * @param originalError 原始错误
+         */
         private StepFailureRecoveryResult(Action action,
                                           RecoveryStrategy strategy,
                                           Throwable error,
@@ -196,6 +243,14 @@ public class StepFailureRecoveryService {
             this.originalError = originalError;
         }
 
+        /**
+         * 根据恢复策略映射为恢复结果。
+         *
+         * @param strategy 恢复策略
+         * @param error 错误信息
+         * @param fallbackTool 兜底工具
+         * @return 恢复结果
+         */
         public static StepFailureRecoveryResult fromStrategy(RecoveryStrategy strategy,
                                                              Throwable error,
                                                              String fallbackTool) {
@@ -208,12 +263,29 @@ public class StepFailureRecoveryService {
             return new StepFailureRecoveryResult(action, strategy, error, fallbackTool, null, error);
         }
 
+        /**
+         * 构建停止恢复结果。
+         *
+         * @param strategy 恢复策略
+         * @param error 错误信息
+         * @param fallbackTool 兜底工具
+         * @return 停止结果
+         */
         public static StepFailureRecoveryResult stop(RecoveryStrategy strategy,
                                                      Throwable error,
                                                      String fallbackTool) {
             return new StepFailureRecoveryResult(Action.STOP, strategy, error, fallbackTool, null, error);
         }
 
+        /**
+         * 构建兜底成功恢复结果。
+         *
+         * @param strategy 恢复策略
+         * @param fallbackTool 兜底工具
+         * @param output 兜底输出
+         * @param originalError 原始错误
+         * @return 兜底成功结果
+         */
         public static StepFailureRecoveryResult fallbackSuccess(RecoveryStrategy strategy,
                                                                 String fallbackTool,
                                                                 StepExecutionOutput output,
@@ -228,26 +300,32 @@ public class StepFailureRecoveryService {
             );
         }
 
+        /** @return 恢复动作 */
         public Action getAction() {
             return action;
         }
 
+        /** @return 恢复策略 */
         public RecoveryStrategy getStrategy() {
             return strategy;
         }
 
+        /** @return 错误信息 */
         public Throwable getError() {
             return error;
         }
 
+        /** @return 兜底工具名称 */
         public String getFallbackTool() {
             return fallbackTool;
         }
 
+        /** @return 兜底输出 */
         public StepExecutionOutput getFallbackOutput() {
             return fallbackOutput;
         }
 
+        /** @return 原始错误 */
         public Throwable getOriginalError() {
             return originalError;
         }

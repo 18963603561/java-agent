@@ -4,6 +4,7 @@ import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.Map;
@@ -58,6 +59,7 @@ public class DefaultModelProvider implements ModelProvider {
      * @param requestBodyBuilder 请求体构造器
      * @param messageBuilder 消息构造器
      */
+    @Autowired
     public DefaultModelProvider(ProviderRouter providerRouter,
                                 LocalFallbackStrategy localFallbackStrategy,
                                 ModelRequestBodyBuilder requestBodyBuilder,

@@ -2,7 +2,6 @@ package com.example.agent.runtime.engine;
 
 import com.example.agent.runtime.model.StepResult;
 import com.example.agent.runtime.model.StepSpec;
-import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.output.OutputKeys;
 import com.example.agent.runtime.raw.output.RawOutputEnvelope;
 import com.example.agent.runtime.raw.output.RawOutputEnvelopeBuilder;
@@ -17,22 +16,31 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * 说明：此处注释已修复。
+ * 运行时上下文更新服务。
+ * <p>负责合并步骤输入、回写最近步骤状态、维护步骤简表与原始输出引用，保证上下文可用于后续步骤与规划。</p>
  */
 @Service
 public class RuntimeContextUpdateService {
 
-    /**
-     * 说明：此处注释已修复。
-     */
+    /** 原始输出封装构建器，用于裁剪并提取 rawRef。 */
     private final RawOutputEnvelopeBuilder rawOutputEnvelopeBuilder;
 
+    /**
+     * 构造运行时上下文更新服务。
+     *
+     * @param rawOutputEnvelopeBuilder 原始输出封装构建器
+     */
     public RuntimeContextUpdateService(RawOutputEnvelopeBuilder rawOutputEnvelopeBuilder) {
         this.rawOutputEnvelopeBuilder = rawOutputEnvelopeBuilder;
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 合并步骤输入。
+     * <p>先复制运行时上下文扩展字段，再叠加步骤输入，后者优先级更高。</p>
+     *
+     * @param step 步骤定义
+     * @param runtimeContext 运行时上下文
+     * @return 合并后的输入参数
      */
     public Map<String, Object> mergeStepInput(StepSpec step, RuntimeContext runtimeContext) {
         Map<String, Object> merged = new HashMap<>();
@@ -47,14 +55,21 @@ public class RuntimeContextUpdateService {
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 解析步骤输入（不带运行时上下文）。
+     *
+     * @param step 步骤定义
+     * @return 步骤输入，空时返回 null
      */
     public Map<String, Object> resolveStepInput(StepSpec step) {
         return resolveStepInput(step, null);
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 解析步骤输入（带运行时上下文）。
+     *
+     * @param step 步骤定义
+     * @param runtimeContext 运行时上下文
+     * @return 可执行输入参数，空时返回 null
      */
     public Map<String, Object> resolveStepInput(StepSpec step, RuntimeContext runtimeContext) {
         if (step == null) {
@@ -65,7 +80,12 @@ public class RuntimeContextUpdateService {
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 回写步骤执行结果到运行时上下文。
+     * <p>包含最近步骤元数据、原始输出摘要/引用和步骤简表维护。</p>
+     *
+     * @param runtimeContext 运行时上下文
+     * @param record 当前步骤记录
+     * @param output 当前步骤输出
      */
     public void updateRuntimeContext(RuntimeContext runtimeContext,
                                      StepRecord record,
@@ -102,7 +122,13 @@ public class RuntimeContextUpdateService {
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 在上下文中追加步骤简表条目。
+     * <p>仅保留最近 20 条，避免上下文无限增长。</p>
+     *
+     * @param runtimeContext 运行时上下文
+     * @param record 步骤记录
+     * @param output 步骤输出
+     * @param rawEnvelope 原始输出封装
      */
     public void appendExecutedSteps(RuntimeContext runtimeContext,
                                     StepRecord record,
@@ -172,7 +198,10 @@ public class RuntimeContextUpdateService {
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 将步骤输出记录到列表中。
+     *
+     * @param stepOutputs 步骤输出集合
+     * @param record 步骤记录
      */
     public void recordStepOutput(List<StepResult> stepOutputs, StepRecord record) {
         if (stepOutputs == null || record == null || record.getOutput() == null) {
@@ -182,7 +211,10 @@ public class RuntimeContextUpdateService {
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 构建步骤原始输出封装。
+     *
+     * @param output 原始输出
+     * @return 标准化封装对象，永不返回 null
      */
     public RawOutputEnvelope buildStepRawEnvelope(Map<String, Object> output) {
         if (output == null || output.isEmpty()) {
@@ -193,7 +225,11 @@ public class RuntimeContextUpdateService {
     }
 
     /**
-     * 说明：此处注释已修复。
+     * 截断文本长度。
+     *
+     * @param text 原始文本
+     * @param maxChars 最大字符数
+     * @return 截断后的文本
      */
     public String truncateText(String text, int maxChars) {
         if (!StringUtils.hasText(text) || maxChars <= 0 || text.length() <= maxChars) {
