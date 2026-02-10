@@ -5,10 +5,7 @@ import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.prompt.PromptTrace;
-import com.example.agent.capabilities.llm.provider.ModelDefinition;
-import com.example.agent.capabilities.llm.provider.ModelRouter;
 import com.example.agent.capabilities.llm.provider.ProviderErrorMapper;
-import com.example.agent.capabilities.llm.support.ValidationSupport;
 import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.security.auth.TenantContext;
 import java.util.Map;
@@ -32,30 +29,27 @@ public class ModelInvocationService {
     private static final Logger log = LoggerFactory.getLogger(ModelInvocationService.class);
 
     private final LlmClient llmClient;
-    private final ModelRouter modelRouter;
-    private final ValidationSupport validationSupport;
+    private final ModelInvocationContextFactory invocationContextFactory;
+    private final ModelInvocationTelemetry invocationTelemetry;
     private final ProviderErrorMapper providerErrorMapper;
     private final RawRefAttachmentService rawRefAttachmentService;
     private final LlmEventPublisher llmEventPublisher;
-    private final LlmFailureRecorder llmFailureRecorder;
 
     @Value("${agent.llm.event.publish-enabled:true}")
     private boolean llmEventPublishEnabled;
 
     public ModelInvocationService(LlmClient llmClient,
-                                  ModelRouter modelRouter,
-                                  ValidationSupport validationSupport,
+                                  ModelInvocationContextFactory invocationContextFactory,
+                                  ModelInvocationTelemetry invocationTelemetry,
                                   ProviderErrorMapper providerErrorMapper,
                                   RawRefAttachmentService rawRefAttachmentService,
-                                  LlmEventPublisher llmEventPublisher,
-                                  LlmFailureRecorder llmFailureRecorder) {
+                                  LlmEventPublisher llmEventPublisher) {
         this.llmClient = llmClient;
-        this.modelRouter = modelRouter;
-        this.validationSupport = validationSupport;
+        this.invocationContextFactory = invocationContextFactory;
+        this.invocationTelemetry = invocationTelemetry;
         this.providerErrorMapper = providerErrorMapper;
         this.rawRefAttachmentService = rawRefAttachmentService;
         this.llmEventPublisher = llmEventPublisher;
-        this.llmFailureRecorder = llmFailureRecorder;
     }
 
     /**
@@ -77,118 +71,55 @@ public class ModelInvocationService {
                                 AtomicLong seqCounter,
                                 String phase,
                                 Map<String, Object> metadata) {
-        ModelScene resolvedScene = scene != null ? scene : ModelScene.CHEAP;
-        String resolvedPhase = validationSupport.normalizeText(phase, "unknown");
-        ModelRequest safeRequest = request != null ? request : new ModelRequest();
-        safeRequest.setScene(resolvedScene);
-        ModelDefinition definition = modelRouter.route(resolvedScene);
-        String modelId = definition != null ? definition.getModelId() : null;
-        String provider = definition != null ? definition.getProvider() : null;
-        String traceId = tenantContext != null ? tenantContext.getTraceId() : null;
-
-        Map<String, Object> runtimeMetadata = metadata != null ? new java.util.LinkedHashMap<>(metadata)
-                : new java.util.LinkedHashMap<>();
-        runtimeMetadata.putIfAbsent("scene", resolvedScene.name());
-        if (provider != null && !provider.isBlank()) {
-            runtimeMetadata.putIfAbsent("provider", provider);
-        }
-        String promptScene = resolvePromptScene(resolvedPhase, runtimeMetadata);
-        PromptTrace trace = PromptTrace.fromPrompt(promptScene, safeRequest.getPrompt());
-        runtimeMetadata.put("promptTrace", trace);
-
-        llmEventPublisher.publishPromptEvent(llmEventPublishEnabled,
+        ModelInvocationContext invocationContext = invocationContextFactory.create(
+                request,
+                scene,
+                phase,
+                tenantContext,
+                metadata);
+        invocationTelemetry.publishPromptEvent(
+                llmEventPublishEnabled,
                 tenantContext,
                 workflowId,
                 seqCounter,
-                resolvedPhase,
-                modelId,
-                safeRequest,
-                runtimeMetadata);
+                invocationContext);
 
-        long startNs = System.nanoTime();
         try {
             log.info("模型调用开始, tenantId={}, workflowId={}, scene={}, modelId={}, phase={}",
                     tenantContext != null ? tenantContext.getTenantId() : null,
                     workflowId,
-                    resolvedScene,
-                    modelId,
-                    resolvedPhase);
-            ModelResponse response = llmClient.generate(safeRequest);
-            rawRefAttachmentService.attach(response, resolvedScene, resolvedPhase);
-            LlmExecutionResult executionResult = LlmExecutionResult.success(
-                    traceId,
-                    resolvedScene.name(),
-                    workflowId,
-                    provider,
-                    response);
-            llmEventPublisher.publishParseEvent(llmEventPublishEnabled,
+                    invocationContext.getScene(),
+                    invocationContext.getModelId(),
+                    invocationContext.getPhase());
+            ModelResponse response = llmClient.generate(invocationContext.getRequest());
+            rawRefAttachmentService.attach(response, invocationContext.getScene(), invocationContext.getPhase());
+            invocationTelemetry.publishSuccess(
+                    llmEventPublishEnabled,
                     tenantContext,
                     workflowId,
                     seqCounter,
-                    resolvedPhase,
-                    executionResult,
-                    runtimeMetadata);
-            log.info("模型调用完成, tenantId={}, workflowId={}, scene={}, modelId={}, phase={}, latencyMs={}",
-                    tenantContext != null ? tenantContext.getTenantId() : null,
-                    workflowId,
-                    resolvedScene,
-                    response != null ? response.getModelId() : modelId,
-                    resolvedPhase,
-                    (System.nanoTime() - startNs) / 1_000_000);
+                    invocationContext,
+                    response);
             return response;
         } catch (ErrorCodeException ex) {
-            LlmExecutionResult executionResult = llmFailureRecorder.buildFailureResult(traceId,
-                    workflowId,
-                    resolvedScene,
-                    provider,
-                    modelId,
-                    ex);
-            llmEventPublisher.publishParseEvent(llmEventPublishEnabled,
+            invocationTelemetry.publishFailure(
+                    llmEventPublishEnabled,
                     tenantContext,
                     workflowId,
                     seqCounter,
-                    resolvedPhase,
-                    executionResult,
-                    runtimeMetadata);
-            boolean retriable = executionResult.getFailure() != null && executionResult.getFailure().isRetriable();
-            log.error("模型调用失败, tenantId={}, workflowId={}, scene={}, phase={}, traceId={}, provider={}, modelId={}, errorCode={}, retriable={}",
-                    tenantContext != null ? tenantContext.getTenantId() : null,
-                    workflowId,
-                    resolvedScene,
-                    resolvedPhase,
-                    traceId,
-                    provider,
-                    modelId,
-                    ex.getErrorCode(),
-                    retriable,
+                    invocationContext,
+                    ex,
                     ex);
             throw ex;
         } catch (Exception ex) {
             ErrorCodeException mapped = providerErrorMapper.mapThrowable(ex);
-            LlmExecutionResult executionResult = llmFailureRecorder.buildFailureResult(traceId,
-                    workflowId,
-                    resolvedScene,
-                    provider,
-                    modelId,
-                    mapped);
-            llmEventPublisher.publishParseEvent(llmEventPublishEnabled,
+            invocationTelemetry.publishFailure(
+                    llmEventPublishEnabled,
                     tenantContext,
                     workflowId,
                     seqCounter,
-                    resolvedPhase,
-                    executionResult,
-                    runtimeMetadata);
-            boolean retriable = executionResult.getFailure() != null && executionResult.getFailure().isRetriable();
-            log.error("模型调用异常, tenantId={}, workflowId={}, scene={}, phase={}, traceId={}, provider={}, modelId={}, errorCode={}, retriable={}",
-                    tenantContext != null ? tenantContext.getTenantId() : null,
-                    workflowId,
-                    resolvedScene,
-                    resolvedPhase,
-                    traceId,
-                    provider,
-                    modelId,
-                    mapped.getErrorCode(),
-                    retriable,
+                    invocationContext,
+                    mapped,
                     ex);
             throw mapped;
         }
@@ -257,29 +188,4 @@ public class ModelInvocationService {
                 phase,
                 modelId);
     }
-
-    private String resolvePromptScene(String phase, Map<String, Object> metadata) {
-        if (metadata != null) {
-            Object value = metadata.get("promptScene");
-            if (value instanceof String scene && !scene.isBlank()) {
-                return scene.trim();
-            }
-        }
-        if (phase == null) {
-            return "unknown";
-        }
-        return switch (phase) {
-            case "plan" -> "planner";
-            case "reflect" -> "reflect";
-            case "finalize" -> "final";
-            case "react_think" -> "react";
-            case "cot" -> "cot";
-            case "research" -> "research";
-            case "debate" -> "debate";
-            case "multi_agent" -> "multiagent";
-            case "json_repair" -> "repair";
-            default -> phase;
-        };
-    }
 }
-

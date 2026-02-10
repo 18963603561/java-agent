@@ -2,7 +2,6 @@ package com.example.agent.capabilities.llm.provider;
 
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
-import com.example.agent.capabilities.llm.prompt.PromptMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
@@ -36,6 +35,7 @@ public class DefaultModelProvider implements ModelProvider {
      * 请求体构造器（保留公开方法兼容测试与调用方）。
      */
     private final ModelRequestBodyBuilder requestBodyBuilder;
+    private final ModelMessageBuilder messageBuilder;
 
     /**
      * 构造协调器。
@@ -47,9 +47,25 @@ public class DefaultModelProvider implements ModelProvider {
     public DefaultModelProvider(ProviderRouter providerRouter,
                                 LocalFallbackStrategy localFallbackStrategy,
                                 ModelRequestBodyBuilder requestBodyBuilder) {
+        this(providerRouter, localFallbackStrategy, requestBodyBuilder, new ModelMessageBuilder());
+    }
+
+    /**
+     * 构造协调器。
+     *
+     * @param providerRouter 提供商路由器
+     * @param localFallbackStrategy 本地兜底策略
+     * @param requestBodyBuilder 请求体构造器
+     * @param messageBuilder 消息构造器
+     */
+    public DefaultModelProvider(ProviderRouter providerRouter,
+                                LocalFallbackStrategy localFallbackStrategy,
+                                ModelRequestBodyBuilder requestBodyBuilder,
+                                ModelMessageBuilder messageBuilder) {
         this.providerRouter = providerRouter;
         this.localFallbackStrategy = localFallbackStrategy;
         this.requestBodyBuilder = requestBodyBuilder;
+        this.messageBuilder = messageBuilder;
     }
 
     /**
@@ -102,41 +118,14 @@ public class DefaultModelProvider implements ModelProvider {
      * @return 模型响应
      */
     private ModelResponse invokeLocal(ModelDefinition definition, ModelRequest request) {
-        String prompt = resolvePrompt(request);
+        String prompt = messageBuilder.resolvePrompt(
+                request != null ? request.getPrompt() : null,
+                request != null ? request.getMessages() : null);
         String modelId = definition != null ? definition.getModelId() : "local";
         int inputTokens = prompt != null ? prompt.length() : 0;
         String content = localFallbackStrategy.buildResponse(request);
         int outputTokens = content.length();
         log.info("本地兜底调用完成, modelId={}, inputTokens={}, outputTokens={}", modelId, inputTokens, outputTokens);
         return new ModelResponse(modelId, content, inputTokens, outputTokens);
-    }
-
-    /**
-     * 解析请求中的提示词文本。
-     *
-     * @param request 模型请求
-     * @return 提示词文本
-     */
-    private String resolvePrompt(ModelRequest request) {
-        if (request == null) {
-            return null;
-        }
-        if (request.getPrompt() != null) {
-            return request.getPrompt();
-        }
-        if (request.getMessages() == null || request.getMessages().isEmpty()) {
-            return null;
-        }
-        StringBuilder builder = new StringBuilder();
-        for (PromptMessage message : request.getMessages()) {
-            if (message == null) {
-                continue;
-            }
-            builder.append(message.getRole() != null ? message.getRole().name() : "USER");
-            builder.append(":");
-            builder.append(message.getContent() == null ? "" : message.getContent());
-            builder.append("\n");
-        }
-        return builder.toString().trim();
     }
 }

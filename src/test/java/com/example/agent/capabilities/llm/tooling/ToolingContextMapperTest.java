@@ -1,6 +1,8 @@
 package com.example.agent.capabilities.llm.tooling;
 
 import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.capabilities.llm.contract.LlmTaskContext;
+import com.example.agent.capabilities.llm.contract.LlmTaskContextMapper;
 import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.capabilities.llm.tooling.ModelToolingContext;
 import com.example.agent.capabilities.llm.tooling.SkillToolPolicy;
@@ -40,7 +42,8 @@ class ToolingContextMapperTest {
                 "disableTools", false
         );
 
-        ModelToolingContext context = mapper.toToolingContext(taskRequest, stepInput);
+        LlmTaskContext taskContext = LlmTaskContextMapper.fromTaskRequest(taskRequest);
+        ModelToolingContext context = mapper.toToolingContext(taskContext, stepInput);
 
         assertEquals("tenant-from-step", context.getTenantId());
         assertEquals("step-skill", context.getSkillName());
@@ -55,7 +58,8 @@ class ToolingContextMapperTest {
                 "context", Map.of("disableTools", "true")
         );
 
-        ModelToolingContext context = mapper.toToolingContext(new TaskRequest(), stepInput);
+        LlmTaskContext taskContext = LlmTaskContextMapper.fromTaskRequest(new TaskRequest());
+        ModelToolingContext context = mapper.toToolingContext(taskContext, stepInput);
 
         assertTrue(context.isDisableTools());
     }

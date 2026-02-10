@@ -3,6 +3,7 @@ package com.example.agent.reasoning.cot;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.contract.LlmTaskContext;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
@@ -576,7 +577,7 @@ public class ChainOfThoughtService implements ReasoningStrategy {
         if (promptAssembler == null || request == null) {
             return;
         }
-        PromptBundle bundle = promptAssembler.build(prompt, null, input);
+        PromptBundle bundle = promptAssembler.build(prompt, LlmTaskContext.empty(), input);
         if (bundle != null && bundle.getMessages() != null) {
             request.setMessages(bundle.getMessages());
         }

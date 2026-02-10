@@ -18,6 +18,7 @@ import com.example.agent.planning.parser.PlanParseErrorTypes;
 import com.example.agent.planning.parser.PlanParseResult;
 import com.example.agent.planning.parser.PlanParser;
 import com.example.agent.planning.telemetry.PlanTelemetry;
+import com.example.agent.capabilities.llm.contract.LlmTaskContextMapper;
 import com.example.agent.security.auth.TenantContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.HashMap;
@@ -124,7 +125,11 @@ public class LlmPlanEngine {
                     System.currentTimeMillis() - bundleStart);
 
             long toolBindStart = System.currentTimeMillis();
-            modelToolResolver.applyTooling(modelRequest, request, null, true);
+            modelToolResolver.applyTooling(
+                    modelRequest,
+                    LlmTaskContextMapper.fromTaskRequest(request),
+                    null,
+                    true);
             log.debug("规划工具绑定完成, tenantId={}, workflowId={}, planId={}, costMs={}",
                     tenantId,
                     workflowId,

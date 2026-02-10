@@ -14,6 +14,7 @@ import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.capabilities.memory.write.MemoryWriteService;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.contract.LlmTaskContextMapper;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
@@ -198,7 +199,10 @@ public class ReactLoopService {
         String prompt = buildThinkPrompt(request, iteration, observations);
         ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.PLANNER);
         applyPromptBundle(modelRequest, prompt, request, null);
-        modelToolResolver.applyTooling(modelRequest, request, null);
+        modelToolResolver.applyTooling(
+                modelRequest,
+                LlmTaskContextMapper.fromTaskRequest(request),
+                null);
         Map<String, Object> metadata = new HashMap<>();
         metadata.put("iteration", iteration);
         metadata.put("promptScene", "react");
@@ -725,7 +729,10 @@ public class ReactLoopService {
         if (promptAssembler == null || modelRequest == null) {
             return;
         }
-        PromptBundle bundle = promptAssembler.build(prompt, request, stepInput);
+        PromptBundle bundle = promptAssembler.build(
+                prompt,
+                LlmTaskContextMapper.fromTaskRequest(request),
+                stepInput);
         if (bundle != null && bundle.getMessages() != null) {
             modelRequest.setMessages(bundle.getMessages());
         }

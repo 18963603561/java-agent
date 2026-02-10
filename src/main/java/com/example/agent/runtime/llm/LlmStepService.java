@@ -2,6 +2,7 @@ package com.example.agent.runtime.llm;
 
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.contract.LlmTaskContextMapper;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
@@ -179,7 +180,10 @@ public class LlmStepService {
 
         ModelRequest decisionRequest = new ModelRequest();
         decisionRequest.setScene(ModelScene.LLM_STEP);
-        modelToolResolver.applyTooling(decisionRequest, request, stepInput);
+        modelToolResolver.applyTooling(
+                decisionRequest,
+                LlmTaskContextMapper.fromTaskRequest(request),
+                stepInput);
 
         Map<String, Object> contextPayload = llmDecisionService.buildDecisionContext(
                 query,

@@ -1,6 +1,8 @@
 package com.example.agent.capabilities.llm.client;
 
 import com.example.agent.capabilities.llm.client.LlmClient;
+import com.example.agent.capabilities.llm.client.ModelInvocationContextFactory;
+import com.example.agent.capabilities.llm.client.ModelInvocationTelemetry;
 import com.example.agent.capabilities.llm.client.LlmEventPublisher;
 import com.example.agent.capabilities.llm.client.LlmFailureRecorder;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
@@ -287,14 +289,19 @@ class ModelInvocationServiceTest {
                 new LlmEventPayloadMapper());
         RawRefAttachmentService rawRefAttachmentService = new RawRefAttachmentService(rawStoreProvider);
         LlmFailureRecorder llmFailureRecorder = new LlmFailureRecorder(new ProviderErrorMapper(), metricsPublisherProvider);
-        return new ModelInvocationService(
-                llmClient,
+        ModelInvocationContextFactory invocationContextFactory = new ModelInvocationContextFactory(
                 modelRouter,
-                new ValidationSupport(),
-                new ProviderErrorMapper(),
-                rawRefAttachmentService,
+                new ValidationSupport());
+        ModelInvocationTelemetry invocationTelemetry = new ModelInvocationTelemetry(
                 llmEventPublisher,
                 llmFailureRecorder);
+        return new ModelInvocationService(
+                llmClient,
+                invocationContextFactory,
+                invocationTelemetry,
+                new ProviderErrorMapper(),
+                rawRefAttachmentService,
+                llmEventPublisher);
     }
 }
 

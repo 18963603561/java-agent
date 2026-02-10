@@ -113,6 +113,9 @@ class PromptTrimEngine {
     }
 
     private int resolvePromptBudgetTokens(ContextBudgetAllocation allocation) {
+        if (allocation == null) {
+            return 0;
+        }
         if (!allocation.isAllocationEnabled()) {
             return 0;
         }
@@ -272,6 +275,5 @@ class PromptTrimEngine {
     private record TrimOutcome(String text, int tokensReduced, boolean trimmed) {
     }
 }
-
 
 

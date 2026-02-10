@@ -1,6 +1,7 @@
 package com.example.agent.orchestration.multiagent;
 
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.contract.LlmTaskContext;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
@@ -63,7 +64,10 @@ public class MultiAgentCoordinator {
         String prompt = promptBuilder.buildPrompt(inputSummary);
         ModelRequest request = new ModelRequest(prompt, ModelScene.PLANNER);
         promptBuilder.applyPromptBundle(request, prompt, inputSummary);
-        modelToolResolver.applyTooling(request, null, step != null ? step.toExecutionInput() : null);
+        modelToolResolver.applyTooling(
+                request,
+                LlmTaskContext.empty(),
+                step != null ? step.toExecutionInput() : null);
 
         Map<String, Object> metadata = inputSummaryBuilder.buildMetadata(step);
         ModelResponse response = modelInvocationService.invoke(

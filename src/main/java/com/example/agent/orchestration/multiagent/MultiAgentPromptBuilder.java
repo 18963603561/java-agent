@@ -1,6 +1,7 @@
 package com.example.agent.orchestration.multiagent;
 
 import com.example.agent.capabilities.llm.contract.ModelRequest;
+import com.example.agent.capabilities.llm.contract.LlmTaskContext;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.prompt.PromptBundle;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -76,10 +77,9 @@ public class MultiAgentPromptBuilder {
         if (promptAssembler == null || request == null) {
             return;
         }
-        PromptBundle bundle = promptAssembler.build(prompt, null, inputSummary);
+        PromptBundle bundle = promptAssembler.build(prompt, LlmTaskContext.empty(), inputSummary);
         if (bundle != null && bundle.getMessages() != null) {
             request.setMessages(bundle.getMessages());
         }
     }
 }
-

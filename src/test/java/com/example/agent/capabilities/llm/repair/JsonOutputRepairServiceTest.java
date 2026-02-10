@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.llm.repair;
 
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.contract.LlmTaskContext;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
@@ -19,6 +20,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.isA;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -115,7 +117,7 @@ class JsonOutputRepairServiceTest {
         PromptBundle bundle = new PromptBundle();
         bundle.setMessages(java.util.List.of(new com.example.agent.capabilities.llm.prompt.PromptMessage(
                 com.example.agent.capabilities.llm.prompt.PromptRole.USER, "assembled")));
-        when(promptAssembler.build(any(), eq(null), eq(null))).thenReturn(bundle);
+        when(promptAssembler.build(any(), isA(LlmTaskContext.class), eq(null))).thenReturn(bundle);
         when(invocationService.invoke(any(ModelRequest.class), eq(com.example.agent.capabilities.llm.contract.ModelScene.CHEAP),
                 eq(null), eq(null), eq(null), eq("json_repair"), any()))
                 .thenReturn(new ModelResponse("repair", "{\"ok\":true}", 1, 1));
@@ -125,7 +127,7 @@ class JsonOutputRepairServiceTest {
                 Map.of("x", 1).toString(), 1));
 
         assertEquals("{\"ok\":true}", repaired);
-        verify(promptAssembler, times(1)).build(any(), eq(null), eq(null));
+        verify(promptAssembler, times(1)).build(any(), isA(LlmTaskContext.class), eq(null));
     }
 }
 

@@ -4,6 +4,7 @@ import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.model.RoleBoundary;
 import com.example.agent.capabilities.context.model.RuntimeMeta;
+import com.example.agent.capabilities.llm.contract.LlmTaskContextMapper;
 import com.example.agent.capabilities.llm.support.ValidationSupport;
 import java.util.HashMap;
 import java.util.List;
@@ -43,7 +44,7 @@ class DefaultPromptAssemblerLegacyPathNoLeakTest {
         request.setQuery("测试");
         request.setContext(context);
 
-        PromptBundle bundle = assembler.build("用户提示", request, null);
+        PromptBundle bundle = assembler.build("用户提示", LlmTaskContextMapper.fromTaskRequest(request), null);
         assertNotNull(bundle);
         List<PromptMessage> messages = bundle.getMessages();
 

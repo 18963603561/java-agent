@@ -3,6 +3,7 @@ package com.example.agent.runtime.output;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.contract.LlmTaskContextMapper;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
@@ -515,7 +516,10 @@ public class FinalOutputService {
         if (promptAssembler == null || request == null) {
             return;
         }
-        PromptBundle bundle = promptAssembler.build(prompt, taskRequest, null);
+        PromptBundle bundle = promptAssembler.build(
+                prompt,
+                LlmTaskContextMapper.fromTaskRequest(taskRequest),
+                null);
         if (bundle != null && bundle.getMessages() != null) {
             request.setMessages(bundle.getMessages());
         }
@@ -526,4 +530,3 @@ public class FinalOutputService {
         private String summary;
     }
 }
-

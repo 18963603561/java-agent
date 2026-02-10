@@ -2,6 +2,7 @@ package com.example.agent.runtime.llm;
 
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.contract.LlmTaskContextMapper;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
@@ -243,7 +244,10 @@ public class ToolSummaryService {
         if (promptAssembler == null || request == null) {
             return;
         }
-        PromptBundle bundle = promptAssembler.build(prompt, taskRequest, stepInput);
+        PromptBundle bundle = promptAssembler.build(
+                prompt,
+                LlmTaskContextMapper.fromTaskRequest(taskRequest),
+                stepInput);
         if (bundle != null && bundle.getMessages() != null) {
             request.setMessages(bundle.getMessages());
         }

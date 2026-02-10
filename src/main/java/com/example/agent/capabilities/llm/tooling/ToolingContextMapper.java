@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.llm.tooling;
 
-import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
+import com.example.agent.capabilities.llm.contract.LlmTaskContext;
 import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.capabilities.tools.skill.SkillDefinition;
 import com.example.agent.capabilities.tools.skill.SkillRoute;
@@ -24,17 +24,17 @@ import org.springframework.util.StringUtils;
 public class ToolingContextMapper {
 
     /**
-     * 从任务请求与步骤输入映射工具治理上下文。
+     * 从任务上下文与步骤输入映射工具治理上下文。
      *
-     * @param taskRequest 任务请求
+     * @param taskContext LLM 任务上下文
      * @param stepInput 步骤输入
      * @return 工具治理上下文
      */
-    public ModelToolingContext toToolingContext(TaskRequest taskRequest, Map<String, Object> stepInput) {
-        String tenantId = resolveTenantId(taskRequest, stepInput);
-        String skillName = resolveSkillName(taskRequest, stepInput);
-        ModelToolChoice toolChoice = resolveToolChoice(taskRequest, stepInput);
-        boolean disableTools = resolveDisableTools(taskRequest, stepInput)
+    public ModelToolingContext toToolingContext(LlmTaskContext taskContext, Map<String, Object> stepInput) {
+        String tenantId = resolveTenantId(taskContext, stepInput);
+        String skillName = resolveSkillName(taskContext, stepInput);
+        ModelToolChoice toolChoice = resolveToolChoice(taskContext, stepInput);
+        boolean disableTools = resolveDisableTools(taskContext, stepInput)
                 || (toolChoice != null && toolChoice.getMode() == ModelToolChoice.Mode.NONE);
         return new ModelToolingContext(tenantId, skillName, toolChoice, disableTools);
     }
@@ -55,17 +55,17 @@ public class ToolingContextMapper {
         return new ToolingConstraints(policy);
     }
 
-    private String resolveTenantId(TaskRequest taskRequest, Map<String, Object> stepInput) {
+    private String resolveTenantId(LlmTaskContext taskContext, Map<String, Object> stepInput) {
         String fromStep = asText(stepInput != null ? stepInput.get("tenantId") : null);
         if (StringUtils.hasText(fromStep)) {
             return fromStep;
         }
-        return asText(taskRequest != null && taskRequest.getContext() != null
-                ? taskRequest.getContext().get("tenantId")
+        return asText(taskContext != null && taskContext.getContext() != null
+                ? taskContext.getContext().get("tenantId")
                 : null);
     }
 
-    private String resolveSkillName(TaskRequest taskRequest, Map<String, Object> stepInput) {
+    private String resolveSkillName(LlmTaskContext taskContext, Map<String, Object> stepInput) {
         String fromStep = asText(stepInput != null ? stepInput.get("skill") : null);
         if (!StringUtils.hasText(fromStep)) {
             fromStep = asText(stepInput != null ? stepInput.get("skillName") : null);
@@ -73,10 +73,10 @@ public class ToolingContextMapper {
         if (StringUtils.hasText(fromStep)) {
             return fromStep;
         }
-        return taskRequest != null ? taskRequest.getSkillName() : null;
+        return taskContext != null ? taskContext.getSkillName() : null;
     }
 
-    private ModelToolChoice resolveToolChoice(TaskRequest taskRequest, Map<String, Object> stepInput) {
+    private ModelToolChoice resolveToolChoice(LlmTaskContext taskContext, Map<String, Object> stepInput) {
         ModelToolChoice fromStep = ModelToolChoice.fromRaw(
                 stepInput != null ? stepInput.get(ContextRuntimeKeys.TOOL_CHOICE) : null);
         if (fromStep != null) {
@@ -88,24 +88,24 @@ public class ToolingContextMapper {
                 return fromContext;
             }
         }
-        if (taskRequest != null) {
-            if (taskRequest.getToolChoice() != null) {
-                return taskRequest.getToolChoice();
+        if (taskContext != null) {
+            if (taskContext.getToolChoice() != null) {
+                return taskContext.getToolChoice();
             }
-            if (taskRequest.getContext() != null) {
-                return ModelToolChoice.fromRaw(taskRequest.getContext().get(ContextRuntimeKeys.TOOL_CHOICE));
+            if (taskContext.getContext() != null) {
+                return ModelToolChoice.fromRaw(taskContext.getContext().get(ContextRuntimeKeys.TOOL_CHOICE));
             }
         }
         return null;
     }
 
-    private boolean resolveDisableTools(TaskRequest taskRequest, Map<String, Object> stepInput) {
+    private boolean resolveDisableTools(LlmTaskContext taskContext, Map<String, Object> stepInput) {
         Object disableFromStep = resolveDisableToolsValue(stepInput);
         if (isTruthy(disableFromStep)) {
             return true;
         }
-        if (taskRequest != null && taskRequest.getContext() != null) {
-            return isTruthy(taskRequest.getContext().get("disableTools"));
+        if (taskContext != null && taskContext.getContext() != null) {
+            return isTruthy(taskContext.getContext().get("disableTools"));
         }
         return false;
     }

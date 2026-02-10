@@ -1,6 +1,7 @@
 package com.example.agent.reflection.strategy;
 
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.capabilities.llm.contract.LlmTaskContext;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
@@ -60,7 +61,7 @@ public class ReflectionLlmInvocationExecutor {
         String prompt = reflectionPromptProvider.buildPrompt(context != null ? context.getReflectionContext() : null);
         ModelRequest modelRequest = new ModelRequest(prompt, ModelScene.REFLECT);
         applyPromptBundle(modelRequest, prompt, context);
-        modelToolResolver.applyTooling(modelRequest, null,
+        modelToolResolver.applyTooling(modelRequest, LlmTaskContext.empty(),
                 context != null && context.getStep() != null ? context.getStep().toExecutionInput() : null);
 
         Map<String, Object> metadata = buildInvocationMetadata(context);
@@ -95,10 +96,9 @@ public class ReflectionLlmInvocationExecutor {
         Map<String, Object> input = context != null && context.getStep() != null
                 ? context.getStep().toExecutionInput()
                 : null;
-        PromptBundle bundle = promptAssembler.build(prompt, null, input);
+        PromptBundle bundle = promptAssembler.build(prompt, LlmTaskContext.empty(), input);
         if (bundle != null && bundle.getMessages() != null) {
             modelRequest.setMessages(bundle.getMessages());
         }
     }
 }
-

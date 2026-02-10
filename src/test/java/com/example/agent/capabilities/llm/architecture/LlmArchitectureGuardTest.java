@@ -93,6 +93,14 @@ class LlmArchitectureGuardTest {
     }
 
     @Test
+    void promptAndToolingShouldNotDependOnTaskRequestDto() throws IOException {
+        List<String> violations = new ArrayList<>();
+        collectTaskRequestImportViolations(Path.of("src/main/java/com/example/agent/capabilities/llm/prompt"), violations);
+        collectTaskRequestImportViolations(Path.of("src/main/java/com/example/agent/capabilities/llm/tooling"), violations);
+        assertTrue(violations.isEmpty(), "检测到 prompt/tooling 对 TaskRequest 的直接依赖:\n" + String.join("\n", violations));
+    }
+
+    @Test
     void executionProtocolClassesShouldNotUseMapAsResultCarrier() throws IOException {
         assertFalse(containsResultMapCarrier(
                 Path.of("src/main/java/com/example/agent/capabilities/llm/client/LlmExecutionResult.java")),
@@ -179,6 +187,29 @@ class LlmArchitectureGuardTest {
     private boolean containsResultMapCarrier(Path file) throws IOException {
         String source = Files.readString(file, StandardCharsets.UTF_8);
         return source.contains("Map<String, Object>") || source.contains("Map< String, Object >");
+    }
+
+    private void collectTaskRequestImportViolations(Path root, List<String> violations) throws IOException {
+        if (root == null || !Files.exists(root)) {
+            return;
+        }
+        try (Stream<Path> stream = Files.walk(root)) {
+            stream.filter(path -> path.toString().endsWith(".java"))
+                    .forEach(path -> {
+                        try {
+                            List<String> lines = Files.readAllLines(path, StandardCharsets.UTF_8);
+                            for (int i = 0; i < lines.size(); i++) {
+                                String line = lines.get(i);
+                                if (line != null
+                                        && line.trim().equals("import com.example.agent.api.http.dto.TaskRequest;")) {
+                                    violations.add(path + ":" + (i + 1) + " -> " + line.trim());
+                                }
+                            }
+                        } catch (IOException exception) {
+                            violations.add(path + " -> 读取失败: " + exception.getMessage());
+                        }
+                    });
+        }
     }
 
     private void collectLlmTestLayoutViolations(Path file, List<String> violations) {

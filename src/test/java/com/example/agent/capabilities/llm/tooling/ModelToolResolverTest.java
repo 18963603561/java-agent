@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.llm.tooling;
 
 import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.capabilities.llm.contract.LlmTaskContextMapper;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.capabilities.tools.ToolCatalogService;
@@ -49,7 +50,7 @@ class ModelToolResolverTest {
         when(skillRegistry.listDefinitions()).thenReturn(List.of());
 
         ModelRequest request = new ModelRequest();
-        resolver.applyTooling(request, new TaskRequest(), null);
+        resolver.applyTooling(request, LlmTaskContextMapper.fromTaskRequest(new TaskRequest()), null);
 
         assertNotNull(request.getTools());
         assertEquals(2, request.getTools().size());
@@ -71,7 +72,7 @@ class ModelToolResolverTest {
         taskRequest.setToolChoice(ModelToolChoice.none());
 
         ModelRequest request = new ModelRequest();
-        resolver.applyTooling(request, taskRequest, null);
+        resolver.applyTooling(request, LlmTaskContextMapper.fromTaskRequest(taskRequest), null);
 
         assertNotNull(request.getToolChoice());
         assertEquals(ModelToolChoice.Mode.NONE, request.getToolChoice().getMode());
@@ -92,7 +93,7 @@ class ModelToolResolverTest {
         taskRequest.setContext(Map.of("disableTools", true));
 
         ModelRequest request = new ModelRequest();
-        resolver.applyTooling(request, taskRequest, null);
+        resolver.applyTooling(request, LlmTaskContextMapper.fromTaskRequest(taskRequest), null);
 
         assertNotNull(request.getToolChoice());
         assertEquals(ModelToolChoice.Mode.NONE, request.getToolChoice().getMode());
@@ -126,7 +127,7 @@ class ModelToolResolverTest {
         taskRequest.setSkillName("skill-a");
 
         ModelRequest request = new ModelRequest();
-        resolver.applyTooling(request, taskRequest, null);
+        resolver.applyTooling(request, LlmTaskContextMapper.fromTaskRequest(taskRequest), null);
 
         assertNotNull(request.getTools());
         assertEquals(1, request.getTools().size());
@@ -156,7 +157,7 @@ class ModelToolResolverTest {
         taskRequest.setSkillName("skill-b");
 
         ModelRequest request = new ModelRequest();
-        resolver.applyTooling(request, taskRequest, null);
+        resolver.applyTooling(request, LlmTaskContextMapper.fromTaskRequest(taskRequest), null);
 
         assertNotNull(request.getToolChoice());
         assertEquals(ModelToolChoice.Mode.REQUIRED, request.getToolChoice().getMode());
@@ -184,7 +185,7 @@ class ModelToolResolverTest {
         taskRequest.setToolChoice(ModelToolChoice.specified("tool_b"));
 
         ModelRequest request = new ModelRequest();
-        resolver.applyTooling(request, taskRequest, null);
+        resolver.applyTooling(request, LlmTaskContextMapper.fromTaskRequest(taskRequest), null);
 
         assertNotNull(request.getTools());
         assertEquals(1, request.getTools().size());
@@ -210,7 +211,7 @@ class ModelToolResolverTest {
         when(skillRegistry.listDefinitions()).thenReturn(List.of());
 
         ModelRequest request = new ModelRequest();
-        resolver.applyTooling(request, new TaskRequest(), null);
+        resolver.applyTooling(request, LlmTaskContextMapper.fromTaskRequest(new TaskRequest()), null);
 
         assertNotNull(request.getTools());
         assertNotNull(request.getTools().get(0).getParameters());
@@ -231,7 +232,8 @@ class ModelToolResolverTest {
         TaskRequest taskRequest = new TaskRequest();
         taskRequest.setToolChoice(ModelToolChoice.specified("tool_missing"));
 
-        assertThrows(ErrorCodeException.class, () -> resolver.applyTooling(new ModelRequest(), taskRequest, null));
+        assertThrows(ErrorCodeException.class,
+                () -> resolver.applyTooling(new ModelRequest(), LlmTaskContextMapper.fromTaskRequest(taskRequest), null));
         verify(metricsPublisher, times(1)).increment("model_tool_on_demand_schema_not_found_total");
     }
 }

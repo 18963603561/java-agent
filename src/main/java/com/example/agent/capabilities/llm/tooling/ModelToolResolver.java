@@ -2,11 +2,11 @@ package com.example.agent.capabilities.llm.tooling;
 
 import com.example.agent.capabilities.llm.contract.ModelToolChoice;
 import com.example.agent.capabilities.llm.contract.ModelToolDefinition;
+import com.example.agent.capabilities.llm.contract.LlmTaskContext;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.tools.model.ToolDefinition;
 import com.example.agent.common.error.ErrorCodeException;
-import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.capabilities.tools.ToolCatalogService;
 import com.example.agent.capabilities.tools.ToolQuery;
@@ -89,14 +89,14 @@ public class ModelToolResolver {
     }
 
     /**
-     * 将工具定义与选择策略注入模型请求，默认工具选择为 auto。
+     * 将工具定义与选择策略注入模型请求。
      *
      * @param request 模型请求
-     * @param taskRequest 任务请求
+     * @param taskContext LLM 任务上下文
      * @param stepInput 步骤输入
      */
-    public void applyTooling(ModelRequest request, TaskRequest taskRequest, Map<String, Object> stepInput) {
-        applyTooling(request, taskRequest, stepInput, false);
+    public void applyTooling(ModelRequest request, LlmTaskContext taskContext, Map<String, Object> stepInput) {
+        applyTooling(request, taskContext, stepInput, false);
     }
 
     /**
@@ -105,12 +105,12 @@ public class ModelToolResolver {
      * <p>用途：规划场景需要完整工具参数定义时使用。</p>
      *
      * @param request 模型请求
-     * @param taskRequest 任务请求
+     * @param taskContext LLM 任务上下文
      * @param stepInput 步骤输入
      * @param forceFullSchema 是否强制使用完整 schema
      */
     public void applyTooling(ModelRequest request,
-                             TaskRequest taskRequest,
+                             LlmTaskContext taskContext,
                              Map<String, Object> stepInput,
                              boolean forceFullSchema) {
         if (request == null) {
@@ -118,7 +118,7 @@ public class ModelToolResolver {
         }
         long startNs = System.nanoTime();
         ToolInjectMode injectMode = forceFullSchema ? ToolInjectMode.FULL : resolveInjectMode();
-        ModelToolingContext toolingContext = toolingContextMapper.toToolingContext(taskRequest, stepInput);
+        ModelToolingContext toolingContext = toolingContextMapper.toToolingContext(taskContext, stepInput);
         String tenantId = toolingContext.getTenantId();
         ModelToolChoice explicitChoice = toolingContext.getExplicitToolChoice();
         if (toolingContext.isDisableTools()) {

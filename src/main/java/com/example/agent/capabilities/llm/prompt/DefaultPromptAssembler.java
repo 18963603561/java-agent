@@ -1,8 +1,8 @@
 package com.example.agent.capabilities.llm.prompt;
 
-import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
+import com.example.agent.capabilities.llm.contract.LlmTaskContext;
 import com.example.agent.capabilities.llm.support.ValidationSupport;
 import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -58,17 +58,17 @@ public class DefaultPromptAssembler implements PromptAssembler {
      * 组装提示消息并按预算进行裁剪。
      *
      * @param prompt 用户提示内容
-     * @param taskRequest 任务请求
+     * @param taskContext LLM 任务上下文
      * @param stepInput 步骤输入
      * @return 组装结果
      */
     @Override
-    public PromptBundle build(String prompt, TaskRequest taskRequest, Map<String, Object> stepInput) {
+    public PromptBundle build(String prompt, LlmTaskContext taskContext, Map<String, Object> stepInput) {
         String safePrompt = validationSupport != null
                 ? validationSupport.normalizeText(prompt, "")
                 : (prompt == null ? "" : prompt);
-        ContextSnapshot snapshot = contextResolver.resolveSnapshot(taskRequest, stepInput);
-        PromptAssemblyInput assemblyInput = contextResolver.resolveAssemblyInput(stepInput, taskRequest);
+        ContextSnapshot snapshot = contextResolver.resolveSnapshot(taskContext, stepInput);
+        PromptAssemblyInput assemblyInput = contextResolver.resolveAssemblyInput(stepInput, taskContext);
         if (assemblyInput == null) {
             return buildLegacy(safePrompt, snapshot);
         }

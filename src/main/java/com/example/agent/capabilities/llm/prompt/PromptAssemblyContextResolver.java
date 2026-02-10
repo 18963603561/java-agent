@@ -1,10 +1,10 @@
 package com.example.agent.capabilities.llm.prompt;
 
-import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
 import com.example.agent.capabilities.context.assembly.PromptContextPolicyApplier;
 import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
+import com.example.agent.capabilities.llm.contract.LlmTaskContext;
 import java.util.ArrayList;
 import java.util.Map;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -30,19 +30,19 @@ class PromptAssemblyContextResolver {
     /**
      * 解析上下文快照，优先步骤输入。
      *
-     * @param taskRequest 任务请求
+     * @param taskContext LLM 任务上下文
      * @param stepInput 步骤输入
      * @return 上下文快照
      */
-    ContextSnapshot resolveSnapshot(TaskRequest taskRequest, Map<String, Object> stepInput) {
+    ContextSnapshot resolveSnapshot(LlmTaskContext taskContext, Map<String, Object> stepInput) {
         if (stepInput != null) {
             Object snapshot = stepInput.get(ContextRuntimeKeys.CONTEXT_SNAPSHOT);
             if (snapshot instanceof ContextSnapshot value) {
                 return value;
             }
         }
-        if (taskRequest != null && taskRequest.getContext() != null) {
-            Object snapshot = taskRequest.getContext().get(ContextRuntimeKeys.CONTEXT_SNAPSHOT);
+        if (taskContext != null && taskContext.getContext() != null) {
+            Object snapshot = taskContext.getContext().get(ContextRuntimeKeys.CONTEXT_SNAPSHOT);
             if (snapshot instanceof ContextSnapshot value) {
                 return value;
             }
@@ -54,18 +54,18 @@ class PromptAssemblyContextResolver {
      * 解析提示装配输入，优先步骤输入。
      *
      * @param stepInput 步骤输入
-     * @param taskRequest 任务请求
+     * @param taskContext LLM 任务上下文
      * @return 装配输入
      */
-    PromptAssemblyInput resolveAssemblyInput(Map<String, Object> stepInput, TaskRequest taskRequest) {
+    PromptAssemblyInput resolveAssemblyInput(Map<String, Object> stepInput, LlmTaskContext taskContext) {
         if (stepInput != null) {
             Object value = stepInput.get(ContextRuntimeKeys.PROMPT_ASSEMBLY_INPUT);
             if (value instanceof PromptAssemblyInput input) {
                 return input;
             }
         }
-        if (taskRequest != null && taskRequest.getContext() != null) {
-            Object value = taskRequest.getContext().get(ContextRuntimeKeys.PROMPT_ASSEMBLY_INPUT);
+        if (taskContext != null && taskContext.getContext() != null) {
+            Object value = taskContext.getContext().get(ContextRuntimeKeys.PROMPT_ASSEMBLY_INPUT);
             if (value instanceof PromptAssemblyInput input) {
                 return input;
             }

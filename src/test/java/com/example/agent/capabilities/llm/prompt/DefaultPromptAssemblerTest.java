@@ -4,6 +4,7 @@ import com.example.agent.budget.core.ContextBudgetAllocation;
 import com.example.agent.budget.core.ContextBudgetAllocationState;
 import com.example.agent.budget.core.ContextSection;
 import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.capabilities.llm.contract.LlmTaskContextMapper;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
 import com.example.agent.capabilities.context.model.RoleBoundary;
@@ -50,7 +51,7 @@ class DefaultPromptAssemblerTest {
         context.put("contextSnapshot", snapshot);
         taskRequest.setContext(context);
 
-        PromptBundle bundle = assembler.build("用户问题", taskRequest, null);
+        PromptBundle bundle = assembler.build("用户问题", LlmTaskContextMapper.fromTaskRequest(taskRequest), null);
 
         assertNotNull(bundle);
         assertEquals(3, bundle.getMessages().size());

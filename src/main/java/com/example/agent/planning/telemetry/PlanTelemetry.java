@@ -8,6 +8,7 @@ import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
 import com.example.agent.budget.core.ContextBudgetAllocation;
 import com.example.agent.budget.trim.model.ContextPruneResult;
 import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.capabilities.llm.contract.LlmTaskContextMapper;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.prompt.PromptBundle;
@@ -101,7 +102,10 @@ public class PlanTelemetry {
             MutableContextRuntimeView runtimeView = ContextRuntimeViews.mutable(assemblyContext, log, null);
             runtimeView.putPromptAssemblyInput(input);
         }
-        PromptBundle bundle = promptAssembler.build(prompt, request, assemblyContext);
+        PromptBundle bundle = promptAssembler.build(
+                prompt,
+                LlmTaskContextMapper.fromTaskRequest(request),
+                assemblyContext);
         if (bundle != null) {
             modelRequest.setMessages(bundle.getMessages());
             publishPlanStage(tenantContext,
@@ -257,5 +261,4 @@ public class PlanTelemetry {
         return sum;
     }
 }
-
 
