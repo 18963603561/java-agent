@@ -1,0 +1,4154 @@
+﻿[
+    {
+        "Top":  "runtime",
+        "Name":  "StepExecutionRequest",
+        "Pkg":  "com.example.agent.runtime.step.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\contract\\StepExecutionRequest.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RawStoreProperties",
+        "Pkg":  "com.example.agent.runtime.raw",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\RawStoreProperties.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpToolListRequest",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\McpToolListRequest.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextPolicyResolver",
+        "Pkg":  "com.example.agent.capabilities.context.builder.policy",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\builder\\policy\\ContextPolicyResolver.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelRouter",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ModelRouter.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "TaskController",
+        "Pkg":  "com.example.agent.api.http.controller",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\controller\\TaskController.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemorySaveOrchestrator",
+        "Pkg":  "com.example.agent.capabilities.memory.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\store\\MemorySaveOrchestrator.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmExecutionFailure",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\LlmExecutionFailure.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "HookDecision",
+        "Pkg":  "com.example.agent.capabilities.tools.hook",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\hook\\HookDecision.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ExecutionControlService",
+        "Pkg":  "com.example.agent.runtime.control",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\control\\ExecutionControlService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeResult",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\RuntimeResult.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeFinalizationService",
+        "Pkg":  "com.example.agent.runtime.finalize",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\finalize\\RuntimeFinalizationService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeTaskRequest",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\RuntimeTaskRequest.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolDefinition",
+        "Pkg":  "com.example.agent.capabilities.tools.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\model\\ToolDefinition.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionDecision",
+        "Pkg":  "com.example.agent.reflection",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\ReflectionDecision.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "SummaryComputationModels",
+        "Pkg":  "com.example.agent.runtime.summary",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\summary\\SummaryComputationModels.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolResultAssembler",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.service",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\service\\ToolResultAssembler.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "ReplayController",
+        "Pkg":  "com.example.agent.api.http.controller",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\controller\\ReplayController.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionResponseParser",
+        "Pkg":  "com.example.agent.reflection.parser",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\parser\\ReflectionResponseParser.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningContext",
+        "Pkg":  "com.example.agent.planning.context",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\context\\PlanningContext.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskRecord",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskRecord.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RawResultStoreRegistry",
+        "Pkg":  "com.example.agent.runtime.raw.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\store\\RawResultStoreRegistry.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextAssemblyCommand",
+        "Pkg":  "com.example.agent.capabilities.context.assembly",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\assembly\\ContextAssemblyCommand.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningTraceRecorder",
+        "Pkg":  "com.example.agent.reasoning.common.telemetry",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\telemetry\\ReasoningTraceRecorder.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "BuildMetrics",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\BuildMetrics.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "SkillToolPolicy",
+        "Pkg":  "com.example.agent.capabilities.llm.tooling",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\tooling\\SkillToolPolicy.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptRenderContext",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\PromptRenderContext.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "ToolFallbackStrategyHandler",
+        "Pkg":  "com.example.agent.planning.strategy.handlers",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\handlers\\ToolFallbackStrategyHandler.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ApprovalService",
+        "Pkg":  "com.example.agent.governance.approval",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\approval\\ApprovalService.java"
+    },
+    {
+        "Top":  "common",
+        "Name":  "SyncWaitTimeoutException",
+        "Pkg":  "com.example.agent.common.error",
+        "File":  "src\\main\\java\\com\\example\\agent\\common\\error\\SyncWaitTimeoutException.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ThoughtTreeScoringPolicy",
+        "Pkg":  "com.example.agent.reasoning.thoughttree",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\thoughttree\\ThoughtTreeScoringPolicy.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ResearchKeywordStrategyRule",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\ResearchKeywordStrategyRule.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "JsonOutputSchema",
+        "Pkg":  "com.example.agent.capabilities.llm.repair",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\repair\\JsonOutputSchema.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "DefaultTokenUsageRecordFactory",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\DefaultTokenUsageRecordFactory.java"
+    },
+    {
+        "Top":  "history",
+        "Name":  "TimelineService",
+        "Pkg":  "com.example.agent.history.timeline",
+        "File":  "src\\main\\java\\com\\example\\agent\\history\\timeline\\TimelineService.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningResult",
+        "Pkg":  "com.example.agent.reasoning.common",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\ReasoningResult.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "SchedulePage",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\SchedulePage.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextBudgetAllocation",
+        "Pkg":  "com.example.agent.budget.core",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\core\\ContextBudgetAllocation.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextTrimmer",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\ContextTrimmer.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplayEventFactory",
+        "Pkg":  "com.example.agent.governance.replay.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\domain\\ReplayEventFactory.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "LlmReflectionStrategy",
+        "Pkg":  "com.example.agent.reflection.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\strategy\\LlmReflectionStrategy.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "GenericStructuredExtractor",
+        "Pkg":  "com.example.agent.runtime.structured.extractor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\structured\\extractor\\GenericStructuredExtractor.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RawRef",
+        "Pkg":  "com.example.agent.runtime.raw.ref",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\ref\\RawRef.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ApprovalHandle",
+        "Pkg":  "com.example.agent.governance.approval",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\approval\\ApprovalHandle.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "DomainKnowledge",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\DomainKnowledge.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmTaskContextMapper",
+        "Pkg":  "com.example.agent.capabilities.llm.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\contract\\LlmTaskContextMapper.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "RedactionService",
+        "Pkg":  "com.example.agent.security.redaction",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\redaction\\RedactionService.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "DefaultContextTrimmer",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\DefaultContextTrimmer.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StructuredExtractorRegistry",
+        "Pkg":  "com.example.agent.runtime.structured",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\structured\\StructuredExtractorRegistry.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "CostCalculator",
+        "Pkg":  "com.example.agent.budget.token.pricing",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\pricing\\CostCalculator.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpToolListResponse",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\McpToolListResponse.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmInvocationMetadata",
+        "Pkg":  "com.example.agent.capabilities.llm.client.events",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\events\\LlmInvocationMetadata.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "DefaultToolCatalog",
+        "Pkg":  "com.example.agent.capabilities.tools",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\DefaultToolCatalog.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "MultiAgentInputSummaryBuilder",
+        "Pkg":  "com.example.agent.orchestration.multiagent",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\multiagent\\MultiAgentInputSummaryBuilder.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepRuntimeService",
+        "Pkg":  "com.example.agent.runtime.step",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\StepRuntimeService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ToolCallOrchestrator",
+        "Pkg":  "com.example.agent.runtime.llm",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\llm\\ToolCallOrchestrator.java"
+    },
+    {
+        "Top":  "common",
+        "Name":  "ErrorCodeProvider",
+        "Pkg":  "com.example.agent.common.error",
+        "File":  "src\\main\\java\\com\\example\\agent\\common\\error\\ErrorCodeProvider.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RawResultResolveService",
+        "Pkg":  "com.example.agent.runtime.raw",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\RawResultResolveService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolingConstraints",
+        "Pkg":  "com.example.agent.capabilities.llm.tooling",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\tooling\\ToolingConstraints.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "SemanticMemoryStore",
+        "Pkg":  "com.example.agent.capabilities.memory.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\store\\SemanticMemoryStore.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionContextMapper",
+        "Pkg":  "com.example.agent.reflection.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\model\\ReflectionContextMapper.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RecoveryStrategy",
+        "Pkg":  "com.example.agent.runtime.recovery",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\recovery\\RecoveryStrategy.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepPolicy",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\StepPolicy.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "HighRiskThoughtTreeStrategyRule",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\HighRiskThoughtTreeStrategyRule.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryWritePersistenceGateway",
+        "Pkg":  "com.example.agent.capabilities.memory.write",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\write\\MemoryWritePersistenceGateway.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "MemoryController",
+        "Pkg":  "com.example.agent.api.http.controller",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\controller\\MemoryController.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "ScheduleExecutionRepository",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\ScheduleExecutionRepository.java"
+    },
+    {
+        "Top":  "common",
+        "Name":  "ErrorResponse",
+        "Pkg":  "com.example.agent.common.error",
+        "File":  "src\\main\\java\\com\\example\\agent\\common\\error\\ErrorResponse.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ApprovalStoreProperties",
+        "Pkg":  "com.example.agent.governance.approval.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\approval\\domain\\ApprovalStoreProperties.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "RateLimitWindowEntry",
+        "Pkg":  "com.example.agent.governance.ratelimit.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\ratelimit\\domain\\RateLimitWindowEntry.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskListCursorCodec",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskListCursorCodec.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryMaintenanceService",
+        "Pkg":  "com.example.agent.capabilities.memory.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\store\\MemoryMaintenanceService.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningStrategyOrders",
+        "Pkg":  "com.example.agent.planning.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\PlanningStrategyOrders.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolArgumentValidator",
+        "Pkg":  "com.example.agent.capabilities.tools.validation",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\validation\\ToolArgumentValidator.java"
+    },
+    {
+        "Top":  "history",
+        "Name":  "TimelineRecord",
+        "Pkg":  "com.example.agent.history.timeline",
+        "File":  "src\\main\\java\\com\\example\\agent\\history\\timeline\\TimelineRecord.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextMemoryTokenEstimator",
+        "Pkg":  "com.example.agent.budget.trim.estimator",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\estimator\\ContextMemoryTokenEstimator.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "StateStorePolicy",
+        "Pkg":  "com.example.agent.governance.common.state",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\common\\state\\StateStorePolicy.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelFallbackPolicy",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ModelFallbackPolicy.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "HeuristicScoringContext",
+        "Pkg":  "com.example.agent.reflection.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\strategy\\HeuristicScoringContext.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemorySearchOrchestrator",
+        "Pkg":  "com.example.agent.capabilities.memory.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\store\\MemorySearchOrchestrator.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ThoughtNode",
+        "Pkg":  "com.example.agent.reasoning.thoughttree",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\thoughttree\\ThoughtNode.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RecallPolicySnapshot",
+        "Pkg":  "com.example.agent.capabilities.memory.recall",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\recall\\RecallPolicySnapshot.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionParsingResult",
+        "Pkg":  "com.example.agent.reflection.parser",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\parser\\ReflectionParsingResult.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "SqlData",
+        "Pkg":  "com.example.agent.runtime.structured.structured",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\structured\\structured\\SqlData.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "EvidenceType",
+        "Pkg":  "com.example.agent.capabilities.context.evidence",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\evidence\\EvidenceType.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptContextPolicyApplier",
+        "Pkg":  "com.example.agent.capabilities.context.assembly",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\assembly\\PromptContextPolicyApplier.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RecoveryStrategyManager",
+        "Pkg":  "com.example.agent.runtime.recovery",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\recovery\\RecoveryStrategyManager.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionOutputSummary",
+        "Pkg":  "com.example.agent.reflection.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\model\\ReflectionOutputSummary.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryWriteStats",
+        "Pkg":  "com.example.agent.capabilities.memory.write",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\write\\MemoryWriteStats.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "ContextEventPublisher",
+        "Pkg":  "com.example.agent.streaming.payload",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\payload\\ContextEventPublisher.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelInvocationTelemetry",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\ModelInvocationTelemetry.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "PrunedItem",
+        "Pkg":  "com.example.agent.budget.trim.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\model\\PrunedItem.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextKnowledgeTokenEstimator",
+        "Pkg":  "com.example.agent.budget.trim.estimator",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\estimator\\ContextKnowledgeTokenEstimator.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "HashEmbeddingService",
+        "Pkg":  "com.example.agent.capabilities.memory.vector",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\vector\\HashEmbeddingService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ToolStepExecutor",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\ToolStepExecutor.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextBuildException",
+        "Pkg":  "com.example.agent.capabilities.context.builder.exception",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\builder\\exception\\ContextBuildException.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "AbstractContextTrimHandler",
+        "Pkg":  "com.example.agent.budget.trim.handler",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\handler\\AbstractContextTrimHandler.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "DebatePayload",
+        "Pkg":  "com.example.agent.reasoning.common.result",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\result\\DebatePayload.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpToolDefinition",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\McpToolDefinition.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "GenericStateStore",
+        "Pkg":  "com.example.agent.governance.common.state",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\common\\state\\GenericStateStore.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextCompressionService",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\ContextCompressionService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "HookTimeoutPolicy",
+        "Pkg":  "com.example.agent.capabilities.tools.hook",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\hook\\HookTimeoutPolicy.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "CompressionTriggerPolicy",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\CompressionTriggerPolicy.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextBudgetAllocator",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\ContextBudgetAllocator.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolState",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\ToolState.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "EvidencePackTrimHandler",
+        "Pkg":  "com.example.agent.budget.trim.handler",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\handler\\EvidencePackTrimHandler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "JsonOutputRepairService",
+        "Pkg":  "com.example.agent.capabilities.llm.repair",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\repair\\JsonOutputRepairService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepResultJsonCodec",
+        "Pkg":  "com.example.agent.runtime.codec",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\codec\\StepResultJsonCodec.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolCache",
+        "Pkg":  "com.example.agent.capabilities.tools.registry",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\registry\\ToolCache.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextTrimResult",
+        "Pkg":  "com.example.agent.budget.trim.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\model\\ContextTrimResult.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeEventDispatchService",
+        "Pkg":  "com.example.agent.runtime.engine",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\engine\\RuntimeEventDispatchService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RoleBoundary",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\RoleBoundary.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextTrimMetricsRecorder",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\ContextTrimMetricsRecorder.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryRecallService",
+        "Pkg":  "com.example.agent.capabilities.memory.recall",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\recall\\MemoryRecallService.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "CompressionSummaryApplyResult",
+        "Pkg":  "com.example.agent.budget.trim.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\model\\CompressionSummaryApplyResult.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplaySessionStoreProperties",
+        "Pkg":  "com.example.agent.governance.replay.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\domain\\ReplaySessionStoreProperties.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptTemplate",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\PromptTemplate.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "EmbeddingService",
+        "Pkg":  "com.example.agent.capabilities.memory.vector",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\vector\\EmbeddingService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepExecutionOutput",
+        "Pkg":  "com.example.agent.runtime.step.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\contract\\StepExecutionOutput.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ThoughtTreePayload",
+        "Pkg":  "com.example.agent.reasoning.common.result",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\result\\ThoughtTreePayload.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ReactLoopResult",
+        "Pkg":  "com.example.agent.runtime.react",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\react\\ReactLoopResult.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "TracingPublisher",
+        "Pkg":  "com.example.agent.streaming.observability",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\observability\\TracingPublisher.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepSummaryTextService",
+        "Pkg":  "com.example.agent.runtime.summary",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\summary\\StepSummaryTextService.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "RedactionProperties",
+        "Pkg":  "com.example.agent.security.redaction",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\redaction\\RedactionProperties.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionDecisionStatus",
+        "Pkg":  "com.example.agent.reflection",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\ReflectionDecisionStatus.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptBundle",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\PromptBundle.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "SkillDefinition",
+        "Pkg":  "com.example.agent.capabilities.tools.skill",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\skill\\SkillDefinition.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "TenantProperties",
+        "Pkg":  "com.example.agent.security.auth",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\auth\\TenantProperties.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolInvocationPayload",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\model\\ToolInvocationPayload.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ResearchRunResult",
+        "Pkg":  "com.example.agent.capabilities.context.research",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\research\\ResearchRunResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmFailureRecorder",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\LlmFailureRecorder.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanParser",
+        "Pkg":  "com.example.agent.planning.parser",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\parser\\PlanParser.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningParseSupport",
+        "Pkg":  "com.example.agent.reasoning.common",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\ReasoningParseSupport.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "OutputFieldExtractor",
+        "Pkg":  "com.example.agent.runtime.output",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\output\\OutputFieldExtractor.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ReactObservation",
+        "Pkg":  "com.example.agent.runtime.react",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\react\\ReactObservation.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "AuditMetadata",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\AuditMetadata.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepSummaryRegenerationService",
+        "Pkg":  "com.example.agent.runtime.step",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\StepSummaryRegenerationService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StructuredData",
+        "Pkg":  "com.example.agent.runtime.structured.structured",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\structured\\structured\\StructuredData.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "TaskHttpMapper",
+        "Pkg":  "com.example.agent.api.http.mapper",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\mapper\\TaskHttpMapper.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "OpenApiController",
+        "Pkg":  "com.example.agent.api.contracts",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\contracts\\OpenApiController.java"
+    },
+    {
+        "Top":  "history",
+        "Name":  "EventQuery",
+        "Pkg":  "com.example.agent.history.eventlog",
+        "File":  "src\\main\\java\\com\\example\\agent\\history\\eventlog\\EventQuery.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "ScheduleSpec",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\ScheduleSpec.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "WasiSandboxExecutor",
+        "Pkg":  "com.example.agent.capabilities.tools.sandbox",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\sandbox\\WasiSandboxExecutor.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RecallContext",
+        "Pkg":  "com.example.agent.capabilities.memory.recall",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\recall\\RecallContext.java"
+    },
+    {
+        "Top":  "history",
+        "Name":  "JdbcEventLogRepository",
+        "Pkg":  "com.example.agent.history.eventlog",
+        "File":  "src\\main\\java\\com\\example\\agent\\history\\eventlog\\JdbcEventLogRepository.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "ApiKeyAuthenticator",
+        "Pkg":  "com.example.agent.security.auth",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\auth\\ApiKeyAuthenticator.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "SummaryInputSanitizer",
+        "Pkg":  "com.example.agent.runtime.summary",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\summary\\SummaryInputSanitizer.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextBuildResult",
+        "Pkg":  "com.example.agent.capabilities.context",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\ContextBuildResult.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "ReactStrategyHandler",
+        "Pkg":  "com.example.agent.planning.strategy.handlers",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\handlers\\ReactStrategyHandler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "DefaultModelProvider",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\DefaultModelProvider.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "ContextTrimSummary",
+        "Pkg":  "com.example.agent.streaming.payload",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\payload\\ContextTrimSummary.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskLifecycleService",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskLifecycleService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "WorkingMemory",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\WorkingMemory.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplayTaskSnapshot",
+        "Pkg":  "com.example.agent.governance.replay.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\domain\\ReplayTaskSnapshot.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolRequestValidator",
+        "Pkg":  "com.example.agent.capabilities.tools.validation",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\validation\\ToolRequestValidator.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextCompressionProperties",
+        "Pkg":  "com.example.agent.budget.trim.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\config\\ContextCompressionProperties.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "WorkflowRouter",
+        "Pkg":  "com.example.agent.orchestration.workflow",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\workflow\\WorkflowRouter.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskQueryService",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskQueryService.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningContextMapper",
+        "Pkg":  "com.example.agent.planning.context",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\context\\PlanningContextMapper.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolExecutor",
+        "Pkg":  "com.example.agent.capabilities.tools.execution",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\ToolExecutor.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "CompressionSummaryApplier",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\CompressionSummaryApplier.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpHttpTransport",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp.transport",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\transport\\McpHttpTransport.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolUsageRecorder",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.service",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\service\\ToolUsageRecorder.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "DefaultPromptAssembler",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\DefaultPromptAssembler.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ComplexityThresholdRiskRule",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\ComplexityThresholdRiskRule.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeContext",
+        "Pkg":  "com.example.agent.runtime.step",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\RuntimeContext.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepExecutorRouter",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\StepExecutorRouter.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PluginLoader",
+        "Pkg":  "com.example.agent.capabilities.tools.plugin",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\plugin\\PluginLoader.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmExecutionUsage",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\LlmExecutionUsage.java"
+    },
+    {
+        "Top":  "history",
+        "Name":  "EventLogRepository",
+        "Pkg":  "com.example.agent.history.eventlog",
+        "File":  "src\\main\\java\\com\\example\\agent\\history\\eventlog\\EventLogRepository.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpToolCallRequest",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\McpToolCallRequest.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "OpenAiProviderAdapter",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\OpenAiProviderAdapter.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "WorkingMemoryTrimHandler",
+        "Pkg":  "com.example.agent.budget.trim.handler",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\handler\\WorkingMemoryTrimHandler.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "LlmPlanEngineResult",
+        "Pkg":  "com.example.agent.planning.engine",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\engine\\LlmPlanEngineResult.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "LlmStepExecutor",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\LlmStepExecutor.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolRegistry",
+        "Pkg":  "com.example.agent.capabilities.tools.registry",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\registry\\ToolRegistry.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionReport",
+        "Pkg":  "com.example.agent.reflection",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\ReflectionReport.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "GlobalExceptionHandler",
+        "Pkg":  "com.example.agent.api.http.exception",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\exception\\GlobalExceptionHandler.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "TokenUsageSummary",
+        "Pkg":  "com.example.agent.budget.token.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\model\\TokenUsageSummary.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "PolicyController",
+        "Pkg":  "com.example.agent.api.http.controller",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\controller\\PolicyController.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpServerProperties",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\McpServerProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeExecutionGate",
+        "Pkg":  "com.example.agent.runtime.control",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\control\\RuntimeExecutionGate.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanResult",
+        "Pkg":  "com.example.agent.planning",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\PlanResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmEventPayloadMapper",
+        "Pkg":  "com.example.agent.capabilities.llm.client.events",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\events\\LlmEventPayloadMapper.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionContext",
+        "Pkg":  "com.example.agent.reflection.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\model\\ReflectionContext.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryExpireProperties",
+        "Pkg":  "com.example.agent.capabilities.memory.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\config\\MemoryExpireProperties.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelConfigProperties",
+        "Pkg":  "com.example.agent.capabilities.llm.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\config\\ModelConfigProperties.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "DebateRound",
+        "Pkg":  "com.example.agent.reasoning.debate",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\debate\\DebateRound.java"
+    },
+    {
+        "Top":  "history",
+        "Name":  "EventLogRecord",
+        "Pkg":  "com.example.agent.history.eventlog",
+        "File":  "src\\main\\java\\com\\example\\agent\\history\\eventlog\\EventLogRecord.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "EvidencePack",
+        "Pkg":  "com.example.agent.capabilities.context.evidence",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\evidence\\EvidencePack.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "ChainOfThoughtStrategyHandler",
+        "Pkg":  "com.example.agent.planning.strategy.handlers",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\handlers\\ChainOfThoughtStrategyHandler.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepResultDigest",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\StepResultDigest.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityStrategyRule",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\CapabilityStrategyRule.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextBudgetRequestFactory",
+        "Pkg":  "com.example.agent.capabilities.context.builder.budget",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\builder\\budget\\ContextBudgetRequestFactory.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryRepository",
+        "Pkg":  "com.example.agent.capabilities.memory.repository",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\repository\\MemoryRepository.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryPolicyProperties",
+        "Pkg":  "com.example.agent.capabilities.memory.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\config\\MemoryPolicyProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepEventPayloadFactory",
+        "Pkg":  "com.example.agent.runtime.step",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\StepEventPayloadFactory.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionStrategySelector",
+        "Pkg":  "com.example.agent.reflection.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\strategy\\ReflectionStrategySelector.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "TokenUsageRepository",
+        "Pkg":  "com.example.agent.budget.token.repository",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\repository\\TokenUsageRepository.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "BudgetController",
+        "Pkg":  "com.example.agent.api.http.controller",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\controller\\BudgetController.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StructuredResult",
+        "Pkg":  "com.example.agent.runtime.structured.result",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\structured\\result\\StructuredResult.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepSummaryProperties",
+        "Pkg":  "com.example.agent.runtime.summary",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\summary\\StepSummaryProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StructuredQuality",
+        "Pkg":  "com.example.agent.runtime.structured.result",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\structured\\result\\StructuredQuality.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "TaskRequest",
+        "Pkg":  "com.example.agent.api.http.dto",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\dto\\TaskRequest.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "McpController",
+        "Pkg":  "com.example.agent.api.http.controller",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\controller\\McpController.java"
+    },
+    {
+        "Top":  "bootstrap",
+        "Name":  "AgentApplication",
+        "Pkg":  "com.example.agent.bootstrap",
+        "File":  "src\\main\\java\\com\\example\\agent\\bootstrap\\AgentApplication.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "DefaultWorkflowRouter",
+        "Pkg":  "com.example.agent.orchestration.workflow",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\workflow\\DefaultWorkflowRouter.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "TaskAndSystemTrimHandler",
+        "Pkg":  "com.example.agent.budget.trim.handler",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\handler\\TaskAndSystemTrimHandler.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskRepositoryException",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskRepositoryException.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplaySession",
+        "Pkg":  "com.example.agent.governance.replay",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\ReplaySession.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RetrievalPriorityUtils",
+        "Pkg":  "com.example.agent.capabilities.memory.support",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\support\\RetrievalPriorityUtils.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepExecutionCoordinator",
+        "Pkg":  "com.example.agent.runtime.engine",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\engine\\StepExecutionCoordinator.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "DefaultCompressionTriggerPolicy",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\DefaultCompressionTriggerPolicy.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "CotPayload",
+        "Pkg":  "com.example.agent.reasoning.common.result",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\result\\CotPayload.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RetrievalPriority",
+        "Pkg":  "com.example.agent.capabilities.memory.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\model\\RetrievalPriority.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "TokenUsageInput",
+        "Pkg":  "com.example.agent.budget.token.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\model\\TokenUsageInput.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplayService",
+        "Pkg":  "com.example.agent.governance.replay",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\ReplayService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "SandboxProperties",
+        "Pkg":  "com.example.agent.capabilities.tools.sandbox",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\sandbox\\SandboxProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepResultRefSet",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\StepResultRefSet.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RedisRawResultStore",
+        "Pkg":  "com.example.agent.runtime.raw.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\store\\RedisRawResultStore.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplayItem",
+        "Pkg":  "com.example.agent.governance.replay.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\domain\\ReplayItem.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ReactLoopService",
+        "Pkg":  "com.example.agent.runtime.react",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\react\\ReactLoopService.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "StoreMetricsRecorder",
+        "Pkg":  "com.example.agent.governance.common.state",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\common\\state\\StoreMetricsRecorder.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "LlmDecisionService",
+        "Pkg":  "com.example.agent.runtime.llm",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\llm\\LlmDecisionService.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "ContextEventPayload",
+        "Pkg":  "com.example.agent.streaming.payload",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\payload\\ContextEventPayload.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolExecutionCacheService",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.service",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\service\\ToolExecutionCacheService.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextBudgetProperties",
+        "Pkg":  "com.example.agent.budget.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\config\\ContextBudgetProperties.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningRecommendationMapper",
+        "Pkg":  "com.example.agent.planning.capability",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\capability\\PlanningRecommendationMapper.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "ApprovalController",
+        "Pkg":  "com.example.agent.api.http.controller",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\controller\\ApprovalController.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityRuleMetadata",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\CapabilityRuleMetadata.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "ContextPruneSummary",
+        "Pkg":  "com.example.agent.streaming.payload",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\payload\\ContextPruneSummary.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "FailureTypesRiskRule",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\FailureTypesRiskRule.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "AuthService",
+        "Pkg":  "com.example.agent.security.auth",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\auth\\AuthService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmResultStatus",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\LlmResultStatus.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ReactRuntimeProperties",
+        "Pkg":  "com.example.agent.runtime.react",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\react\\ReactRuntimeProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepSummaryBuildInput",
+        "Pkg":  "com.example.agent.runtime.summary",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\summary\\StepSummaryBuildInput.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionOutputDigest",
+        "Pkg":  "com.example.agent.reflection.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\model\\ReflectionOutputDigest.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolArgumentValidatorRuntime",
+        "Pkg":  "com.example.agent.capabilities.tools.validation",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\validation\\ToolArgumentValidatorRuntime.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryRecord",
+        "Pkg":  "com.example.agent.capabilities.memory.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\model\\MemoryRecord.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "TokenEstimator",
+        "Pkg":  "com.example.agent.capabilities.memory.policy",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\policy\\TokenEstimator.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextTextTokenEstimator",
+        "Pkg":  "com.example.agent.budget.trim.estimator",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\estimator\\ContextTextTokenEstimator.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "QdrantVectorStore",
+        "Pkg":  "com.example.agent.capabilities.memory.vector",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\vector\\QdrantVectorStore.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "StoreEntryMatcher",
+        "Pkg":  "com.example.agent.governance.common.state",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\common\\state\\StoreEntryMatcher.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "CompressionCooldownService",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\CompressionCooldownService.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "TokenUsageRecord",
+        "Pkg":  "com.example.agent.budget.token.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\model\\TokenUsageRecord.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityEvaluationProperties",
+        "Pkg":  "com.example.agent.governance.evaluation",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\CapabilityEvaluationProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ReactStepExecutor",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\ReactStepExecutor.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ToolOutputAssembler",
+        "Pkg":  "com.example.agent.runtime.llm",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\llm\\ToolOutputAssembler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ResearchCitation",
+        "Pkg":  "com.example.agent.capabilities.context.research",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\research\\ResearchCitation.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeOutputKeys",
+        "Pkg":  "com.example.agent.runtime.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\contract\\RuntimeOutputKeys.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "JdbcStepRecordRepository",
+        "Pkg":  "com.example.agent.runtime.step.repository",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\repository\\JdbcStepRecordRepository.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "TaskStatusResponse",
+        "Pkg":  "com.example.agent.api.http.dto",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\dto\\TaskStatusResponse.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "JsonRepairRequest",
+        "Pkg":  "com.example.agent.capabilities.llm.repair",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\repair\\JsonRepairRequest.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ThoughtTreeResult",
+        "Pkg":  "com.example.agent.reasoning.thoughttree",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\thoughttree\\ThoughtTreeResult.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplayItemAssembler",
+        "Pkg":  "com.example.agent.governance.replay.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\domain\\ReplayItemAssembler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "BudgetState",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\BudgetState.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextBuilder",
+        "Pkg":  "com.example.agent.capabilities.context",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\ContextBuilder.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskSubmissionResult",
+        "Pkg":  "com.example.agent.orchestration.task.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\contract\\TaskSubmissionResult.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ApprovalArgsDigestBuilder",
+        "Pkg":  "com.example.agent.governance.approval.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\approval\\domain\\ApprovalArgsDigestBuilder.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityBoundaryEvaluator",
+        "Pkg":  "com.example.agent.governance.evaluation",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\CapabilityBoundaryEvaluator.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "SandboxRequest",
+        "Pkg":  "com.example.agent.capabilities.tools.sandbox",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\sandbox\\SandboxRequest.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "SandboxResult",
+        "Pkg":  "com.example.agent.capabilities.tools.sandbox",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\sandbox\\SandboxResult.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "ToolApprovalDecisionRequest",
+        "Pkg":  "com.example.agent.api.http.dto.governance",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\dto\\governance\\ToolApprovalDecisionRequest.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RecentMemoryStore",
+        "Pkg":  "com.example.agent.capabilities.memory.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\store\\RecentMemoryStore.java"
+    },
+    {
+        "Top":  "history",
+        "Name":  "EventLogService",
+        "Pkg":  "com.example.agent.history.eventlog",
+        "File":  "src\\main\\java\\com\\example\\agent\\history\\eventlog\\EventLogService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelToolingContext",
+        "Pkg":  "com.example.agent.capabilities.llm.tooling",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\tooling\\ModelToolingContext.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "ApiKeyProperties",
+        "Pkg":  "com.example.agent.security.auth",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\auth\\ApiKeyProperties.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmClient",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\LlmClient.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskPageResult",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskPageResult.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "TokenUsageSummaryService",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\TokenUsageSummaryService.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "DefaultContextBudgetAllocator",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\DefaultContextBudgetAllocator.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "SummarySnapshotService",
+        "Pkg":  "com.example.agent.runtime.summary",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\summary\\SummarySnapshotService.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "ToolApprovalController",
+        "Pkg":  "com.example.agent.api.http.controller",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\controller\\ToolApprovalController.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryRecallProperties",
+        "Pkg":  "com.example.agent.capabilities.memory.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\config\\MemoryRecallProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "MultiAgentStepExecutor",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\MultiAgentStepExecutor.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningApprovalService",
+        "Pkg":  "com.example.agent.planning.approval",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\approval\\PlanningApprovalService.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningPromptTraceService",
+        "Pkg":  "com.example.agent.planning.telemetry",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\telemetry\\PlanningPromptTraceService.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "BudgetEventPublisher",
+        "Pkg":  "com.example.agent.budget.token.event",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\event\\BudgetEventPublisher.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextRuntimeView",
+        "Pkg":  "com.example.agent.capabilities.context.runtime",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\runtime\\ContextRuntimeView.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "InMemoryScheduleExecutionRepository",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\InMemoryScheduleExecutionRepository.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "BudgetThresholdEvaluator",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\BudgetThresholdEvaluator.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RetryPolicy",
+        "Pkg":  "com.example.agent.runtime.recovery",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\recovery\\RetryPolicy.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelFallbackDecision",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ModelFallbackDecision.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "DefaultContextPruner",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\DefaultContextPruner.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlannerProperties",
+        "Pkg":  "com.example.agent.planning",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\PlannerProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepTimelineResponse",
+        "Pkg":  "com.example.agent.runtime.step",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\StepTimelineResponse.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskStatusMapper",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskStatusMapper.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "MultiAgentCoordinator",
+        "Pkg":  "com.example.agent.orchestration.multiagent",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\multiagent\\MultiAgentCoordinator.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "GovernanceTelemetry",
+        "Pkg":  "com.example.agent.governance.common.telemetry",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\common\\telemetry\\GovernanceTelemetry.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextPruner",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\ContextPruner.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskSyncWaitService",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskSyncWaitService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelInvocationContextFactory",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\ModelInvocationContextFactory.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextRuntimeKeys",
+        "Pkg":  "com.example.agent.capabilities.context.runtime",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\runtime\\ContextRuntimeKeys.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextPolicy",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\ContextPolicy.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelToolDefinition",
+        "Pkg":  "com.example.agent.capabilities.llm.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\contract\\ModelToolDefinition.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskSubmissionService",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskSubmissionService.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "JwtProperties",
+        "Pkg":  "com.example.agent.security.auth",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\auth\\JwtProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ChainOfThoughtStepExecutor",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\ChainOfThoughtStepExecutor.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpCallStrategyResolver",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\strategy\\McpCallStrategyResolver.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RecallContextResolver",
+        "Pkg":  "com.example.agent.capabilities.memory.recall",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\recall\\RecallContextResolver.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "AgentConfig",
+        "Pkg":  "com.example.agent.orchestration.multiagent",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\multiagent\\AgentConfig.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "JdbcMemoryRepository",
+        "Pkg":  "com.example.agent.capabilities.memory.repository",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\repository\\JdbcMemoryRepository.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "TokenUsageRecordFactory",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\TokenUsageRecordFactory.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextSection",
+        "Pkg":  "com.example.agent.budget.core",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\core\\ContextSection.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolPayloadBuilder",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ToolPayloadBuilder.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityRuleRegistry",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\CapabilityRuleRegistry.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepResultTiming",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\StepResultTiming.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "DefaultCompressionExecutionService",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\DefaultCompressionExecutionService.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskStatusView",
+        "Pkg":  "com.example.agent.orchestration.task.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\contract\\TaskStatusView.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "InMemoryTokenUsageRepository",
+        "Pkg":  "com.example.agent.budget.token.repository",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\repository\\InMemoryTokenUsageRepository.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelProvider",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ModelProvider.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmErrorCode",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\LlmErrorCode.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "ContextSnapshotSummary",
+        "Pkg":  "com.example.agent.streaming.payload",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\payload\\ContextSnapshotSummary.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RawStoreType",
+        "Pkg":  "com.example.agent.runtime.raw",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\RawStoreType.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionFailureReason",
+        "Pkg":  "com.example.agent.reflection",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\ReflectionFailureReason.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeContextUpdateService",
+        "Pkg":  "com.example.agent.runtime.engine",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\engine\\RuntimeContextUpdateService.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "CompressionExecutionService",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\CompressionExecutionService.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningPayload",
+        "Pkg":  "com.example.agent.reasoning.common.result",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\result\\ReasoningPayload.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningArbitrator",
+        "Pkg":  "com.example.agent.reasoning.common.orchestrator",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\orchestrator\\ReasoningArbitrator.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "ContextCompressionSummary",
+        "Pkg":  "com.example.agent.streaming.payload",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\payload\\ContextCompressionSummary.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpToolClient",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\McpToolClient.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskQueryCommand",
+        "Pkg":  "com.example.agent.orchestration.task.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\contract\\TaskQueryCommand.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "ScheduleExecutionRecord",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\ScheduleExecutionRecord.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelInvocationService",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\ModelInvocationService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepResultSummary",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\StepResultSummary.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ToolSummaryService",
+        "Pkg":  "com.example.agent.runtime.llm",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\llm\\ToolSummaryService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RawOutputEnvelope",
+        "Pkg":  "com.example.agent.runtime.raw.output",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\output\\RawOutputEnvelope.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionParseOutcome",
+        "Pkg":  "com.example.agent.reflection.parser",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\parser\\ReflectionParseOutcome.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpCallStrategy",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\strategy\\McpCallStrategy.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepResult",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\StepResult.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "StreamEvent",
+        "Pkg":  "com.example.agent.streaming.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\domain\\StreamEvent.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepResultRaw",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\StepResultRaw.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ToolSummaryTrimHandler",
+        "Pkg":  "com.example.agent.budget.trim.handler",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\handler\\ToolSummaryTrimHandler.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "ResearchStrategyHandler",
+        "Pkg":  "com.example.agent.planning.strategy.handlers",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\handlers\\ResearchStrategyHandler.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplayTaskResolver",
+        "Pkg":  "com.example.agent.governance.replay.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\domain\\ReplayTaskResolver.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RecallMetricsRecorder",
+        "Pkg":  "com.example.agent.capabilities.memory.recall",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\recall\\RecallMetricsRecorder.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "PolicyEvaluateRequest",
+        "Pkg":  "com.example.agent.api.http.dto.governance",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\dto\\governance\\PolicyEvaluateRequest.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "HookProperties",
+        "Pkg":  "com.example.agent.capabilities.tools.hook",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\hook\\HookProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepOutputSummaryView",
+        "Pkg":  "com.example.agent.runtime.summary",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\summary\\StepOutputSummaryView.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "TimelineController",
+        "Pkg":  "com.example.agent.api.http.controller",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\controller\\TimelineController.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskSubmitCommand",
+        "Pkg":  "com.example.agent.orchestration.task.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\contract\\TaskSubmitCommand.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningEventPublisher",
+        "Pkg":  "com.example.agent.reasoning.common.telemetry",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\telemetry\\ReasoningEventPublisher.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "LlmPlanAttemptResult",
+        "Pkg":  "com.example.agent.planning.engine",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\engine\\LlmPlanAttemptResult.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityRuleBinding",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\CapabilityRuleBinding.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "EvidenceItem",
+        "Pkg":  "com.example.agent.capabilities.context.evidence",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\evidence\\EvidenceItem.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskExecutionMode",
+        "Pkg":  "com.example.agent.orchestration.task.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\contract\\TaskExecutionMode.java"
+    },
+    {
+        "Top":  "history",
+        "Name":  "EventLogPage",
+        "Pkg":  "com.example.agent.history.eventlog",
+        "File":  "src\\main\\java\\com\\example\\agent\\history\\eventlog\\EventLogPage.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "RedactionResult",
+        "Pkg":  "com.example.agent.security.redaction",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\redaction\\RedactionResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "Citation",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\Citation.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepState",
+        "Pkg":  "com.example.agent.runtime.step",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\StepState.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplayProperties",
+        "Pkg":  "com.example.agent.governance.replay",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\ReplayProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RecordsetData",
+        "Pkg":  "com.example.agent.runtime.structured.structured",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\structured\\structured\\RecordsetData.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "DefaultContextAssembler",
+        "Pkg":  "com.example.agent.capabilities.context.assembly",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\assembly\\DefaultContextAssembler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "EnforcementGateway",
+        "Pkg":  "com.example.agent.capabilities.tools.enforcement",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\enforcement\\EnforcementGateway.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplayCommand",
+        "Pkg":  "com.example.agent.governance.replay.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\domain\\ReplayCommand.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextTrimStats",
+        "Pkg":  "com.example.agent.budget.trim.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\model\\ContextTrimStats.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelApiKeyResolver",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ModelApiKeyResolver.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "CompressedMemoryStore",
+        "Pkg":  "com.example.agent.capabilities.memory.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\store\\CompressedMemoryStore.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "InMemoryMemoryRepository",
+        "Pkg":  "com.example.agent.capabilities.memory.repository",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\repository\\InMemoryMemoryRepository.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeOutputFieldExtractor",
+        "Pkg":  "com.example.agent.runtime.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\contract\\RuntimeOutputFieldExtractor.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextCompressionResult",
+        "Pkg":  "com.example.agent.budget.trim.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\model\\ContextCompressionResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpJsonRpcAdapter",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp.protocol",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\protocol\\McpJsonRpcAdapter.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionPromptTraceRecorder",
+        "Pkg":  "com.example.agent.reflection.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\strategy\\ReflectionPromptTraceRecorder.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptAssemblyContextResolver",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\PromptAssemblyContextResolver.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryWriteContextResolver",
+        "Pkg":  "com.example.agent.capabilities.memory.write",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\write\\MemoryWriteContextResolver.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "WorkingMemorySummary",
+        "Pkg":  "com.example.agent.capabilities.memory.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\model\\WorkingMemorySummary.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningContextKeys",
+        "Pkg":  "com.example.agent.planning",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\PlanningContextKeys.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionResult",
+        "Pkg":  "com.example.agent.reflection",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\ReflectionResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptAssembler",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\PromptAssembler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpRestAdapter",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp.protocol",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\protocol\\McpRestAdapter.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelMessageBuilder",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ModelMessageBuilder.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "TokenBudgetManager",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\TokenBudgetManager.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryRef",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\MemoryRef.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ChainOfThoughtResult",
+        "Pkg":  "com.example.agent.reasoning.cot",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\cot\\ChainOfThoughtResult.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskRepositoryErrorTranslator",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskRepositoryErrorTranslator.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "EvidencePackService",
+        "Pkg":  "com.example.agent.capabilities.context.evidence",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\evidence\\EvidencePackService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ThoughtTreeStepExecutor",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\ThoughtTreeStepExecutor.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryPolicy",
+        "Pkg":  "com.example.agent.capabilities.memory.policy",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\policy\\MemoryPolicy.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ProviderErrorMapper",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ProviderErrorMapper.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "TenantContext",
+        "Pkg":  "com.example.agent.security.auth",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\auth\\TenantContext.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "PolicyEngine",
+        "Pkg":  "com.example.agent.governance.policy",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\policy\\PolicyEngine.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "AbstractPlanningStrategyHandler",
+        "Pkg":  "com.example.agent.planning.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\AbstractPlanningStrategyHandler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ConversationSummary",
+        "Pkg":  "com.example.agent.capabilities.memory.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\model\\ConversationSummary.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepTypeExecutor",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\StepTypeExecutor.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolCatalogService",
+        "Pkg":  "com.example.agent.capabilities.tools",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\ToolCatalogService.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "StreamCursor",
+        "Pkg":  "com.example.agent.streaming.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\domain\\StreamCursor.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "CompressionRequest",
+        "Pkg":  "com.example.agent.capabilities.memory.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\model\\CompressionRequest.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextTrimHandler",
+        "Pkg":  "com.example.agent.budget.trim.handler",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\handler\\ContextTrimHandler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryWriteProperties",
+        "Pkg":  "com.example.agent.capabilities.memory.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\config\\MemoryWriteProperties.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextBuildRequest",
+        "Pkg":  "com.example.agent.capabilities.context",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\ContextBuildRequest.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "MissingToolSummaryRiskRule",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\MissingToolSummaryRiskRule.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "TenantContextFilter",
+        "Pkg":  "com.example.agent.api.http.filter",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\filter\\TenantContextFilter.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "CotProperties",
+        "Pkg":  "com.example.agent.reasoning.cot",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\cot\\CotProperties.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolExecutionTracer",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.service",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\service\\ToolExecutionTracer.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "CotAnswerSanitizer",
+        "Pkg":  "com.example.agent.reasoning.cot",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\cot\\CotAnswerSanitizer.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RawRefCodec",
+        "Pkg":  "com.example.agent.runtime.raw.ref",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\ref\\RawRefCodec.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityRiskLevel",
+        "Pkg":  "com.example.agent.governance.evaluation",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\CapabilityRiskLevel.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelDefinition",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ModelDefinition.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskOrchestrator",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskOrchestrator.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryTextUtils",
+        "Pkg":  "com.example.agent.capabilities.memory.support",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\support\\MemoryTextUtils.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityRuleType",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\CapabilityRuleType.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningDegradePolicy",
+        "Pkg":  "com.example.agent.reasoning.common.selection",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\selection\\ReasoningDegradePolicy.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "LlmPlanEngine",
+        "Pkg":  "com.example.agent.planning.engine",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\engine\\LlmPlanEngine.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LongTermMemory",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\LongTermMemory.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "InMemoryCompressionCooldownService",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\InMemoryCompressionCooldownService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "HookManager",
+        "Pkg":  "com.example.agent.capabilities.tools.hook",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\hook\\HookManager.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "PolicyEvaluationCommand",
+        "Pkg":  "com.example.agent.governance.policy.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\policy\\domain\\PolicyEvaluationCommand.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "DefaultContextBuilder",
+        "Pkg":  "com.example.agent.capabilities.context",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\DefaultContextBuilder.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "RawResultController",
+        "Pkg":  "com.example.agent.api.http.controller",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\controller\\RawResultController.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "RecalledMemoriesTrimHandler",
+        "Pkg":  "com.example.agent.budget.trim.handler",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\handler\\RecalledMemoriesTrimHandler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RuntimeMeta",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\RuntimeMeta.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlannerService",
+        "Pkg":  "com.example.agent.planning",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\PlannerService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextAssembler",
+        "Pkg":  "com.example.agent.capabilities.context.assembly",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\assembly\\ContextAssembler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpSseSessionManager",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp.session",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\session\\McpSseSessionManager.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "HookType",
+        "Pkg":  "com.example.agent.capabilities.tools.hook",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\hook\\HookType.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningStrategyRegistry",
+        "Pkg":  "com.example.agent.reasoning.common",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\ReasoningStrategyRegistry.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskEventPublisher",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskEventPublisher.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionPropertiesValidator",
+        "Pkg":  "com.example.agent.reflection",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\ReflectionPropertiesValidator.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "AgentRole",
+        "Pkg":  "com.example.agent.orchestration.multiagent",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\multiagent\\AgentRole.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryQuery",
+        "Pkg":  "com.example.agent.capabilities.memory.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\model\\MemoryQuery.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskExecutionService",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskExecutionService.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningFieldKeys",
+        "Pkg":  "com.example.agent.planning",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\PlanningFieldKeys.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelInvocationContext",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\ModelInvocationContext.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "LlmStepService",
+        "Pkg":  "com.example.agent.runtime.llm",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\llm\\LlmStepService.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "MetricsPublisher",
+        "Pkg":  "com.example.agent.streaming.observability",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\observability\\MetricsPublisher.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "PendingApprovalRecord",
+        "Pkg":  "com.example.agent.governance.approval.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\approval\\domain\\PendingApprovalRecord.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelRequestBodyBuilder",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ModelRequestBodyBuilder.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptTemplateResolver",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\PromptTemplateResolver.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ProviderType",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ProviderType.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionPromptTemplateEngine",
+        "Pkg":  "com.example.agent.reflection.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\prompt\\ReflectionPromptTemplateEngine.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ResultKind",
+        "Pkg":  "com.example.agent.runtime.structured",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\structured\\ResultKind.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptRole",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\PromptRole.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextToolTokenEstimator",
+        "Pkg":  "com.example.agent.budget.trim.estimator",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\estimator\\ContextToolTokenEstimator.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "FileRawStorageSupport",
+        "Pkg":  "com.example.agent.runtime.raw.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\store\\FileRawStorageSupport.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ExecutionControlState",
+        "Pkg":  "com.example.agent.runtime.control",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\control\\ExecutionControlState.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "UserContext",
+        "Pkg":  "com.example.agent.security.auth",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\auth\\UserContext.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ReactDecision",
+        "Pkg":  "com.example.agent.runtime.react",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\react\\ReactDecision.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningExecutionConfiguration",
+        "Pkg":  "com.example.agent.reasoning.common.orchestrator",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\orchestrator\\ReasoningExecutionConfiguration.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityRuleHit",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\CapabilityRuleHit.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolExecutionResult",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\model\\ToolExecutionResult.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "MultiAgentPromptBuilder",
+        "Pkg":  "com.example.agent.orchestration.multiagent",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\multiagent\\MultiAgentPromptBuilder.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptTrace",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\PromptTrace.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "OutputKeys",
+        "Pkg":  "com.example.agent.runtime.output",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\output\\OutputKeys.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "JdbcScheduleRepository",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\JdbcScheduleRepository.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "DefaultStepExecutionDelegate",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\DefaultStepExecutionDelegate.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptTrimMetricsRecorder",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\PromptTrimMetricsRecorder.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "TenantResolver",
+        "Pkg":  "com.example.agent.security.auth",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\auth\\TenantResolver.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "InMemoryStepRecordRepository",
+        "Pkg":  "com.example.agent.runtime.step.repository",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\repository\\InMemoryStepRecordRepository.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepInputView",
+        "Pkg":  "com.example.agent.runtime.model.input",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\input\\StepInputView.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "OpenApiDocumentStore",
+        "Pkg":  "com.example.agent.api.contracts",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\contracts\\OpenApiDocumentStore.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "DefaultPromptTemplate",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\DefaultPromptTemplate.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningRequest",
+        "Pkg":  "com.example.agent.reasoning.common",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\ReasoningRequest.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "MultiAgentRoleResolver",
+        "Pkg":  "com.example.agent.orchestration.multiagent",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\multiagent\\MultiAgentRoleResolver.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "JdbcTokenUsageRepository",
+        "Pkg":  "com.example.agent.budget.token.repository",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\repository\\JdbcTokenUsageRepository.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "EvidenceStats",
+        "Pkg":  "com.example.agent.capabilities.context.evidence",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\evidence\\EvidenceStats.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "DefaultCompressionSummaryApplier",
+        "Pkg":  "com.example.agent.budget.trim.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\application\\DefaultCompressionSummaryApplier.java"
+    },
+    {
+        "Top":  "history",
+        "Name":  "TimelineResponse",
+        "Pkg":  "com.example.agent.history.timeline",
+        "File":  "src\\main\\java\\com\\example\\agent\\history\\timeline\\TimelineResponse.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "DefaultStructuredData",
+        "Pkg":  "com.example.agent.runtime.structured.structured",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\structured\\structured\\DefaultStructuredData.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "MultiAgentStrategyHandler",
+        "Pkg":  "com.example.agent.planning.strategy.handlers",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\handlers\\MultiAgentStrategyHandler.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "TrimContext",
+        "Pkg":  "com.example.agent.budget.trim.handler",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\handler\\TrimContext.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "BudgetPressureRiskRule",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\BudgetPressureRiskRule.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "BlockingCallExecutor",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\BlockingCallExecutor.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "TokenUsageRecorder",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\TokenUsageRecorder.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityRiskRule",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\CapabilityRiskRule.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpToolCallResponse",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\McpToolCallResponse.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "InMemoryRawResultStore",
+        "Pkg":  "com.example.agent.runtime.raw.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\store\\InMemoryRawResultStore.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolInvocationService",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.service",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\service\\ToolInvocationService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeContextView",
+        "Pkg":  "com.example.agent.runtime.api",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\api\\RuntimeContextView.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "JdbcScheduleExecutionRepository",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\JdbcScheduleExecutionRepository.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityEvaluationResult",
+        "Pkg":  "com.example.agent.governance.evaluation",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\CapabilityEvaluationResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "HookHandler",
+        "Pkg":  "com.example.agent.capabilities.tools.hook",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\hook\\HookHandler.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "ScheduleController",
+        "Pkg":  "com.example.agent.api.http.controller",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\controller\\ScheduleController.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "DebateCoordinator",
+        "Pkg":  "com.example.agent.reasoning.debate",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\debate\\DebateCoordinator.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepFailureRecoveryService",
+        "Pkg":  "com.example.agent.runtime.recovery",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\recovery\\StepFailureRecoveryService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RecallPostProcessResult",
+        "Pkg":  "com.example.agent.capabilities.memory.recall",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\recall\\RecallPostProcessResult.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ThoughtTreeTerminalPolicy",
+        "Pkg":  "com.example.agent.reasoning.thoughttree",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\thoughttree\\ThoughtTreeTerminalPolicy.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "DefaultLlmClient",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\DefaultLlmClient.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "CotDecisionParser",
+        "Pkg":  "com.example.agent.reasoning.cot",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\cot\\CotDecisionParser.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "AgentRuntime",
+        "Pkg":  "com.example.agent.runtime.engine",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\engine\\AgentRuntime.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeApprovalGate",
+        "Pkg":  "com.example.agent.runtime.control",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\control\\RuntimeApprovalGate.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "JsonRepairMetadata",
+        "Pkg":  "com.example.agent.capabilities.llm.repair",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\repair\\JsonRepairMetadata.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LocalFallbackStrategy",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\LocalFallbackStrategy.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "DirectLlmStrategyHandler",
+        "Pkg":  "com.example.agent.planning.strategy.handlers",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\handlers\\DirectLlmStrategyHandler.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepExecutionDelegate",
+        "Pkg":  "com.example.agent.runtime.step",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\StepExecutionDelegate.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepStateMachine",
+        "Pkg":  "com.example.agent.runtime.step",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\StepStateMachine.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmPromptEventPayload",
+        "Pkg":  "com.example.agent.capabilities.llm.client.events",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\events\\LlmPromptEventPayload.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningCapabilityService",
+        "Pkg":  "com.example.agent.planning.capability",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\capability\\PlanningCapabilityService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryWriteContext",
+        "Pkg":  "com.example.agent.capabilities.memory.write",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\write\\MemoryWriteContext.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "InMemoryTaskRepository",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\InMemoryTaskRepository.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "DebateStepExecutor",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\DebateStepExecutor.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "SseStreamController",
+        "Pkg":  "com.example.agent.streaming.sse",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\sse\\SseStreamController.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "TaskResponse",
+        "Pkg":  "com.example.agent.api.http.dto",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\dto\\TaskResponse.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ValidationSupport",
+        "Pkg":  "com.example.agent.capabilities.llm.support",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\support\\ValidationSupport.java"
+    },
+    {
+        "Top":  "common",
+        "Name":  "ApiResponse",
+        "Pkg":  "com.example.agent.common.response",
+        "File":  "src\\main\\java\\com\\example\\agent\\common\\response\\ApiResponse.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepRecord",
+        "Pkg":  "com.example.agent.runtime.step",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\StepRecord.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptAssemblyInput",
+        "Pkg":  "com.example.agent.capabilities.context.assembly",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\assembly\\PromptAssemblyInput.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelProviderAdapter",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ModelProviderAdapter.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanParseResult",
+        "Pkg":  "com.example.agent.planning.parser",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\parser\\PlanParseResult.java"
+    },
+    {
+        "Top":  "security",
+        "Name":  "RedactionStage",
+        "Pkg":  "com.example.agent.security.redaction",
+        "File":  "src\\main\\java\\com\\example\\agent\\security\\redaction\\RedactionStage.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ProviderRouter",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ProviderRouter.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepRuntimeEventService",
+        "Pkg":  "com.example.agent.runtime.step",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\StepRuntimeEventService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StructuredExtractor",
+        "Pkg":  "com.example.agent.runtime.structured.extractor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\structured\\extractor\\StructuredExtractor.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PluginProperties",
+        "Pkg":  "com.example.agent.capabilities.tools.plugin",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\plugin\\PluginProperties.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanTelemetry",
+        "Pkg":  "com.example.agent.planning.telemetry",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\telemetry\\PlanTelemetry.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionStrategy",
+        "Pkg":  "com.example.agent.reflection.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\strategy\\ReflectionStrategy.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskRepository",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskRepository.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryStore",
+        "Pkg":  "com.example.agent.capabilities.memory",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\MemoryStore.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningStrategyContext",
+        "Pkg":  "com.example.agent.planning.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\PlanningStrategyContext.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelRegistry",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ModelRegistry.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionService",
+        "Pkg":  "com.example.agent.reflection",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\ReflectionService.java"
+    },
+    {
+        "Top":  "common",
+        "Name":  "ErrorCodeException",
+        "Pkg":  "com.example.agent.common.error",
+        "File":  "src\\main\\java\\com\\example\\agent\\common\\error\\ErrorCodeException.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "PendingApprovalStore",
+        "Pkg":  "com.example.agent.governance.approval.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\approval\\domain\\PendingApprovalStore.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningPromptSummaryFactory",
+        "Pkg":  "com.example.agent.planning.context",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\context\\PlanningPromptSummaryFactory.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionProperties",
+        "Pkg":  "com.example.agent.reflection",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\ReflectionProperties.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "ReplayResponse",
+        "Pkg":  "com.example.agent.api.http.dto.governance",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\dto\\governance\\ReplayResponse.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningExecutionPlan",
+        "Pkg":  "com.example.agent.reasoning.common.orchestrator",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\orchestrator\\ReasoningExecutionPlan.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "SkillRoute",
+        "Pkg":  "com.example.agent.capabilities.tools.skill",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\skill\\SkillRoute.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ReactStopDecision",
+        "Pkg":  "com.example.agent.runtime.react",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\react\\ReactStopDecision.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningStrategyType",
+        "Pkg":  "com.example.agent.planning.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\PlanningStrategyType.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolCallState",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\ToolCallState.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolExecutionRequest",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\model\\ToolExecutionRequest.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpToolSyncService",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\McpToolSyncService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimePreparationService",
+        "Pkg":  "com.example.agent.runtime.prepare",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\prepare\\RuntimePreparationService.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningInput",
+        "Pkg":  "com.example.agent.reasoning.common",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\ReasoningInput.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningPromptBuilder",
+        "Pkg":  "com.example.agent.planning",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\PlanningPromptBuilder.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "ScheduleEngine",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\ScheduleEngine.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "SkillVersion",
+        "Pkg":  "com.example.agent.capabilities.tools.skill",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\skill\\SkillVersion.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningDiagnosticsSnapshotBuilder",
+        "Pkg":  "com.example.agent.planning.diagnostics",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\diagnostics\\PlanningDiagnosticsSnapshotBuilder.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "RateLimitStore",
+        "Pkg":  "com.example.agent.governance.ratelimit.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\ratelimit\\domain\\RateLimitStore.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextSnapshotFactory",
+        "Pkg":  "com.example.agent.capabilities.context.builder",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\builder\\ContextSnapshotFactory.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "OpenApiConfig",
+        "Pkg":  "com.example.agent.api.contracts",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\contracts\\OpenApiConfig.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelProviderHttpProperties",
+        "Pkg":  "com.example.agent.capabilities.llm.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\config\\ModelProviderHttpProperties.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CircuitBreakerManager",
+        "Pkg":  "com.example.agent.governance.circuitbreaker",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\circuitbreaker\\CircuitBreakerManager.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "OllamaProviderAdapter",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\OllamaProviderAdapter.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepResultError",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\StepResultError.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepRecordRepository",
+        "Pkg":  "com.example.agent.runtime.step.repository",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\repository\\StepRecordRepository.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionLlmDecisionResolver",
+        "Pkg":  "com.example.agent.reflection.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\strategy\\ReflectionLlmDecisionResolver.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeApprovalDecision",
+        "Pkg":  "com.example.agent.runtime.control",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\control\\RuntimeApprovalDecision.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ApprovalDecision",
+        "Pkg":  "com.example.agent.governance.approval",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\approval\\ApprovalDecision.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningStrategySelector",
+        "Pkg":  "com.example.agent.reasoning.common.selection",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\selection\\ReasoningStrategySelector.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmTaskContext",
+        "Pkg":  "com.example.agent.capabilities.llm.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\contract\\LlmTaskContext.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "FailureClassifier",
+        "Pkg":  "com.example.agent.runtime.recovery",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\recovery\\FailureClassifier.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemorySearchResult",
+        "Pkg":  "com.example.agent.capabilities.memory.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\model\\MemorySearchResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "SkillRegistry",
+        "Pkg":  "com.example.agent.capabilities.tools.skill",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\skill\\SkillRegistry.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptMessage",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\PromptMessage.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "LastStepInput",
+        "Pkg":  "com.example.agent.runtime.model.input",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\input\\LastStepInput.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "ContextSnapshotStage",
+        "Pkg":  "com.example.agent.streaming.payload",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\payload\\ContextSnapshotStage.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextTokenEstimator",
+        "Pkg":  "com.example.agent.budget.trim.estimator",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\estimator\\ContextTokenEstimator.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolRawRefService",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.service",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\service\\ToolRawRefService.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "TaskQuery",
+        "Pkg":  "com.example.agent.api.http.dto",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\dto\\TaskQuery.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "EventType",
+        "Pkg":  "com.example.agent.streaming.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\domain\\EventType.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningStrategyResult",
+        "Pkg":  "com.example.agent.planning.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\PlanningStrategyResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryWriteSerializer",
+        "Pkg":  "com.example.agent.capabilities.memory.write",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\write\\MemoryWriteSerializer.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "EvidencePackHookHandler",
+        "Pkg":  "com.example.agent.capabilities.tools.hook",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\hook\\EvidencePackHookHandler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelResponseExtractor",
+        "Pkg":  "com.example.agent.capabilities.llm.provider",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\provider\\ModelResponseExtractor.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ExecutionControlStateResponse",
+        "Pkg":  "com.example.agent.runtime.control",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\control\\ExecutionControlStateResponse.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PluginDescriptor",
+        "Pkg":  "com.example.agent.capabilities.tools.plugin",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\plugin\\PluginDescriptor.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepResultMeta",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\StepResultMeta.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "DebateStrategyHandler",
+        "Pkg":  "com.example.agent.planning.strategy.handlers",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\handlers\\DebateStrategyHandler.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "DefaultBudgetThresholdEvaluator",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\DefaultBudgetThresholdEvaluator.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "TaskIntent",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\TaskIntent.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "ToolApprovalDecisionResponse",
+        "Pkg":  "com.example.agent.api.http.dto.governance",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\dto\\governance\\ToolApprovalDecisionResponse.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepOutputSummaryBuilder",
+        "Pkg":  "com.example.agent.runtime.summary",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\summary\\StepOutputSummaryBuilder.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "PromptTrimEngine",
+        "Pkg":  "com.example.agent.capabilities.llm.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\prompt\\PromptTrimEngine.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RecallExecutionPlanner",
+        "Pkg":  "com.example.agent.capabilities.memory.recall",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\recall\\RecallExecutionPlanner.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ReasoningInputResolver",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\ReasoningInputResolver.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "JdbcTaskRepository",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\JdbcTaskRepository.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "ScheduleManager",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\ScheduleManager.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningConfigValidator",
+        "Pkg":  "com.example.agent.reasoning.common.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\config\\ReasoningConfigValidator.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "ContextBudgetSummary",
+        "Pkg":  "com.example.agent.streaming.payload",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\payload\\ContextBudgetSummary.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MutableContextRuntimeView",
+        "Pkg":  "com.example.agent.capabilities.context.runtime",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\runtime\\MutableContextRuntimeView.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ApprovalDecisionRequest",
+        "Pkg":  "com.example.agent.runtime.control",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\control\\ApprovalDecisionRequest.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RawResultStoreFallbackConfiguration",
+        "Pkg":  "com.example.agent.runtime.raw.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\store\\RawResultStoreFallbackConfiguration.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RawResultResolveResult",
+        "Pkg":  "com.example.agent.runtime.raw",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\RawResultResolveResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryRecallResult",
+        "Pkg":  "com.example.agent.capabilities.memory.recall",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\recall\\MemoryRecallResult.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ThoughtTreeConfig",
+        "Pkg":  "com.example.agent.reasoning.thoughttree",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\thoughttree\\ThoughtTreeConfig.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "AgentProfileProperties",
+        "Pkg":  "com.example.agent.orchestration.multiagent",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\multiagent\\AgentProfileProperties.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionExecutionContext",
+        "Pkg":  "com.example.agent.reflection",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\ReflectionExecutionContext.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "SummaryDigestService",
+        "Pkg":  "com.example.agent.runtime.summary",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\summary\\SummaryDigestService.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "FinalOutputProperties",
+        "Pkg":  "com.example.agent.runtime.output",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\output\\FinalOutputProperties.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningExecutionProperties",
+        "Pkg":  "com.example.agent.reasoning.common.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\config\\ReasoningExecutionProperties.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextBudgetRequest",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\ContextBudgetRequest.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RecallPostProcessor",
+        "Pkg":  "com.example.agent.capabilities.memory.recall",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\recall\\RecallPostProcessor.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "AgentProfile",
+        "Pkg":  "com.example.agent.orchestration.multiagent",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\multiagent\\AgentProfile.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextPruneResult",
+        "Pkg":  "com.example.agent.budget.trim.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\model\\ContextPruneResult.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "FileRawResultStore",
+        "Pkg":  "com.example.agent.runtime.raw.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\store\\FileRawResultStore.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "McpToolStartupWarmup",
+        "Pkg":  "com.example.agent.capabilities.tools.mcp",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\mcp\\McpToolStartupWarmup.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "RateLimitService",
+        "Pkg":  "com.example.agent.governance.ratelimit",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\ratelimit\\RateLimitService.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplaySessionStore",
+        "Pkg":  "com.example.agent.governance.replay.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\domain\\ReplaySessionStore.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelScene",
+        "Pkg":  "com.example.agent.capabilities.llm.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\contract\\ModelScene.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryVectorProperties",
+        "Pkg":  "com.example.agent.capabilities.memory.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\config\\MemoryVectorProperties.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "ScheduleRepository",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\ScheduleRepository.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextBudgetPolicy",
+        "Pkg":  "com.example.agent.budget.core",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\core\\ContextBudgetPolicy.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimePreparationResult",
+        "Pkg":  "com.example.agent.runtime.prepare",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\prepare\\RuntimePreparationResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "SkillProperties",
+        "Pkg":  "com.example.agent.capabilities.tools.skill",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\skill\\SkillProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ParsedRawRef",
+        "Pkg":  "com.example.agent.runtime.raw.ref",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\ref\\ParsedRawRef.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanParseAttemptResult",
+        "Pkg":  "com.example.agent.planning.parser",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\parser\\PlanParseAttemptResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolingContextMapper",
+        "Pkg":  "com.example.agent.capabilities.llm.tooling",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\tooling\\ToolingContextMapper.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelToolResolver",
+        "Pkg":  "com.example.agent.capabilities.llm.tooling",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\tooling\\ModelToolResolver.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "VectorStore",
+        "Pkg":  "com.example.agent.capabilities.memory.vector",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\vector\\VectorStore.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "ScheduleResponse",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\ScheduleResponse.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextTrimSection",
+        "Pkg":  "com.example.agent.budget.core",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\core\\ContextTrimSection.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningMetricsPublisher",
+        "Pkg":  "com.example.agent.reasoning.common.telemetry",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\telemetry\\ReasoningMetricsPublisher.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "SizeAwareRawResultStore",
+        "Pkg":  "com.example.agent.runtime.raw.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\store\\SizeAwareRawResultStore.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelResponse",
+        "Pkg":  "com.example.agent.capabilities.llm.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\contract\\ModelResponse.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "SandboxExecutor",
+        "Pkg":  "com.example.agent.capabilities.tools.sandbox",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\sandbox\\SandboxExecutor.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextTrimReport",
+        "Pkg":  "com.example.agent.budget.trim.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\model\\ContextTrimReport.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ApprovalProperties",
+        "Pkg":  "com.example.agent.governance.approval",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\approval\\ApprovalProperties.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ReactStopEvaluator",
+        "Pkg":  "com.example.agent.runtime.react",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\react\\ReactStopEvaluator.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextSnapshot",
+        "Pkg":  "com.example.agent.capabilities.context.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\model\\ContextSnapshot.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextRuntimeViews",
+        "Pkg":  "com.example.agent.capabilities.context.runtime",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\runtime\\ContextRuntimeViews.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "ThoughtTreeStrategyHandler",
+        "Pkg":  "com.example.agent.planning.strategy.handlers",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\handlers\\ThoughtTreeStrategyHandler.java"
+    },
+    {
+        "Top":  "history",
+        "Name":  "InMemoryEventLogRepository",
+        "Pkg":  "com.example.agent.history.eventlog",
+        "File":  "src\\main\\java\\com\\example\\agent\\history\\eventlog\\InMemoryEventLogRepository.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ThoughtTreeService",
+        "Pkg":  "com.example.agent.reasoning.thoughttree",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\thoughttree\\ThoughtTreeService.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CircuitStateEntry",
+        "Pkg":  "com.example.agent.governance.circuitbreaker.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\circuitbreaker\\domain\\CircuitStateEntry.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepSpec",
+        "Pkg":  "com.example.agent.runtime.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\StepSpec.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ApprovalInput",
+        "Pkg":  "com.example.agent.runtime.model.input",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\model\\input\\ApprovalInput.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ChainOfThoughtService",
+        "Pkg":  "com.example.agent.reasoning.cot",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\cot\\ChainOfThoughtService.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningStrategyRegistry",
+        "Pkg":  "com.example.agent.planning.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\PlanningStrategyRegistry.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanningStrategyHandler",
+        "Pkg":  "com.example.agent.planning.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\strategy\\PlanningStrategyHandler.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextPruneRequest",
+        "Pkg":  "com.example.agent.budget.trim.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\model\\ContextPruneRequest.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextBudgetAllocationState",
+        "Pkg":  "com.example.agent.budget.core",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\core\\ContextBudgetAllocationState.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "JsonPayloadNormalizer",
+        "Pkg":  "com.example.agent.reasoning.common",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\JsonPayloadNormalizer.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "PolicyEvaluateResponse",
+        "Pkg":  "com.example.agent.api.http.dto.governance",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\dto\\governance\\PolicyEvaluateResponse.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryWriteRecordFactory",
+        "Pkg":  "com.example.agent.capabilities.memory.write",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\write\\MemoryWriteRecordFactory.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "ReplayRequest",
+        "Pkg":  "com.example.agent.api.http.dto.governance",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\dto\\governance\\ReplayRequest.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextTrimRequest",
+        "Pkg":  "com.example.agent.budget.trim.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\model\\ContextTrimRequest.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RawRefAttachmentService",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\RawRefAttachmentService.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningStrategy",
+        "Pkg":  "com.example.agent.reasoning.common",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\ReasoningStrategy.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningConfigResolver",
+        "Pkg":  "com.example.agent.reasoning.common.config",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\config\\ReasoningConfigResolver.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "ScheduleQuery",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\ScheduleQuery.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolExecutionMapper",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.mapping",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\mapping\\ToolExecutionMapper.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "FinalOutputService",
+        "Pkg":  "com.example.agent.runtime.output",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\output\\FinalOutputService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmParseEventPayload",
+        "Pkg":  "com.example.agent.capabilities.llm.client.events",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\events\\LlmParseEventPayload.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "CotContextBuilder",
+        "Pkg":  "com.example.agent.reasoning.cot",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\cot\\CotContextBuilder.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskStatus",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskStatus.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "ContextDelta",
+        "Pkg":  "com.example.agent.streaming.payload",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\payload\\ContextDelta.java"
+    },
+    {
+        "Top":  "reasoning",
+        "Name":  "ReasoningOrchestrator",
+        "Pkg":  "com.example.agent.reasoning.common.orchestrator",
+        "File":  "src\\main\\java\\com\\example\\agent\\reasoning\\common\\orchestrator\\ReasoningOrchestrator.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "DefaultBudgetEventPublisher",
+        "Pkg":  "com.example.agent.budget.token.event",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\event\\DefaultBudgetEventPublisher.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "HookContext",
+        "Pkg":  "com.example.agent.capabilities.tools.hook",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\hook\\HookContext.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ReplayResult",
+        "Pkg":  "com.example.agent.governance.replay.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\replay\\domain\\ReplayResult.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RawResultStore",
+        "Pkg":  "com.example.agent.runtime.raw.store",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\store\\RawResultStore.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ObservationWindowBuffer",
+        "Pkg":  "com.example.agent.runtime.react",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\react\\ObservationWindowBuffer.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmEventPublisher",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\LlmEventPublisher.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "PolicyEvaluationResult",
+        "Pkg":  "com.example.agent.governance.policy.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\policy\\domain\\PolicyEvaluationResult.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolQuery",
+        "Pkg":  "com.example.agent.capabilities.tools",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\ToolQuery.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolSummary",
+        "Pkg":  "com.example.agent.capabilities.tools",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\ToolSummary.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "ResearchStepExecutor",
+        "Pkg":  "com.example.agent.runtime.step.executor",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\executor\\ResearchStepExecutor.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionPromptProvider",
+        "Pkg":  "com.example.agent.reflection.prompt",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\prompt\\ReflectionPromptProvider.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "TaskStreamRequest",
+        "Pkg":  "com.example.agent.streaming.sse",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\sse\\TaskStreamRequest.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "ContextCompressionRequest",
+        "Pkg":  "com.example.agent.budget.trim.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\model\\ContextCompressionRequest.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionLlmInvocation",
+        "Pkg":  "com.example.agent.reflection.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\strategy\\ReflectionLlmInvocation.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ResearchPipeline",
+        "Pkg":  "com.example.agent.capabilities.context.research",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\research\\ResearchPipeline.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "PlanParseErrorTypes",
+        "Pkg":  "com.example.agent.planning.parser",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\parser\\PlanParseErrorTypes.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryWriteRedactionProcessor",
+        "Pkg":  "com.example.agent.capabilities.memory.write",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\write\\MemoryWriteRedactionProcessor.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "DefaultTokenUsageRecorder",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\DefaultTokenUsageRecorder.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CircuitStateStore",
+        "Pkg":  "com.example.agent.governance.circuitbreaker.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\circuitbreaker\\domain\\CircuitStateStore.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ContextRuntimeReadContext",
+        "Pkg":  "com.example.agent.capabilities.context.runtime",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\runtime\\ContextRuntimeReadContext.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "BlockedToolHookHandler",
+        "Pkg":  "com.example.agent.capabilities.tools.hook",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\hook\\BlockedToolHookHandler.java"
+    },
+    {
+        "Top":  "planning",
+        "Name":  "HeuristicPlanBuilder",
+        "Pkg":  "com.example.agent.planning.builder",
+        "File":  "src\\main\\java\\com\\example\\agent\\planning\\builder\\HeuristicPlanBuilder.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "ApprovalDecisionAwaiter",
+        "Pkg":  "com.example.agent.governance.approval.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\approval\\domain\\ApprovalDecisionAwaiter.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryWriteService",
+        "Pkg":  "com.example.agent.capabilities.memory.write",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\write\\MemoryWriteService.java"
+    },
+    {
+        "Top":  "history",
+        "Name":  "TimelineRequest",
+        "Pkg":  "com.example.agent.history.timeline",
+        "File":  "src\\main\\java\\com\\example\\agent\\history\\timeline\\TimelineRequest.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "ContextSnapshotEventPayload",
+        "Pkg":  "com.example.agent.streaming.payload",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\payload\\ContextSnapshotEventPayload.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelRequest",
+        "Pkg":  "com.example.agent.capabilities.llm.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\contract\\ModelRequest.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ModelToolChoice",
+        "Pkg":  "com.example.agent.capabilities.llm.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\contract\\ModelToolChoice.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "CompressionExecutionResult",
+        "Pkg":  "com.example.agent.budget.trim.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\trim\\model\\CompressionExecutionResult.java"
+    },
+    {
+        "Top":  "streaming",
+        "Name":  "EventStreamService",
+        "Pkg":  "com.example.agent.streaming.sse",
+        "File":  "src\\main\\java\\com\\example\\agent\\streaming\\sse\\EventStreamService.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "DebateKeywordStrategyRule",
+        "Pkg":  "com.example.agent.governance.evaluation.domain",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\domain\\DebateKeywordStrategyRule.java"
+    },
+    {
+        "Top":  "governance",
+        "Name":  "CapabilityEvaluationInput",
+        "Pkg":  "com.example.agent.governance.evaluation",
+        "File":  "src\\main\\java\\com\\example\\agent\\governance\\evaluation\\CapabilityEvaluationInput.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "RecallPolicyResolver",
+        "Pkg":  "com.example.agent.capabilities.memory.recall",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\recall\\RecallPolicyResolver.java"
+    },
+    {
+        "Top":  "budget",
+        "Name":  "DefaultTokenUsageSummaryService",
+        "Pkg":  "com.example.agent.budget.token.application",
+        "File":  "src\\main\\java\\com\\example\\agent\\budget\\token\\application\\DefaultTokenUsageSummaryService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "HookRecord",
+        "Pkg":  "com.example.agent.capabilities.tools.hook",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\hook\\HookRecord.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskListView",
+        "Pkg":  "com.example.agent.orchestration.task.contract",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\contract\\TaskListView.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RawOutputEnvelopeBuilder",
+        "Pkg":  "com.example.agent.runtime.raw.output",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\raw\\output\\RawOutputEnvelopeBuilder.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "RuntimeControlEventPublisher",
+        "Pkg":  "com.example.agent.runtime.control",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\control\\RuntimeControlEventPublisher.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "FailureType",
+        "Pkg":  "com.example.agent.runtime.recovery",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\recovery\\FailureType.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskPageQuery",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskPageQuery.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "ReflectionLlmInvocationExecutor",
+        "Pkg":  "com.example.agent.reflection.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\strategy\\ReflectionLlmInvocationExecutor.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StepResultAssembler",
+        "Pkg":  "com.example.agent.runtime.step",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\step\\StepResultAssembler.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryLayer",
+        "Pkg":  "com.example.agent.capabilities.memory.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\model\\MemoryLayer.java"
+    },
+    {
+        "Top":  "scheduler",
+        "Name":  "InMemoryScheduleRepository",
+        "Pkg":  "com.example.agent.scheduler",
+        "File":  "src\\main\\java\\com\\example\\agent\\scheduler\\InMemoryScheduleRepository.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolFieldKeys",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.mapping",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\mapping\\ToolFieldKeys.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "MultiAgentEventPublisher",
+        "Pkg":  "com.example.agent.orchestration.multiagent",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\multiagent\\MultiAgentEventPublisher.java"
+    },
+    {
+        "Top":  "orchestration",
+        "Name":  "TaskIdempotencyService",
+        "Pkg":  "com.example.agent.orchestration.task",
+        "File":  "src\\main\\java\\com\\example\\agent\\orchestration\\task\\TaskIdempotencyService.java"
+    },
+    {
+        "Top":  "reflection",
+        "Name":  "HeuristicReflectionStrategy",
+        "Pkg":  "com.example.agent.reflection.strategy",
+        "File":  "src\\main\\java\\com\\example\\agent\\reflection\\strategy\\HeuristicReflectionStrategy.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "MemoryExpirationService",
+        "Pkg":  "com.example.agent.capabilities.memory.policy",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\memory\\policy\\MemoryExpirationService.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "LlmExecutionResult",
+        "Pkg":  "com.example.agent.capabilities.llm.client",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\llm\\client\\LlmExecutionResult.java"
+    },
+    {
+        "Top":  "runtime",
+        "Name":  "StructuredRefs",
+        "Pkg":  "com.example.agent.runtime.structured.result",
+        "File":  "src\\main\\java\\com\\example\\agent\\runtime\\structured\\result\\StructuredRefs.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "EvidenceIndex",
+        "Pkg":  "com.example.agent.capabilities.context.evidence",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\context\\evidence\\EvidenceIndex.java"
+    },
+    {
+        "Top":  "api",
+        "Name":  "TaskListResponse",
+        "Pkg":  "com.example.agent.api.http.dto",
+        "File":  "src\\main\\java\\com\\example\\agent\\api\\http\\dto\\TaskListResponse.java"
+    },
+    {
+        "Top":  "capabilities",
+        "Name":  "ToolInvocationArguments",
+        "Pkg":  "com.example.agent.capabilities.tools.execution.model",
+        "File":  "src\\main\\java\\com\\example\\agent\\capabilities\\tools\\execution\\model\\ToolInvocationArguments.java"
+    }
+]

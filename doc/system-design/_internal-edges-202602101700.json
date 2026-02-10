@@ -1,0 +1,4947 @@
+﻿[
+    {
+        "Top":  "api",
+        "From":  "PolicyController",
+        "To":  "PolicyEvaluateRequest"
+    },
+    {
+        "Top":  "api",
+        "From":  "PolicyController",
+        "To":  "PolicyEvaluateResponse"
+    },
+    {
+        "Top":  "api",
+        "From":  "ReplayController",
+        "To":  "ReplayRequest"
+    },
+    {
+        "Top":  "api",
+        "From":  "ReplayController",
+        "To":  "ReplayResponse"
+    },
+    {
+        "Top":  "api",
+        "From":  "TaskController",
+        "To":  "TaskListResponse"
+    },
+    {
+        "Top":  "api",
+        "From":  "TaskController",
+        "To":  "TaskQuery"
+    },
+    {
+        "Top":  "api",
+        "From":  "TaskController",
+        "To":  "TaskRequest"
+    },
+    {
+        "Top":  "api",
+        "From":  "TaskController",
+        "To":  "TaskResponse"
+    },
+    {
+        "Top":  "api",
+        "From":  "TaskController",
+        "To":  "TaskStatusResponse"
+    },
+    {
+        "Top":  "api",
+        "From":  "TaskController",
+        "To":  "TaskHttpMapper"
+    },
+    {
+        "Top":  "api",
+        "From":  "ToolApprovalController",
+        "To":  "ToolApprovalDecisionRequest"
+    },
+    {
+        "Top":  "api",
+        "From":  "ToolApprovalController",
+        "To":  "ToolApprovalDecisionResponse"
+    },
+    {
+        "Top":  "api",
+        "From":  "TaskHttpMapper",
+        "To":  "TaskListResponse"
+    },
+    {
+        "Top":  "api",
+        "From":  "TaskHttpMapper",
+        "To":  "TaskQuery"
+    },
+    {
+        "Top":  "api",
+        "From":  "TaskHttpMapper",
+        "To":  "TaskRequest"
+    },
+    {
+        "Top":  "api",
+        "From":  "TaskHttpMapper",
+        "To":  "TaskResponse"
+    },
+    {
+        "Top":  "api",
+        "From":  "TaskHttpMapper",
+        "To":  "TaskStatusResponse"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextBudgetProperties",
+        "To":  "ContextBudgetPolicy"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextBudgetProperties",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextBudgetProperties",
+        "To":  "ContextTrimSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "BudgetThresholdEvaluator",
+        "To":  "TokenUsageSummary"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextBudgetAllocator",
+        "To":  "ContextBudgetAllocation"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextBudgetRequest",
+        "To":  "ContextBudgetPolicy"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultBudgetThresholdEvaluator",
+        "To":  "TokenUsageSummary"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextBudgetAllocator",
+        "To":  "ContextBudgetAllocation"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextBudgetAllocator",
+        "To":  "ContextBudgetAllocationState"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextBudgetAllocator",
+        "To":  "ContextBudgetPolicy"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextBudgetAllocator",
+        "To":  "ContextBudgetProperties"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextBudgetAllocator",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultTokenUsageRecorder",
+        "To":  "TokenUsageRecord"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultTokenUsageRecorder",
+        "To":  "TokenUsageRepository"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultTokenUsageRecordFactory",
+        "To":  "TokenUsageInput"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultTokenUsageRecordFactory",
+        "To":  "TokenUsageRecord"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultTokenUsageRecordFactory",
+        "To":  "CostCalculator"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultTokenUsageSummaryService",
+        "To":  "TokenUsageRecord"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultTokenUsageSummaryService",
+        "To":  "TokenUsageSummary"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultTokenUsageSummaryService",
+        "To":  "TokenUsageRepository"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TokenBudgetManager",
+        "To":  "TokenUsageInput"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TokenBudgetManager",
+        "To":  "TokenUsageRecord"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TokenBudgetManager",
+        "To":  "TokenUsageSummary"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TokenBudgetManager",
+        "To":  "BudgetEventPublisher"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TokenUsageRecorder",
+        "To":  "TokenUsageRecord"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TokenUsageRecordFactory",
+        "To":  "TokenUsageInput"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TokenUsageRecordFactory",
+        "To":  "TokenUsageRecord"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TokenUsageSummaryService",
+        "To":  "TokenUsageSummary"
+    },
+    {
+        "Top":  "budget",
+        "From":  "InMemoryTokenUsageRepository",
+        "To":  "TokenUsageRecord"
+    },
+    {
+        "Top":  "budget",
+        "From":  "JdbcTokenUsageRepository",
+        "To":  "TokenUsageRecord"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TokenUsageRepository",
+        "To":  "TokenUsageRecord"
+    },
+    {
+        "Top":  "budget",
+        "From":  "CompressionExecutionService",
+        "To":  "CompressionExecutionResult"
+    },
+    {
+        "Top":  "budget",
+        "From":  "CompressionExecutionService",
+        "To":  "ContextCompressionRequest"
+    },
+    {
+        "Top":  "budget",
+        "From":  "CompressionSummaryApplier",
+        "To":  "CompressionSummaryApplyResult"
+    },
+    {
+        "Top":  "budget",
+        "From":  "CompressionTriggerPolicy",
+        "To":  "ContextBudgetAllocation"
+    },
+    {
+        "Top":  "budget",
+        "From":  "CompressionTriggerPolicy",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextCompressionService",
+        "To":  "ContextBudgetAllocation"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextCompressionService",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextCompressionService",
+        "To":  "ContextTokenEstimator"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextCompressionService",
+        "To":  "CompressionExecutionResult"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextCompressionService",
+        "To":  "CompressionSummaryApplyResult"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextCompressionService",
+        "To":  "ContextCompressionRequest"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextCompressionService",
+        "To":  "ContextCompressionResult"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextCompressionService",
+        "To":  "ContextTrimReport"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextCompressionService",
+        "To":  "ContextCompressionProperties"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextPruner",
+        "To":  "ContextPruneRequest"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextPruner",
+        "To":  "ContextPruneResult"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextTrimmer",
+        "To":  "ContextTrimRequest"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextTrimmer",
+        "To":  "ContextTrimResult"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextTrimMetricsRecorder",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextTrimMetricsRecorder",
+        "To":  "ContextTrimStats"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultCompressionExecutionService",
+        "To":  "CompressionExecutionResult"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultCompressionExecutionService",
+        "To":  "ContextCompressionRequest"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultCompressionSummaryApplier",
+        "To":  "CompressionSummaryApplyResult"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultCompressionTriggerPolicy",
+        "To":  "ContextBudgetAllocation"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultCompressionTriggerPolicy",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultCompressionTriggerPolicy",
+        "To":  "ContextCompressionProperties"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextPruner",
+        "To":  "ContextBudgetAllocation"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextPruner",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextPruner",
+        "To":  "ContextPruner"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextPruner",
+        "To":  "ContextPruneRequest"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextPruner",
+        "To":  "ContextPruneResult"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextPruner",
+        "To":  "PrunedItem"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ContextBudgetAllocation"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ContextBudgetProperties"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ContextTrimSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ContextTrimmer"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ContextTokenEstimator"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ContextTrimHandler"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "EvidencePackTrimHandler"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "RecalledMemoriesTrimHandler"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "TaskAndSystemTrimHandler"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ToolSummaryTrimHandler"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "TrimContext"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "WorkingMemoryTrimHandler"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ContextTrimReport"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ContextTrimRequest"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ContextTrimResult"
+    },
+    {
+        "Top":  "budget",
+        "From":  "DefaultContextTrimmer",
+        "To":  "ContextTrimStats"
+    },
+    {
+        "Top":  "budget",
+        "From":  "InMemoryCompressionCooldownService",
+        "To":  "ContextCompressionProperties"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextTokenEstimator",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "AbstractContextTrimHandler",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "AbstractContextTrimHandler",
+        "To":  "ContextTrimSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "AbstractContextTrimHandler",
+        "To":  "ContextTokenEstimator"
+    },
+    {
+        "Top":  "budget",
+        "From":  "AbstractContextTrimHandler",
+        "To":  "ContextTrimStats"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextTrimHandler",
+        "To":  "ContextTrimSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "EvidencePackTrimHandler",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "EvidencePackTrimHandler",
+        "To":  "ContextTrimSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "EvidencePackTrimHandler",
+        "To":  "ContextTokenEstimator"
+    },
+    {
+        "Top":  "budget",
+        "From":  "RecalledMemoriesTrimHandler",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "RecalledMemoriesTrimHandler",
+        "To":  "ContextTrimSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "RecalledMemoriesTrimHandler",
+        "To":  "ContextTokenEstimator"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TaskAndSystemTrimHandler",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TaskAndSystemTrimHandler",
+        "To":  "ContextTrimSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TaskAndSystemTrimHandler",
+        "To":  "ContextTokenEstimator"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ToolSummaryTrimHandler",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ToolSummaryTrimHandler",
+        "To":  "ContextTrimSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ToolSummaryTrimHandler",
+        "To":  "ContextTokenEstimator"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TrimContext",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TrimContext",
+        "To":  "ContextTokenEstimator"
+    },
+    {
+        "Top":  "budget",
+        "From":  "TrimContext",
+        "To":  "ContextTrimStats"
+    },
+    {
+        "Top":  "budget",
+        "From":  "WorkingMemoryTrimHandler",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "WorkingMemoryTrimHandler",
+        "To":  "ContextTrimSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "WorkingMemoryTrimHandler",
+        "To":  "ContextTokenEstimator"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextCompressionRequest",
+        "To":  "ContextBudgetAllocation"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextPruneRequest",
+        "To":  "ContextBudgetAllocation"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextTrimReport",
+        "To":  "ContextSection"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextTrimRequest",
+        "To":  "ContextBudgetAllocation"
+    },
+    {
+        "Top":  "budget",
+        "From":  "ContextTrimRequest",
+        "To":  "ContextBudgetPolicy"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextBuildRequest",
+        "To":  "MemoryRecallResult"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextBuildRequest",
+        "To":  "ContextPolicy"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextBuildRequest",
+        "To":  "ToolQuery"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextBuildResult",
+        "To":  "BuildMetrics"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextBuildResult",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextBuilder",
+        "To":  "MemoryRecallResult"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextBuilder",
+        "To":  "ContextSnapshotFactory"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextBuilder",
+        "To":  "ContextBudgetRequestFactory"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextBuilder",
+        "To":  "ContextBuildException"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextBuilder",
+        "To":  "ContextPolicyResolver"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextBuilder",
+        "To":  "BudgetState"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextBuilder",
+        "To":  "BuildMetrics"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextBuilder",
+        "To":  "ContextPolicy"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextBuilder",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextBuilder",
+        "To":  "RuntimeMeta"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextBuilder",
+        "To":  "ToolCatalogService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextAssemblyCommand",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextAssembler",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextAssembler",
+        "To":  "TokenEstimator"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultContextAssembler",
+        "To":  "PromptTemplate"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptContextPolicyApplier",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptContextPolicyApplier",
+        "To":  "PromptMessage"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptContextPolicyApplier",
+        "To":  "PromptRenderContext"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptContextPolicyApplier",
+        "To":  "PromptRole"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptContextPolicyApplier",
+        "To":  "PromptTemplate"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "AuditMetadata"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "BudgetState"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "BuildMetrics"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "Citation"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "DomainKnowledge"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "LongTermMemory"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "MemoryRef"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "RoleBoundary"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "RuntimeMeta"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "TaskIntent"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "ToolState"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "WorkingMemory"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "ResearchCitation"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "ContextRuntimeKeys"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "ContextRuntimeReadContext"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "ContextRuntimeView"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "ContextRuntimeViews"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "ConversationSummary"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "WorkingMemorySummary"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "MemoryRecallResult"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "ToolCatalogService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "ToolQuery"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextSnapshotFactory",
+        "To":  "ToolSummary"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextBudgetRequestFactory",
+        "To":  "ContextBuildRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextBudgetRequestFactory",
+        "To":  "ContextPolicy"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextPolicyResolver",
+        "To":  "ContextBuildRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextPolicyResolver",
+        "To":  "ContextPolicy"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "EvidencePackService",
+        "To":  "ContextRuntimeKeys"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "EvidencePackService",
+        "To":  "ResearchCitation"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolState",
+        "To":  "ToolSummary"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "WorkingMemory",
+        "To":  "EvidencePack"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ResearchPipeline",
+        "To":  "ModelInvocationService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ResearchPipeline",
+        "To":  "LlmTaskContext"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ResearchPipeline",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ResearchPipeline",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ResearchPipeline",
+        "To":  "ModelScene"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ResearchPipeline",
+        "To":  "PromptAssembler"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ResearchPipeline",
+        "To":  "PromptBundle"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ResearchPipeline",
+        "To":  "PromptTrace"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ResearchPipeline",
+        "To":  "JsonOutputRepairService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ResearchPipeline",
+        "To":  "JsonOutputSchema"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ResearchPipeline",
+        "To":  "ContextRuntimeKeys"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ContextRuntimeView",
+        "To":  "EvidencePack"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MutableContextRuntimeView",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MutableContextRuntimeView",
+        "To":  "EvidencePack"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultLlmClient",
+        "To":  "ModelDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultLlmClient",
+        "To":  "ModelProvider"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultLlmClient",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultLlmClient",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultLlmClient",
+        "To":  "ModelRouter"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultLlmClient",
+        "To":  "ModelScene"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmClient",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmClient",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmEventPublisher",
+        "To":  "LlmEventPayloadMapper"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmEventPublisher",
+        "To":  "LlmParseEventPayload"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmEventPublisher",
+        "To":  "LlmPromptEventPayload"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmEventPublisher",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmEventPublisher",
+        "To":  "PromptTrace"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmExecutionResult",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmFailureRecorder",
+        "To":  "ModelScene"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmFailureRecorder",
+        "To":  "ProviderErrorMapper"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationContext",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationContext",
+        "To":  "ModelScene"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationContext",
+        "To":  "PromptTrace"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationContext",
+        "To":  "ModelDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationContextFactory",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationContextFactory",
+        "To":  "ModelScene"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationContextFactory",
+        "To":  "PromptTrace"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationContextFactory",
+        "To":  "ModelDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationContextFactory",
+        "To":  "ModelRouter"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationContextFactory",
+        "To":  "ValidationSupport"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationService",
+        "To":  "LlmInvocationMetadata"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationService",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationService",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationService",
+        "To":  "ModelScene"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationService",
+        "To":  "PromptTrace"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationService",
+        "To":  "ProviderErrorMapper"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelInvocationTelemetry",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RawRefAttachmentService",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RawRefAttachmentService",
+        "To":  "ModelScene"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmParseEventPayload",
+        "To":  "PromptTrace"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LlmPromptEventPayload",
+        "To":  "PromptTrace"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelConfigProperties",
+        "To":  "ModelDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelRequest",
+        "To":  "PromptMessage"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelRequest",
+        "To":  "ModelToolChoice"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelRequest",
+        "To":  "ModelToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultPromptAssembler",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultPromptAssembler",
+        "To":  "PromptAssemblyInput"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultPromptAssembler",
+        "To":  "LlmTaskContext"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultPromptAssembler",
+        "To":  "ValidationSupport"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultPromptAssembler",
+        "To":  "TokenEstimator"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultPromptTemplate",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptAssembler",
+        "To":  "LlmTaskContext"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptAssemblyContextResolver",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptAssemblyContextResolver",
+        "To":  "PromptAssemblyInput"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptAssemblyContextResolver",
+        "To":  "PromptContextPolicyApplier"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptAssemblyContextResolver",
+        "To":  "ContextRuntimeKeys"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptAssemblyContextResolver",
+        "To":  "LlmTaskContext"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptRenderContext",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptTemplate",
+        "To":  "ContextSnapshot"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptTrimEngine",
+        "To":  "PromptAssemblyInput"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PromptTrimEngine",
+        "To":  "TokenEstimator"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultModelProvider",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultModelProvider",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LocalFallbackStrategy",
+        "To":  "ContextRuntimeKeys"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "LocalFallbackStrategy",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelApiKeyResolver",
+        "To":  "ModelProviderHttpProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelFallbackPolicy",
+        "To":  "ModelConfigProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelMessageBuilder",
+        "To":  "ModelDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelMessageBuilder",
+        "To":  "PromptMessage"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelMessageBuilder",
+        "To":  "PromptRole"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelProvider",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelProvider",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelProviderAdapter",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelProviderAdapter",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelRegistry",
+        "To":  "ModelConfigProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelRequestBodyBuilder",
+        "To":  "ModelProviderHttpProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelRequestBodyBuilder",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelRequestBodyBuilder",
+        "To":  "ModelToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelRouter",
+        "To":  "ModelConfigProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelRouter",
+        "To":  "ModelScene"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "OllamaProviderAdapter",
+        "To":  "ModelProviderHttpProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "OllamaProviderAdapter",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "OllamaProviderAdapter",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "OpenAiProviderAdapter",
+        "To":  "ModelProviderHttpProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "OpenAiProviderAdapter",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "OpenAiProviderAdapter",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ProviderRouter",
+        "To":  "ModelDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolPayloadBuilder",
+        "To":  "ModelToolChoice"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolPayloadBuilder",
+        "To":  "ModelToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "JsonOutputRepairService",
+        "To":  "ModelInvocationService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "JsonOutputRepairService",
+        "To":  "LlmTaskContext"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "JsonOutputRepairService",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "JsonOutputRepairService",
+        "To":  "ModelResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "JsonOutputRepairService",
+        "To":  "ModelScene"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "JsonOutputRepairService",
+        "To":  "PromptAssembler"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "JsonOutputRepairService",
+        "To":  "PromptBundle"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "JsonOutputRepairService",
+        "To":  "ValidationSupport"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "JsonRepairMetadata",
+        "To":  "LlmInvocationMetadata"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolingContext",
+        "To":  "ModelToolChoice"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolResolver",
+        "To":  "ModelToolChoice"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolResolver",
+        "To":  "ModelToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolResolver",
+        "To":  "LlmTaskContext"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolResolver",
+        "To":  "ToolRegistry"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolResolver",
+        "To":  "ModelRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolResolver",
+        "To":  "ToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolResolver",
+        "To":  "ToolCatalogService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolResolver",
+        "To":  "ToolQuery"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolResolver",
+        "To":  "ToolSummary"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolResolver",
+        "To":  "SkillDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ModelToolResolver",
+        "To":  "SkillRegistry"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "SkillToolPolicy",
+        "To":  "ModelToolChoice"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolingContextMapper",
+        "To":  "ContextRuntimeKeys"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolingContextMapper",
+        "To":  "LlmTaskContext"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolingContextMapper",
+        "To":  "ModelToolChoice"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolingContextMapper",
+        "To":  "SkillDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolingContextMapper",
+        "To":  "SkillRoute"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryStore",
+        "To":  "CompressionRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryStore",
+        "To":  "MemoryQuery"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryStore",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryStore",
+        "To":  "MemorySearchResult"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryStore",
+        "To":  "RetrievalPriority"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryStore",
+        "To":  "MemoryMaintenanceService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryStore",
+        "To":  "MemorySaveOrchestrator"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryStore",
+        "To":  "MemorySearchOrchestrator"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryExpirationService",
+        "To":  "MemoryExpireProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryExpirationService",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryPolicy",
+        "To":  "MemoryPolicyProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryPolicy",
+        "To":  "MemoryLayer"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryPolicy",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryPolicy",
+        "To":  "MemoryTextUtils"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryRecallResult",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryRecallService",
+        "To":  "MemoryRecallProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryRecallService",
+        "To":  "MemoryStore"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryRecallService",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryRecallService",
+        "To":  "RetrievalPriority"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallContextResolver",
+        "To":  "MemoryRecallProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallExecutionPlanner",
+        "To":  "MemoryQuery"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallExecutionPlanner",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallExecutionPlanner",
+        "To":  "MemorySearchResult"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallExecutionPlanner",
+        "To":  "MemoryStore"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallExecutionPlanner",
+        "To":  "RetrievalPriority"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallMetricsRecorder",
+        "To":  "RetrievalPriority"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallMetricsRecorder",
+        "To":  "RetrievalPriorityUtils"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallPolicyResolver",
+        "To":  "ContextPolicy"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallPolicyResolver",
+        "To":  "RetrievalPriority"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallPolicySnapshot",
+        "To":  "ContextPolicy"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallPolicySnapshot",
+        "To":  "RetrievalPriority"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallPostProcessor",
+        "To":  "MemoryLayer"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallPostProcessor",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallPostProcessor",
+        "To":  "MemoryTextUtils"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecallPostProcessResult",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "InMemoryMemoryRepository",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "JdbcMemoryRepository",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryRepository",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "CompressedMemoryStore",
+        "To":  "MemoryExpirationService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "CompressedMemoryStore",
+        "To":  "ConversationSummary"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "CompressedMemoryStore",
+        "To":  "MemoryLayer"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "CompressedMemoryStore",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "CompressedMemoryStore",
+        "To":  "WorkingMemorySummary"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "CompressedMemoryStore",
+        "To":  "MemoryRepository"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "CompressedMemoryStore",
+        "To":  "MemoryTextUtils"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryMaintenanceService",
+        "To":  "CompressedMemoryStore"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryMaintenanceService",
+        "To":  "CompressionRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryMaintenanceService",
+        "To":  "MemoryExpirationService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryMaintenanceService",
+        "To":  "MemoryPolicy"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryMaintenanceService",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryMaintenanceService",
+        "To":  "MemoryExpireProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryMaintenanceService",
+        "To":  "MemoryRepository"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySaveOrchestrator",
+        "To":  "MemoryExpirationService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySaveOrchestrator",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySaveOrchestrator",
+        "To":  "RecentMemoryStore"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySaveOrchestrator",
+        "To":  "EmbeddingService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySaveOrchestrator",
+        "To":  "VectorStore"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySaveOrchestrator",
+        "To":  "MemoryTextUtils"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySearchOrchestrator",
+        "To":  "CompressedMemoryStore"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySearchOrchestrator",
+        "To":  "MemoryQuery"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySearchOrchestrator",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySearchOrchestrator",
+        "To":  "MemorySearchResult"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySearchOrchestrator",
+        "To":  "RecentMemoryStore"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySearchOrchestrator",
+        "To":  "RetrievalPriority"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySearchOrchestrator",
+        "To":  "SemanticMemoryStore"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemorySearchOrchestrator",
+        "To":  "RetrievalPriorityUtils"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecentMemoryStore",
+        "To":  "MemoryLayer"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecentMemoryStore",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RecentMemoryStore",
+        "To":  "MemoryRepository"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "SemanticMemoryStore",
+        "To":  "MemoryLayer"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "SemanticMemoryStore",
+        "To":  "MemoryQuery"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "SemanticMemoryStore",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "SemanticMemoryStore",
+        "To":  "EmbeddingService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "SemanticMemoryStore",
+        "To":  "VectorStore"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "RetrievalPriorityUtils",
+        "To":  "RetrievalPriority"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "HashEmbeddingService",
+        "To":  "MemoryVectorProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "QdrantVectorStore",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "QdrantVectorStore",
+        "To":  "MemoryVectorProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "VectorStore",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryWriteContextResolver",
+        "To":  "MemoryWriteProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryWritePersistenceGateway",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryWritePersistenceGateway",
+        "To":  "MemoryStore"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryWriteRecordFactory",
+        "To":  "MemoryLayer"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryWriteRecordFactory",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryWriteRecordFactory",
+        "To":  "MemoryWriteProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryWriteRecordFactory",
+        "To":  "MemoryTextUtils"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryWriteSerializer",
+        "To":  "MemoryTextUtils"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryWriteService",
+        "To":  "MemoryWriteProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "MemoryWriteService",
+        "To":  "MemoryRecord"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultToolCatalog",
+        "To":  "ToolCache"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultToolCatalog",
+        "To":  "ToolRegistry"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultToolCatalog",
+        "To":  "ToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "DefaultToolCatalog",
+        "To":  "McpToolSyncService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolCatalogService",
+        "To":  "ToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "EnforcementGateway",
+        "To":  "ToolExecutor"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "EnforcementGateway",
+        "To":  "ToolRequestValidator"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ContextRuntimeKeys"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ModelRouter"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "McpToolCallRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "McpToolClient"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolCache"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolRegistry"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "SandboxExecutor"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolExecutionMapper"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolExecutionRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolExecutionResult"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolInvocationArguments"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolExecutionCacheService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolExecutionTracer"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolInvocationService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolRawRefService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolResultAssembler"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolUsageRecorder"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolArgumentValidator"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutor",
+        "To":  "ToolRequestValidator"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutionMapper",
+        "To":  "ToolExecutionRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutionMapper",
+        "To":  "ToolExecutionResult"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutionMapper",
+        "To":  "ToolInvocationArguments"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutionMapper",
+        "To":  "ToolInvocationPayload"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutionResult",
+        "To":  "ToolFieldKeys"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolExecutionCacheService",
+        "To":  "ToolCache"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolInvocationService",
+        "To":  "ToolFieldKeys"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolInvocationService",
+        "To":  "McpToolCallRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolInvocationService",
+        "To":  "McpToolCallResponse"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolInvocationService",
+        "To":  "McpToolClient"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolInvocationService",
+        "To":  "SandboxExecutor"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolInvocationService",
+        "To":  "SandboxResult"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolResultAssembler",
+        "To":  "ToolExecutionMapper"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolResultAssembler",
+        "To":  "ToolExecutionResult"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolResultAssembler",
+        "To":  "ToolInvocationPayload"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolUsageRecorder",
+        "To":  "ModelScene"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolUsageRecorder",
+        "To":  "ModelDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolUsageRecorder",
+        "To":  "ModelRouter"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "EvidencePackHookHandler",
+        "To":  "EvidenceItem"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "EvidencePackHookHandler",
+        "To":  "EvidencePack"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "EvidencePackHookHandler",
+        "To":  "EvidencePackService"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "EvidencePackHookHandler",
+        "To":  "ResearchCitation"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "EvidencePackHookHandler",
+        "To":  "ContextRuntimeKeys"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolClient",
+        "To":  "McpJsonRpcAdapter"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolClient",
+        "To":  "McpRestAdapter"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolClient",
+        "To":  "McpCallStrategy"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolClient",
+        "To":  "McpCallStrategyResolver"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolClient",
+        "To":  "ToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolClient",
+        "To":  "ToolRegistry"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolClient",
+        "To":  "ToolRequestValidator"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolDefinition",
+        "To":  "ToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolListResponse",
+        "To":  "ToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolSyncService",
+        "To":  "ToolCache"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolSyncService",
+        "To":  "ToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpToolSyncService",
+        "To":  "ToolRegistry"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpJsonRpcAdapter",
+        "To":  "McpServerProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpJsonRpcAdapter",
+        "To":  "McpSseSessionManager"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpJsonRpcAdapter",
+        "To":  "McpHttpTransport"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpRestAdapter",
+        "To":  "McpServerProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpRestAdapter",
+        "To":  "McpSseSessionManager"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpRestAdapter",
+        "To":  "McpHttpTransport"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpSseSessionManager",
+        "To":  "McpServerProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "McpHttpTransport",
+        "To":  "McpServerProperties"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PluginLoader",
+        "To":  "ToolRegistry"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "PluginLoader",
+        "To":  "ToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolRegistry",
+        "To":  "ToolDefinition"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "SandboxExecutor",
+        "To":  "SandboxRequest"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "SandboxExecutor",
+        "To":  "SandboxResult"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "SandboxExecutor",
+        "To":  "WasiSandboxExecutor"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolArgumentValidatorRuntime",
+        "To":  "ToolRegistry"
+    },
+    {
+        "Top":  "capabilities",
+        "From":  "ToolArgumentValidatorRuntime",
+        "To":  "ToolDefinition"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ApprovalService",
+        "To":  "ApprovalArgsDigestBuilder"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ApprovalService",
+        "To":  "ApprovalDecisionAwaiter"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ApprovalService",
+        "To":  "ApprovalStoreProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ApprovalService",
+        "To":  "PendingApprovalRecord"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ApprovalService",
+        "To":  "PendingApprovalStore"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ApprovalService",
+        "To":  "GovernanceTelemetry"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ApprovalDecisionAwaiter",
+        "To":  "ApprovalDecision"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ApprovalDecisionAwaiter",
+        "To":  "ApprovalHandle"
+    },
+    {
+        "Top":  "governance",
+        "From":  "PendingApprovalRecord",
+        "To":  "ApprovalDecision"
+    },
+    {
+        "Top":  "governance",
+        "From":  "PendingApprovalStore",
+        "To":  "GenericStateStore"
+    },
+    {
+        "Top":  "governance",
+        "From":  "PendingApprovalStore",
+        "To":  "StateStorePolicy"
+    },
+    {
+        "Top":  "governance",
+        "From":  "PendingApprovalStore",
+        "To":  "StoreMetricsRecorder"
+    },
+    {
+        "Top":  "governance",
+        "From":  "PendingApprovalStore",
+        "To":  "ApprovalDecision"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CircuitBreakerManager",
+        "To":  "CircuitStateEntry"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CircuitBreakerManager",
+        "To":  "CircuitStateStore"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CircuitBreakerManager",
+        "To":  "StateStorePolicy"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CircuitBreakerManager",
+        "To":  "GovernanceTelemetry"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CircuitStateStore",
+        "To":  "GenericStateStore"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CircuitStateStore",
+        "To":  "StateStorePolicy"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CircuitStateStore",
+        "To":  "StoreMetricsRecorder"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "BudgetPressureRiskRule"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "CapabilityRuleBinding"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "CapabilityRuleHit"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "CapabilityRuleRegistry"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "CapabilityRiskRule"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "CapabilityStrategyRule"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "ComplexityThresholdRiskRule"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "DebateKeywordStrategyRule"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "FailureTypesRiskRule"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "HighRiskThoughtTreeStrategyRule"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "MissingToolSummaryRiskRule"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityBoundaryEvaluator",
+        "To":  "ResearchKeywordStrategyRule"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityEvaluationResult",
+        "To":  "CapabilityRuleHit"
+    },
+    {
+        "Top":  "governance",
+        "From":  "BudgetPressureRiskRule",
+        "To":  "CapabilityEvaluationInput"
+    },
+    {
+        "Top":  "governance",
+        "From":  "BudgetPressureRiskRule",
+        "To":  "CapabilityEvaluationProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityRiskRule",
+        "To":  "CapabilityEvaluationInput"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityRiskRule",
+        "To":  "CapabilityEvaluationProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityRuleRegistry",
+        "To":  "CapabilityEvaluationProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityStrategyRule",
+        "To":  "CapabilityEvaluationInput"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityStrategyRule",
+        "To":  "CapabilityEvaluationProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "CapabilityStrategyRule",
+        "To":  "CapabilityRiskLevel"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ComplexityThresholdRiskRule",
+        "To":  "CapabilityEvaluationInput"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ComplexityThresholdRiskRule",
+        "To":  "CapabilityEvaluationProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "DebateKeywordStrategyRule",
+        "To":  "CapabilityEvaluationInput"
+    },
+    {
+        "Top":  "governance",
+        "From":  "DebateKeywordStrategyRule",
+        "To":  "CapabilityEvaluationProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "DebateKeywordStrategyRule",
+        "To":  "CapabilityRiskLevel"
+    },
+    {
+        "Top":  "governance",
+        "From":  "FailureTypesRiskRule",
+        "To":  "CapabilityEvaluationInput"
+    },
+    {
+        "Top":  "governance",
+        "From":  "FailureTypesRiskRule",
+        "To":  "CapabilityEvaluationProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "HighRiskThoughtTreeStrategyRule",
+        "To":  "CapabilityEvaluationInput"
+    },
+    {
+        "Top":  "governance",
+        "From":  "HighRiskThoughtTreeStrategyRule",
+        "To":  "CapabilityEvaluationProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "HighRiskThoughtTreeStrategyRule",
+        "To":  "CapabilityRiskLevel"
+    },
+    {
+        "Top":  "governance",
+        "From":  "MissingToolSummaryRiskRule",
+        "To":  "CapabilityEvaluationInput"
+    },
+    {
+        "Top":  "governance",
+        "From":  "MissingToolSummaryRiskRule",
+        "To":  "CapabilityEvaluationProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ResearchKeywordStrategyRule",
+        "To":  "CapabilityEvaluationInput"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ResearchKeywordStrategyRule",
+        "To":  "CapabilityEvaluationProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ResearchKeywordStrategyRule",
+        "To":  "CapabilityRiskLevel"
+    },
+    {
+        "Top":  "governance",
+        "From":  "PolicyEngine",
+        "To":  "PolicyEvaluationCommand"
+    },
+    {
+        "Top":  "governance",
+        "From":  "PolicyEngine",
+        "To":  "PolicyEvaluationResult"
+    },
+    {
+        "Top":  "governance",
+        "From":  "RateLimitService",
+        "To":  "StateStorePolicy"
+    },
+    {
+        "Top":  "governance",
+        "From":  "RateLimitService",
+        "To":  "GovernanceTelemetry"
+    },
+    {
+        "Top":  "governance",
+        "From":  "RateLimitService",
+        "To":  "RateLimitStore"
+    },
+    {
+        "Top":  "governance",
+        "From":  "RateLimitService",
+        "To":  "RateLimitWindowEntry"
+    },
+    {
+        "Top":  "governance",
+        "From":  "RateLimitStore",
+        "To":  "GenericStateStore"
+    },
+    {
+        "Top":  "governance",
+        "From":  "RateLimitStore",
+        "To":  "StateStorePolicy"
+    },
+    {
+        "Top":  "governance",
+        "From":  "RateLimitStore",
+        "To":  "StoreMetricsRecorder"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplayService",
+        "To":  "ReplayCommand"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplayService",
+        "To":  "ReplayEventFactory"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplayService",
+        "To":  "ReplayItem"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplayService",
+        "To":  "ReplayItemAssembler"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplayService",
+        "To":  "ReplayResult"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplayService",
+        "To":  "ReplaySessionStore"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplayService",
+        "To":  "ReplaySessionStoreProperties"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplayService",
+        "To":  "ReplayTaskSnapshot"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplayService",
+        "To":  "ReplayTaskResolver"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplayService",
+        "To":  "GovernanceTelemetry"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplaySessionStore",
+        "To":  "GenericStateStore"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplaySessionStore",
+        "To":  "StateStorePolicy"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplaySessionStore",
+        "To":  "StoreMetricsRecorder"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplaySessionStore",
+        "To":  "ReplaySession"
+    },
+    {
+        "Top":  "governance",
+        "From":  "ReplayTaskResolver",
+        "To":  "GovernanceTelemetry"
+    },
+    {
+        "Top":  "history",
+        "From":  "TimelineResponse",
+        "To":  "EventLogRecord"
+    },
+    {
+        "Top":  "history",
+        "From":  "TimelineService",
+        "To":  "EventLogRecord"
+    },
+    {
+        "Top":  "history",
+        "From":  "TimelineService",
+        "To":  "EventLogRepository"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskEventPublisher",
+        "To":  "TaskSubmissionResult"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskLifecycleService",
+        "To":  "TaskStatusView"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskLifecycleService",
+        "To":  "TaskSubmitCommand"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskOrchestrator",
+        "To":  "TaskExecutionMode"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskOrchestrator",
+        "To":  "TaskListView"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskOrchestrator",
+        "To":  "TaskQueryCommand"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskOrchestrator",
+        "To":  "TaskStatusView"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskOrchestrator",
+        "To":  "TaskSubmitCommand"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskOrchestrator",
+        "To":  "TaskSubmissionResult"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskOrchestrator",
+        "To":  "WorkflowRouter"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskQueryService",
+        "To":  "TaskListView"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskQueryService",
+        "To":  "TaskQueryCommand"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskQueryService",
+        "To":  "TaskStatusView"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskSubmissionService",
+        "To":  "TaskSubmitCommand"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskSubmissionService",
+        "To":  "TaskSubmissionResult"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskSyncWaitService",
+        "To":  "TaskExecutionMode"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskSyncWaitService",
+        "To":  "TaskSubmissionResult"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskQueryCommand",
+        "To":  "TaskStatus"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "TaskStatusView",
+        "To":  "TaskStatus"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "DefaultWorkflowRouter",
+        "To":  "TaskExecutionMode"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "DefaultWorkflowRouter",
+        "To":  "TaskSubmitCommand"
+    },
+    {
+        "Top":  "orchestration",
+        "From":  "WorkflowRouter",
+        "To":  "TaskSubmitCommand"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlannerService",
+        "To":  "PlanningApprovalService"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlannerService",
+        "To":  "HeuristicPlanBuilder"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlannerService",
+        "To":  "PlanningCapabilityService"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlannerService",
+        "To":  "PlanningContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlannerService",
+        "To":  "PlanningContextMapper"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlannerService",
+        "To":  "LlmPlanEngine"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlannerService",
+        "To":  "LlmPlanEngineResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningPromptBuilder",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningApprovalService",
+        "To":  "PlanResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningApprovalService",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "HeuristicPlanBuilder",
+        "To":  "PlanResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "HeuristicPlanBuilder",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "HeuristicPlanBuilder",
+        "To":  "PlanningContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "HeuristicPlanBuilder",
+        "To":  "PlanningStrategyContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "HeuristicPlanBuilder",
+        "To":  "PlanningStrategyRegistry"
+    },
+    {
+        "Top":  "planning",
+        "From":  "HeuristicPlanBuilder",
+        "To":  "PlanningStrategyResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningCapabilityService",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningCapabilityService",
+        "To":  "HeuristicPlanBuilder"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningCapabilityService",
+        "To":  "PlanningContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningRecommendationMapper",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningRecommendationMapper",
+        "To":  "PlanningContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningContext",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningContextMapper",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningPromptSummaryFactory",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningPromptSummaryFactory",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningDiagnosticsSnapshotBuilder",
+        "To":  "PlanningContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningDiagnosticsSnapshotBuilder",
+        "To":  "PlanningStrategyContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningDiagnosticsSnapshotBuilder",
+        "To":  "PlanningStrategyResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanAttemptResult",
+        "To":  "PlanResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanEngine",
+        "To":  "PlanResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanEngine",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanEngine",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanEngine",
+        "To":  "PlanningPromptBuilder"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanEngine",
+        "To":  "PlanningContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanEngine",
+        "To":  "PlanParseAttemptResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanEngine",
+        "To":  "PlanParseErrorTypes"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanEngine",
+        "To":  "PlanParseResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanEngine",
+        "To":  "PlanParser"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanEngine",
+        "To":  "PlanTelemetry"
+    },
+    {
+        "Top":  "planning",
+        "From":  "LlmPlanEngineResult",
+        "To":  "PlanResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanParser",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanParser",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "AbstractPlanningStrategyHandler",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "AbstractPlanningStrategyHandler",
+        "To":  "PlanParser"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningStrategyContext",
+        "To":  "PlanningContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ChainOfThoughtStrategyHandler",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ChainOfThoughtStrategyHandler",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ChainOfThoughtStrategyHandler",
+        "To":  "AbstractPlanningStrategyHandler"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ChainOfThoughtStrategyHandler",
+        "To":  "PlanningStrategyContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ChainOfThoughtStrategyHandler",
+        "To":  "PlanningStrategyOrders"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ChainOfThoughtStrategyHandler",
+        "To":  "PlanningStrategyResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ChainOfThoughtStrategyHandler",
+        "To":  "PlanningStrategyType"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ChainOfThoughtStrategyHandler",
+        "To":  "PlanParser"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DebateStrategyHandler",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DebateStrategyHandler",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DebateStrategyHandler",
+        "To":  "AbstractPlanningStrategyHandler"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DebateStrategyHandler",
+        "To":  "PlanningStrategyContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DebateStrategyHandler",
+        "To":  "PlanningStrategyOrders"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DebateStrategyHandler",
+        "To":  "PlanningStrategyResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DebateStrategyHandler",
+        "To":  "PlanningStrategyType"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DebateStrategyHandler",
+        "To":  "PlanParser"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DirectLlmStrategyHandler",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DirectLlmStrategyHandler",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DirectLlmStrategyHandler",
+        "To":  "AbstractPlanningStrategyHandler"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DirectLlmStrategyHandler",
+        "To":  "PlanningStrategyContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DirectLlmStrategyHandler",
+        "To":  "PlanningStrategyOrders"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DirectLlmStrategyHandler",
+        "To":  "PlanningStrategyResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DirectLlmStrategyHandler",
+        "To":  "PlanningStrategyType"
+    },
+    {
+        "Top":  "planning",
+        "From":  "DirectLlmStrategyHandler",
+        "To":  "PlanParser"
+    },
+    {
+        "Top":  "planning",
+        "From":  "MultiAgentStrategyHandler",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "MultiAgentStrategyHandler",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "MultiAgentStrategyHandler",
+        "To":  "AbstractPlanningStrategyHandler"
+    },
+    {
+        "Top":  "planning",
+        "From":  "MultiAgentStrategyHandler",
+        "To":  "PlanningStrategyContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "MultiAgentStrategyHandler",
+        "To":  "PlanningStrategyOrders"
+    },
+    {
+        "Top":  "planning",
+        "From":  "MultiAgentStrategyHandler",
+        "To":  "PlanningStrategyResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "MultiAgentStrategyHandler",
+        "To":  "PlanningStrategyType"
+    },
+    {
+        "Top":  "planning",
+        "From":  "MultiAgentStrategyHandler",
+        "To":  "PlanParser"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ReactStrategyHandler",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ReactStrategyHandler",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ReactStrategyHandler",
+        "To":  "AbstractPlanningStrategyHandler"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ReactStrategyHandler",
+        "To":  "PlanningStrategyContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ReactStrategyHandler",
+        "To":  "PlanningStrategyOrders"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ReactStrategyHandler",
+        "To":  "PlanningStrategyResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ReactStrategyHandler",
+        "To":  "PlanningStrategyType"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ReactStrategyHandler",
+        "To":  "PlanParser"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ResearchStrategyHandler",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ResearchStrategyHandler",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ResearchStrategyHandler",
+        "To":  "AbstractPlanningStrategyHandler"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ResearchStrategyHandler",
+        "To":  "PlanningStrategyContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ResearchStrategyHandler",
+        "To":  "PlanningStrategyOrders"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ResearchStrategyHandler",
+        "To":  "PlanningStrategyResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ResearchStrategyHandler",
+        "To":  "PlanningStrategyType"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ResearchStrategyHandler",
+        "To":  "PlanParser"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ThoughtTreeStrategyHandler",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ThoughtTreeStrategyHandler",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ThoughtTreeStrategyHandler",
+        "To":  "AbstractPlanningStrategyHandler"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ThoughtTreeStrategyHandler",
+        "To":  "PlanningStrategyContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ThoughtTreeStrategyHandler",
+        "To":  "PlanningStrategyOrders"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ThoughtTreeStrategyHandler",
+        "To":  "PlanningStrategyResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ThoughtTreeStrategyHandler",
+        "To":  "PlanningStrategyType"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ThoughtTreeStrategyHandler",
+        "To":  "PlanParser"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ToolFallbackStrategyHandler",
+        "To":  "PlanningContextKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ToolFallbackStrategyHandler",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ToolFallbackStrategyHandler",
+        "To":  "AbstractPlanningStrategyHandler"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ToolFallbackStrategyHandler",
+        "To":  "PlanningStrategyContext"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ToolFallbackStrategyHandler",
+        "To":  "PlanningStrategyOrders"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ToolFallbackStrategyHandler",
+        "To":  "PlanningStrategyResult"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ToolFallbackStrategyHandler",
+        "To":  "PlanningStrategyType"
+    },
+    {
+        "Top":  "planning",
+        "From":  "ToolFallbackStrategyHandler",
+        "To":  "PlanParser"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanningPromptTraceService",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "planning",
+        "From":  "PlanTelemetry",
+        "To":  "PlanningFieldKeys"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningInput",
+        "To":  "ThoughtTreeConfig"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningResult",
+        "To":  "ReasoningPayload"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningConfigResolver",
+        "To":  "ThoughtTreeConfig"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningConfigValidator",
+        "To":  "ThoughtTreeConfig"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningArbitrator",
+        "To":  "ReasoningResult"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningExecutionConfiguration",
+        "To":  "ReasoningConfigResolver"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningOrchestrator",
+        "To":  "ReasoningRequest"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningOrchestrator",
+        "To":  "ReasoningResult"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningOrchestrator",
+        "To":  "ReasoningStrategyRegistry"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningOrchestrator",
+        "To":  "ReasoningConfigResolver"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningOrchestrator",
+        "To":  "ReasoningDegradePolicy"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningOrchestrator",
+        "To":  "ReasoningMetricsPublisher"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ThoughtTreePayload",
+        "To":  "ThoughtNode"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningDegradePolicy",
+        "To":  "ReasoningConfigResolver"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningStrategySelector",
+        "To":  "ReasoningConfigResolver"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ReasoningStrategySelector",
+        "To":  "ReasoningInput"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ChainOfThoughtService",
+        "To":  "ReasoningRequest"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ChainOfThoughtService",
+        "To":  "ReasoningResult"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ChainOfThoughtService",
+        "To":  "ReasoningStrategy"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ChainOfThoughtService",
+        "To":  "ReasoningConfigResolver"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ChainOfThoughtService",
+        "To":  "CotPayload"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ChainOfThoughtService",
+        "To":  "ReasoningEventPublisher"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ChainOfThoughtService",
+        "To":  "ReasoningMetricsPublisher"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ChainOfThoughtService",
+        "To":  "ReasoningTraceRecorder"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "CotDecisionParser",
+        "To":  "JsonPayloadNormalizer"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "CotDecisionParser",
+        "To":  "ReasoningParseSupport"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "DebateCoordinator",
+        "To":  "JsonPayloadNormalizer"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "DebateCoordinator",
+        "To":  "ReasoningRequest"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "DebateCoordinator",
+        "To":  "ReasoningResult"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "DebateCoordinator",
+        "To":  "ReasoningParseSupport"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "DebateCoordinator",
+        "To":  "ReasoningStrategy"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "DebateCoordinator",
+        "To":  "ReasoningConfigResolver"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "DebateCoordinator",
+        "To":  "DebatePayload"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "DebateCoordinator",
+        "To":  "ReasoningEventPublisher"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "DebateCoordinator",
+        "To":  "ReasoningMetricsPublisher"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "DebateCoordinator",
+        "To":  "ReasoningTraceRecorder"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ThoughtTreeService",
+        "To":  "ReasoningRequest"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ThoughtTreeService",
+        "To":  "ReasoningResult"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ThoughtTreeService",
+        "To":  "ReasoningStrategy"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ThoughtTreeService",
+        "To":  "ReasoningInput"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ThoughtTreeService",
+        "To":  "ReasoningConfigValidator"
+    },
+    {
+        "Top":  "reasoning",
+        "From":  "ThoughtTreeService",
+        "To":  "ThoughtTreePayload"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionExecutionContext",
+        "To":  "ReflectionContext"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionPropertiesValidator",
+        "To":  "ReflectionPromptProvider"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionService",
+        "To":  "ReflectionContextMapper"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionService",
+        "To":  "ReflectionStrategy"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionService",
+        "To":  "ReflectionStrategySelector"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionResponseParser",
+        "To":  "ReflectionExecutionContext"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionPromptProvider",
+        "To":  "ReflectionProperties"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "HeuristicReflectionStrategy",
+        "To":  "ReflectionDecision"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "HeuristicReflectionStrategy",
+        "To":  "ReflectionDecisionStatus"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "HeuristicReflectionStrategy",
+        "To":  "ReflectionExecutionContext"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "HeuristicReflectionStrategy",
+        "To":  "ReflectionFailureReason"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "HeuristicReflectionStrategy",
+        "To":  "ReflectionProperties"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "HeuristicReflectionStrategy",
+        "To":  "ReflectionReport"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "HeuristicReflectionStrategy",
+        "To":  "ReflectionResult"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "HeuristicReflectionStrategy",
+        "To":  "ReflectionContext"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "HeuristicScoringContext",
+        "To":  "ReflectionContext"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "LlmReflectionStrategy",
+        "To":  "ReflectionDecision"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "LlmReflectionStrategy",
+        "To":  "ReflectionExecutionContext"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "LlmReflectionStrategy",
+        "To":  "ReflectionFailureReason"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "LlmReflectionStrategy",
+        "To":  "ReflectionProperties"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionLlmDecisionResolver",
+        "To":  "ReflectionDecision"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionLlmDecisionResolver",
+        "To":  "ReflectionExecutionContext"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionLlmDecisionResolver",
+        "To":  "ReflectionFailureReason"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionLlmDecisionResolver",
+        "To":  "ReflectionProperties"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionLlmDecisionResolver",
+        "To":  "ReflectionReport"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionLlmDecisionResolver",
+        "To":  "ReflectionResult"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionLlmDecisionResolver",
+        "To":  "ReflectionParseOutcome"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionLlmDecisionResolver",
+        "To":  "ReflectionParsingResult"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionLlmDecisionResolver",
+        "To":  "ReflectionResponseParser"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionLlmInvocationExecutor",
+        "To":  "ReflectionExecutionContext"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionLlmInvocationExecutor",
+        "To":  "ReflectionPromptProvider"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionPromptTraceRecorder",
+        "To":  "ReflectionExecutionContext"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionStrategy",
+        "To":  "ReflectionDecision"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionStrategy",
+        "To":  "ReflectionExecutionContext"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionStrategy",
+        "To":  "ReflectionProperties"
+    },
+    {
+        "Top":  "reflection",
+        "From":  "ReflectionStrategySelector",
+        "To":  "ReflectionProperties"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContextView",
+        "To":  "OutputFieldExtractor"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultJsonCodec",
+        "To":  "StepResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeApprovalGate",
+        "To":  "ApprovalInput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeApprovalGate",
+        "To":  "StepInputView"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeApprovalGate",
+        "To":  "StepSpec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeApprovalGate",
+        "To":  "RuntimeContext"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeApprovalGate",
+        "To":  "OutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "AgentRuntime",
+        "To":  "RuntimeFinalizationService"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "AgentRuntime",
+        "To":  "RuntimeResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "AgentRuntime",
+        "To":  "RuntimeTaskRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "AgentRuntime",
+        "To":  "StepResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "AgentRuntime",
+        "To":  "StepSpec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "AgentRuntime",
+        "To":  "RuntimePreparationResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "AgentRuntime",
+        "To":  "RuntimePreparationService"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "AgentRuntime",
+        "To":  "RuntimeContext"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContextUpdateService",
+        "To":  "StepResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContextUpdateService",
+        "To":  "StepSpec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContextUpdateService",
+        "To":  "StepInputView"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContextUpdateService",
+        "To":  "OutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContextUpdateService",
+        "To":  "RawOutputEnvelope"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContextUpdateService",
+        "To":  "RawOutputEnvelopeBuilder"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContextUpdateService",
+        "To":  "RuntimeContext"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContextUpdateService",
+        "To":  "StepRecord"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContextUpdateService",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeEventDispatchService",
+        "To":  "RuntimeControlEventPublisher"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "RuntimeApprovalGate"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "RuntimeExecutionGate"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "StepResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "StepSpec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "StepInputView"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "RetryPolicy"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "StepFailureRecoveryService"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "RuntimeContext"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "StepExecutionDelegate"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "StepRecord"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "StepRuntimeService"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "StepOutputSummaryBuilder"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionCoordinator",
+        "To":  "StepSummaryBuildInput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeFinalizationService",
+        "To":  "RuntimeResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeFinalizationService",
+        "To":  "StepResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeFinalizationService",
+        "To":  "FinalOutputService"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeFinalizationService",
+        "To":  "StructuredResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "LlmDecisionService",
+        "To":  "OutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "LlmStepService",
+        "To":  "OutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ToolCallOrchestrator",
+        "To":  "RetryPolicy"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ToolOutputAssembler",
+        "To":  "OutputFieldExtractor"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ToolOutputAssembler",
+        "To":  "OutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResult",
+        "To":  "RawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResult",
+        "To":  "StructuredData"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResult",
+        "To":  "StructuredResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultMeta",
+        "To":  "StepState"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepSpec",
+        "To":  "ApprovalInput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepSpec",
+        "To":  "StepInputView"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepSpec",
+        "To":  "RuntimeContext"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "LastStepInput",
+        "To":  "OutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepInputView",
+        "To":  "StepPolicy"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepInputView",
+        "To":  "StepSpec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepInputView",
+        "To":  "RuntimeContext"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "FinalOutputService",
+        "To":  "StepResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "FinalOutputService",
+        "To":  "StepResultDigest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "FinalOutputService",
+        "To":  "StepResultSummary"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "OutputFieldExtractor",
+        "To":  "RuntimeOutputFieldExtractor"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "OutputKeys",
+        "To":  "RuntimeOutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimePreparationResult",
+        "To":  "RuntimeContext"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimePreparationService",
+        "To":  "RuntimeContext"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultResolveService",
+        "To":  "ParsedRawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultResolveService",
+        "To":  "RawRefCodec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultResolveService",
+        "To":  "RawResultStore"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultResolveService",
+        "To":  "RawResultStoreRegistry"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultResolveService",
+        "To":  "FileRawStorageSupport"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawOutputEnvelopeBuilder",
+        "To":  "OutputFieldExtractor"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawOutputEnvelopeBuilder",
+        "To":  "StepSummaryProperties"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ParsedRawRef",
+        "To":  "RawStoreType"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawRefCodec",
+        "To":  "RawStoreType"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "FileRawResultStore",
+        "To":  "RawStoreProperties"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "FileRawResultStore",
+        "To":  "RawStoreType"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "FileRawResultStore",
+        "To":  "ParsedRawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "FileRawResultStore",
+        "To":  "RawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "FileRawResultStore",
+        "To":  "RawRefCodec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "InMemoryRawResultStore",
+        "To":  "ParsedRawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "InMemoryRawResultStore",
+        "To":  "RawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "InMemoryRawResultStore",
+        "To":  "RawRefCodec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultStore",
+        "To":  "RawStoreType"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultStore",
+        "To":  "RawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultStoreFallbackConfiguration",
+        "To":  "RawStoreProperties"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultStoreFallbackConfiguration",
+        "To":  "RawRefCodec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultStoreRegistry",
+        "To":  "RawStoreType"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultStoreRegistry",
+        "To":  "ParsedRawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RawResultStoreRegistry",
+        "To":  "RawRefCodec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RedisRawResultStore",
+        "To":  "ParsedRawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RedisRawResultStore",
+        "To":  "RawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RedisRawResultStore",
+        "To":  "RawRefCodec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "SizeAwareRawResultStore",
+        "To":  "ParsedRawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "SizeAwareRawResultStore",
+        "To":  "RawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "SizeAwareRawResultStore",
+        "To":  "RawRefCodec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactLoopService",
+        "To":  "RuntimeApprovalGate"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactLoopService",
+        "To":  "RuntimeExecutionGate"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactLoopService",
+        "To":  "ApprovalInput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactLoopService",
+        "To":  "StepInputView"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactLoopService",
+        "To":  "StepRecord"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactLoopService",
+        "To":  "RuntimeContext"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactLoopService",
+        "To":  "StepSpec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactLoopService",
+        "To":  "OutputFieldExtractor"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactLoopService",
+        "To":  "OutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepFailureRecoveryService",
+        "To":  "StepSpec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepFailureRecoveryService",
+        "To":  "StepExecutionDelegate"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepFailureRecoveryService",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepFailureRecoveryService",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContext",
+        "To":  "ApprovalInput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "RuntimeContext",
+        "To":  "LastStepInput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionDelegate",
+        "To":  "StepSpec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionDelegate",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionDelegate",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepRecord",
+        "To":  "StepResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StepResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StepResultDigest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StepResultMeta"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StepResultRaw"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StepResultRefSet"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StepResultSummary"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StepResultTiming"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "OutputFieldExtractor"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "OutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "RawOutputEnvelope"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "RawOutputEnvelopeBuilder"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "RawRef"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StructuredExtractorRegistry"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StructuredRefs"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StructuredResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepResultAssembler",
+        "To":  "StructuredData"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepRuntimeService",
+        "To":  "StepRecordRepository"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepRuntimeService",
+        "To":  "StepResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepRuntimeService",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepSummaryRegenerationService",
+        "To":  "RuntimeOutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepSummaryRegenerationService",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepSummaryRegenerationService",
+        "To":  "StepOutputSummaryBuilder"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepSummaryRegenerationService",
+        "To":  "StepSummaryBuildInput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionOutput",
+        "To":  "OutputFieldExtractor"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionOutput",
+        "To":  "OutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionOutput",
+        "To":  "StepOutputSummaryView"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionRequest",
+        "To":  "RuntimeControlEventPublisher"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionRequest",
+        "To":  "StepInputView"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionRequest",
+        "To":  "StepSpec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionRequest",
+        "To":  "RuntimeContext"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutionRequest",
+        "To":  "StepRecord"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ChainOfThoughtStepExecutor",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ChainOfThoughtStepExecutor",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "DebateStepExecutor",
+        "To":  "StepInputView"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "DebateStepExecutor",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "DebateStepExecutor",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "DefaultStepExecutionDelegate",
+        "To":  "StepSpec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "DefaultStepExecutionDelegate",
+        "To":  "StepExecutionDelegate"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "DefaultStepExecutionDelegate",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "DefaultStepExecutionDelegate",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "LlmStepExecutor",
+        "To":  "LlmStepService"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "LlmStepExecutor",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "LlmStepExecutor",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "MultiAgentStepExecutor",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "MultiAgentStepExecutor",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactStepExecutor",
+        "To":  "ReactLoopResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactStepExecutor",
+        "To":  "ReactLoopService"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactStepExecutor",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReactStepExecutor",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ReasoningInputResolver",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ResearchStepExecutor",
+        "To":  "StepInputView"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ResearchStepExecutor",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ResearchStepExecutor",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutorRouter",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepExecutorRouter",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepTypeExecutor",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepTypeExecutor",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ThoughtTreeStepExecutor",
+        "To":  "StepInputView"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ThoughtTreeStepExecutor",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ThoughtTreeStepExecutor",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ToolStepExecutor",
+        "To":  "RuntimeExecutionGate"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ToolStepExecutor",
+        "To":  "LlmStepService"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ToolStepExecutor",
+        "To":  "StepInputView"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ToolStepExecutor",
+        "To":  "OutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ToolStepExecutor",
+        "To":  "StepExecutionOutput"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "ToolStepExecutor",
+        "To":  "StepExecutionRequest"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "InMemoryStepRecordRepository",
+        "To":  "StepRecord"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "JdbcStepRecordRepository",
+        "To":  "StepResultJsonCodec"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "JdbcStepRecordRepository",
+        "To":  "StepResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "JdbcStepRecordRepository",
+        "To":  "StepRecord"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "JdbcStepRecordRepository",
+        "To":  "StepState"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepRecordRepository",
+        "To":  "StepRecord"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StructuredExtractorRegistry",
+        "To":  "StructuredQuality"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StructuredExtractorRegistry",
+        "To":  "StructuredRefs"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StructuredExtractorRegistry",
+        "To":  "StructuredResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StructuredExtractorRegistry",
+        "To":  "DefaultStructuredData"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StructuredExtractorRegistry",
+        "To":  "StructuredData"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StructuredExtractorRegistry",
+        "To":  "StructuredExtractor"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "GenericStructuredExtractor",
+        "To":  "StructuredQuality"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "GenericStructuredExtractor",
+        "To":  "StructuredRefs"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "GenericStructuredExtractor",
+        "To":  "StructuredResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "GenericStructuredExtractor",
+        "To":  "RecordsetData"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "GenericStructuredExtractor",
+        "To":  "SqlData"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "GenericStructuredExtractor",
+        "To":  "StructuredData"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StructuredExtractor",
+        "To":  "StructuredData"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StructuredExtractor",
+        "To":  "StructuredResult"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StructuredResult",
+        "To":  "ResultKind"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StructuredResult",
+        "To":  "DefaultStructuredData"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StructuredResult",
+        "To":  "StructuredData"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepOutputSummaryBuilder",
+        "To":  "RuntimeOutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepOutputSummaryView",
+        "To":  "RuntimeOutputKeys"
+    },
+    {
+        "Top":  "runtime",
+        "From":  "StepSummaryTextService",
+        "To":  "RuntimeOutputFieldExtractor"
+    },
+    {
+        "Top":  "streaming",
+        "From":  "ContextEventPublisher",
+        "To":  "EventType"
+    },
+    {
+        "Top":  "streaming",
+        "From":  "ContextEventPublisher",
+        "To":  "StreamEvent"
+    },
+    {
+        "Top":  "streaming",
+        "From":  "ContextEventPublisher",
+        "To":  "MetricsPublisher"
+    },
+    {
+        "Top":  "streaming",
+        "From":  "ContextEventPublisher",
+        "To":  "EventStreamService"
+    },
+    {
+        "Top":  "streaming",
+        "From":  "EventStreamService",
+        "To":  "StreamEvent"
+    },
+    {
+        "Top":  "streaming",
+        "From":  "EventStreamService",
+        "To":  "MetricsPublisher"
+    },
+    {
+        "Top":  "streaming",
+        "From":  "SseStreamController",
+        "To":  "StreamEvent"
+    },
+    {
+        "Top":  "streaming",
+        "From":  "SseStreamController",
+        "To":  "TracingPublisher"
+    }
+]
