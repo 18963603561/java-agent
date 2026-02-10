@@ -5,6 +5,7 @@ import com.example.agent.planning.PlanResult;
 import com.example.agent.planning.PlannerService;
 import com.example.agent.runtime.finalize.RuntimeFinalizationService;
 import com.example.agent.runtime.model.RuntimeResult;
+import com.example.agent.runtime.model.RuntimeTaskRequest;
 import com.example.agent.runtime.model.StepResult;
 import com.example.agent.runtime.model.StepSpec;
 import com.example.agent.runtime.prepare.RuntimePreparationResult;
@@ -69,6 +70,24 @@ public class AgentRuntime {
         this.runtimeFinalizationService = runtimeFinalizationService;
         this.runtimeEventDispatchService = runtimeEventDispatchService;
         this.stepExecutionCoordinator = stepExecutionCoordinator;
+    }
+
+    /**
+     * 执行任务的运行时循环（运行时请求入口）。
+     *
+     * @param request 运行时任务请求
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param taskId 任务标识
+     * @param seqCounter 事件序列计数器
+     * @return 运行时结果
+     */
+    public RuntimeResult run(RuntimeTaskRequest request,
+                             TenantContext tenantContext,
+                             String workflowId,
+                             String taskId,
+                             AtomicLong seqCounter) {
+        return run(toTaskRequest(request), tenantContext, workflowId, taskId, seqCounter);
     }
 
     /**
@@ -180,6 +199,8 @@ public class AgentRuntime {
             replan.setSkillName(request.getSkillName());
             replan.setIdempotencyKey(request.getIdempotencyKey());
             replan.setToolChoice(request.getToolChoice());
+            replan.setExecutionMode(request.getExecutionMode());
+            replan.setWaitTimeoutMs(request.getWaitTimeoutMs());
             Map<String, Object> context = request.getContext() != null
                     ? new HashMap<>(request.getContext())
                     : new HashMap<>();
@@ -188,5 +209,28 @@ public class AgentRuntime {
             replan.setContext(context);
         }
         return replan;
+    }
+
+    /**
+     * 将运行时请求转换为通用任务请求。
+     */
+    private TaskRequest toTaskRequest(RuntimeTaskRequest request) {
+        TaskRequest target = new TaskRequest();
+        if (request == null) {
+            return target;
+        }
+        target.setQuery(request.getQuery());
+        target.setSessionId(request.getSessionId());
+        target.setSkillName(request.getSkillName());
+        target.setContext(request.getContext());
+        target.setIdempotencyKey(request.getIdempotencyKey());
+        target.setToolChoice(request.getToolChoice());
+        target.setWaitTimeoutMs(request.getWaitTimeoutMs());
+        if (request.getExecutionMode() != null) {
+            target.setExecutionMode(request.getExecutionMode() == RuntimeTaskRequest.ExecutionMode.SYNC
+                    ? TaskRequest.ExecutionMode.SYNC
+                    : TaskRequest.ExecutionMode.ASYNC);
+        }
+        return target;
     }
 }

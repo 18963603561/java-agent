@@ -20,6 +20,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import jakarta.annotation.PostConstruct;
+import jakarta.annotation.PreDestroy;
 
 /**
  * 任务异步执行器，负责后台线程池调度与幂等去重。
@@ -28,6 +29,11 @@ import jakarta.annotation.PostConstruct;
 public class TaskExecutionService {
 
     private static final Logger log = LoggerFactory.getLogger(TaskExecutionService.class);
+
+    /**
+     * 优雅关闭等待超时时间。
+     */
+    private static final long SHUTDOWN_WAIT_SECONDS = 10L;
 
     /**
      * 任务执行异步结果映射，防止重复调度。
@@ -67,6 +73,38 @@ public class TaskExecutionService {
                 queue, buildThreadFactory(), new TaskRejectedHandler());
         log.info("任务执行器初始化, core={}, max={}, queueCapacity={}, keepAliveSeconds={}",
                 core, max, capacity, keepAlive);
+    }
+
+    /**
+     * 容器销毁时关闭线程池。
+     * <p>流程：先停止接收新任务，再等待在途任务完成，超时后强制中断。
+     */
+    @PreDestroy
+    public void shutdown() {
+        if (executor == null) {
+            return;
+        }
+        int activeCount = executor.getActiveCount();
+        int queueSize = executor.getQueue().size();
+        log.info("任务执行器开始关闭, activeCount={}, queueSize={}, futuresSize={}",
+                activeCount, queueSize, futures.size());
+        executor.shutdown();
+        try {
+            boolean terminated = executor.awaitTermination(SHUTDOWN_WAIT_SECONDS, TimeUnit.SECONDS);
+            if (terminated) {
+                log.info("任务执行器已优雅关闭, futuresSize={}", futures.size());
+                return;
+            }
+            log.warn("任务执行器等待超时，执行强制关闭, activeCount={}, queueSize={}",
+                    executor.getActiveCount(), executor.getQueue().size());
+            var droppedTasks = executor.shutdownNow();
+            log.warn("任务执行器已强制关闭, droppedTaskCount={}", droppedTasks.size());
+        } catch (InterruptedException exception) {
+            Thread.currentThread().interrupt();
+            log.error("任务执行器关闭被中断, activeCount={}, queueSize={}",
+                    executor.getActiveCount(), executor.getQueue().size(), exception);
+            executor.shutdownNow();
+        }
     }
 
     /**

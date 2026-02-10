@@ -1,9 +1,9 @@
 package com.example.agent.orchestration.task;
 
+import com.example.agent.orchestration.task.contract.TaskListView;
+import com.example.agent.orchestration.task.contract.TaskQueryCommand;
+import com.example.agent.orchestration.task.contract.TaskStatusView;
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.api.http.dto.TaskListResponse;
-import com.example.agent.api.http.dto.TaskQuery;
-import com.example.agent.api.http.dto.TaskStatusResponse;
 
 /**
  * 任务查询服务接口。
@@ -15,16 +15,17 @@ public interface TaskQueryService {
      *
      * @param taskId 任务标识
      * @param tenantContext 租户上下文
-     * @return 任务状态
+     * @return 任务状态视图
      */
-    TaskStatusResponse getTask(String taskId, TenantContext tenantContext);
+    TaskStatusView getTask(String taskId, TenantContext tenantContext);
 
     /**
      * 查询任务列表。
      *
-     * @param query 查询条件
+     * @param command 查询命令
      * @param tenantContext 租户上下文
-     * @return 任务列表
+     * @return 任务列表视图
      */
-    TaskListResponse listTasks(TaskQuery query, TenantContext tenantContext);
+    TaskListView listTasks(TaskQueryCommand command, TenantContext tenantContext);
 }
+

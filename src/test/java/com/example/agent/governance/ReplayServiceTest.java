@@ -9,6 +9,7 @@ import com.example.agent.history.eventlog.InMemoryEventLogRepository;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.orchestration.task.TaskRecord;
 import com.example.agent.orchestration.task.TaskRepository;
+import com.example.agent.orchestration.task.TaskStatus;
 import com.example.agent.runtime.step.StepRecord;
 import com.example.agent.runtime.step.StepRuntimeService;
 import com.example.agent.runtime.step.StepState;
@@ -299,7 +300,7 @@ class ReplayServiceTest {
         record.setTenantId(tenantId);
         record.setTaskId(taskId);
         record.setWorkflowId(workflowId);
-        record.setStatus(status);
+        record.setStatus(TaskStatus.require(status));
         record.setUpdatedAt(Instant.now());
         return record;
     }

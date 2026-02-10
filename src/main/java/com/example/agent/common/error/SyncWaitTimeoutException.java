@@ -1,19 +1,20 @@
 package com.example.agent.common.error;
 
+import com.example.agent.orchestration.task.contract.TaskSubmissionResult;
 import org.springframework.http.HttpStatus;
 import org.springframework.web.server.ResponseStatusException;
-import com.example.agent.api.http.dto.TaskResponse;
 
 /**
- * 同步等待超时异常，用于返回 202 并携带任务信息。
+ * 同步等待超时异常。
+ * <p>用途：在同步等待降级为异步时返回 202 与任务基础信息。
  */
 public class SyncWaitTimeoutException extends ResponseStatusException implements ErrorCodeProvider {
 
-    private final TaskResponse response;
+    private final TaskSubmissionResult result;
 
-    public SyncWaitTimeoutException(TaskResponse response, String reason) {
+    public SyncWaitTimeoutException(TaskSubmissionResult result, String reason) {
         super(HttpStatus.ACCEPTED, reason);
-        this.response = response;
+        this.result = result;
     }
 
     @Override
@@ -21,7 +22,8 @@ public class SyncWaitTimeoutException extends ResponseStatusException implements
         return "SYNC_WAIT_TIMEOUT";
     }
 
-    public TaskResponse getResponse() {
-        return response;
+    public TaskSubmissionResult getResult() {
+        return result;
     }
 }
+

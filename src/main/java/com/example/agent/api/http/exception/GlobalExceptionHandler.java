@@ -82,7 +82,7 @@ public class GlobalExceptionHandler implements WebExceptionHandler {
         TenantContext context = exchange.getAttribute(TenantContext.CONTEXT_KEY);
         String traceId = context != null ? context.getTraceId() : resolveHeader(exchange, "X-Trace-Id");
         String requestId = context != null ? context.getRequestId() : resolveHeader(exchange, "X-Request-Id");
-        ApiResponse<?> response = new ApiResponse<>(ex.getErrorCode(), ex.getReason(), ex.getResponse(),
+        ApiResponse<?> response = new ApiResponse<>(ex.getErrorCode(), ex.getReason(), ex.getResult(),
                 traceId, requestId);
         byte[] body = toJsonBytes(response);
         exchange.getResponse().setStatusCode(HttpStatus.ACCEPTED);

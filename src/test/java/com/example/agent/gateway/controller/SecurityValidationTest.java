@@ -2,9 +2,9 @@ package com.example.agent.gateway.controller;
 
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.api.http.dto.TaskResponse;
 import com.example.agent.orchestration.task.TaskQueryService;
 import com.example.agent.orchestration.task.TaskSubmissionService;
+import com.example.agent.orchestration.task.contract.TaskSubmissionResult;
 import com.example.agent.streaming.sse.EventStreamService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.nio.charset.StandardCharsets;
@@ -95,7 +95,7 @@ class SecurityValidationTest {
         request.setQuery("ping");
         request.setIdempotencyKey("idem-3");
         when(taskSubmissionService.submitTask(any(), any()))
-                .thenReturn(new TaskResponse("task-1", "wf-1", "SUBMITTED"));
+                .thenReturn(new TaskSubmissionResult("task-1", "wf-1", "SUBMITTED"));
 
         webTestClient.post()
                 .uri("/api/v1/tasks")
@@ -121,7 +121,7 @@ class SecurityValidationTest {
         request.setQuery("ping");
         request.setIdempotencyKey("idem-jwt-1");
         when(taskSubmissionService.submitTask(any(), any()))
-                .thenReturn(new TaskResponse("task-jwt", "wf-jwt", "SUBMITTED"));
+                .thenReturn(new TaskSubmissionResult("task-jwt", "wf-jwt", "SUBMITTED"));
 
         String token = buildJwt("jwt-user", List.of("ROLE_USER", "ROLE_TEST"), "tenant-a", 3600);
 

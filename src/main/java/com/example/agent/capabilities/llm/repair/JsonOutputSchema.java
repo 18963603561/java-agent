@@ -21,7 +21,8 @@ public enum JsonOutputSchema {
     DEBATE(
             "conclusion: string"),
     MULTIAGENT(
-            "team: array, team[*].role: string, team[*].responsibility: string");
+            "team: array, team[*].roleId: string, team[*].name: string, team[*].modelId: string(可空), "
+                    + "team[*].description: string");
 
     private final String constraintText;
 

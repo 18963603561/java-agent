@@ -368,8 +368,10 @@ public class LocalFallbackStrategy {
 
     private String buildLocalMultiAgent(Map<String, Object> context) {
         Map<String, Object> agent = new HashMap<>();
-        agent.put("role", "planner");
-        agent.put("name", "local-agent");
+        agent.put("roleId", "planner");
+        agent.put("name", "Planner");
+        agent.put("modelId", null);
+        agent.put("description", "负责规划并拆解执行步骤");
         Map<String, Object> result = new HashMap<>();
         result.put("team", List.of(agent));
         result.put("summary", "local multi-agent");

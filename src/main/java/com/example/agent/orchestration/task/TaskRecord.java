@@ -10,7 +10,10 @@ public class TaskRecord {
 
     private String taskId;
     private String workflowId;
-    private String status;
+    /**
+     * 任务状态。
+     */
+    private TaskStatus status;
     private Map<String, Object> request;
     private Map<String, Object> result;
     private String idempotencyKey;
@@ -34,11 +37,11 @@ public class TaskRecord {
         this.workflowId = workflowId;
     }
 
-    public String getStatus() {
+    public TaskStatus getStatus() {
         return status;
     }
 
-    public void setStatus(String status) {
+    public void setStatus(TaskStatus status) {
         this.status = status;
     }
 

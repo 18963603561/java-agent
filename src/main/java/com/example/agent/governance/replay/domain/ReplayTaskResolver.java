@@ -50,7 +50,8 @@ public class ReplayTaskResolver {
                 throw replayNotFound(context);
             }
             incrementReplayResolveMetric("success");
-            return new ReplayTaskSnapshot(record.getTaskId(), record.getWorkflowId(), record.getStatus());
+            String status = record.getStatus() != null ? record.getStatus().value() : null;
+            return new ReplayTaskSnapshot(record.getTaskId(), record.getWorkflowId(), status);
         } catch (ErrorCodeException ex) {
             if (HttpStatus.NOT_FOUND.equals(ex.getStatusCode())) {
                 if ("REPLAY_NOT_FOUND".equals(ex.getErrorCode())) {

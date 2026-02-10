@@ -19,6 +19,7 @@ import com.example.agent.history.eventlog.EventLogRepository;
 import com.example.agent.history.eventlog.InMemoryEventLogRepository;
 import com.example.agent.orchestration.task.TaskRecord;
 import com.example.agent.orchestration.task.TaskRepository;
+import com.example.agent.orchestration.task.TaskStatus;
 import com.example.agent.runtime.step.StepRuntimeService;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -83,7 +84,7 @@ class GovernanceLongRunLifecycleTest {
             taskRecord.setTenantId("tenant-a");
             taskRecord.setTaskId("task-" + index);
             taskRecord.setWorkflowId("wf-" + index);
-            taskRecord.setStatus("COMPLETED");
+            taskRecord.setStatus(TaskStatus.COMPLETED);
             taskRecord.setUpdatedAt(Instant.now());
             when(taskRepository.findById("tenant-a", "task-" + index)).thenReturn(taskRecord);
 
