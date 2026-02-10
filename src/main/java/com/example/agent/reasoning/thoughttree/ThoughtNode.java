@@ -3,52 +3,52 @@ package com.example.agent.reasoning.thoughttree;
 import java.util.List;
 
 /**
- * 鎬濈淮鑺傜偣锛岃〃绀烘帹鐞嗘爲鑺傜偣銆?
+ * 思维节点，表示思维树中的单个推理节点。
  */
 public class ThoughtNode {
 
     /**
-     * 鑺傜偣鏍囥€?
+     * 节点标识。
      */
     private String nodeId;
 
     /**
-     * 鑺傜偣鍐呭锛屾彁渚涚粰鍚庣画鎵╁睍涓庤评鍒嗐€?
+     * 节点内容，用于后续扩展与评分。
      */
     private String content;
 
     /**
-     * 鑺傜偣璇勫垎锛屽弽鏄犺鎬濊€冭矾寰勭殑鍙鎬с€?
+     * 节点评分，表示该路径的可行性。
      */
     private double score;
 
     /**
-     * 鐖惰妭鐐规爣璇嗭紝鐢ㄤ簬鏋勫缓鏍戠姸鍏崇郴銆?
+     * 父节点标识，用于追溯路径。
      */
     private String parentId;
 
     /**
-     * 褰撳墠鑺傜偣鐨勬繁搴︺€?
+     * 当前节点深度。
      */
     private int depth;
 
     /**
-     * 鏄惁涓虹粓姝㈣妭鐐癸紝鍙敤浜庨€夋嫨鏈€浼樿矾寰勩€?
+     * 是否为终止节点。
      */
     private boolean terminal;
 
     /**
-     * 鎬濊€冨彉鍖栬鏄庯紝鐢ㄤ簬璁板綍璺敱鍘熷洜銆?
+     * 节点说明信息，用于解释该分支用途。
      */
     private String explanation;
 
     /**
-     * 鎯宠薄 token 浣跨敤閲忥紝鐢ㄤ簬瀹忚棰勭畻璇勪及銆?
+     * 估算 token 使用量。
      */
     private int tokensUsed;
 
     /**
-     * 瀛愯妭鐐瑰垪琛紝鐢ㄤ簬鏋勫缓鎬濈淮鏍戠粨鏋勩€?
+     * 子节点集合。
      */
     private List<ThoughtNode> children;
 
@@ -127,3 +127,4 @@ public class ThoughtNode {
         this.children = children;
     }
 }
+

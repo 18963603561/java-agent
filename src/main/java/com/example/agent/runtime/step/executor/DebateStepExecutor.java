@@ -1,12 +1,19 @@
 package com.example.agent.runtime.step.executor;
 
 import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.reasoning.debate.DebateCoordinator;
-import com.example.agent.reasoning.debate.DebateRound;
+import com.example.agent.reasoning.common.ReasoningInput;
+import com.example.agent.reasoning.common.ReasoningRequest;
+import com.example.agent.reasoning.common.ReasoningResult;
+import com.example.agent.reasoning.common.orchestrator.ReasoningExecutionPlan;
+import com.example.agent.reasoning.common.orchestrator.ReasoningOrchestrator;
+import com.example.agent.reasoning.common.selection.ReasoningDegradePolicy;
+import com.example.agent.reasoning.common.selection.ReasoningStrategySelector;
+import com.example.agent.reasoning.common.result.DebatePayload;
 import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
@@ -21,10 +28,19 @@ import org.springframework.stereotype.Component;
 @Component
 public class DebateStepExecutor implements StepTypeExecutor {
 
-    private final DebateCoordinator debateCoordinator;
+    private final ReasoningOrchestrator reasoningOrchestrator;
+    private final ReasoningInputResolver reasoningInputResolver;
+    private final ReasoningStrategySelector reasoningStrategySelector;
+    private final ReasoningDegradePolicy reasoningDegradePolicy;
 
-    public DebateStepExecutor(DebateCoordinator debateCoordinator) {
-        this.debateCoordinator = debateCoordinator;
+    public DebateStepExecutor(ReasoningOrchestrator reasoningOrchestrator,
+                              ReasoningInputResolver reasoningInputResolver,
+                              ReasoningStrategySelector reasoningStrategySelector,
+                              ReasoningDegradePolicy reasoningDegradePolicy) {
+        this.reasoningOrchestrator = reasoningOrchestrator;
+        this.reasoningInputResolver = reasoningInputResolver;
+        this.reasoningStrategySelector = reasoningStrategySelector;
+        this.reasoningDegradePolicy = reasoningDegradePolicy;
     }
 
     @Override
@@ -34,41 +50,52 @@ public class DebateStepExecutor implements StepTypeExecutor {
 
     @Override
     public StepExecutionOutput execute(StepExecutionRequest request) {
-        String topic = resolveStepTopic(request.getTaskRequest(), request.getStep());
-        DebateRound round = debateCoordinator.debate(topic, request.getTenantContext(), request.getWorkflowId(), request.getSeqCounter());
+        Map<String, Object> stepInput = reasoningInputResolver.resolveExecutionInput(request);
+        TaskRequest taskRequest = request != null ? request.getTaskRequest() : null;
+        if (request != null && request.getStep() != null) {
+            StepInputView stepInputView = StepInputView.from(request.getStep(), request.getRuntimeContext());
+            Map<String, Object> inputFromStep = stepInputView.toExecutionMap();
+            if (inputFromStep != null && !inputFromStep.isEmpty()) {
+                stepInput.putAll(inputFromStep);
+            }
+        }
+        String topic = reasoningInputResolver.resolvePrompt(stepInput, taskRequest, "topic", "question", "prompt", "query");
+        ReasoningRequest reasoningRequest = new ReasoningRequest(
+                "DEBATE",
+                topic,
+                stepInput,
+                request != null ? request.getTenantContext() : null,
+                request != null ? request.getWorkflowId() : null,
+                request != null ? request.getSeqCounter() : null
+        );
+        ReasoningInput reasoningInput = reasoningRequest.getInput();
+        String preferredStrategy = reasoningInputResolver.resolvePreferredStrategy(reasoningInput, "debate");
+        String primaryStrategy = reasoningStrategySelector.selectPrimary(preferredStrategy, reasoningInput);
+        boolean parallelEnabled = reasoningInputResolver.resolveParallelEnabled(reasoningInput);
+        List<String> candidateStrategies = parallelEnabled
+                ? reasoningInputResolver.resolveCandidateStrategies(reasoningInput, primaryStrategy)
+                : reasoningDegradePolicy.resolveFallbackOrder(primaryStrategy);
+        ReasoningExecutionPlan.Builder planBuilder = ReasoningExecutionPlan.builder()
+                .primaryStrategy(primaryStrategy)
+                .candidateStrategies(candidateStrategies)
+                .parallelEnabled(parallelEnabled);
+        Long timeoutMillis = reasoningInput.getLong("timeoutMillis");
+        if (timeoutMillis != null) {
+            planBuilder.timeoutMillis(timeoutMillis);
+        }
+        ReasoningExecutionPlan plan = planBuilder.build();
+        ReasoningResult result = reasoningOrchestrator.execute(reasoningRequest, plan);
+        DebatePayload payload = result.getPayload() instanceof DebatePayload typedPayload
+                ? typedPayload
+                : new DebatePayload(null, topic, result.getSummary());
         Map<String, Object> output = new HashMap<>();
-        output.put("roundId", round.getRoundId());
-        output.put("topic", round.getTopic());
-        output.put("conclusion", round.getConclusion());
-        if (round.getRawRef() != null && !round.getRawRef().isBlank()) {
-            output.put("rawRef", round.getRawRef());
-            output.put("modelRawRef", round.getRawRef());
+        output.put("roundId", payload.getRoundId());
+        output.put("topic", payload.getTopic());
+        output.put("conclusion", result.getSummary());
+        if (result.getRawRef() != null && !result.getRawRef().isBlank()) {
+            output.put("rawRef", result.getRawRef());
+            output.put("modelRawRef", result.getRawRef());
         }
         return StepExecutionOutput.fromPayload(output);
-    }
-
-    private String resolveStepTopic(TaskRequest request, com.example.agent.runtime.model.StepSpec step) {
-        StepInputView stepInputView = StepInputView.from(step, null);
-        Map<String, Object> stepInput = stepInputView.toExecutionMap();
-        if (stepInput != null) {
-            Object topic = stepInput.get("topic");
-            if (topic instanceof String value && !value.isBlank()) {
-                return value;
-            }
-        }
-        return resolveStepQuery(request, stepInput);
-    }
-
-    private String resolveStepQuery(TaskRequest request, Map<String, Object> stepInput) {
-        if (stepInput != null) {
-            Object query = stepInput.get("query");
-            if (query instanceof String value && !value.isBlank()) {
-                return value;
-            }
-        }
-        if (request != null && request.getQuery() != null) {
-            return request.getQuery();
-        }
-        return "";
     }
 }

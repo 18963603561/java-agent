@@ -1,9 +1,17 @@
 package com.example.agent.runtime.step.executor;
 
+import com.example.agent.reasoning.common.ReasoningRequest;
+import com.example.agent.reasoning.common.ReasoningResult;
+import com.example.agent.reasoning.common.ReasoningInput;
+import com.example.agent.reasoning.common.config.ReasoningConfigResolver;
+import com.example.agent.reasoning.common.orchestrator.ReasoningExecutionPlan;
+import com.example.agent.reasoning.common.orchestrator.ReasoningOrchestrator;
+import com.example.agent.reasoning.common.result.ThoughtTreePayload;
+import com.example.agent.reasoning.common.selection.ReasoningDegradePolicy;
+import com.example.agent.reasoning.common.selection.ReasoningStrategySelector;
+import com.example.agent.reasoning.common.telemetry.ReasoningEventPublisher;
 import com.example.agent.reasoning.thoughttree.ThoughtNode;
 import com.example.agent.reasoning.thoughttree.ThoughtTreeConfig;
-import com.example.agent.reasoning.thoughttree.ThoughtTreeResult;
-import com.example.agent.reasoning.thoughttree.ThoughtTreeService;
 import com.example.agent.runtime.model.input.StepInputView;
 import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.step.contract.StepExecutionRequest;
@@ -24,10 +32,25 @@ import org.springframework.stereotype.Component;
 @Component
 public class ThoughtTreeStepExecutor implements StepTypeExecutor {
 
-    private final ThoughtTreeService thoughtTreeService;
+    private final ReasoningOrchestrator reasoningOrchestrator;
+    private final ReasoningInputResolver reasoningInputResolver;
+    private final ReasoningEventPublisher reasoningEventPublisher;
+    private final ReasoningConfigResolver reasoningConfigResolver;
+    private final ReasoningStrategySelector reasoningStrategySelector;
+    private final ReasoningDegradePolicy reasoningDegradePolicy;
 
-    public ThoughtTreeStepExecutor(ThoughtTreeService thoughtTreeService) {
-        this.thoughtTreeService = thoughtTreeService;
+    public ThoughtTreeStepExecutor(ReasoningOrchestrator reasoningOrchestrator,
+                                   ReasoningInputResolver reasoningInputResolver,
+                                   ReasoningEventPublisher reasoningEventPublisher,
+                                   ReasoningConfigResolver reasoningConfigResolver,
+                                   ReasoningStrategySelector reasoningStrategySelector,
+                                   ReasoningDegradePolicy reasoningDegradePolicy) {
+        this.reasoningOrchestrator = reasoningOrchestrator;
+        this.reasoningInputResolver = reasoningInputResolver;
+        this.reasoningEventPublisher = reasoningEventPublisher;
+        this.reasoningConfigResolver = reasoningConfigResolver;
+        this.reasoningStrategySelector = reasoningStrategySelector;
+        this.reasoningDegradePolicy = reasoningDegradePolicy;
     }
 
     @Override
@@ -37,19 +60,60 @@ public class ThoughtTreeStepExecutor implements StepTypeExecutor {
 
     @Override
     public StepExecutionOutput execute(StepExecutionRequest request) {
-        StepInputView stepInputView = StepInputView.from(request.getStep(), request.getRuntimeContext());
-        Map<String, Object> input = stepInputView.toExecutionMap();
-        String prompt = input != null && input.get("prompt") instanceof String value ? value : "";
-        ThoughtTreeConfig config = new ThoughtTreeConfig();
-        ThoughtTreeResult result = thoughtTreeService.buildTree(prompt, config);
-        List<ThoughtNode> nodes = flattenThoughtNodes(result.getRoot());
+        Map<String, Object> input = reasoningInputResolver.resolveExecutionInput(request);
+        if (request != null && request.getStep() != null) {
+            StepInputView stepInputView = StepInputView.from(request.getStep(), request.getRuntimeContext());
+            Map<String, Object> inputFromStep = stepInputView.toExecutionMap();
+            if (inputFromStep != null && !inputFromStep.isEmpty()) {
+                input.putAll(inputFromStep);
+            }
+        }
+        String prompt = reasoningInputResolver.resolvePrompt(
+                input,
+                request != null ? request.getTaskRequest() : null,
+                "prompt",
+                "question",
+                "topic",
+                "query"
+        );
+        ThoughtTreeConfig config = reasoningConfigResolver.resolveThoughtTreeConfig(input);
+        input.put("reasoning.thoughtTreeConfig", config);
+        ReasoningRequest reasoningRequest = new ReasoningRequest(
+                "THOUGHT_TREE",
+                prompt,
+                input,
+                request != null ? request.getTenantContext() : null,
+                request != null ? request.getWorkflowId() : null,
+                request != null ? request.getSeqCounter() : null
+        );
+        ReasoningInput reasoningInput = reasoningRequest.getInput();
+        String preferredStrategy = reasoningInputResolver.resolvePreferredStrategy(reasoningInput, "thought_tree");
+        String primaryStrategy = reasoningStrategySelector.selectPrimary(preferredStrategy, reasoningInput);
+        boolean parallelEnabled = reasoningInputResolver.resolveParallelEnabled(reasoningInput);
+        List<String> candidateStrategies = parallelEnabled
+                ? reasoningInputResolver.resolveCandidateStrategies(reasoningInput, primaryStrategy)
+                : reasoningDegradePolicy.resolveFallbackOrder(primaryStrategy);
+        ReasoningExecutionPlan.Builder planBuilder = ReasoningExecutionPlan.builder()
+                .primaryStrategy(primaryStrategy)
+                .candidateStrategies(candidateStrategies)
+                .parallelEnabled(parallelEnabled);
+        Long timeoutMillis = reasoningInput.getLong("timeoutMillis");
+        if (timeoutMillis != null) {
+            planBuilder.timeoutMillis(timeoutMillis);
+        }
+        ReasoningExecutionPlan plan = planBuilder.build();
+        ReasoningResult result = reasoningOrchestrator.execute(reasoningRequest, plan);
+        ThoughtTreePayload payload = result.getPayload() instanceof ThoughtTreePayload typedPayload
+                ? typedPayload
+                : new ThoughtTreePayload(0, 0, List.of(), result.getSummary());
+        List<ThoughtNode> nodes = payload.getBestPath();
         publishThoughtEvents(request, nodes);
 
         Map<String, Object> output = new HashMap<>();
-        output.put("bestSolution", result.getBestSolution());
+        output.put("bestSolution", result.getSummary());
         output.put("confidence", result.getConfidence());
-        output.put("totalThoughts", result.getTotalThoughts());
-        output.put("treeDepth", result.getTreeDepth());
+        output.put("totalThoughts", payload.getTotalThoughts());
+        output.put("treeDepth", payload.getTreeDepth());
         output.put("nodes", nodes);
         return StepExecutionOutput.fromPayload(output);
     }
@@ -66,31 +130,16 @@ public class ThoughtTreeStepExecutor implements StepTypeExecutor {
             if (node.getParentId() != null) {
                 payload.put("parentId", node.getParentId());
             }
-            request.getEventPublisher().publish(
+            reasoningEventPublisher.publishRuntimeEvent(
+                    request.getEventPublisher(),
                     request.getTenantContext(),
                     request.getWorkflowId(),
                     request.getSeqCounter(),
                     EventType.THOUGHT_EXPANDED,
+                    "thought_tree",
                     payload
             );
         }
-    }
-
-    private List<ThoughtNode> flattenThoughtNodes(ThoughtNode root) {
-        if (root == null) {
-            return List.of();
-        }
-        List<ThoughtNode> nodes = new java.util.ArrayList<>();
-        java.util.ArrayDeque<ThoughtNode> queue = new java.util.ArrayDeque<>();
-        queue.add(root);
-        while (!queue.isEmpty()) {
-            ThoughtNode node = queue.poll();
-            nodes.add(node);
-            if (node.getChildren() != null) {
-                queue.addAll(node.getChildren());
-            }
-        }
-        return nodes;
     }
 
 }

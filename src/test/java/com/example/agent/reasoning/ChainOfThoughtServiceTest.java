@@ -8,6 +8,14 @@ import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
+import com.example.agent.reasoning.common.config.ReasoningConfigResolver;
+import com.example.agent.reasoning.common.config.ReasoningConfigValidator;
+import com.example.agent.reasoning.common.config.ReasoningExecutionProperties;
+import com.example.agent.reasoning.common.telemetry.ReasoningEventPublisher;
+import com.example.agent.reasoning.common.telemetry.ReasoningMetricsPublisher;
+import com.example.agent.reasoning.common.telemetry.ReasoningTraceRecorder;
+import com.example.agent.reasoning.common.JsonPayloadNormalizer;
+import com.example.agent.reasoning.common.ReasoningParseSupport;
 import com.example.agent.streaming.sse.EventStreamService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
@@ -22,6 +30,9 @@ import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import com.example.agent.reasoning.cot.ChainOfThoughtResult;
 import com.example.agent.reasoning.cot.ChainOfThoughtService;
+import com.example.agent.reasoning.cot.CotAnswerSanitizer;
+import com.example.agent.reasoning.cot.CotContextBuilder;
+import com.example.agent.reasoning.cot.CotDecisionParser;
 import com.example.agent.reasoning.cot.CotProperties;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -31,6 +42,39 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
 class ChainOfThoughtServiceTest {
+
+    private CotDecisionParser newDecisionParser() {
+        return new CotDecisionParser(
+                new ObjectMapper(),
+                new JsonPayloadNormalizer(),
+                new ReasoningParseSupport()
+        );
+    }
+
+    private ChainOfThoughtService newService(ModelInvocationService modelInvocationService,
+                                             PromptAssembler promptAssembler,
+                                             ApplicationEventPublisher eventPublisher,
+                                             EventStreamService eventStreamService,
+                                             CotProperties properties,
+                                             JsonOutputRepairService repairService) {
+        ReasoningConfigResolver reasoningConfigResolver = new ReasoningConfigResolver(
+                new ReasoningExecutionProperties(),
+                new ReasoningConfigValidator()
+        );
+        return new ChainOfThoughtService(
+                modelInvocationService,
+                promptAssembler,
+                properties,
+                repairService,
+                new CotContextBuilder(new ObjectMapper()),
+                newDecisionParser(),
+                new CotAnswerSanitizer(),
+                new ReasoningEventPublisher(eventPublisher, eventStreamService),
+                new ReasoningTraceRecorder(modelInvocationService),
+                new ReasoningMetricsPublisher(Mockito.mock(MetricsPublisher.class)),
+                reasoningConfigResolver
+        );
+    }
 
     @Test
     void maxStepsStopsWhenModelKeepsContinuing() {
@@ -46,13 +90,14 @@ class ChainOfThoughtServiceTest {
 
         TestEventPublisher eventPublisher = new TestEventPublisher();
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
-        ChainOfThoughtService service = new ChainOfThoughtService(
+        ChainOfThoughtService service = newService(
                 modelInvocationService,
                 promptAssembler,
-                new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
-                props, Mockito.mock(JsonOutputRepairService.class));
+                props,
+                Mockito.mock(JsonOutputRepairService.class)
+        );
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
         ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
@@ -82,13 +127,14 @@ class ChainOfThoughtServiceTest {
 
         TestEventPublisher eventPublisher = new TestEventPublisher();
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
-        ChainOfThoughtService service = new ChainOfThoughtService(
+        ChainOfThoughtService service = newService(
                 modelInvocationService,
                 promptAssembler,
-                new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
-                props, Mockito.mock(JsonOutputRepairService.class));
+                props,
+                Mockito.mock(JsonOutputRepairService.class)
+        );
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
         ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
@@ -116,13 +162,14 @@ class ChainOfThoughtServiceTest {
 
         TestEventPublisher eventPublisher = new TestEventPublisher();
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
-        ChainOfThoughtService service = new ChainOfThoughtService(
+        ChainOfThoughtService service = newService(
                 modelInvocationService,
                 promptAssembler,
-                new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
-                props, Mockito.mock(JsonOutputRepairService.class));
+                props,
+                Mockito.mock(JsonOutputRepairService.class)
+        );
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
         ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
@@ -147,13 +194,14 @@ class ChainOfThoughtServiceTest {
 
         TestEventPublisher eventPublisher = new TestEventPublisher();
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
-        ChainOfThoughtService service = new ChainOfThoughtService(
+        ChainOfThoughtService service = newService(
                 modelInvocationService,
                 promptAssembler,
-                new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
-                props, Mockito.mock(JsonOutputRepairService.class));
+                props,
+                Mockito.mock(JsonOutputRepairService.class)
+        );
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
         ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
@@ -176,13 +224,14 @@ class ChainOfThoughtServiceTest {
 
         TestEventPublisher eventPublisher = new TestEventPublisher();
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
-        ChainOfThoughtService service = new ChainOfThoughtService(
+        ChainOfThoughtService service = newService(
                 modelInvocationService,
                 promptAssembler,
-                new ObjectMapper(),
                 eventPublisher,
                 Mockito.mock(EventStreamService.class),
-                props, Mockito.mock(JsonOutputRepairService.class));
+                props,
+                Mockito.mock(JsonOutputRepairService.class)
+        );
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
         ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
@@ -207,9 +256,14 @@ class ChainOfThoughtServiceTest {
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
                 metricsPublisher);
-        ChainOfThoughtService service = new ChainOfThoughtService(modelInvocationService, promptAssembler,
-                new ObjectMapper(), new TestEventPublisher(), Mockito.mock(EventStreamService.class), props,
-                repairService);
+        ChainOfThoughtService service = newService(
+                modelInvocationService,
+                promptAssembler,
+                new TestEventPublisher(),
+                Mockito.mock(EventStreamService.class),
+                props,
+                repairService
+        );
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
         ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
@@ -232,9 +286,14 @@ class ChainOfThoughtServiceTest {
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
         JsonOutputRepairService repairService = new JsonOutputRepairService(modelInvocationService, promptAssembler,
                 metricsPublisher);
-        ChainOfThoughtService service = new ChainOfThoughtService(modelInvocationService, promptAssembler,
-                new ObjectMapper(), new TestEventPublisher(), Mockito.mock(EventStreamService.class), props,
-                repairService);
+        ChainOfThoughtService service = newService(
+                modelInvocationService,
+                promptAssembler,
+                new TestEventPublisher(),
+                Mockito.mock(EventStreamService.class),
+                props,
+                repairService
+        );
 
         TenantContext tenantContext = new TenantContext("t-1", "u-1", List.of(), "req", "trace");
         ChainOfThoughtResult result = service.run("test", Map.of(), tenantContext, "wf-1", new AtomicLong(0));
@@ -276,13 +335,14 @@ class ChainOfThoughtServiceTest {
         props.setMaxStepSummaries(1);
 
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
-        ChainOfThoughtService service = new ChainOfThoughtService(
+        ChainOfThoughtService service = newService(
                 modelInvocationService,
                 promptAssembler,
-                new ObjectMapper(),
                 new TestEventPublisher(),
                 Mockito.mock(EventStreamService.class),
-                props, Mockito.mock(JsonOutputRepairService.class));
+                props,
+                Mockito.mock(JsonOutputRepairService.class)
+        );
 
         Map<String, Object> input = new java.util.HashMap<>();
         input.put("lastStepSummary", Map.of("summary", "recent"));

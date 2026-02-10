@@ -1,11 +1,17 @@
 package com.example.agent.runtime.step.executor;
 
-import com.example.agent.api.http.dto.TaskRequest;
-import com.example.agent.reasoning.cot.ChainOfThoughtResult;
-import com.example.agent.reasoning.cot.ChainOfThoughtService;
+import com.example.agent.reasoning.common.ReasoningRequest;
+import com.example.agent.reasoning.common.ReasoningResult;
+import com.example.agent.reasoning.common.ReasoningInput;
+import com.example.agent.reasoning.common.orchestrator.ReasoningExecutionPlan;
+import com.example.agent.reasoning.common.orchestrator.ReasoningOrchestrator;
+import com.example.agent.reasoning.common.selection.ReasoningDegradePolicy;
+import com.example.agent.reasoning.common.selection.ReasoningStrategySelector;
+import com.example.agent.reasoning.common.result.CotPayload;
 import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
@@ -20,10 +26,19 @@ import org.springframework.stereotype.Component;
 @Component
 public class ChainOfThoughtStepExecutor implements StepTypeExecutor {
 
-    private final ChainOfThoughtService chainOfThoughtService;
+    private final ReasoningOrchestrator reasoningOrchestrator;
+    private final ReasoningInputResolver reasoningInputResolver;
+    private final ReasoningStrategySelector reasoningStrategySelector;
+    private final ReasoningDegradePolicy reasoningDegradePolicy;
 
-    public ChainOfThoughtStepExecutor(ChainOfThoughtService chainOfThoughtService) {
-        this.chainOfThoughtService = chainOfThoughtService;
+    public ChainOfThoughtStepExecutor(ReasoningOrchestrator reasoningOrchestrator,
+                                      ReasoningInputResolver reasoningInputResolver,
+                                      ReasoningStrategySelector reasoningStrategySelector,
+                                      ReasoningDegradePolicy reasoningDegradePolicy) {
+        this.reasoningOrchestrator = reasoningOrchestrator;
+        this.reasoningInputResolver = reasoningInputResolver;
+        this.reasoningStrategySelector = reasoningStrategySelector;
+        this.reasoningDegradePolicy = reasoningDegradePolicy;
     }
 
     @Override
@@ -36,55 +51,45 @@ public class ChainOfThoughtStepExecutor implements StepTypeExecutor {
 
     @Override
     public StepExecutionOutput execute(StepExecutionRequest request) {
-        TaskRequest taskRequest = request.getTaskRequest();
-        Map<String, Object> stepInput = request.getStepInput();
-        String question = resolveStepQuestion(stepInput, taskRequest);
-        ChainOfThoughtResult result = chainOfThoughtService.run(
-                question,
-                stepInput,
-                request.getTenantContext(),
-                request.getWorkflowId(),
-                request.getSeqCounter()
+        ReasoningRequest reasoningRequest = reasoningInputResolver.buildRequest(
+                "COT",
+                request,
+                "question",
+                "topic",
+                "prompt",
+                "query"
         );
+        ReasoningInput stepInput = reasoningRequest.getInput();
+        String preferredStrategy = reasoningInputResolver.resolvePreferredStrategy(stepInput, "cot");
+        String primaryStrategy = reasoningStrategySelector.selectPrimary(preferredStrategy, stepInput);
+        boolean parallelEnabled = reasoningInputResolver.resolveParallelEnabled(stepInput);
+        List<String> candidateStrategies = parallelEnabled
+                ? reasoningInputResolver.resolveCandidateStrategies(stepInput, primaryStrategy)
+                : reasoningDegradePolicy.resolveFallbackOrder(primaryStrategy);
+        ReasoningExecutionPlan.Builder planBuilder = ReasoningExecutionPlan.builder()
+                .primaryStrategy(primaryStrategy)
+                .candidateStrategies(candidateStrategies)
+                .parallelEnabled(parallelEnabled);
+        Long timeoutMillis = stepInput.getLong("timeoutMillis");
+        if (timeoutMillis != null) {
+            planBuilder.timeoutMillis(timeoutMillis);
+        }
+        ReasoningExecutionPlan plan = planBuilder.build();
+        ReasoningResult result = reasoningOrchestrator.execute(reasoningRequest, plan);
+        CotPayload payload = result.getPayload() instanceof CotPayload typedPayload
+                ? typedPayload
+                : new CotPayload(0, result.getSummary());
 
         Map<String, Object> output = new HashMap<>();
-        output.put("finalAnswer", result.getFinalAnswer());
-        output.put("stepsCount", result.getStepsCount());
+        output.put("finalAnswer", result.getSummary());
+        output.put("stepsCount", payload.getStepsCount());
         output.put("confidence", result.getConfidence());
         output.put("stopReason", result.getStopReason());
-        output.put("status", result.isCompleted() ? "COMPLETED" : "STOPPED");
+        output.put("status", result.getStatus());
         if (result.getRawRef() != null && !result.getRawRef().isBlank()) {
             output.put("rawRef", result.getRawRef());
             output.put("modelRawRef", result.getRawRef());
         }
         return StepExecutionOutput.fromPayload(output);
     }
-
-    private String resolveStepQuestion(Map<String, Object> stepInput, TaskRequest request) {
-        if (stepInput != null) {
-            Object question = stepInput.get("question");
-            if (question instanceof String value && !value.isBlank()) {
-                return value;
-            }
-            Object topic = stepInput.get("topic");
-            if (topic instanceof String value && !value.isBlank()) {
-                return value;
-            }
-        }
-        return resolveStepQuery(request, stepInput);
-    }
-
-    private String resolveStepQuery(TaskRequest request, Map<String, Object> stepInput) {
-        if (stepInput != null) {
-            Object query = stepInput.get("query");
-            if (query instanceof String value && !value.isBlank()) {
-                return value;
-            }
-        }
-        if (request != null && request.getQuery() != null) {
-            return request.getQuery();
-        }
-        return "";
-    }
 }
-

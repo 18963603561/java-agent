@@ -1,23 +1,41 @@
 package com.example.agent.reasoning.thoughttree;
 
+import com.example.agent.reasoning.common.ReasoningRequest;
+import com.example.agent.reasoning.common.ReasoningResult;
+import com.example.agent.reasoning.common.ReasoningStrategy;
+import com.example.agent.reasoning.common.ReasoningInput;
+import com.example.agent.reasoning.common.config.ReasoningConfigValidator;
+import com.example.agent.reasoning.common.result.ThoughtTreePayload;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
-import java.util.HashSet;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
-import java.util.Set;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 /**
  * 思维树服务，提供分支扩展、评分与最佳路径选择能力。
  */
 @Service
-public class ThoughtTreeService {
+public class ThoughtTreeService implements ReasoningStrategy {
 
     private static final Logger log = LoggerFactory.getLogger(ThoughtTreeService.class);
+    private final ReasoningConfigValidator reasoningConfigValidator;
+    private final ThoughtTreeScoringPolicy thoughtTreeScoringPolicy;
+    private final ThoughtTreeTerminalPolicy thoughtTreeTerminalPolicy;
+
+    public ThoughtTreeService(ReasoningConfigValidator reasoningConfigValidator,
+                              ThoughtTreeScoringPolicy thoughtTreeScoringPolicy,
+                              ThoughtTreeTerminalPolicy thoughtTreeTerminalPolicy) {
+        this.reasoningConfigValidator = reasoningConfigValidator;
+        this.thoughtTreeScoringPolicy = thoughtTreeScoringPolicy;
+        this.thoughtTreeTerminalPolicy = thoughtTreeTerminalPolicy;
+    }
 
     /**
      * 扩展思维树，返回扁平节点列表以兼容轻量调用方。
@@ -56,17 +74,19 @@ public class ThoughtTreeService {
         result.setRoot(root);
         result.setBestPath(new ArrayList<>());
 
-        int explored = 0;
+        int expandedNodes = 0;
         int totalTokens = 0;
         Deque<ThoughtNode> queue = new ArrayDeque<>();
         queue.add(root);
         List<ThoughtNode> allNodes = new ArrayList<>();
         allNodes.add(root);
+        Map<String, ThoughtNode> nodeIndex = new HashMap<>();
+        nodeIndex.put(root.getNodeId(), root);
 
         log.info("思维树开始, promptLength={}, maxDepth={}, branchingFactor={}",
                 normalizedPrompt.length(), safe.getMaxDepth(), safe.getBranchingFactor());
 
-        while (!queue.isEmpty() && explored < safe.getExplorationBudget()) {
+        while (!queue.isEmpty() && expandedNodes < safe.getExplorationBudget()) {
             ThoughtNode current = queue.poll();
             if (current == null) {
                 continue;
@@ -76,12 +96,19 @@ public class ThoughtTreeService {
                 continue;
             }
 
-            List<String> branches = generateBranches(normalizedPrompt, current, safe.getBranchingFactor());
-            explored += branches.size();
+            int remainingBudget = safe.getExplorationBudget() - expandedNodes;
+            if (remainingBudget <= 0) {
+                break;
+            }
+            int nextBranchLimit = Math.min(safe.getBranchingFactor(), remainingBudget);
+            List<String> branches = generateBranches(normalizedPrompt, current, nextBranchLimit);
             for (int i = 0; i < branches.size(); i++) {
+                if (expandedNodes >= safe.getExplorationBudget()) {
+                    break;
+                }
                 String content = branches.get(i);
                 ThoughtNode node = new ThoughtNode();
-                node.setNodeId(current.getNodeId() + "-" + (i + 1));
+                node.setNodeId(current.getNodeId() + "-" + (current.getChildren().size() + 1));
                 node.setParentId(current.getNodeId());
                 node.setDepth(current.getDepth() + 1);
                 node.setContent(content);
@@ -97,9 +124,13 @@ public class ThoughtTreeService {
                 if (isTerminalThought(content)) {
                     node.setTerminal(true);
                 }
+
                 current.getChildren().add(node);
                 allNodes.add(node);
+                nodeIndex.put(node.getNodeId(), node);
                 totalTokens += node.getTokensUsed();
+                expandedNodes++;
+
                 if (!node.isTerminal()) {
                     queue.add(node);
                 }
@@ -107,7 +138,7 @@ public class ThoughtTreeService {
             result.setTreeDepth(Math.max(result.getTreeDepth(), current.getDepth() + 1));
         }
 
-        result.setTotalThoughts(explored);
+        result.setTotalThoughts(expandedNodes);
         result.setTotalTokens(totalTokens);
         result.setBestPath(findBestPath(root));
         if (result.getBestPath() != null && !result.getBestPath().isEmpty()) {
@@ -121,7 +152,7 @@ public class ThoughtTreeService {
         if (safe.isBacktrackEnabled() && result.getConfidence() < 0.5) {
             ThoughtNode alternative = findBestLeaf(allNodes);
             if (alternative != null) {
-                List<ThoughtNode> altPath = buildPath(alternative, allNodes);
+                List<ThoughtNode> altPath = buildPath(alternative, nodeIndex);
                 double altConfidence = calculatePathConfidence(altPath);
                 if (altConfidence > result.getConfidence()) {
                     result.setBestPath(altPath);
@@ -136,27 +167,48 @@ public class ThoughtTreeService {
         return result;
     }
 
+    @Override
+    public boolean supports(String strategyType) {
+        return StringUtils.hasText(strategyType) && "THOUGHT_TREE".equalsIgnoreCase(strategyType);
+    }
+
+    @Override
+    public ReasoningResult execute(ReasoningRequest request) {
+        ThoughtTreeConfig config = resolveConfig(request != null ? request.getInput() : new ReasoningInput(Map.of()));
+        ThoughtTreeResult result = buildTree(request != null ? request.getPrompt() : null, config);
+        ThoughtTreePayload payload = new ThoughtTreePayload(
+                result.getTotalThoughts(),
+                result.getTreeDepth(),
+                result.getBestPath(),
+                result.getBestSolution()
+        );
+        return new ReasoningResult(
+                "THOUGHT_TREE",
+                result.getBestSolution(),
+                result.getConfidence(),
+                "completed",
+                "COMPLETED",
+                null,
+                payload
+        );
+    }
+
+    private ThoughtTreeConfig resolveConfig(ReasoningInput input) {
+        if (input == null) {
+            return new ThoughtTreeConfig();
+        }
+        ThoughtTreeConfig config = input.getThoughtTreeConfig();
+        if (config != null) {
+            return config;
+        }
+        return new ThoughtTreeConfig();
+    }
+
+    /**
+     * 规整配置，避免非法参数导致推理树构建异常。
+     */
     private ThoughtTreeConfig normalizeConfig(ThoughtTreeConfig config) {
-        ThoughtTreeConfig safe = config == null ? new ThoughtTreeConfig() : config;
-        if (safe.getMaxDepth() <= 0) {
-            safe.setMaxDepth(3);
-        }
-        if (safe.getBranchingFactor() <= 0) {
-            safe.setBranchingFactor(3);
-        }
-        if (safe.getBranchingFactor() > 4) {
-            safe.setBranchingFactor(4);
-        }
-        if (safe.getExplorationBudget() <= 0) {
-            safe.setExplorationBudget(12);
-        }
-        if (safe.getPruningThreshold() <= 0) {
-            safe.setPruningThreshold(0.3);
-        }
-        if (safe.getEvaluationMethod() == null || safe.getEvaluationMethod().isBlank()) {
-            safe.setEvaluationMethod("scoring");
-        }
-        return safe;
+        return reasoningConfigValidator.normalizeThoughtTreeConfig(config);
     }
 
     /**
@@ -182,14 +234,17 @@ public class ThoughtTreeService {
             output.add(trimmed.get(i));
         }
 
-        int idx = 1;
+        int index = 1;
         while (output.size() < branchingFactor) {
-            output.add("补充思路 " + idx + ": " + key);
-            idx++;
+            output.add("补充思路 " + index + ": " + key);
+            index++;
         }
         return output;
     }
 
+    /**
+     * 提取输入中的关键短语，用于构造分支提示。
+     */
     private String extractKeyPhrase(String prompt) {
         if (prompt == null || prompt.isBlank()) {
             return "当前任务";
@@ -203,72 +258,46 @@ public class ThoughtTreeService {
     }
 
     /**
-     * 评分逻辑采用可解释的规则打分，避免引入不稳定的随机性。
+     * 使用可解释规则打分，避免引入额外随机性。
      */
     private double evaluateThought(ThoughtNode node, String method) {
-        String content = node.getContent() == null ? "" : node.getContent().toLowerCase(Locale.ROOT);
-        double score = 0.5;
-
-        if (content.contains("结论") || content.contains("因此") || content.contains("最终")) {
-            score += 0.2;
-        }
-        if (content.contains("步骤") || content.contains("拆分") || content.contains("执行")) {
-            score += 0.1;
-        }
-        if (content.contains("可能") || content.contains("也许") || content.contains("猜测")) {
-            score -= 0.1;
-        }
-        if (content.length() < 12) {
-            score -= 0.1;
-        }
-        score -= node.getDepth() * 0.05;
-
-        if (score < 0) {
-            score = 0;
-        }
-        if (score > 1) {
-            score = 1;
-        }
-        return score;
+        return thoughtTreeScoringPolicy.evaluate(node, method);
     }
 
     private boolean isTerminalThought(String thought) {
-        if (thought == null) {
-            return false;
-        }
-        String content = thought.toLowerCase(Locale.ROOT);
-        return content.contains("最终") || content.contains("结论") || content.contains("答案")
-                || content.contains("无法") || content.contains("无解");
+        return thoughtTreeTerminalPolicy.isTerminal(thought);
     }
 
+    /**
+     * 通过 DFS 递归计算真实根到叶路径，避免共享路径栈导致路径失真。
+     */
     private List<ThoughtNode> findBestPath(ThoughtNode root) {
         if (root == null) {
             return List.of();
         }
-        List<ThoughtNode> bestPath = new ArrayList<>();
-        double bestScore = 0;
+        PathCandidate candidate = findBestPathRecursively(root, new ArrayList<>());
+        return candidate.path;
+    }
 
-        Deque<ThoughtNode> path = new ArrayDeque<>();
-        Deque<ThoughtNode> stack = new ArrayDeque<>();
-        stack.push(root);
-        while (!stack.isEmpty()) {
-            ThoughtNode node = stack.pop();
-            path.push(node);
-            if (node.getChildren() == null || node.getChildren().isEmpty() || node.isTerminal()) {
-                List<ThoughtNode> current = new ArrayList<>(path);
-                double score = averageScore(current);
-                if (score > bestScore) {
-                    bestScore = score;
-                    bestPath = new ArrayList<>(current);
-                }
-            } else {
-                for (ThoughtNode child : node.getChildren()) {
-                    stack.push(child);
-                }
-            }
-            path.pop();
+    private PathCandidate findBestPathRecursively(ThoughtNode node, List<ThoughtNode> currentPath) {
+        if (node == null) {
+            return new PathCandidate(List.of(), 0);
         }
-        return bestPath;
+        List<ThoughtNode> nextPath = new ArrayList<>(currentPath);
+        nextPath.add(node);
+
+        if (node.getChildren() == null || node.getChildren().isEmpty() || node.isTerminal()) {
+            return new PathCandidate(nextPath, averageScore(nextPath));
+        }
+
+        PathCandidate best = new PathCandidate(nextPath, averageScore(nextPath));
+        for (ThoughtNode child : node.getChildren()) {
+            PathCandidate candidate = findBestPathRecursively(child, nextPath);
+            if (candidate.score > best.score) {
+                best = candidate;
+            }
+        }
+        return best;
     }
 
     private double averageScore(List<ThoughtNode> path) {
@@ -299,28 +328,18 @@ public class ThoughtTreeService {
         return best;
     }
 
-    private List<ThoughtNode> buildPath(ThoughtNode target, List<ThoughtNode> allNodes) {
+    private List<ThoughtNode> buildPath(ThoughtNode target, Map<String, ThoughtNode> nodeIndex) {
         List<ThoughtNode> path = new ArrayList<>();
         ThoughtNode current = target;
-        Set<String> visited = new HashSet<>();
-        while (current != null && current.getNodeId() != null && !visited.contains(current.getNodeId())) {
+        while (current != null && current.getNodeId() != null) {
             path.add(0, current);
-            visited.add(current.getNodeId());
-            current = findParent(current.getParentId(), allNodes);
+            String parentId = current.getParentId();
+            if (parentId == null) {
+                break;
+            }
+            current = nodeIndex.get(parentId);
         }
         return path;
-    }
-
-    private ThoughtNode findParent(String parentId, List<ThoughtNode> allNodes) {
-        if (parentId == null) {
-            return null;
-        }
-        for (ThoughtNode node : allNodes) {
-            if (parentId.equals(node.getNodeId())) {
-                return node;
-            }
-        }
-        return null;
     }
 
     private String synthesizeSolution(List<ThoughtNode> path, String prompt) {
@@ -364,5 +383,11 @@ public class ThoughtTreeService {
             }
         }
         return nodes;
+    }
+
+    /**
+     * 路径候选对象，封装路径及其评分。
+     */
+    private record PathCandidate(List<ThoughtNode> path, double score) {
     }
 }

@@ -2,20 +2,22 @@ package com.example.agent.reasoning.cot;
 
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
-import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.capabilities.llm.client.ModelInvocationService;
 import com.example.agent.capabilities.llm.contract.ModelRequest;
 import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.prompt.PromptBundle;
-import com.example.agent.capabilities.llm.prompt.PromptTrace;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.capabilities.llm.repair.JsonOutputSchema;
-import com.example.agent.streaming.sse.EventStreamService;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.time.Instant;
+import com.example.agent.reasoning.common.ReasoningRequest;
+import com.example.agent.reasoning.common.ReasoningResult;
+import com.example.agent.reasoning.common.ReasoningStrategy;
+import com.example.agent.reasoning.common.config.ReasoningConfigResolver;
+import com.example.agent.reasoning.common.result.CotPayload;
+import com.example.agent.reasoning.common.telemetry.ReasoningEventPublisher;
+import com.example.agent.reasoning.common.telemetry.ReasoningMetricsPublisher;
+import com.example.agent.reasoning.common.telemetry.ReasoningTraceRecorder;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -24,7 +26,6 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
@@ -40,7 +41,7 @@ import org.springframework.util.StringUtils;
  * }</pre>
  */
 @Service
-public class ChainOfThoughtService {
+public class ChainOfThoughtService implements ReasoningStrategy {
 
     /**
      * 日志记录器。
@@ -51,62 +52,12 @@ public class ChainOfThoughtService {
      * 问题文本最大长度。
      * <p>示例：{@code 500}。
      */
-    private static final int MAX_QUESTION_CHARS = 500;
-    /**
-     * 记忆摘要最大长度。
-     * <p>示例：{@code 800}。
-     */
-    private static final int MAX_MEMORY_CHARS = 800;
-    /**
-     * 观测信息最大长度。
-     * <p>示例：{@code 500}。
-     */
-    private static final int MAX_OBSERVATION_CHARS = 500;
+    private final int maxQuestionChars;
     /**
      * 单步摘要最大长度。
      * <p>示例：{@code 200}。
      */
-    private static final int MAX_STEP_SUMMARY_CHARS = 200;
-    /**
-     * 最终答案标记集合。
-     * <p>示例：{@code "final answer"}。
-     */
-    private static final List<String> FINAL_ANSWER_MARKERS = List.of(
-            "final answer",
-            "answer:",
-            "final:",
-            "最终答案",
-            "最终结论",
-            "结论:",
-            "结论：",
-            "答案:",
-            "答案："
-    );
-    /**
-     * 推理标记集合，用于过滤推理文本。
-     * <p>示例：{@code "chain-of-thought"}。
-     */
-    private static final List<String> REASONING_MARKERS = List.of(
-            "chain-of-thought",
-            "chain of thought",
-            "reasoning",
-            "thoughts",
-            "analysis",
-            "let's think step by step",
-            "step by step",
-            "step 1",
-            "step 2",
-            "step 3",
-            "步骤1",
-            "步骤2",
-            "步骤3",
-            "步骤一",
-            "步骤二",
-            "步骤三",
-            "思维链",
-            "推理",
-            "思考过程"
-    );
+    private final int maxStepSummaryChars;
 
     /**
      * 模型调用服务。
@@ -118,22 +69,13 @@ public class ChainOfThoughtService {
      * <p>示例：构建模型消息列表。
      */
     private final PromptAssembler promptAssembler;
-    /**
-     * 序列化工具。
-     * <p>示例：构建上下文 {@code JSON}。
-     */
-    private final ObjectMapper objectMapper;
     private final JsonOutputRepairService jsonOutputRepairService;
-    /**
-     * 事件发布器。
-     * <p>示例：发布链式推理阶段事件。
-     */
-    private final ApplicationEventPublisher eventPublisher;
-    /**
-     * 事件流服务。
-     * <p>示例：生成事件序列号。
-     */
-    private final EventStreamService eventStreamService;
+    private final CotContextBuilder cotContextBuilder;
+    private final CotDecisionParser cotDecisionParser;
+    private final CotAnswerSanitizer cotAnswerSanitizer;
+    private final ReasoningEventPublisher reasoningEventPublisher;
+    private final ReasoningTraceRecorder reasoningTraceRecorder;
+    private final ReasoningMetricsPublisher reasoningMetricsPublisher;
     /**
      * 链式推理配置。
      * <p>示例：控制最大步数与温度参数。
@@ -152,25 +94,31 @@ public class ChainOfThoughtService {
      *
      * @param modelInvocationService 模型调用服务
      * @param promptAssembler 提示词装配器
-     * @param objectMapper 序列化工具
-     * @param eventPublisher 事件发布器
-     * @param eventStreamService 事件流服务
      * @param properties 配置对象
      */
     public ChainOfThoughtService(ModelInvocationService modelInvocationService,
                                  PromptAssembler promptAssembler,
-                                 ObjectMapper objectMapper,
-                                 ApplicationEventPublisher eventPublisher,
-                                 EventStreamService eventStreamService,
                                  CotProperties properties,
-                                 JsonOutputRepairService jsonOutputRepairService) {
+                                 JsonOutputRepairService jsonOutputRepairService,
+                                 CotContextBuilder cotContextBuilder,
+                                 CotDecisionParser cotDecisionParser,
+                                 CotAnswerSanitizer cotAnswerSanitizer,
+                                 ReasoningEventPublisher reasoningEventPublisher,
+                                 ReasoningTraceRecorder reasoningTraceRecorder,
+                                 ReasoningMetricsPublisher reasoningMetricsPublisher,
+                                 ReasoningConfigResolver reasoningConfigResolver) {
         this.modelInvocationService = modelInvocationService;
         this.promptAssembler = promptAssembler;
-        this.objectMapper = objectMapper;
-        this.eventPublisher = eventPublisher;
-        this.eventStreamService = eventStreamService;
         this.properties = properties;
         this.jsonOutputRepairService = jsonOutputRepairService;
+        this.cotContextBuilder = cotContextBuilder;
+        this.cotDecisionParser = cotDecisionParser;
+        this.cotAnswerSanitizer = cotAnswerSanitizer;
+        this.reasoningEventPublisher = reasoningEventPublisher;
+        this.reasoningTraceRecorder = reasoningTraceRecorder;
+        this.reasoningMetricsPublisher = reasoningMetricsPublisher;
+        this.maxQuestionChars = reasoningConfigResolver.resolveCotMaxQuestionChars();
+        this.maxStepSummaryChars = reasoningConfigResolver.resolveCotMaxStepSummaryChars();
     }
 
     /**
@@ -196,8 +144,9 @@ public class ChainOfThoughtService {
                                     TenantContext tenantContext,
                                     String workflowId,
                                     AtomicLong seqCounter) {
+        long startedAt = System.currentTimeMillis();
         // 对问题文本进行截断，避免超长输入影响模型。
-        String safeQuestion = truncate(question, MAX_QUESTION_CHARS);
+        String safeQuestion = truncate(question, maxQuestionChars);
         int maxSteps = Math.max(1, properties.getMaxSteps());
         List<String> stepSummaries = new ArrayList<>();
         int stepsExecuted = 0;
@@ -267,8 +216,10 @@ public class ChainOfThoughtService {
                 recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
                         response != null ? response.getModelId() : null, decision.valid, parseErrorType,
                         repairAttempted, repairSuccess);
+                reasoningMetricsPublisher.recordParseResult("cot", decision.valid, parseErrorType);
+                reasoningMetricsPublisher.recordRepairResult("cot", repairAttempted, repairSuccess);
                 if (StringUtils.hasText(decision.stepSummary)) {
-                    stepSummaries.add(truncate(decision.stepSummary, MAX_STEP_SUMMARY_CHARS));
+                    stepSummaries.add(truncate(decision.stepSummary, maxStepSummaryChars));
                 }
                 confidence = normalizeConfidence(decision.confidence, confidence);
                 if (properties.isEmitStepEvents()) {
@@ -346,7 +297,38 @@ public class ChainOfThoughtService {
                 workflowId,
                 stepsExecuted,
                 stopReason);
+        reasoningMetricsPublisher.recordDuration("cot", System.currentTimeMillis() - startedAt);
         return result;
+    }
+
+    @Override
+    public boolean supports(String strategyType) {
+        if (!StringUtils.hasText(strategyType)) {
+            return false;
+        }
+        return "CHAIN_OF_THOUGHT".equalsIgnoreCase(strategyType)
+                || "COT".equalsIgnoreCase(strategyType);
+    }
+
+    @Override
+    public ReasoningResult execute(ReasoningRequest request) {
+        ChainOfThoughtResult result = run(
+                request != null ? request.getPrompt() : null,
+                request != null ? request.getInput().attributes() : Map.of(),
+                request != null ? request.getTenantContext() : null,
+                request != null ? request.getWorkflowId() : null,
+                request != null ? request.getSeqCounter() : null
+        );
+        CotPayload payload = new CotPayload(result.getStepsCount(), result.getFinalAnswer());
+        return new ReasoningResult(
+                "COT",
+                result.getFinalAnswer(),
+                result.getConfidence(),
+                result.getStopReason(),
+                result.isCompleted() ? "COMPLETED" : "STOPPED",
+                result.getRawRef(),
+                payload
+        );
     }
 
     /**
@@ -365,27 +347,9 @@ public class ChainOfThoughtService {
                                List<String> stepSummaries,
                                int stepIndex,
                                int maxSteps) {
-        Map<String, Object> context = new HashMap<>();
-        context.put("question", question);
-        String memorySummary = extractMemorySummary(input);
-        if (StringUtils.hasText(memorySummary)) {
-            context.put("memorySummary", memorySummary);
-        }
-        String observation = extractObservation(input);
-        if (StringUtils.hasText(observation)) {
-            context.put("recentObservation", observation);
-        }
-        if (stepSummaries != null && !stepSummaries.isEmpty()) {
-            context.put("previousSteps", stepSummaries);
-        }
-        context.put("stepIndex", stepIndex);
-        context.put("maxSteps", maxSteps);
-        String contextJson;
-        try {
-            contextJson = objectMapper.writeValueAsString(context);
-        } catch (Exception ex) {
-            contextJson = "{}";
-        }
+        CotContextBuilder.CotContext cotContext = cotContextBuilder.build(question, input, stepSummaries,
+                stepIndex, maxSteps);
+        String contextJson = cotContext.contextJson();
         return """
             你是链式推理助手（COT helper），严格禁止输出逐字思维链/详细推理过程。
             你只能输出“非常简短的下一步摘要”或“最终答案”。
@@ -441,27 +405,9 @@ public class ChainOfThoughtService {
         if (jsonOutputRepairService == null || !StringUtils.hasText(rawContent)) {
             return StepDecision.invalid("invalid_response");
         }
-        Map<String, Object> context = new HashMap<>();
-        context.put("question", question);
-        String memorySummary = extractMemorySummary(input);
-        if (StringUtils.hasText(memorySummary)) {
-            context.put("memorySummary", memorySummary);
-        }
-        String observation = extractObservation(input);
-        if (StringUtils.hasText(observation)) {
-            context.put("recentObservation", observation);
-        }
-        if (stepSummaries != null && !stepSummaries.isEmpty()) {
-            context.put("previousSteps", stepSummaries);
-        }
-        context.put("stepIndex", stepIndex);
-        context.put("maxSteps", maxSteps);
-        String contextJson;
-        try {
-            contextJson = objectMapper.writeValueAsString(context);
-        } catch (Exception ex) {
-            contextJson = "{}";
-        }
+        CotContextBuilder.CotContext cotContext = cotContextBuilder.build(question, input, stepSummaries,
+                stepIndex, maxSteps);
+        String contextJson = cotContext.contextJson();
         String repaired = jsonOutputRepairService.repair("cot", rawContent, JsonOutputSchema.COT, contextJson, 1);
         if (!StringUtils.hasText(repaired)) {
             return StepDecision.invalid("invalid_response");
@@ -479,18 +425,19 @@ public class ChainOfThoughtService {
                                    String parseErrorType,
                                    boolean repairAttempted,
                                    boolean repairSuccess) {
-        PromptTrace trace = PromptTrace.fromMetadata(metadata);
-        if (trace == null) {
-            trace = PromptTrace.fromPrompt("cot", promptText);
-        }
-        if (trace == null) {
-            return;
-        }
-        trace.setParseSuccess(parseSuccess);
-        trace.setParseErrorType(parseErrorType);
-        trace.setRepairAttempted(repairAttempted);
-        trace.setRepairSuccess(repairSuccess);
-        modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "cot", modelId);
+        reasoningTraceRecorder.record(
+                "cot",
+                metadata,
+                promptText,
+                tenantContext,
+                workflowId,
+                seqCounter,
+                modelId,
+                parseSuccess,
+                parseErrorType,
+                repairAttempted,
+                repairSuccess
+        );
     }
 
     private String resolveParseErrorType(String stopReason) {
@@ -505,153 +452,17 @@ public class ChainOfThoughtService {
 
     /**
      * 解析模型输出的决策信息。
-     *
-     * <p>输入：模型输出内容。
-     * <p>输出：决策对象。
-     * <p>边界：内容为空或解析失败时返回无效决策。
-     * <p>示例：
-     * <pre>{@code
-     * StepDecision decision = parseDecision(content);
-     * }</pre>
      */
     private StepDecision parseDecision(String content) {
-        if (!StringUtils.hasText(content)) {
-            return StepDecision.invalid("empty_response");
-        }
-        try {
-            String normalized = normalizeJsonPayload(content);
-            if (!StringUtils.hasText(normalized)) {
-                return StepDecision.invalid("empty_response");
-            }
-            Map<String, Object> root = objectMapper.readValue(normalized, new TypeReference<Map<String, Object>>() {
-            });
-            boolean shouldContinue = resolveBoolean(root, "shouldContinue", true);
-            String stepSummary = resolveString(root, "stepSummary", "summary");
-            String finalAnswer = resolveString(root, "finalAnswer", "answer");
-            Double confidence = resolveDouble(root, "confidence");
-            String stopReason = resolveString(root, "stopReason", null);
-            if (!shouldContinue && !StringUtils.hasText(stopReason)) {
-                stopReason = "completed";
-            }
-            return new StepDecision(shouldContinue, stepSummary, finalAnswer, confidence, stopReason, true);
-        } catch (Exception ex) {
-            log.warn("链式推理输出解析失败, reason={}", ex.getMessage());
-            return StepDecision.invalid("invalid_response");
-        }
-    }
-
-    /**
-     * 兼容模型输出中的代码块包裹与噪声内容。
-     *
-     * <p>输入：模型输出内容。
-     * <p>输出：清洗后的 {@code JSON} 文本。
-     * <p>边界：内容为空时原样返回。
-     * <p>示例：
-     * <pre>{@code
-     * String json = normalizeJsonPayload(content);
-     * }</pre>
-     */
-    private String normalizeJsonPayload(String content) {
-        if (!StringUtils.hasText(content)) {
-            return content;
-        }
-        String trimmed = content.trim();
-        if (trimmed.startsWith("```")) {
-            int firstLineEnd = trimmed.indexOf('\n');
-            if (firstLineEnd >= 0) {
-                trimmed = trimmed.substring(firstLineEnd + 1);
-            } else {
-                trimmed = trimmed.substring(3);
-            }
-            int lastFence = trimmed.lastIndexOf("```");
-            if (lastFence >= 0) {
-                trimmed = trimmed.substring(0, lastFence);
-            }
-        }
-        trimmed = trimmed.trim();
-        int start = trimmed.indexOf('{');
-        int end = trimmed.lastIndexOf('}');
-        if (start >= 0 && end > start) {
-            trimmed = trimmed.substring(start, end + 1);
-        }
-        return trimmed.trim();
-    }
-
-    /**
-     * 解析布尔值字段。
-     *
-     * <p>输入：映射对象、字段名与默认值。
-     * <p>输出：布尔值。
-     * <p>示例：
-     * <pre>{@code
-     * boolean value = resolveBoolean(root, "shouldContinue", true);
-     * }</pre>
-     */
-    private boolean resolveBoolean(Map<String, Object> root, String key, boolean defaultValue) {
-        if (root == null || !root.containsKey(key)) {
-            return defaultValue;
-        }
-        Object value = root.get(key);
-        if (value instanceof Boolean boolValue) {
-            return boolValue;
-        }
-        if (value instanceof String text) {
-            return Boolean.parseBoolean(text.trim());
-        }
-        return defaultValue;
-    }
-
-    /**
-     * 解析字符串字段，支持备用字段名。
-     *
-     * <p>输入：映射对象、主字段名与备用字段名。
-     * <p>输出：字符串值或 {@code null}。
-     * <p>示例：
-     * <pre>{@code
-     * String value = resolveString(root, "finalAnswer", "answer");
-     * }</pre>
-     */
-    private String resolveString(Map<String, Object> root, String primary, String fallbackKey) {
-        if (root == null) {
-            return null;
-        }
-        Object value = root.get(primary);
-        if (value instanceof String text && StringUtils.hasText(text)) {
-            return text.trim();
-        }
-        Object fallback = root.get(fallbackKey);
-        if (fallback instanceof String text && StringUtils.hasText(text)) {
-            return text.trim();
-        }
-        return null;
-    }
-
-    /**
-     * 解析浮点字段。
-     *
-     * <p>输入：映射对象与字段名。
-     * <p>输出：浮点值或 {@code null}。
-     * <p>示例：
-     * <pre>{@code
-     * Double value = resolveDouble(root, "confidence");
-     * }</pre>
-     */
-    private Double resolveDouble(Map<String, Object> root, String key) {
-        if (root == null || !root.containsKey(key)) {
-            return null;
-        }
-        Object value = root.get(key);
-        if (value instanceof Number number) {
-            return number.doubleValue();
-        }
-        if (value instanceof String text && StringUtils.hasText(text)) {
-            try {
-                return Double.parseDouble(text.trim());
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
+        CotDecisionParser.CotDecision decision = cotDecisionParser.parse(content);
+        return new StepDecision(
+                decision.shouldContinue(),
+                decision.stepSummary(),
+                decision.finalAnswer(),
+                decision.confidence(),
+                decision.stopReason(),
+                decision.valid()
+        );
     }
 
     /**
@@ -694,279 +505,9 @@ public class ChainOfThoughtService {
 
     /**
      * 清洗最终答案，去除推理痕迹。
-     *
-     * <p>输入：原始答案文本。
-     * <p>输出：清洗后的答案文本。
-     * <p>边界：答案为空时返回空字符串。
-     * <p>示例：
-     * <pre>{@code
-     * String answer = sanitizeFinalAnswer(raw);
-     * }</pre>
      */
     private String sanitizeFinalAnswer(String raw) {
-        if (!StringUtils.hasText(raw)) {
-            return "";
-        }
-        String value = raw.trim();
-        String extracted = extractAfterFinalMarker(value);
-        if (StringUtils.hasText(extracted)) {
-            value = extracted;
-        }
-        value = removeReasoningLines(value);
-        if (!StringUtils.hasText(value) && containsReasoningMarker(raw)) {
-            value = extractTailSentence(raw);
-        }
-        int maxChars = Math.max(0, properties.getMaxFinalAnswerChars());
-        if (maxChars > 0 && value.length() > maxChars) {
-            value = value.substring(0, maxChars);
-        }
-        return value.trim();
-    }
-
-    /**
-     * 从最终答案标记后提取文本。
-     *
-     * <p>输入：原始文本。
-     * <p>输出：提取结果或 {@code null}。
-     * <p>示例：
-     * <pre>{@code
-     * String extracted = extractAfterFinalMarker(text);
-     * }</pre>
-     */
-    private String extractAfterFinalMarker(String value) {
-        if (!StringUtils.hasText(value)) {
-            return null;
-        }
-        String lower = value.toLowerCase(Locale.ROOT);
-        for (String marker : FINAL_ANSWER_MARKERS) {
-            int index = lower.indexOf(marker);
-            if (index < 0) {
-                continue;
-            }
-            int start = index + marker.length();
-            String candidate = value.substring(start).trim();
-            if (candidate.startsWith(":") || candidate.startsWith("：")) {
-                candidate = candidate.substring(1).trim();
-            }
-            if (StringUtils.hasText(candidate)) {
-                return candidate;
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 删除包含推理标记的行。
-     *
-     * <p>输入：原始文本。
-     * <p>输出：过滤后的文本。
-     * <p>示例：
-     * <pre>{@code
-     * String cleaned = removeReasoningLines(text);
-     * }</pre>
-     */
-    private String removeReasoningLines(String value) {
-        if (!StringUtils.hasText(value)) {
-            return value;
-        }
-        String[] lines = value.split("\\r?\\n");
-        StringBuilder builder = new StringBuilder();
-        for (String line : lines) {
-            String trimmed = line == null ? "" : line.trim();
-            if (!StringUtils.hasText(trimmed)) {
-                continue;
-            }
-            if (isReasoningLine(trimmed)) {
-                continue;
-            }
-            if (builder.length() > 0) {
-                builder.append(' ');
-            }
-            builder.append(trimmed);
-        }
-        return builder.toString().trim();
-    }
-
-    /**
-     * 判断是否为推理标记行。
-     *
-     * <p>输入：单行文本。
-     * <p>输出：是否为推理行。
-     * <p>示例：
-     * <pre>{@code
-     * boolean match = isReasoningLine(line);
-     * }</pre>
-     */
-    private boolean isReasoningLine(String line) {
-        String lower = line.toLowerCase(Locale.ROOT);
-        for (String marker : REASONING_MARKERS) {
-            if (lower.startsWith(marker)) {
-                return true;
-            }
-            if (lower.contains(marker + ":") || lower.contains(marker + "：")) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 判断文本是否包含推理标记。
-     *
-     * <p>输入：文本内容。
-     * <p>输出：是否包含推理标记。
-     * <p>示例：
-     * <pre>{@code
-     * boolean hasMarker = containsReasoningMarker(text);
-     * }</pre>
-     */
-    private boolean containsReasoningMarker(String value) {
-        if (!StringUtils.hasText(value)) {
-            return false;
-        }
-        String lower = value.toLowerCase(Locale.ROOT);
-        for (String marker : REASONING_MARKERS) {
-            if (lower.contains(marker)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * 提取文本末尾的句子作为答案。
-     *
-     * <p>输入：文本内容。
-     * <p>输出：末尾句子或原文。
-     * <p>示例：
-     * <pre>{@code
-     * String tail = extractTailSentence(text);
-     * }</pre>
-     */
-    private String extractTailSentence(String value) {
-        if (!StringUtils.hasText(value)) {
-            return "";
-        }
-        String[] parts = value.split("[。.!?\\n]");
-        for (int i = parts.length - 1; i >= 0; i--) {
-            String candidate = parts[i] == null ? "" : parts[i].trim();
-            if (StringUtils.hasText(candidate)) {
-                return candidate;
-            }
-        }
-        return value.trim();
-    }
-
-    /**
-     * 从输入中提取记忆摘要。
-     *
-     * <p>输入：上下文输入映射。
-     * <p>输出：记忆摘要字符串或 {@code null}。
-     * <p>示例：
-     * <pre>{@code
-     * String summary = extractMemorySummary(input);
-     * }</pre>
-     */
-    private String extractMemorySummary(Map<String, Object> input) {
-        if (input == null) {
-            return null;
-        }
-        Object memoryObj = input.get("memory");
-        if (memoryObj instanceof Map<?, ?> memoryMap) {
-            Object summary = memoryMap.get("summary");
-            if (summary instanceof String text) {
-                return truncate(text, MAX_MEMORY_CHARS);
-            }
-        }
-        return null;
-    }
-
-    /**
-     * 从输入中提取观测信息。
-     *
-     * <p>输入：上下文输入映射。
-     * <p>输出：观测字符串或 {@code null}。
-     * <p>示例：
-     * <pre>{@code
-     * String observation = extractObservation(input);
-     * }</pre>
-     */
-    private String extractObservation(Map<String, Object> input) {
-        if (input == null) {
-            return null;
-        }
-        Object summary = input.get("observationSummary");
-        if (summary == null) {
-            summary = input.get("observationsSummary");
-        }
-        if (summary == null) {
-            summary = input.get("lastStepSummary");
-        }
-        String text = resolveSummaryText(summary);
-        if (!StringUtils.hasText(text)) {
-            return null;
-        }
-        return truncate(text, MAX_OBSERVATION_CHARS);
-    }
-
-    private String resolveSummaryText(Object value) {
-        if (value == null) {
-            return null;
-        }
-        if (value instanceof String text) {
-            return text;
-        }
-        if (value instanceof Map<?, ?> map) {
-            Object summary = map.get("summary");
-            if (summary != null && StringUtils.hasText(summary.toString())) {
-                return summary.toString();
-            }
-            Object text = map.get("text");
-            if (text != null && StringUtils.hasText(text.toString())) {
-                return text.toString();
-            }
-            Object sample = map.get("sample");
-            if (sample != null && StringUtils.hasText(sample.toString())) {
-                return sample.toString();
-            }
-            String status = map.get("status") != null ? map.get("status").toString() : null;
-            String errorCode = map.get("errorCode") != null ? map.get("errorCode").toString() : null;
-            String tool = map.get("tool") != null ? map.get("tool").toString() : null;
-            if (StringUtils.hasText(status) || StringUtils.hasText(errorCode) || StringUtils.hasText(tool)) {
-                StringBuilder builder = new StringBuilder();
-                if (StringUtils.hasText(status)) {
-                    builder.append("status=").append(status);
-                }
-                if (StringUtils.hasText(errorCode)) {
-                    if (builder.length() > 0) {
-                        builder.append(", ");
-                    }
-                    builder.append("errorCode=").append(errorCode);
-                }
-                if (StringUtils.hasText(tool)) {
-                    if (builder.length() > 0) {
-                        builder.append(", ");
-                    }
-                    builder.append("tool=").append(tool);
-                }
-                return builder.toString();
-            }
-            return null;
-        }
-        if (value instanceof List<?> list) {
-            List<String> parts = new ArrayList<>();
-            for (Object item : list) {
-                String part = resolveSummaryText(item);
-                if (StringUtils.hasText(part)) {
-                    parts.add(part);
-                }
-            }
-            if (!parts.isEmpty()) {
-                return String.join("; ", parts);
-            }
-            return null;
-        }
-        return null;
+        return cotAnswerSanitizer.sanitize(raw, properties.getMaxFinalAnswerChars());
     }
 
     /**
@@ -1010,23 +551,14 @@ public class ChainOfThoughtService {
                               AtomicLong seqCounter,
                               EventType type,
                               Map<String, Object> payload) {
-        if (tenantContext == null || workflowId == null || type == null) {
-            return;
-        }
-        long seq = seqCounter != null
-                ? seqCounter.incrementAndGet()
-                : eventStreamService.nextSequence(tenantContext.getTenantId(), workflowId);
-        StreamEvent event = new StreamEvent();
-        event.setEventId(workflowId + ":" + seq);
-        event.setSchemaVersion("v1");
-        event.setWorkflowId(workflowId);
-        event.setType(type);
-        event.setTimestamp(Instant.now());
-        event.setSeq(seq);
-        event.setStreamId(workflowId);
-        event.setTenantId(tenantContext.getTenantId());
-        event.setPayload(payload != null ? new HashMap<>(payload) : new HashMap<>());
-        eventPublisher.publishEvent(event);
+        reasoningEventPublisher.publishStrategyEvent(
+                tenantContext,
+                workflowId,
+                seqCounter,
+                type,
+                "cot",
+                payload
+        );
     }
 
     /**
