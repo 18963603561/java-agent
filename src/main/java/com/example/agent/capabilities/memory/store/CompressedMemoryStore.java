@@ -18,9 +18,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * 鍘嬬缉璁板繂瀛樺彇灞傦紝璐熻矗鐢熸垚缁撴瀯鍖栨憳瑕佸苟鎸佷箙鍖栥€?
+ * 压缩记忆存取层，负责生成结构化摘要并持久化。
  * <p>
- * 璇存槑锛氭憳瑕佸唴瀹逛細琚鍓互鎺у埗闀垮害銆?
+ * 说明：摘要内容会被裁剪以控制长度。
  */
 @Service
 public class CompressedMemoryStore {
@@ -41,25 +41,25 @@ public class CompressedMemoryStore {
     }
 
     /**
-     * 鏍规嵁浼氳瘽璁板綍鐢熸垚鍘嬬缉璁板繂銆?
+     * 根据会话记录生成压缩记忆。
      *
-     * @param sessionId 浼氳瘽鏍囪瘑
-     * @param records 浼氳瘽璁板綍
-     * @param tenantContext 绉熸埛涓婁笅鏂?
-     * @return 鍘嬬缉鍚庣殑璁板繂璁板綍
+     * @param sessionId 会话标识
+     * @param records 会话记录
+     * @param tenantContext 租户上下文
+     * @return 压缩后的记忆记录
      */
     public MemoryRecord compress(String sessionId, List<MemoryRecord> records, TenantContext tenantContext) {
         return compress(sessionId, records, tenantContext, null);
     }
 
     /**
-     * 鐢熸垚缁撴瀯鍖栨憳瑕佸苟鍐欏叆鍘嬬缉璁板綍銆?
+     * 生成结构化摘要并写入压缩记录。
      *
-     * @param sessionId 浼氳瘽鏍囪瘑
-     * @param records 浼氳瘽璁板綍
-     * @param tenantContext 绉熸埛涓婁笅鏂?
-     * @param workflowId 宸ヤ綔娴佹爣璇?
-     * @return 鍘嬬缉鍚庣殑璁板繂璁板綍
+     * @param sessionId 会话标识
+     * @param records 会话记录
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @return 压缩后的记忆记录
      */
     public MemoryRecord compress(String sessionId,
                                  List<MemoryRecord> records,
@@ -86,19 +86,19 @@ public class CompressedMemoryStore {
         }
         MemoryRecord saved = memoryRepository.save(compressed);
         logStructuredSummary(saved, workflowId);
-        log.info("璁板繂鍘嬬缉鐢熸垚, tenantId={}, sessionId={}, memoryId={}",
+        log.info("记忆压缩生成, tenantId={}, sessionId={}, memoryId={}",
                 tenantContext.getTenantId(), sessionId, compressed.getMemoryId());
         return saved;
     }
 
     /**
-     * 鎼滅储 compressed 璁板綍銆?
+     * 搜索 compressed 记录。
      *
-     * @param tenantId 绉熸埛鏍囪瘑
-     * @param sessionId 浼氳瘽鏍囪瘑
-     * @param query 鏌ヨ鏉′欢
-     * @param limit 杩斿洖鏁伴噺
-     * @return 鍘嬬缉璁板綍
+     * @param tenantId 租户标识
+     * @param sessionId 会话标识
+     * @param query 查询条件
+     * @param limit 返回数量
+     * @return 压缩记录
      */
     public List<MemoryRecord> search(String tenantId, String sessionId, String query, int limit) {
         List<MemoryRecord> records = memoryRepository.search(tenantId, sessionId, query, limit);
@@ -106,11 +106,11 @@ public class CompressedMemoryStore {
     }
 
     /**
-     * 鎸変細璇濇煡璇?compressed 璁板綍銆?
+     * 按会话查询 compressed 记录。
      *
-     * @param tenantId 绉熸埛鏍囪瘑
-     * @param sessionId 浼氳瘽鏍囪瘑
-     * @return 鍘嬬缉璁板綍鍒楄〃
+     * @param tenantId 租户标识
+     * @param sessionId 会话标识
+     * @return 压缩记录列表
      */
     public List<MemoryRecord> listBySession(String tenantId, String sessionId) {
         List<MemoryRecord> records = memoryRepository.findBySession(tenantId, sessionId);
@@ -254,7 +254,7 @@ public class CompressedMemoryStore {
         int workingMemoryItems = workingMemorySummary != null && workingMemorySummary.getItemCount() != null
                 ? workingMemorySummary.getItemCount()
                 : 0;
-        log.info("鍘嬬缉鎽樿浜у嚭, tenantId={}, workflowId={}, version={}, summaryChars={}, workingMemoryItems={}",
+        log.info("压缩摘要产出, tenantId={}, workflowId={}, version={}, summaryChars={}, workingMemoryItems={}",
                 record.getTenantId(), workflowId, version, summaryChars, workingMemoryItems);
     }
 

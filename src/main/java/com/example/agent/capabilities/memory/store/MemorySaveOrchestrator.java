@@ -17,30 +17,36 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 /**
- * 璁板繂淇濆瓨缂栨帓鏈嶅姟锛岃礋璐ｅ啓鍏?recent 灞傚苟鍚屾鍚戦噺绱㈠紩銆? */
+ * 记忆保存编排服务，负责写入 recent 层并同步向量索引。
+ */
 @Service
 public class MemorySaveOrchestrator {
 
     private static final Logger log = LoggerFactory.getLogger(MemorySaveOrchestrator.class);
 
     /**
-     * Recent 灞傚瓨鍌ㄣ€?     */
+     * Recent 层存储。
+     */
     private final RecentMemoryStore recentMemoryStore;
 
     /**
-     * 鍚戦噺瀛樺偍鎻愪緵鍣ㄣ€?     */
+     * 向量存储提供器。
+     */
     private final ObjectProvider<VectorStore> vectorStoreProvider;
 
     /**
-     * 宓屽叆鏈嶅姟鎻愪緵鍣ㄣ€?     */
+     * 嵌入服务提供器。
+     */
     private final ObjectProvider<EmbeddingService> embeddingServiceProvider;
 
     /**
-     * 缁存姢鏈嶅姟銆?     */
+     * 维护服务。
+     */
     private final MemoryMaintenanceService memoryMaintenanceService;
 
     /**
-     * 杩囨湡澶勭悊鏈嶅姟銆?     */
+     * 过期处理服务。
+     */
     private final MemoryExpirationService memoryExpirationService;
 
     public MemorySaveOrchestrator(RecentMemoryStore recentMemoryStore,
@@ -56,17 +62,19 @@ public class MemorySaveOrchestrator {
     }
 
     /**
-     * 淇濆瓨璁板繂璁板綍銆?     *
-     * @param record 璁板繂璁板綍
-     * @param tenantContext 绉熸埛涓婁笅鏂?     * @return 淇濆瓨鍚庣殑璁板綍
+     * 保存记忆记录。
+     *
+     * @param record 记忆记录
+     * @param tenantContext 租户上下文
+     * @return 保存后的记录
      */
     public MemoryRecord save(MemoryRecord record, TenantContext tenantContext) {
         if (!hasValidTenantContext(tenantContext)) {
-            log.warn("璁板繂淇濆瓨璺宠繃, reason=tenant_invalid");
+            log.warn("记忆保存跳过, reason=tenant_invalid");
             return null;
         }
         if (record == null) {
-            log.warn("璁板繂淇濆瓨璺宠繃, tenantId={}, reason=record_missing", tenantContext.getTenantId());
+            log.warn("记忆保存跳过, tenantId={}, reason=record_missing", tenantContext.getTenantId());
             return null;
         }
         if (!StringUtils.hasText(record.getMemoryId())) {
@@ -83,14 +91,15 @@ public class MemorySaveOrchestrator {
 
         MemoryRecord saved = recentMemoryStore.save(record);
         writeVectorIfPossible(record, tenantContext);
-        log.info("璁板繂淇濆瓨, tenantId={}, sessionId={}, memoryId={}",
+        log.info("记忆保存, tenantId={}, sessionId={}, memoryId={}",
                 tenantContext.getTenantId(), record.getSessionId(), record.getMemoryId());
         memoryMaintenanceService.autoCompressIfNeeded(record.getSessionId(), tenantContext);
         return saved;
     }
 
     /**
-     * 灏濊瘯鍐欏叆鍚戦噺绱㈠紩銆?     */
+     * 尝试写入向量索引。
+     */
     private void writeVectorIfPossible(MemoryRecord record, TenantContext tenantContext) {
         VectorStore vectorStore = vectorStoreProvider.getIfAvailable();
         String text = MemoryTextUtils.firstNonBlank(record.getContent(), record.getSummary());
@@ -100,22 +109,22 @@ public class MemorySaveOrchestrator {
         try {
             EmbeddingService embeddingService = embeddingServiceProvider.getIfAvailable();
             if (embeddingService == null) {
-                log.warn("宓屽叆鏈嶅姟涓嶅彲鐢紝璺宠繃鍚戦噺鍐欏叆, tenantId={}, memoryId={}",
+                log.warn("嵌入服务不可用，跳过向量写入, tenantId={}, memoryId={}",
                         tenantContext.getTenantId(), record.getMemoryId());
                 return;
             }
             List<Float> embedding = embeddingService.embed(text);
             vectorStore.upsert(tenantContext.getTenantId(), record, embedding);
         } catch (Exception ex) {
-            log.error("璁板繂鍚戦噺鍐欏叆澶辫触, tenantId={}, memoryId={}",
+            log.error("记忆向量写入失败, tenantId={}, memoryId={}",
                     tenantContext.getTenantId(), record.getMemoryId(), ex);
         }
     }
 
     /**
-     * 鏍￠獙绉熸埛涓婁笅鏂囨槸鍚︽湁鏁堛€?     */
+     * 校验租户上下文是否有效。
+     */
     private boolean hasValidTenantContext(TenantContext tenantContext) {
         return tenantContext != null && StringUtils.hasText(tenantContext.getTenantId());
     }
 }
-

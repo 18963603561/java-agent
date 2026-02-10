@@ -103,21 +103,21 @@ public class EventStreamService {
     }
 
     /**
-     * 鑾峰彇绉熸埛涓庡伐浣滄祦鐨勫簭鍒楄鏁板櫒銆?
+     * 获取租户与工作流的序列计数器。
      *
-     * @param tenantId 绉熸埛鏍囪瘑
-     * @param workflowId 宸ヤ綔娴佹爣璇?
-     * @return 鍙€熷鐢ㄧ殑搴忓垪璁℃暟鍣?
+     * @param tenantId 租户标识
+     * @param workflowId 工作流标识
+     * @return 可复用的序列计数器
      */
     public AtomicLong sequenceCounter(String tenantId, String workflowId) {
         return getSequenceCounter(tenantId, workflowId);
     }
 
     /**
-     * 鐢熸垚涓嬩竴涓簨浠跺簭鍒楀彿銆?
+     * 生成下一个事件序列号。
      *
-     * @param tenantId 绉熸埛鏍囥€?
-     * @param workflowId 宸ヤ綔娴佹爣璇?
+     * @param tenantId 租户标识
+     * @param workflowId 工作流标识
      * @return 序列号
      */
     public long nextSequence(String tenantId, String workflowId) {
@@ -125,10 +125,10 @@ public class EventStreamService {
     }
 
     /**
-     * 绉诲櫎绉熸埛涓庡伐浣滄祦鐨勫簭鍒楄鏁板櫒銆?
+     * 移除租户与工作流的序列计数器。
      *
-     * @param tenantId 绉熸埛鏍囥€?
-     * @param workflowId 宸ヤ綔娴佹爣璇?
+     * @param tenantId 租户标识
+     * @param workflowId 工作流标识
      */
     public void evictSequence(String tenantId, String workflowId) {
         String indexKey = buildIndexKey(tenantId, workflowId);
@@ -137,7 +137,7 @@ public class EventStreamService {
     }
 
     /**
-     * 璁板綍鐗规畩浜嬩欢锛屼粎鐢ㄤ簬游标续传校验，不向订阅端广播。
+     * 记录特殊事件，仅用于游标续传校验，不向订阅端广播。
      *
      * @param event 事件对象
      */

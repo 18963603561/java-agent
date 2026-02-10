@@ -129,7 +129,7 @@ agent:
     max-final-answer-chars: 400
   planner:
     llm-enabled: true
-    # 璇存槑: TOOL 步骤是否强制要求 arguments 完整 鍙€夐」: - true - false 榛樿椤? - false
+    # 说明: TOOL 步骤是否强制要求 arguments 完整 可选项: - true - false 默认项: - false
     strict-tool-arguments: false
   capability-evaluation:
     # 说明: 启用能力评估 可选项: - true - false 默认项: - true

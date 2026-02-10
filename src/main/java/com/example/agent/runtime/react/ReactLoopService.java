@@ -45,7 +45,8 @@ import com.example.agent.runtime.output.OutputFieldExtractor;
 import com.example.agent.runtime.output.OutputKeys;
 
 /**
- * ReAct 寰幆鎵ц鍣紝璐熻矗 Think/Act/Observe 涓夐樁娈靛惊鐜€? */
+ * ReAct 循环执行器，负责 Think/Act/Observe 三阶段循环。
+ */
 @Service
 public class ReactLoopService {
 
@@ -98,11 +99,14 @@ public class ReactLoopService {
     }
 
     /**
-     * 鎵ц ReAct 寰幆銆?     *
-     * @param request 璇锋眰
-     * @param tenantContext 绉熸埛涓婁笅鏂?     * @param workflowId 宸ヤ綔娴佹爣璇?     * @param taskId 浠诲姟鏍囪瘑
-     * @param seqCounter 搴忓垪鍙疯鏁板櫒
-     * @return 寰幆缁撴灉
+     * 执行 ReAct 循环。
+     *
+     * @param request 请求
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param taskId 任务标识
+     * @param seqCounter 序列号计数器
+     * @return 循环结果
      */
     public ReactLoopResult run(TaskRequest request,
                                TenantContext tenantContext,
@@ -123,7 +127,7 @@ public class ReactLoopService {
         String lastRawRef = null;
 
         for (int iteration = 1; iteration <= maxIterations; iteration++) {
-            log.debug("ReAct 鎵ц闂ㄧ妫€鏌? workflowId={}, iteration={}", workflowId, iteration);
+            log.debug("ReAct 执行循环, workflowId={}, iteration={}", workflowId, iteration);
             runtimeExecutionGate.apply(workflowId, tenantContext, seqCounter, this::publishEvent);
             publishEvent(tenantContext, workflowId, seqCounter, EventType.REACT_ITERATION_STARTED,
                     Map.of("iteration", iteration, "maxIterations", maxIterations));
@@ -156,7 +160,7 @@ public class ReactLoopService {
                 if (StringUtils.hasText(actRawRef)) {
                     lastRawRef = actRawRef;
                 }
-            // 寮傚父鎹曡幏锛氳褰曚笂涓嬫枃骞舵寜褰撳墠绛栫暐澶勭悊
+            // 异常捕获：记录上下文并按当前策略处理。
             } catch (RuntimeException ex) {
                 ReactLoopResult failed = new ReactLoopResult();
                 failed.setCompleted(false);
@@ -272,7 +276,7 @@ public class ReactLoopService {
             return output;
         }
 
-        log.debug("ReAct 瀹℃壒闂ㄧ妫€鏌? workflowId={}, iteration={}, toolName={}", workflowId, iteration, toolName);
+        log.debug("ReAct 审批门执行, workflowId={}, iteration={}, toolName={}", workflowId, iteration, toolName);
         requestApprovalThroughGate(request, toolName, workflowId, tenantContext, seqCounter, iteration,
                 runtimeContext);
         TaskRequest actRequest = buildActRequest(request, decision);
@@ -321,9 +325,9 @@ public class ReactLoopService {
         }
         try {
             memoryWriteService.saveObservationMemory(request, content, tenantContext, taskId);
-        // 寮傚父鎹曡幏锛氳褰曚笂涓嬫枃骞舵寜褰撳墠绛栫暐澶勭悊
+        // 异常捕获：记录上下文并按当前策略处理。
         } catch (Exception ex) {
-            log.warn("瑙傚療鍐欏叆璁板繂澶辫触, tenantId={}, taskId={}, reason={}",
+            log.warn("观察写入记忆失败, tenantId={}, taskId={}, reason={}",
                     tenantContext != null ? tenantContext.getTenantId() : null,
                     taskId,
                     ex.getMessage());
@@ -338,36 +342,49 @@ public class ReactLoopService {
         String contextJson;
         try {
             contextJson = objectMapper.writeValueAsString(context);
-        // 寮傚父鎹曡幏锛氳褰曚笂涓嬫枃骞舵寜褰撳墠绛栫暐澶勭悊
+        // 异常捕获：记录上下文并按当前策略处理。
         } catch (Exception ex) {
             contextJson = "{}";
         }
         return """
-            浣犳槸 ReAct 寰幆涓殑浠诲姟鎵ц鍐崇瓥鍣紙decision engine锛夈€?            浣犵殑鑱岃矗涓嶆槸鍥炵瓟闂锛岃€屾槸鏍规嵁 REACT_CONTEXT_JSON 鐨勫綋鍓嶇姸鎬侊紝涓ユ牸鎸夌収瑙勫垯鍐冲畾涓嬩竴姝?action銆?            
-            浣犲彧鑳戒緷鎹?steps銆乹uery銆佸凡鏈夎緭鍑虹粨鏋滄潵鍋氬喅绛栵紝绂佹鑷敱鍙戞尌銆?            
-            銆愬喅绛栬鍒欍€?            
-            1) 蹇呴』閫夋嫨 action="tool" 鐨勬儏鍐碉細
-            - 褰撳墠杩樻病鏈変换浣曟湁鏁堟楠ゆ墽琛岋紙steps 涓虹┖锛夛紝涓?query 闇€瑕佸閮ㄦ暟鎹?鏌ヨ
-            - 涓婁竴姝?tool 鎵ц澶辫触锛坰tatus=FAILED锛?            - 涓婁竴姝ユ病鏈夎繑鍥炴湁鏁?output
-            - 鐜版湁杈撳嚭涓嶈冻浠ュ洖绛?query
-            
-            2) 蹇呴』閫夋嫨 action="stop" 鐨勬儏鍐碉細
-            - 宸茬粡鑾峰緱瓒冲鐨勭粨鏋滄暟鎹紝鍙互鐩存帴鐢熸垚鏈€缁堢瓟妗?            - query 灞炰簬甯歌瘑/瑙ｉ噴绫婚棶棰橈紝涓嶉渶瑕佷换浣曞伐鍏?            - 澶氭鎵ц鍚庝粛鏃犳硶鑾峰緱鏂颁俊鎭紙閬垮厤姝诲惊鐜級
-            
-            3) 閫夋嫨 action="none" 鐨勬儏鍐碉細
-            - 褰撳墠涓婁笅鏂囦俊鎭笉瓒筹紝鏃犳硶鍒ゆ柇涓嬩竴姝?            - 绛夊緟澶栭儴杈撳叆鎴栦汉宸ュ共棰?            
-            銆愰噸瑕佺害鏉熴€?            - 绂佹缂栭€犲伐鍏峰弬鏁?            - 绂佹鍦ㄦ湭鑾峰緱鏁版嵁鍓嶉€夋嫨 stop
-            - 绂佹閲嶅璋冪敤鍚屼竴涓け璐ョ殑宸ュ叿鑰屼笉鏀瑰彉鍙傛暟
-            - 鍐崇瓥蹇呴』鍙瑙ｉ噴涓衡€滃熀浜庡綋鍓嶇姸鎬佺殑鏈€鍚堢悊涓嬩竴姝モ€?            
-            銆愬瓧娈电害鏉熴€?            杈撳嚭蹇呴』鏄崟涓?JSON 瀵硅薄锛屼笉鍏佽浠讳綍棰濆鏂囨湰锛屼笉鍏佽 Markdown/浠ｇ爜鍧椼€?            
-            1) action: string锛屼粎鍏佽 tool/stop/none
-            2) tool: string锛屽綋 action=tool 鏃跺繀椤昏緭鍑轰笖闈炵┖锛涘惁鍒欒緭鍑虹┖涓?            3) arguments: object锛屽綋 action=tool 鏃跺繀椤昏緭鍑哄璞★紱鍚﹀垯杈撳嚭 {}
-            4) shouldStop: boolean锛屽綋 action=stop 鏃跺繀椤讳负 true锛涘惁鍒?false
-            5) stopReason: string锛岃鏄庝负浣?stop 鎴栦负浣曢€夋嫨褰撳墠 action
-            6) finalAnswer: string锛屼粎褰?action=stop 鏃惰緭鍑猴紙鍙┖涓诧級
-            
-            鏈€灏忕ず渚?JSON锛?            {"action":"none","tool":"","arguments":{},"shouldStop":false,"stopReason":"","finalAnswer":""}
-            
+            你是 ReAct 任务执行决策引擎（decision engine）。
+            你的职责不是直接回答问题，而是基于 REACT_CONTEXT_JSON 当前状态，严格按规则决定下一步 action。
+
+            你只能依据 steps、query 和已有输出结果进行决策，禁止自由发挥。
+
+            【决策规则】
+            1) 必须选择 action="tool" 的情况：
+            - 当前还没有任何有效步骤执行（steps 为空），且 query 需要外部数据查询。
+            - 上一次工具执行失败（status=FAILED）。
+            - 上一步未返回有效 output。
+            - 现有输出不足以回答 query。
+
+            2) 必须选择 action="stop" 的情况：
+            - 已经获得足够结果，可直接生成最终答复。
+            - query 属于常识或解释类问题，不需要任何工具。
+            - 多次执行后仍无新进展，需要避免死循环。
+
+            3) 选择 action="none" 的情况：
+            - 当前上下文信息不足，无法判断下一步。
+            - 需要等待外部输入或人工干预。
+
+            【重要约束】
+            - 禁止编造工具参数。
+            - 禁止在未获得数据前直接选择 stop。
+            - 禁止重复调用同一失败工具且不调整参数。
+            - 决策必须解释为基于当前状态的合理下一步。
+
+            【字段约束】
+            输出必须是一个 JSON 对象，不允许额外文本，不允许 Markdown 或代码块。
+            1) action: string，仅允许 tool/stop/none
+            2) tool: string，action=tool 时必须非空；否则输出空字符串
+            3) arguments: object，action=tool 时必须为对象；否则输出 {}
+            4) shouldStop: boolean，action=stop 时必须为 true；否则为 false
+            5) stopReason: string，说明为什么 stop 或为何选择当前 action
+            6) finalAnswer: string，仅 action=stop 时输出（可为空字符串）
+
+            最小示例 JSON：{"action":"none","tool":"","arguments":{},"shouldStop":false,"stopReason":"","finalAnswer":""}
+
             REACT_CONTEXT_JSON:%s
             """.formatted(contextJson);
 
@@ -380,7 +397,7 @@ public class ReactLoopService {
         try {
             return objectMapper.readValue(content, new TypeReference<ReactDecision>() {
             });
-        // 寮傚父鎹曡幏锛氳褰曚笂涓嬫枃骞舵寜褰撳墠绛栫暐澶勭悊
+        // 异常捕获：记录上下文并按当前策略处理。
         } catch (Exception ex) {
             return null;
         }
@@ -400,7 +417,7 @@ public class ReactLoopService {
         String contextJson;
         try {
             contextJson = objectMapper.writeValueAsString(context);
-        // 寮傚父鎹曡幏锛氳褰曚笂涓嬫枃骞舵寜褰撳墠绛栫暐澶勭悊
+        // 异常捕获：记录上下文并按当前策略处理。
         } catch (Exception ex) {
             contextJson = "{}";
         }
@@ -412,7 +429,8 @@ public class ReactLoopService {
     }
 
     /**
-     * 鏋勫缓鎽樿鍖栫殑瑙傚療鍒楄〃锛岄伩鍏嶅皢鍘熷杈撳嚭娉ㄥ叆鎻愮ず璇嶃€?     */
+     * 构建摘要化观察列表，避免将原始输出注入提示词。
+     */
     private List<Map<String, Object>> buildObservationSummaries(List<ReactObservation> observations) {
         if (observations == null || observations.isEmpty()) {
             return List.of();
@@ -457,7 +475,7 @@ public class ReactLoopService {
         try {
             return objectMapper.readValue(content, new TypeReference<Map<String, Object>>() {
             });
-        // 寮傚父鎹曡幏锛氳褰曚笂涓嬫枃骞舵寜褰撳墠绛栫暐澶勭悊
+        // 异常捕获：记录上下文并按当前策略处理。
         } catch (Exception ex) {
             return Map.of();
         }
@@ -569,7 +587,7 @@ public class ReactLoopService {
     private String toJsonSafe(Object value) {
         try {
             return objectMapper.writeValueAsString(value);
-        // 寮傚父鎹曡幏锛氳褰曚笂涓嬫枃骞舵寜褰撳墠绛栫暐澶勭悊
+        // 异常捕获：记录上下文并按当前策略处理。
         } catch (Exception ex) {
             return String.valueOf(value);
         }
@@ -652,14 +670,16 @@ public class ReactLoopService {
     }
 
     /**
-     * 閫氳繃缁熶竴瀹℃壒闂ㄧ瑙﹀彂 ReAct 宸ュ叿鎵ц瀹℃壒銆?     *
-     * <p>鐢ㄩ€旓細澶嶇敤杩愯鏃剁粺涓€瀹℃壒閫昏緫锛岄伩鍏?ReAct 閾捐矾缁存姢鐙珛瀹℃壒鍒嗘敮銆?/p>
+     * 通过统一审批门触发 ReAct 工具执行审批。
+     * <p>用途：复用运行时统一审批逻辑，避免 ReAct 链路维护独立审批分支。</p>
      *
-     * @param request 浠诲姟璇锋眰
-     * @param toolName 褰撳墠宸ュ叿鍚嶇О
-     * @param workflowId 宸ヤ綔娴佹爣璇?     * @param tenantContext 绉熸埛涓婁笅鏂?     * @param seqCounter 浜嬩欢搴忓垪
-     * @param iteration 褰撳墠杩唬杞
-     * @param runtimeContext ReAct 杩愯鏃朵笂涓嬫枃
+     * @param request 任务请求
+     * @param toolName 当前工具名称
+     * @param workflowId 工作流标识
+     * @param tenantContext 租户上下文
+     * @param seqCounter 事件序列计数器
+     * @param iteration 当前迭代轮次
+     * @param runtimeContext ReAct 运行时上下文
      */
     private void requestApprovalThroughGate(TaskRequest request,
                                             String toolName,
@@ -703,7 +723,7 @@ public class ReactLoopService {
         }
         try {
             return objectMapper.writeValueAsString(output);
-        // 寮傚父鎹曡幏锛氳褰曚笂涓嬫枃骞舵寜褰撳墠绛栫暐澶勭悊
+        // 异常捕获：记录上下文并按当前策略处理。
         } catch (Exception ex) {
             return String.valueOf(output);
         }
@@ -796,5 +816,3 @@ public class ReactLoopService {
         return tracingPublisher.currentTraceId();
     }
 }
-
-
