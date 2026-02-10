@@ -185,10 +185,10 @@ public class StepExecutionCoordinator {
                         reflectionOutput,
                         attempt
                 );
-                if (reflection != null && reflection.isRetryRequested()) {
+                if (reflection.retryRequested()) {
                     Map<String, Object> details = new HashMap<>();
-                    if (reflection.getReport() != null && reflection.getReport().getNotes() != null) {
-                        details.put("reason", reflection.getReport().getNotes());
+                    if (reflection.report() != null && reflection.report().notes() != null) {
+                        details.put("reason", reflection.report().notes());
                     }
                     stepRuntimeService.failStep(record, "REFLECTION_RETRY", details, seqCounter);
                     retryPolicy.sleepBeforeRetry(attempt);
@@ -320,8 +320,8 @@ public class StepExecutionCoordinator {
             completedPayload.put("stepType", step.getStepType());
         }
         completedPayload.put("attempt", attempt);
-        completedPayload.put("score", result != null && result.getReport() != null ? result.getReport().getScore() : null);
-        completedPayload.put("retry", result != null && result.isRetryRequested());
+        completedPayload.put("score", result.report() != null ? result.report().score() : null);
+        completedPayload.put("retry", result.retryRequested());
         runtimeEventDispatchService.publish(
                 tenantContext,
                 workflowId,
