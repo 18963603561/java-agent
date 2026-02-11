@@ -90,6 +90,9 @@
 - [ ] CHK050 是否完成 `SANDBOX_DENY` 错误验证？（通过: 沙箱拒绝返回 `HTTP 403` 且 `ErrorResponse.code=SANDBOX_DENIED`（别名 `SANDBOX_DENY`），日志包含 `tenantId`、`userId`、`traceId`、`requestId`；不通过: 状态码或错误码不一致，或日志字段缺失）[Blocker][`Security`][Spec §错误码与异常策略][Spec §Enterprise 安全]
 - [ ] CHK051 是否完成 `REPLAY_NOT_FOUND` 错误验证？（通过: 回放不存在返回 `HTTP 404` 且 `ErrorResponse.code=REPLAY_NOT_FOUND`，日志包含 `tenantId`、`userId`、`traceId`、`requestId`；不通过: 状态码或错误码不一致，或日志字段缺失）[Blocker][`Reliability`][Spec §错误码与异常策略][Spec §Production 治理]
 - [ ] CHK052 是否完成 `HOOK_BLOCKED` 错误验证？（通过: 启用阻断型 `Hook` 返回 `HTTP 409` 且 `ErrorResponse.code=HOOK_BLOCKED`，日志包含 `tenantId`、`userId`、`traceId`、`requestId`；不通过: 状态码或错误码不一致，或日志字段缺失）[Blocker][`Security`][Spec §错误码与异常策略][Spec §MCP/Skills/Hooks]
+- [ ] CHK053 是否完成限流背压事件验证？（通过: 触发 `RATE_LIMITED` 时事件流包含 `BACKPRESSURE_APPLIED` 与 `TOOL_ERROR`，且 payload 含 `governanceType`、`trigger`、`toolName`；不通过: 任一事件缺失或关键字段缺失）[Blocker][`Governance`][Spec §Production 治理][Task T-P2-BP-04][Task T-P2-BP-07]
+- [ ] CHK054 是否完成熔断治理事件验证？（通过: 触发 `CIRCUIT_OPEN` 时事件流包含 `CIRCUIT_OPENED`、`BACKPRESSURE_APPLIED`、`TOOL_ERROR`，且 payload 含 `circuitState` 与 `errorCode`；不通过: 任一事件缺失或关键字段缺失）[Blocker][`Governance`][Spec §Production 治理][Task T-P2-BP-04][Task T-P2-BP-07]
+- [ ] CHK055 是否完成重试等待事件验证？（通过: 可重试退避阶段出现 `WAITING` 事件，payload 含 `delayMs`、`attempt`、`trigger`；不通过: 事件缺失或关键字段缺失）[Blocker][`Governance`][Spec §Production 治理][Task T-P2-BP-05][Task T-P2-BP-07]
 
 ## Notes
 

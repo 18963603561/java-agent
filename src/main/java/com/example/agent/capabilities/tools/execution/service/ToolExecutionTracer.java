@@ -1,10 +1,16 @@
 package com.example.agent.capabilities.tools.execution.service;
 
 import com.example.agent.security.auth.TenantContext;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.streaming.observability.TracingPublisher;
 import java.util.Map;
+import java.util.HashMap;
+import java.time.Instant;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
 
 /**
@@ -14,6 +20,12 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ToolExecutionTracer {
+
+    private final ApplicationEventPublisher eventPublisher;
+
+    public ToolExecutionTracer(ApplicationEventPublisher eventPublisher) {
+        this.eventPublisher = eventPublisher;
+    }
 
     /**
      * 解析追踪标识。
@@ -220,5 +232,80 @@ public class ToolExecutionTracer {
      */
     public Map<String, Object> buildDebugPayload(String toolName, Map<String, Object> result) {
         return Map.of("tool", toolName, "hasResult", result != null && !result.isEmpty());
+    }
+
+    /**
+     * 发布治理等待事件。
+     *
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param seqCounter 事件序号
+     * @param payload 等待载荷
+     */
+    public void publishWaitingEvent(TenantContext tenantContext,
+                                    String workflowId,
+                                    AtomicLong seqCounter,
+                                    Map<String, Object> payload) {
+        publishGovernanceEvent(tenantContext, workflowId, seqCounter, EventType.WAITING, payload);
+    }
+
+    /**
+     * 发布背压治理事件。
+     *
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param seqCounter 事件序号
+     * @param payload 背压载荷
+     */
+    public void publishBackpressureEvent(TenantContext tenantContext,
+                                         String workflowId,
+                                         AtomicLong seqCounter,
+                                         Map<String, Object> payload) {
+        publishGovernanceEvent(tenantContext, workflowId, seqCounter, EventType.BACKPRESSURE_APPLIED, payload);
+    }
+
+    /**
+     * 发布治理事件。
+     *
+     * <p>用途：复用 WAITING 与 BACKPRESSURE_APPLIED 的构建逻辑，避免重复代码。</p>
+     */
+    private void publishGovernanceEvent(TenantContext tenantContext,
+                                        String workflowId,
+                                        AtomicLong seqCounter,
+                                        EventType eventType,
+                                        Map<String, Object> payload) {
+        if (tenantContext == null || workflowId == null || seqCounter == null || eventType == null) {
+            return;
+        }
+        long seq = seqCounter.incrementAndGet();
+        Map<String, Object> safePayload = payload == null ? new HashMap<>() : new HashMap<>(payload);
+        // 补齐基础追踪字段，确保治理事件可检索。
+        safePayload.putIfAbsent("workflowId", workflowId);
+        safePayload.putIfAbsent("tenantId", tenantContext.getTenantId());
+        safePayload.putIfAbsent("traceId", tenantContext.getTraceId());
+        safePayload.putIfAbsent("requestId", tenantContext.getRequestId());
+        StreamEvent event = buildEvent(workflowId, seq, eventType, tenantContext.getTenantId(), safePayload);
+        eventPublisher.publishEvent(event);
+    }
+
+    /**
+     * 构建流式事件对象。
+     */
+    private StreamEvent buildEvent(String workflowId,
+                                   long seq,
+                                   EventType eventType,
+                                   String tenantId,
+                                   Map<String, Object> payload) {
+        StreamEvent event = new StreamEvent();
+        event.setEventId(workflowId + ":" + seq);
+        event.setSchemaVersion("v1");
+        event.setWorkflowId(workflowId);
+        event.setType(eventType);
+        event.setTimestamp(Instant.now());
+        event.setSeq(seq);
+        event.setStreamId(workflowId);
+        event.setTenantId(tenantId);
+        event.setPayload(payload);
+        return event;
     }
 }

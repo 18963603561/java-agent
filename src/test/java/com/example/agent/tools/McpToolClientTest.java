@@ -3,8 +3,11 @@ package com.example.agent.tools;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.common.error.ErrorCodeException;
+import com.example.agent.common.error.GovernanceRejectionException;
 import com.example.agent.governance.circuitbreaker.CircuitBreakerManager;
+import com.example.agent.governance.circuitbreaker.domain.CircuitDecision;
 import com.example.agent.governance.ratelimit.RateLimitService;
+import com.example.agent.governance.ratelimit.domain.RateLimitDecision;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.sun.net.httpserver.HttpServer;
 import java.io.OutputStream;
@@ -37,6 +40,7 @@ import com.example.agent.capabilities.tools.mcp.transport.McpHttpTransport;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.mockito.ArgumentMatchers.anyString;
 
 class McpToolClientTest {
 
@@ -236,6 +240,53 @@ class McpToolClientTest {
         assertEquals("INVALID_REQUEST", ex.getErrorCode());
         assertEquals(HttpStatus.BAD_REQUEST, ex.getStatusCode());
         assertEquals("request.toolName 不能为空", ex.getReason());
+    }
+
+    @Test
+    void callToolShouldThrowGovernanceRejectionWhenRateLimited() {
+        McpServerProperties serverProperties = new McpServerProperties();
+        McpServerProperties.McpServer server = new McpServerProperties.McpServer();
+        server.setId("mcp-default");
+        server.setBaseUrl("http://example.com");
+        server.setAllowedHosts(List.of("example.com"));
+        serverProperties.setServers(List.of(server));
+
+        ToolRegistry toolRegistry = Mockito.mock(ToolRegistry.class);
+        RateLimitService rateLimitService = Mockito.mock(RateLimitService.class);
+        CircuitBreakerManager circuitBreakerManager = Mockito.mock(CircuitBreakerManager.class);
+        Mockito.when(rateLimitService.evaluate(anyString()))
+                .thenReturn(new RateLimitDecision(false, "threshold", 101, 100));
+        Mockito.when(circuitBreakerManager.evaluate(anyString()))
+                .thenReturn(new CircuitDecision(true, "allowed", "closed", 0L, 30));
+
+        WebClient.Builder builder = WebClient.builder().exchangeFunction(okResponse(toJsonBytes(Map.of(
+                "result", Map.of("ok", true),
+                "status", "SUCCESS"
+        ))));
+        ObjectMapper objectMapper = new ObjectMapper();
+        McpCallStrategyResolver strategyResolver = new McpCallStrategyResolver();
+        McpSseSessionManager sseSessionManager = new McpSseSessionManager();
+        McpHttpTransport httpTransport = new McpHttpTransport(builder, objectMapper);
+        McpJsonRpcAdapter jsonRpcAdapter = new McpJsonRpcAdapter(httpTransport, sseSessionManager);
+        McpRestAdapter restAdapter = new McpRestAdapter(httpTransport, sseSessionManager, objectMapper);
+        McpToolClient client = new McpToolClient(serverProperties,
+                toolRegistry,
+                rateLimitService,
+                circuitBreakerManager,
+                builder,
+                objectMapper,
+                strategyResolver,
+                jsonRpcAdapter,
+                restAdapter);
+
+        McpToolCallRequest request = new McpToolCallRequest();
+        request.setToolName("demo_tool");
+        request.setServerId("mcp-default");
+        GovernanceRejectionException exception = assertThrows(GovernanceRejectionException.class,
+                () -> client.callTool(request, new TenantContext("t1", "u1", List.of(), "req", "trace")));
+
+        assertEquals("RATE_LIMITED", exception.getErrorCode());
+        assertEquals("rate_limit", exception.getContext().get("governanceType"));
     }
 
     private McpToolClient buildClient(McpServerProperties properties, ExchangeFunction exchangeFunction) {

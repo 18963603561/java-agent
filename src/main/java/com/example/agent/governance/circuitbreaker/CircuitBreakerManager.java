@@ -1,6 +1,7 @@
 package com.example.agent.governance.circuitbreaker;
 
 import com.example.agent.governance.circuitbreaker.domain.CircuitStateEntry;
+import com.example.agent.governance.circuitbreaker.domain.CircuitDecision;
 import com.example.agent.governance.circuitbreaker.domain.CircuitStateStore;
 import com.example.agent.governance.common.state.StateStorePolicy;
 import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
@@ -49,6 +50,16 @@ public class CircuitBreakerManager {
     }
 
     public boolean allow(String key) {
+        return evaluate(key).isAllowed();
+    }
+
+    /**
+     * 执行熔断判定并返回结构化结果。
+     *
+     * @param key 熔断键
+     * @return 熔断决策
+     */
+    public CircuitDecision evaluate(String key) {
         StateStorePolicy policy = resolveStorePolicy();
         circuitStateStore.cleanup(policy);
         if (key == null || key.isBlank()) {
@@ -58,7 +69,7 @@ public class CircuitBreakerManager {
                     "domain", "circuit",
                     "action", "allow",
                     "result", "rejected_blank_key");
-            return false;
+            return new CircuitDecision(false, "blank_key", "invalid", 0L, openSeconds);
         }
         CircuitStateEntry state = circuitStateStore.get(key, policy);
         if (state == null) {
@@ -69,14 +80,14 @@ public class CircuitBreakerManager {
                         "domain", "circuit",
                         "action", "allow",
                         "result", "rejected_capacity");
-                return false;
+                return new CircuitDecision(false, "capacity", "capacity_rejected", 0L, openSeconds);
             }
             state.touch();
             governanceTelemetry.increment("circuit.allow.total",
                     "domain", "circuit",
                     "action", "allow",
                     "result", "allowed");
-            return true;
+            return new CircuitDecision(true, "allowed", "closed", state.getOpenedAtEpochSeconds(), openSeconds);
         }
         state.touch();
         if (!state.isOpen()) {
@@ -84,7 +95,7 @@ public class CircuitBreakerManager {
                     "domain", "circuit",
                     "action", "allow",
                     "result", "allowed");
-            return true;
+            return new CircuitDecision(true, "allowed", "closed", state.getOpenedAtEpochSeconds(), openSeconds);
         }
         long now = Instant.now().getEpochSecond();
         boolean allow = now - state.getOpenedAtEpochSeconds() >= openSeconds;
@@ -97,14 +108,14 @@ public class CircuitBreakerManager {
                     "domain", "circuit",
                     "action", "allow",
                     "result", "recover_open_to_closed");
-            return true;
+            return new CircuitDecision(true, "recover_open_to_closed", "closed", state.getOpenedAtEpochSeconds(), openSeconds);
         }
         metricsPublisher.incrementWithTags("governance.circuit.rejected_total", "reason", "open_state");
         governanceTelemetry.increment("circuit.allow.total",
                 "domain", "circuit",
                 "action", "allow",
                 "result", "rejected_open_state");
-        return false;
+        return new CircuitDecision(false, "open_state", "open", state.getOpenedAtEpochSeconds(), openSeconds);
     }
 
     public void recordFailure(String key) {

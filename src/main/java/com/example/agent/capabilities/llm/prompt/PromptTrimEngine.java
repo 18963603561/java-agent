@@ -113,22 +113,19 @@ class PromptTrimEngine {
     }
 
     private int resolvePromptBudgetTokens(ContextBudgetAllocation allocation) {
-        if (allocation == null) {
-            return 0;
+        if (allocation != null && allocation.isAllocationEnabled()) {
+            Map<ContextSection, Integer> sectionTokens = allocation.getSectionTokens();
+            int systemBudget = resolveSectionTokens(sectionTokens, ContextSection.SYSTEM_POLICY);
+            int developerBudget = resolveSectionTokens(sectionTokens, ContextSection.DEVELOPER_POLICY);
+            int userBudget = resolveSectionTokens(sectionTokens, ContextSection.USER_INPUT);
+            int sum = systemBudget + developerBudget + userBudget;
+            if (sum > 0) {
+                return sum;
+            }
+            Integer total = allocation.getTotalTokens();
+            return total != null ? Math.max(0, total) : 0;
         }
-        if (!allocation.isAllocationEnabled()) {
-            return 0;
-        }
-        Map<ContextSection, Integer> sectionTokens = allocation.getSectionTokens();
-        int systemBudget = resolveSectionTokens(sectionTokens, ContextSection.SYSTEM_POLICY);
-        int developerBudget = resolveSectionTokens(sectionTokens, ContextSection.DEVELOPER_POLICY);
-        int userBudget = resolveSectionTokens(sectionTokens, ContextSection.USER_INPUT);
-        int sum = systemBudget + developerBudget + userBudget;
-        if (sum > 0) {
-            return sum;
-        }
-        Integer total = allocation.getTotalTokens();
-        return total != null ? Math.max(0, total) : 0;
+        return 0;
     }
 
     private int resolveSectionTokens(Map<ContextSection, Integer> tokens, ContextSection section) {
@@ -275,5 +272,3 @@ class PromptTrimEngine {
     private record TrimOutcome(String text, int tokensReduced, boolean trimmed) {
     }
 }
-
-

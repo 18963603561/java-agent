@@ -49,7 +49,7 @@ class HighRiskToolApprovalFlowTest {
         EnforcementGateway gateway = new EnforcementGateway(toolExecutor, eventPublisher, approvalService);
 
         CountDownLatch invokedLatch = new CountDownLatch(1);
-        when(toolExecutor.execute(any(), any(), anyString(), anyString(), anyString()))
+        when(toolExecutor.execute(any(), any(), anyString(), anyString(), anyString(), anyString(), any()))
                 .thenAnswer(invocation -> {
                     invokedLatch.countDown();
                     return Map.of("ok", true);
@@ -93,7 +93,7 @@ class HighRiskToolApprovalFlowTest {
         assertTrue(ex.getCause() instanceof ErrorCodeException);
         ErrorCodeException error = (ErrorCodeException) ex.getCause();
         assertEquals("APPROVAL_REJECTED", error.getErrorCode());
-        verify(toolExecutor, never()).execute(any(), any(), anyString(), anyString(), anyString());
+        verify(toolExecutor, never()).execute(any(), any(), anyString(), anyString(), anyString(), anyString(), any());
 
         executor.shutdownNow();
     }
@@ -115,7 +115,7 @@ class HighRiskToolApprovalFlowTest {
         assertTrue(ex.getCause() instanceof ErrorCodeException);
         ErrorCodeException error = (ErrorCodeException) ex.getCause();
         assertEquals("APPROVAL_TIMEOUT", error.getErrorCode());
-        verify(toolExecutor, never()).execute(any(), any(), anyString(), anyString(), anyString());
+        verify(toolExecutor, never()).execute(any(), any(), anyString(), anyString(), anyString(), anyString(), any());
 
         executor.shutdownNow();
     }
@@ -127,7 +127,7 @@ class HighRiskToolApprovalFlowTest {
         ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
         EnforcementGateway gateway = new EnforcementGateway(toolExecutor, eventPublisher, approvalService);
 
-        when(toolExecutor.execute(any(), any(), anyString(), anyString(), anyString()))
+        when(toolExecutor.execute(any(), any(), anyString(), anyString(), anyString(), anyString(), any()))
                 .thenReturn(Map.of("ok", true));
 
         TaskRequest request = buildRequest();
@@ -137,7 +137,7 @@ class HighRiskToolApprovalFlowTest {
 
         assertNotNull(result);
         assertEquals(Boolean.TRUE, result.get("ok"));
-        verify(toolExecutor, times(1)).execute(any(), any(), anyString(), anyString(), anyString());
+        verify(toolExecutor, times(1)).execute(any(), any(), anyString(), anyString(), anyString(), anyString(), any());
         assertEquals(0, approvalService.pendingCount());
     }
 

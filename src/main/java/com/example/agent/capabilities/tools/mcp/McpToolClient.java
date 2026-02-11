@@ -8,8 +8,11 @@ import com.example.agent.capabilities.tools.model.ToolDefinition;
 import com.example.agent.capabilities.tools.registry.ToolRegistry;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.common.error.ErrorCodeException;
+import com.example.agent.common.error.GovernanceRejectionException;
 import com.example.agent.governance.circuitbreaker.CircuitBreakerManager;
+import com.example.agent.governance.circuitbreaker.domain.CircuitDecision;
 import com.example.agent.governance.ratelimit.RateLimitService;
+import com.example.agent.governance.ratelimit.domain.RateLimitDecision;
 import com.example.agent.runtime.recovery.RetryPolicy;
 import com.example.agent.capabilities.tools.validation.ToolRequestValidator;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -19,6 +22,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.time.Instant;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -171,8 +175,9 @@ public class McpToolClient {
         String toolName = ToolRequestValidator.requireNonBlank(validatedRequest.getToolName(), "request.toolName");
         validatedRequest.setToolName(toolName);
         String rateKey = validatedTenant.getTenantId() + ":" + toolName;
-        if (!rateLimitService.allow(rateKey)) {
-            throw new ErrorCodeException(HttpStatus.TOO_MANY_REQUESTS, "RATE_LIMITED", "请求过于频繁");
+        RateLimitDecision rateLimitDecision = rateLimitService.evaluate(rateKey);
+        if (!rateLimitDecision.isAllowed()) {
+            throw buildRateLimitedException(validatedTenant, serverId, toolName, rateKey, rateLimitDecision);
         }
         McpCallStrategy strategy = strategyResolver.resolve(callStrategy);
         boolean remoteAvailable = isRemoteServer(server);
@@ -383,8 +388,10 @@ public class McpToolClient {
         while (true) {
             attempt++;
             try {
-                if (!circuitBreakerManager.allow(rateKey)) {
-                    throw new ErrorCodeException(HttpStatus.SERVICE_UNAVAILABLE, "CIRCUIT_OPEN", "熔断已开启");
+                CircuitDecision circuitDecision = circuitBreakerManager.evaluate(rateKey);
+                if (!circuitDecision.isAllowed()) {
+                    throw buildCircuitOpenException(tenantContext, serverId, request.getToolName(), rateKey,
+                            circuitDecision, attempt);
                 }
                 McpToolCallResponse response = callToolRemote(server, request);
                 circuitBreakerManager.recordSuccess(rateKey);
@@ -406,6 +413,55 @@ public class McpToolClient {
                         "MCP 工具不可用");
             }
         }
+    }
+
+    private GovernanceRejectionException buildRateLimitedException(TenantContext tenantContext,
+                                                                   String serverId,
+                                                                   String toolName,
+                                                                   String rateKey,
+                                                                   RateLimitDecision decision) {
+        Map<String, Object> context = new HashMap<>();
+        context.put("governanceType", "rate_limit");
+        context.put("trigger", decision != null ? decision.getReason() : "threshold_reject");
+        context.put("toolName", toolName);
+        context.put("rateKey", rateKey);
+        context.put("currentCount", decision != null ? decision.getCurrentCount() : null);
+        context.put("maxPerMinute", decision != null ? decision.getMaxPerMinute() : null);
+        context.put("tenantId", tenantContext != null ? tenantContext.getTenantId() : null);
+        context.put("requestId", tenantContext != null ? tenantContext.getRequestId() : null);
+        context.put("traceId", tenantContext != null ? tenantContext.getTraceId() : null);
+        context.put("serverId", serverId);
+        context.put("timestamp", Instant.now().toString());
+        return new GovernanceRejectionException(HttpStatus.TOO_MANY_REQUESTS,
+                "RATE_LIMITED",
+                "请求过于频繁",
+                context);
+    }
+
+    private GovernanceRejectionException buildCircuitOpenException(TenantContext tenantContext,
+                                                                   String serverId,
+                                                                   String toolName,
+                                                                   String rateKey,
+                                                                   CircuitDecision decision,
+                                                                   int attempt) {
+        Map<String, Object> context = new HashMap<>();
+        context.put("governanceType", "circuit_breaker");
+        context.put("trigger", decision != null ? decision.getReason() : "open_state");
+        context.put("toolName", toolName);
+        context.put("rateKey", rateKey);
+        context.put("circuitState", decision != null ? decision.getState() : "open");
+        context.put("openedAtEpochSeconds", decision != null ? decision.getOpenedAtEpochSeconds() : null);
+        context.put("openSeconds", decision != null ? decision.getOpenSeconds() : null);
+        context.put("attempt", attempt);
+        context.put("tenantId", tenantContext != null ? tenantContext.getTenantId() : null);
+        context.put("requestId", tenantContext != null ? tenantContext.getRequestId() : null);
+        context.put("traceId", tenantContext != null ? tenantContext.getTraceId() : null);
+        context.put("serverId", serverId);
+        context.put("timestamp", Instant.now().toString());
+        return new GovernanceRejectionException(HttpStatus.SERVICE_UNAVAILABLE,
+                "CIRCUIT_OPEN",
+                "熔断已开启",
+                context);
     }
 
     /**

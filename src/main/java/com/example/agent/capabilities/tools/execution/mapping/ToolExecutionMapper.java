@@ -102,6 +102,19 @@ public class ToolExecutionMapper {
     }
 
     /**
+     * 追加治理等待信息到执行结果。
+     *
+     * @param result 执行结果
+     * @param waitingPayload 等待信息
+     */
+    public void attachGovernanceWaiting(ToolExecutionResult result, Map<String, Object> waitingPayload) {
+        if (result == null || waitingPayload == null || waitingPayload.isEmpty()) {
+            return;
+        }
+        result.setGovernanceWaiting(new HashMap<>(waitingPayload));
+    }
+
+    /**
      * 将执行结果转换为边界 Map。
      *
      * @param result 强类型执行结果
@@ -111,4 +124,3 @@ public class ToolExecutionMapper {
         return result == null ? Map.of() : result.toMap();
     }
 }
-

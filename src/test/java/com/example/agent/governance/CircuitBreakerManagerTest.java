@@ -1,6 +1,7 @@
 package com.example.agent.governance;
 
 import com.example.agent.governance.circuitbreaker.CircuitBreakerManager;
+import com.example.agent.governance.circuitbreaker.domain.CircuitDecision;
 import com.example.agent.governance.circuitbreaker.domain.CircuitStateStore;
 import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -113,6 +114,22 @@ class CircuitBreakerManagerTest {
         executor.shutdownNow();
 
         assertEquals(totalAttempts, rejected.get());
+    }
+
+    @Test
+    void evaluateShouldReturnStructuredDecision() {
+        CircuitBreakerManager manager = buildManager(1, 30, 100, 3600, 1);
+        String key = "tenant-a:tool-decision";
+
+        CircuitDecision allowed = manager.evaluate(key);
+        manager.recordFailure(key);
+        CircuitDecision rejected = manager.evaluate(key);
+
+        assertTrue(allowed.isAllowed());
+        assertEquals("closed", allowed.getState());
+        assertFalse(rejected.isAllowed());
+        assertEquals("open", rejected.getState());
+        assertEquals("open_state", rejected.getReason());
     }
 
     private CircuitBreakerManager buildManager(int failureThreshold,

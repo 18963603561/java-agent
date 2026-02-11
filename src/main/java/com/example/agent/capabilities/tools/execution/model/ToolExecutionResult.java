@@ -35,6 +35,10 @@ public class ToolExecutionResult {
      * 结果摘要。
      */
     private String resultDigest;
+    /**
+     * 治理等待信息。
+     */
+    private Map<String, Object> governanceWaiting;
 
     public String getToolName() {
         return toolName;
@@ -84,6 +88,14 @@ public class ToolExecutionResult {
         this.resultDigest = resultDigest;
     }
 
+    public Map<String, Object> getGovernanceWaiting() {
+        return governanceWaiting;
+    }
+
+    public void setGovernanceWaiting(Map<String, Object> governanceWaiting) {
+        this.governanceWaiting = governanceWaiting;
+    }
+
     /**
      * 输出 Map 形式结果。
      *
@@ -97,6 +109,9 @@ public class ToolExecutionResult {
         result.put(ToolFieldKeys.CACHE_HIT, cacheHit);
         result.put(ToolFieldKeys.RAW_REF, rawRef);
         result.put(ToolFieldKeys.RESULT_DIGEST, resultDigest);
+        if (governanceWaiting != null && !governanceWaiting.isEmpty()) {
+            result.put(ToolFieldKeys.GOVERNANCE_WAITING, governanceWaiting);
+        }
         return result;
     }
 }

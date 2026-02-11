@@ -8,6 +8,8 @@ import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.evidence.EvidencePack;
 import com.example.agent.capabilities.llm.provider.ModelDefinition;
 import com.example.agent.capabilities.llm.provider.ModelRouter;
+import com.example.agent.streaming.domain.EventType;
+import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import com.example.agent.streaming.observability.TracingPublisher;
 import com.example.agent.runtime.raw.store.RawResultStore;
@@ -19,10 +21,12 @@ import com.example.agent.capabilities.tools.mcp.McpToolClient;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicLong;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
 import org.mockito.ArgumentCaptor;
 import org.springframework.beans.factory.ObjectProvider;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.data.redis.core.StringRedisTemplate;
 import org.springframework.test.util.ReflectionTestUtils;
 import com.example.agent.capabilities.tools.execution.ToolExecutor;
@@ -127,7 +131,7 @@ class ToolExecutorTest {
                 new ToolExecutionMapper(),
                 new ToolExecutionCacheService(),
                 new ToolInvocationService(),
-                new ToolExecutionTracer(),
+                buildTracer(),
                 new ToolRawRefService(),
                 new ToolResultAssembler(new ToolExecutionMapper()),
                 new ToolUsageRecorder(),
@@ -191,7 +195,7 @@ class ToolExecutorTest {
                 new ToolExecutionMapper(),
                 new ToolExecutionCacheService(),
                 new ToolInvocationService(),
-                new ToolExecutionTracer(),
+                buildTracer(),
                 new ToolRawRefService(),
                 new ToolResultAssembler(new ToolExecutionMapper()),
                 new ToolUsageRecorder(),
@@ -213,6 +217,78 @@ class ToolExecutorTest {
         verify(mcpToolClient, times(2)).callTool(any(McpToolCallRequest.class), any());
         verify(metricsPublisher, times(1)).increment(eq("tool.call.count"), eq("trace"));
         verify(metricsPublisher, times(1)).recordTime(eq("tool.call.latency.ms"), anyLong(), eq("trace"));
+    }
+
+    @Test
+    void retriesOnRateLimitedShouldPublishWaitingAndBackpressure() {
+        ToolRegistry toolRegistry = Mockito.mock(ToolRegistry.class);
+        McpToolClient mcpToolClient = Mockito.mock(McpToolClient.class);
+        SandboxExecutor sandboxExecutor = Mockito.mock(SandboxExecutor.class);
+        TokenBudgetManager tokenBudgetManager = Mockito.mock(TokenBudgetManager.class);
+        ModelRouter modelRouter = Mockito.mock(ModelRouter.class);
+        MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        TracingPublisher tracingPublisher = Mockito.mock(TracingPublisher.class);
+        RawResultStore rawResultStore = Mockito.mock(RawResultStore.class);
+        ApplicationEventPublisher eventPublisher = Mockito.mock(ApplicationEventPublisher.class);
+        @SuppressWarnings("unchecked")
+        ObjectProvider<RawResultStore> rawResultStoreProvider = Mockito.mock(ObjectProvider.class);
+        when(rawResultStoreProvider.getIfAvailable()).thenReturn(rawResultStore);
+        ObjectProvider<StringRedisTemplate> redisProvider = Mockito.mock(ObjectProvider.class);
+        when(redisProvider.getIfAvailable()).thenReturn(null);
+        ObjectMapper objectMapper = new ObjectMapper();
+        ToolCache toolCache = new ToolCache(redisProvider, objectMapper);
+
+        ModelDefinition definition = new ModelDefinition();
+        definition.setModelId("mock");
+        definition.setProvider("mock");
+        when(modelRouter.route(any())).thenReturn(definition);
+
+        TokenUsageRecord usageRecord = new TokenUsageRecord();
+        usageRecord.setTotalTokens(1);
+        when(tokenBudgetManager.recordUsage(any(), any())).thenReturn(usageRecord);
+        when(toolRegistry.resolve("demo_tool")).thenReturn("demo_tool");
+        when(sandboxExecutor.execute(eq("demo_tool"), any(), any(), any()))
+                .thenReturn(new SandboxResult("SKIPPED", Map.of(), null));
+
+        McpToolCallResponse okResponse = new McpToolCallResponse("call-1", "SUCCESS", Map.of("value", "ok"), null);
+        when(mcpToolClient.callTool(any(McpToolCallRequest.class), any()))
+                .thenThrow(new ErrorCodeException(org.springframework.http.HttpStatus.TOO_MANY_REQUESTS,
+                        "RATE_LIMITED", "rate limited"))
+                .thenReturn(okResponse);
+
+        ToolExecutor executor = new ToolExecutor(toolRegistry, mcpToolClient, toolCache, sandboxExecutor,
+                tokenBudgetManager, modelRouter, objectMapper, metricsPublisher, tracingPublisher,
+                new ToolExecutionMapper(),
+                new ToolExecutionCacheService(),
+                new ToolInvocationService(),
+                new ToolExecutionTracer(eventPublisher),
+                new ToolRawRefService(),
+                new ToolResultAssembler(new ToolExecutionMapper()),
+                new ToolUsageRecorder(),
+                rawResultStoreProvider);
+        ReflectionTestUtils.setField(executor, "cacheEnabled", false);
+        ReflectionTestUtils.setField(executor, "maxAttempts", 2);
+        ReflectionTestUtils.setField(executor, "baseDelayMs", 0L);
+        ReflectionTestUtils.setField(executor, "maxDelayMs", 0L);
+        ReflectionTestUtils.setField(executor, "jitterRatio", 0.0);
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("ping");
+
+        Map<String, Object> result = executor.execute(request,
+                new TenantContext("t1", "u1", List.of(), "req", "trace"),
+                "usage-2b",
+                "demo_tool",
+                "task-2b",
+                "wf-2b",
+                new AtomicLong(0));
+
+        assertTrue(result.containsKey("result"));
+        ArgumentCaptor<StreamEvent> eventCaptor = ArgumentCaptor.forClass(StreamEvent.class);
+        verify(eventPublisher, Mockito.atLeast(2)).publishEvent(eventCaptor.capture());
+        List<StreamEvent> events = eventCaptor.getAllValues();
+        assertTrue(events.stream().anyMatch(event -> event.getType() == EventType.WAITING));
+        assertTrue(events.stream().anyMatch(event -> event.getType() == EventType.BACKPRESSURE_APPLIED));
     }
 
     @Test
@@ -253,7 +329,7 @@ class ToolExecutorTest {
                 new ToolExecutionMapper(),
                 new ToolExecutionCacheService(),
                 new ToolInvocationService(),
-                new ToolExecutionTracer(),
+                buildTracer(),
                 new ToolRawRefService(),
                 new ToolResultAssembler(new ToolExecutionMapper()),
                 new ToolUsageRecorder(),
@@ -325,7 +401,7 @@ class ToolExecutorTest {
                 new ToolExecutionMapper(),
                 new ToolExecutionCacheService(),
                 new ToolInvocationService(),
-                new ToolExecutionTracer(),
+                buildTracer(),
                 new ToolRawRefService(),
                 new ToolResultAssembler(new ToolExecutionMapper()),
                 new ToolUsageRecorder(),
@@ -360,11 +436,16 @@ class ToolExecutorTest {
                 new ToolExecutionMapper(),
                 new ToolExecutionCacheService(),
                 new ToolInvocationService(),
-                new ToolExecutionTracer(),
+                buildTracer(),
                 new ToolRawRefService(),
                 new ToolResultAssembler(new ToolExecutionMapper()),
                 new ToolUsageRecorder(),
                 rawResultStoreProvider);
+    }
+
+    private ToolExecutionTracer buildTracer() {
+        ApplicationEventPublisher publisher = Mockito.mock(ApplicationEventPublisher.class);
+        return new ToolExecutionTracer(publisher);
     }
 }
 

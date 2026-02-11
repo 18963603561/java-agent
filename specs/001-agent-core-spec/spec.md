@@ -438,6 +438,8 @@
 ### 关键规则
 - 回放以 `StepRecord` 与事件日志为基础，支持指定范围重放与差异对比。
 - 限流/背压按租户与任务维度配置，触发时进入 `WAITING` 并记录 `BACKPRESSURE_APPLIED`。
+- 当治理原因为熔断打开时，事件流必须补充 `CIRCUIT_OPENED`，并保留 `BACKPRESSURE_APPLIED` 作为统一背压语义。
+- 重试退避阶段必须发布 `WAITING`，并在 payload 中包含 `delayMs`、`attempt`、`trigger` 以支持耗时诊断。
 - 熔断/超时/重试矩阵需覆盖外部调用（`HTTP`/`DB`/`MQ`/文件系统/`MCP`），并支持按工具类别配置。
 - 数据层必须提供表结构、迁移脚本与读写职责分层，避免业务逻辑与持久化耦合。
 
@@ -478,6 +480,9 @@
 ### 验收口径
 - FR-023: 重放可复现步骤序列并输出一致的事件轨迹。
 - FR-023: 限流/背压与熔断规则生效且可观测。
+- FR-023: 命中 `RATE_LIMITED` 时，事件流至少出现 `BACKPRESSURE_APPLIED` 与 `TOOL_ERROR`。
+- FR-023: 命中 `CIRCUIT_OPEN` 时，事件流至少出现 `CIRCUIT_OPENED`、`BACKPRESSURE_APPLIED` 与 `TOOL_ERROR`。
+- FR-023: 重试链路发生退避时，事件流必须出现 `WAITING`，且 payload 含 `delayMs` 与 `attempt`。
 
 ## Enterprise 安全
 

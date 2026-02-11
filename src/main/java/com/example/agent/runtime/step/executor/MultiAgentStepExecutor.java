@@ -1,6 +1,7 @@
 package com.example.agent.runtime.step.executor;
 
 import com.example.agent.orchestration.multiagent.MultiAgentCoordinator;
+import com.example.agent.orchestration.multiagent.model.MultiAgentExecutionResult;
 import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.runtime.step.contract.StepExecutionRequest;
 import java.util.Map;
@@ -30,13 +31,13 @@ public class MultiAgentStepExecutor implements StepTypeExecutor {
 
     @Override
     public StepExecutionOutput execute(StepExecutionRequest request) {
-        Map<String, Object> output = multiAgentCoordinator.coordinate(
+        MultiAgentExecutionResult result = multiAgentCoordinator.coordinateResult(
                 request.getStep(),
                 request.getTenantContext(),
                 request.getWorkflowId(),
                 request.getSeqCounter()
         );
+        Map<String, Object> output = result.toMap();
         return StepExecutionOutput.fromPayload(output);
     }
 }
-

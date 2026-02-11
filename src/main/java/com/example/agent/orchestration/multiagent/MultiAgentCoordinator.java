@@ -7,19 +7,22 @@ import com.example.agent.capabilities.llm.contract.ModelResponse;
 import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.prompt.PromptTrace;
 import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
+import com.example.agent.orchestration.multiagent.model.MultiAgentExecutionResult;
+import com.example.agent.orchestration.multiagent.usecase.MultiAgentExecutionUseCase;
 import com.example.agent.runtime.model.StepSpec;
 import com.example.agent.security.auth.TenantContext;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-import org.springframework.util.StringUtils;
 
 /**
- * 多智能体协调器，负责团队编排与角色分配。
+ * 多智能体协调入口。
+ *
+ * <p>用途：作为应用层入口，负责入参驱动、角色求解与用例调用。
+ * 执行路径分发与结果拼装下沉到用例层，避免入口类承担过多职责。</p>
  */
 @Service
 public class MultiAgentCoordinator {
@@ -32,84 +35,97 @@ public class MultiAgentCoordinator {
     private final MultiAgentPromptBuilder promptBuilder;
     private final MultiAgentRoleResolver roleResolver;
     private final MultiAgentEventPublisher multiAgentEventPublisher;
+    private final MultiAgentExecutionUseCase multiAgentExecutionUseCase;
 
     public MultiAgentCoordinator(ModelInvocationService modelInvocationService,
                                  ModelToolResolver modelToolResolver,
                                  MultiAgentInputSummaryBuilder inputSummaryBuilder,
                                  MultiAgentPromptBuilder promptBuilder,
                                  MultiAgentRoleResolver roleResolver,
-                                 MultiAgentEventPublisher multiAgentEventPublisher) {
+                                 MultiAgentEventPublisher multiAgentEventPublisher,
+                                 MultiAgentExecutionUseCase multiAgentExecutionUseCase) {
         this.modelInvocationService = modelInvocationService;
         this.modelToolResolver = modelToolResolver;
         this.inputSummaryBuilder = inputSummaryBuilder;
         this.promptBuilder = promptBuilder;
         this.roleResolver = roleResolver;
         this.multiAgentEventPublisher = multiAgentEventPublisher;
+        this.multiAgentExecutionUseCase = multiAgentExecutionUseCase;
     }
 
     /**
      * 协调多智能体执行。
-     *
-     * @param step 步骤请求
-     * @param tenantContext 租户上下文
-     * @param workflowId 工作流标识
-     * @param seqCounter 事件序列计数器
-     * @return 协调结果
      */
-    public Map<String, Object> coordinate(StepSpec step,
-                                          TenantContext tenantContext,
-                                          String workflowId,
-                                          AtomicLong seqCounter) {
+    public MultiAgentExecutionResult coordinateResult(StepSpec step,
+                                                      TenantContext tenantContext,
+                                                      String workflowId,
+                                                      AtomicLong seqCounter) {
         Map<String, Object> inputSummary = inputSummaryBuilder.build(step);
         String prompt = promptBuilder.buildPrompt(inputSummary);
         ModelRequest request = new ModelRequest(prompt, ModelScene.PLANNER);
         promptBuilder.applyPromptBundle(request, prompt, inputSummary);
-        modelToolResolver.applyTooling(
-                request,
+        modelToolResolver.applyTooling(request,
                 LlmTaskContext.empty(),
                 step != null ? step.toExecutionInput() : null);
 
         Map<String, Object> metadata = inputSummaryBuilder.buildMetadata(step);
-        ModelResponse response = modelInvocationService.invoke(
-                request,
+        ModelResponse response = modelInvocationService.invoke(request,
                 ModelScene.PLANNER,
                 tenantContext,
                 workflowId,
                 seqCounter,
                 "multi_agent",
-                metadata
-        );
+                metadata);
+
         String rawContent = response != null ? response.getContent() : null;
         String rawRef = response != null ? response.getRawRef() : null;
         String modelId = response != null ? response.getModelId() : null;
 
-        MultiAgentRoleResolver.RoleResolveResult attempt = roleResolver.resolve(
-                rawContent,
+        MultiAgentRoleResolver.RoleResolveResult attempt = roleResolver.resolve(rawContent,
                 inputSummary,
                 workflowId,
                 step != null ? step.getStepType() : null);
         List<AgentRole> roles = attempt.roles();
         if (roles.isEmpty()) {
             log.warn("多智能体解析与修复均失败，使用回退角色, workflowId={}, stepType={}",
-                    workflowId, step != null ? step.getStepType() : null);
+                    workflowId,
+                    step != null ? step.getStepType() : null);
             roles = roleResolver.buildFallbackRoles();
         }
 
-        recordPromptTrace(metadata, prompt, tenantContext, workflowId, seqCounter,
-                modelId, !roles.isEmpty(), attempt.parseErrorType(), attempt.repairAttempted(), attempt.repairSuccess());
+        recordPromptTrace(metadata,
+                prompt,
+                tenantContext,
+                workflowId,
+                seqCounter,
+                modelId,
+                !roles.isEmpty(),
+                attempt.parseErrorType(),
+                attempt.repairAttempted(),
+                attempt.repairSuccess());
         multiAgentEventPublisher.publishTeamEvents(tenantContext, workflowId, seqCounter, roles);
 
-        Map<String, Object> result = new HashMap<>();
-        result.put("team", roles);
-        result.put("summary", "team_size=" + roles.size());
-        if (StringUtils.hasText(rawRef)) {
-            result.put("rawRef", rawRef);
-            result.put("modelRawRef", rawRef);
-            result.put("refs", Map.of("modelRawRef", rawRef));
-        }
-        return result;
+        return multiAgentExecutionUseCase.execute(step,
+                tenantContext,
+                workflowId,
+                seqCounter,
+                roles,
+                rawRef);
     }
 
+    /**
+     * 协调多智能体执行并返回边界层 Map 结果。
+     */
+    public Map<String, Object> coordinate(StepSpec step,
+                                          TenantContext tenantContext,
+                                          String workflowId,
+                                          AtomicLong seqCounter) {
+        return coordinateResult(step, tenantContext, workflowId, seqCounter).toMap();
+    }
+
+    /**
+     * 记录提示词追踪信息。
+     */
     private void recordPromptTrace(Map<String, Object> metadata,
                                    String promptText,
                                    TenantContext tenantContext,
@@ -131,7 +147,11 @@ public class MultiAgentCoordinator {
         trace.setParseErrorType(parseErrorType);
         trace.setRepairAttempted(repairAttempted);
         trace.setRepairSuccess(repairSuccess);
-        modelInvocationService.recordPromptTrace(trace, tenantContext, workflowId, seqCounter, "multi_agent", modelId);
+        modelInvocationService.recordPromptTrace(trace,
+                tenantContext,
+                workflowId,
+                seqCounter,
+                "multi_agent",
+                modelId);
     }
-
 }

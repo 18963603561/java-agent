@@ -6,6 +6,7 @@ import com.example.agent.governance.approval.ApprovalService;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.common.error.ErrorCodeProvider;
+import com.example.agent.common.error.GovernanceRejectionException;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
@@ -131,9 +132,15 @@ public class EnforcementGateway {
         try {
             // 根据是否传入参数选择执行分支
             Map<String, Object> result = toolArguments == null
-                    ? toolExecutor.execute(validatedRequest, validatedTenant, usageId, validatedToolName, taskId)
+                    ? toolExecutor.execute(validatedRequest,
+                    validatedTenant,
+                    usageId,
+                    validatedToolName,
+                    taskId,
+                    workflowId,
+                    validatedSeqCounter)
                     : toolExecutor.executeWithArguments(validatedRequest, validatedTenant, usageId, validatedToolName,
-                    taskId, toolArguments);
+                    taskId, workflowId, validatedSeqCounter, toolArguments);
             ensureUsageContext(result, validatedTenant, taskId, usageId);
             long observationSeq = nextSeq(validatedSeqCounter);
             StreamEvent observation = buildEvent(validatedTenant, workflowId, EventType.TOOL_OBSERVATION, observationSeq,
@@ -143,6 +150,13 @@ public class EnforcementGateway {
                     validatedTenant.getTenantId(), workflowId, validatedToolName);
             return result;
         } catch (RuntimeException ex) {
+            if (ex instanceof GovernanceRejectionException rejection) {
+                publishGovernanceEvents(validatedTenant,
+                        workflowId,
+                        validatedSeqCounter,
+                        validatedToolName,
+                        rejection);
+            }
             long errorSeq = nextSeq(validatedSeqCounter);
             StreamEvent error = buildEvent(validatedTenant, workflowId, EventType.TOOL_ERROR, errorSeq,
                     Map.of(
@@ -154,6 +168,49 @@ public class EnforcementGateway {
             log.error("工具执行失败, tenantId={}, workflowId={}, tool={}",
                     validatedTenant.getTenantId(), workflowId, validatedToolName, ex);
             throw ex;
+        }
+    }
+
+    private void publishGovernanceEvents(TenantContext tenantContext,
+                                         String workflowId,
+                                         AtomicLong seqCounter,
+                                         String toolName,
+                                         GovernanceRejectionException rejection) {
+        Map<String, Object> context = rejection.getContext() == null ? new HashMap<>() : new HashMap<>(rejection.getContext());
+        context.putIfAbsent("toolName", toolName);
+        context.putIfAbsent("errorCode", rejection.getErrorCode());
+        context.putIfAbsent("workflowId", workflowId);
+        context.putIfAbsent("tenantId", tenantContext.getTenantId());
+        if (!context.containsKey("trigger")) {
+            context.put("trigger", "governance_rejection");
+        }
+        // 治理事件：限流/背压统一发布 BACKPRESSURE_APPLIED
+        if ("RATE_LIMITED".equals(rejection.getErrorCode())) {
+            long seq = nextSeq(seqCounter);
+            StreamEvent backpressure = buildEvent(tenantContext,
+                    workflowId,
+                    EventType.BACKPRESSURE_APPLIED,
+                    seq,
+                    context);
+            eventPublisher.publishEvent(backpressure);
+            return;
+        }
+        // 治理事件：熔断场景同时发布 CIRCUIT_OPENED 与 BACKPRESSURE_APPLIED
+        if ("CIRCUIT_OPEN".equals(rejection.getErrorCode())) {
+            long circuitSeq = nextSeq(seqCounter);
+            StreamEvent circuit = buildEvent(tenantContext,
+                    workflowId,
+                    EventType.CIRCUIT_OPENED,
+                    circuitSeq,
+                    context);
+            eventPublisher.publishEvent(circuit);
+            long backpressureSeq = nextSeq(seqCounter);
+            StreamEvent backpressure = buildEvent(tenantContext,
+                    workflowId,
+                    EventType.BACKPRESSURE_APPLIED,
+                    backpressureSeq,
+                    context);
+            eventPublisher.publishEvent(backpressure);
         }
     }
 

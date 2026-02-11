@@ -252,16 +252,17 @@ class AgentRuntimeApprovalIntegrationTest {
                 contextBuilder,
                 contextEventPublisher
         );
-        RuntimeFinalizationService runtimeFinalizationService = new RuntimeFinalizationService(
-                finalOutputService,
-                memoryWriteService
-        );
-        StepFailureRecoveryService stepFailureRecoveryService = new StepFailureRecoveryService(stepExecutionDelegate, 1, 1);
-        RetryPolicy retryPolicy = new RetryPolicy(50L, 200L, 0.1);
         RuntimeEventDispatchService runtimeEventDispatchService = new RuntimeEventDispatchService(
                 eventPublisher,
                 tracingPublisher
         );
+        RuntimeFinalizationService runtimeFinalizationService = new RuntimeFinalizationService(
+                finalOutputService,
+                memoryWriteService,
+                runtimeEventDispatchService
+        );
+        StepFailureRecoveryService stepFailureRecoveryService = new StepFailureRecoveryService(stepExecutionDelegate, 1, 1);
+        RetryPolicy retryPolicy = new RetryPolicy(50L, 200L, 0.1);
         RuntimeContextUpdateService runtimeContextUpdateService = new RuntimeContextUpdateService(rawOutputEnvelopeBuilder);
         StepExecutionCoordinator stepExecutionCoordinator = new StepExecutionCoordinator(
                 stepRuntimeService,

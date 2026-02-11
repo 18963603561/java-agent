@@ -3,10 +3,13 @@ package com.example.agent.runtime.finalize;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.memory.write.MemoryWriteService;
 import com.example.agent.planning.PlanResult;
+import com.example.agent.runtime.control.RuntimeControlEventPublisher;
 import com.example.agent.runtime.model.RuntimeResult;
 import com.example.agent.runtime.model.StepResult;
 import com.example.agent.runtime.output.FinalOutputService;
+import com.example.agent.runtime.output.OutputKeys;
 import com.example.agent.security.auth.TenantContext;
+import com.example.agent.streaming.domain.EventType;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,9 +42,17 @@ public class RuntimeFinalizationService {
      */
     private final MemoryWriteService memoryWriteService;
 
-    public RuntimeFinalizationService(FinalOutputService finalOutputService, MemoryWriteService memoryWriteService) {
+    /**
+     * 运行时控制事件发布器。
+     */
+    private final RuntimeControlEventPublisher runtimeControlEventPublisher;
+
+    public RuntimeFinalizationService(FinalOutputService finalOutputService,
+                                      MemoryWriteService memoryWriteService,
+                                      RuntimeControlEventPublisher runtimeControlEventPublisher) {
         this.finalOutputService = finalOutputService;
         this.memoryWriteService = memoryWriteService;
+        this.runtimeControlEventPublisher = runtimeControlEventPublisher;
     }
 
     /**
@@ -95,8 +106,102 @@ public class RuntimeFinalizationService {
                     finalOutput != null ? finalOutput.keySet() : List.of());
         }
         RuntimeResult result = buildRuntimeResult(plan, stepOutputs, finalOutput);
+        publishLlmOutputEvent(tenantContext, workflowId, seqCounter, plan, stepOutputs, finalOutput);
         persistMemorySafely(effectiveRequest, result, tenantContext, workflowId, taskId);
         return result;
+    }
+
+    /**
+     * 发布最终输出事件。
+     * <p>用途：在运行时收口阶段统一发布 {@link EventType#LLM_OUTPUT}，补齐最终答案事件闭环。</p>
+     *
+     * @param tenantContext 租户上下文
+     * @param workflowId 工作流标识
+     * @param seqCounter 序列计数器
+     * @param plan 规划结果
+     * @param stepOutputs 步骤输出
+     * @param finalOutput 最终输出
+     */
+    private void publishLlmOutputEvent(TenantContext tenantContext,
+                                       String workflowId,
+                                       AtomicLong seqCounter,
+                                       PlanResult plan,
+                                       List<StepResult> stepOutputs,
+                                       Map<String, Object> finalOutput) {
+        if (runtimeControlEventPublisher == null) {
+            return;
+        }
+        if (tenantContext == null || workflowId == null || workflowId.isBlank() || seqCounter == null) {
+            log.warn("跳过LLM_OUTPUT事件发布，上下文不完整, tenantId={}, workflowId={}, hasSeqCounter={}",
+                    tenantContext != null ? tenantContext.getTenantId() : null,
+                    workflowId,
+                    seqCounter != null);
+            return;
+        }
+        if (finalOutput == null || finalOutput.isEmpty()) {
+            log.debug("跳过LLM_OUTPUT事件发布，最终输出为空, tenantId={}, workflowId={}",
+                    tenantContext.getTenantId(), workflowId);
+            return;
+        }
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("response", resolveFinalResponse(finalOutput));
+
+        Map<String, Object> metadata = new HashMap<>();
+        metadata.put("stepCount", stepOutputs != null ? stepOutputs.size() : 0);
+        if (plan != null) {
+            if (plan.getPlanId() != null) {
+                metadata.put("planId", plan.getPlanId());
+            }
+            if (plan.getSummary() != null) {
+                metadata.put("planSummary", plan.getSummary());
+            }
+        }
+        appendMetadataField(metadata, "modelId", finalOutput.get("modelId"));
+        appendMetadataField(metadata, "confidence", finalOutput.get("confidence"));
+        appendMetadataField(metadata, "highlights", finalOutput.get("highlights"));
+        appendMetadataField(metadata, "rawRef", finalOutput.get(OutputKeys.RAW_REF));
+        payload.put("metadata", metadata);
+
+        runtimeControlEventPublisher.publish(
+                tenantContext,
+                workflowId,
+                seqCounter,
+                EventType.LLM_OUTPUT,
+                payload
+        );
+        log.info("发布LLM_OUTPUT事件, tenantId={}, workflowId={}, payloadKeys={}",
+                tenantContext.getTenantId(), workflowId, payload.keySet());
+    }
+
+    /**
+     * 解析最终输出中的响应文本。
+     */
+    private Object resolveFinalResponse(Map<String, Object> finalOutput) {
+        if (finalOutput == null || finalOutput.isEmpty()) {
+            return null;
+        }
+        Object answer = finalOutput.get("answer");
+        if (answer != null) {
+            return answer;
+        }
+        Object finalAnswer = finalOutput.get("finalAnswer");
+        if (finalAnswer != null) {
+            return finalAnswer;
+        }
+        return finalOutput;
+    }
+
+    /**
+     * 追加元数据字段（仅在值不为空时写入）。
+     */
+    private void appendMetadataField(Map<String, Object> metadata,
+                                     String key,
+                                     Object value) {
+        if (metadata == null || key == null || key.isBlank() || value == null) {
+            return;
+        }
+        metadata.put(key, value);
     }
 
     /**

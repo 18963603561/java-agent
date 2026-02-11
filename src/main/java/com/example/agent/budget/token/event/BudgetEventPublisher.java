@@ -18,6 +18,19 @@ public interface BudgetEventPublisher {
     void publishThresholdEvent(TenantContext tenantContext, String taskId, int totalTokens);
 
     /**
+     * 发布预算背压事件。
+     *
+     * @param tenantContext 租户上下文
+     * @param taskId 任务标识
+     * @param totalTokens 当前累计令牌
+     * @param thresholdTokens 阈值令牌
+     */
+    void publishBackpressureEvent(TenantContext tenantContext,
+                                  String taskId,
+                                  int totalTokens,
+                                  int thresholdTokens);
+
+    /**
      * 发布模型降级事件。
      *
      * @param tenantContext 租户上下文

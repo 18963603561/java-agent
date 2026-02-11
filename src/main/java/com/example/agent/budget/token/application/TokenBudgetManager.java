@@ -75,6 +75,12 @@ public class TokenBudgetManager {
                 metricsPublisher.increment("budget.exceeded.count");
                 log.info("预算阈值命中, tenantId={}, taskId={}, totalTokens={}",
                         tenantContext.getTenantId(), input.getTaskId(), summary.getTotalTokens());
+                // 预算治理事件：阈值告警之外，补充背压动作事件。
+                budgetEventPublisher.publishBackpressureEvent(
+                        tenantContext,
+                        input.getTaskId(),
+                        summary.getTotalTokens(),
+                        thresholdEvaluator.getThresholdTokens());
                 budgetEventPublisher.publishThresholdEvent(tenantContext, input.getTaskId(), summary.getTotalTokens());
                 ModelFallbackDecision decision = fallbackPolicy.evaluate(
                         tenantContext, input.getTaskId(), input.getModel(), "budget_threshold");

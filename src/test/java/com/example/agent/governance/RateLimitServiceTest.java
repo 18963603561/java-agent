@@ -1,6 +1,7 @@
 package com.example.agent.governance;
 
 import com.example.agent.governance.ratelimit.domain.RateLimitStore;
+import com.example.agent.governance.ratelimit.domain.RateLimitDecision;
 import com.example.agent.governance.ratelimit.RateLimitService;
 import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
 import java.util.concurrent.CountDownLatch;
@@ -105,6 +106,21 @@ class RateLimitServiceTest {
 
         // 该断言验证分钟窗口漂移后，计数会重置并重新放行。
         assertTrue(service.allow(key));
+    }
+
+    @Test
+    void evaluateShouldReturnStructuredDecision() {
+        RateLimitService service = buildService(1, 100, 3600, 1);
+        String key = "tenant-a:tool-decision";
+
+        RateLimitDecision first = service.evaluate(key);
+        RateLimitDecision second = service.evaluate(key);
+
+        assertTrue(first.isAllowed());
+        assertEquals("allowed", first.getReason());
+        assertFalse(second.isAllowed());
+        assertEquals("threshold", second.getReason());
+        assertEquals(1, second.getMaxPerMinute());
     }
 
     private void avoidMinuteBoundary(int guardSeconds) throws InterruptedException {

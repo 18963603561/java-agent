@@ -91,7 +91,13 @@
    事件：`TOOL_INVOKED` 必须出现；成功出现 `TOOL_OBSERVATION`，失败出现 `TOOL_ERROR`；启用 `Hook` 时记录 `HOOK_PRE_TOOL`、`HOOK_POST_TOOL`。
    失败场景触发 `retry`/`decompose` 时，应看到 `STEP_FAILED` 后再次出现 `STEP_STARTED`，最终以 `STEP_COMPLETED`/`WORKFLOW_COMPLETED` 收敛。
 
-6. 调用 `/api/v1/policy/evaluate`（允许与拒绝）：
+6. 生产治理事件验证（`FR-023`）：
+   - 限流治理：构造高频调用触发 `RATE_LIMITED`，期望事件流出现 `BACKPRESSURE_APPLIED` 与 `TOOL_ERROR`。
+   - 熔断治理：构造连续失败触发 `CIRCUIT_OPEN`，期望事件流出现 `CIRCUIT_OPENED`、`BACKPRESSURE_APPLIED` 与 `TOOL_ERROR`。
+   - 重试退避：构造可重试失败，期望事件流出现 `WAITING`，并验证 payload 包含 `delayMs`、`attempt`、`trigger`。
+   - 预算高压：触发预算阈值后，期望至少出现 `BUDGET_THRESHOLD` 与 `BACKPRESSURE_APPLIED`。
+
+7. 调用 `/api/v1/policy/evaluate`（允许与拒绝）：
    ```bash
    curl -H "X-API-Key: <key>" \
      -H "X-Tenant-Id: <tenantId>" \
@@ -113,7 +119,7 @@
    ```
    期望 `HTTP 403`，`ErrorResponse.code` 为 `POLICY_DENIED`（别名 `POLICY_DENY`），响应包含 `message`、`traceId`、`requestId`。
 
-7. 调用 `/api/v1/replay`（成功与不存在）：
+8. 调用 `/api/v1/replay`（成功与不存在）：
    ```bash
    curl -H "X-API-Key: <key>" \
      -H "X-Tenant-Id: <tenantId>" \
@@ -135,7 +141,7 @@
    ```
    期望 `HTTP 404`，`ErrorResponse.code` 为 `REPLAY_NOT_FOUND`，响应包含 `message`、`traceId`、`requestId`。
 
-8. 错误场景覆盖（所有错误响应需包含 `code`、`message`、`traceId`、`requestId`）：
+9. 错误场景覆盖（所有错误响应需包含 `code`、`message`、`traceId`、`requestId`）：
    - `TENANT_MISSING`：去掉 `X-Tenant-Id` 调用任一接口，期望 `HTTP 400`，`ErrorResponse.code=TENANT_MISSING`。
    - `AUTH_FAILED`：使用无效 `X-API-Key`，期望 `HTTP 401`，`ErrorResponse.code=UNAUTHORIZED`，审计日志记录 `AUTH_FAILED`。
    - `MCP_UNAVAILABLE`：使用不可用 `serverId` 调用 `/api/v1/mcp/tools/list` 或 `/api/v1/mcp/tools/call`，期望 `HTTP 503`，`ErrorResponse.code=MCP_UNAVAILABLE`。

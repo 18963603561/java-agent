@@ -1,5 +1,6 @@
 package com.example.agent.gateway.controller;
 
+import com.example.agent.AgentApplication;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.api.http.dto.governance.PolicyEvaluateRequest;
 import com.example.agent.api.http.dto.governance.ReplayRequest;
@@ -26,7 +27,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 /**
  * Quickstart 链路集成测试。
  */
-@SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT, properties = {
+@SpringBootTest(classes = AgentApplication.class,
+        webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT,
+        properties = {
         "auth.api-keys.test-key.user-id=test-user",
         "auth.api-keys.test-key.roles=ROLE_USER",
         "auth.trusted-upstream.enabled=false",

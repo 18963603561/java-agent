@@ -2,6 +2,7 @@ package com.example.agent.governance.ratelimit;
 
 import com.example.agent.governance.common.state.StateStorePolicy;
 import com.example.agent.governance.common.telemetry.GovernanceTelemetry;
+import com.example.agent.governance.ratelimit.domain.RateLimitDecision;
 import com.example.agent.governance.ratelimit.domain.RateLimitStore;
 import com.example.agent.governance.ratelimit.domain.RateLimitWindowEntry;
 import com.example.agent.streaming.observability.MetricsPublisher;
@@ -46,6 +47,16 @@ public class RateLimitService {
     }
 
     public boolean allow(String key) {
+        return evaluate(key).isAllowed();
+    }
+
+    /**
+     * 执行限流判定并返回结构化结果。
+     *
+     * @param key 限流键
+     * @return 限流决策
+     */
+    public RateLimitDecision evaluate(String key) {
         StateStorePolicy policy = resolveStorePolicy();
         rateLimitStore.cleanup(policy);
         if (key == null || key.isBlank()) {
@@ -55,7 +66,7 @@ public class RateLimitService {
                     "domain", "ratelimit",
                     "action", "allow",
                     "result", "rejected_blank_key");
-            return false;
+            return new RateLimitDecision(false, "blank_key", 0, maxPerMinute);
         }
         long currentWindow = Instant.now().getEpochSecond() / 60;
         RateLimitWindowEntry counter = rateLimitStore.get(key, policy);
@@ -67,7 +78,7 @@ public class RateLimitService {
                         "domain", "ratelimit",
                         "action", "allow",
                         "result", "rejected_capacity");
-                return false;
+                return new RateLimitDecision(false, "capacity", 0, maxPerMinute);
             }
         }
         synchronized (counter) {
@@ -84,13 +95,13 @@ public class RateLimitService {
                         "domain", "ratelimit",
                         "action", "allow",
                         "result", "rejected_threshold");
-                return false;
+                return new RateLimitDecision(false, "threshold", current, maxPerMinute);
             }
             governanceTelemetry.increment("ratelimit.allow.total",
                     "domain", "ratelimit",
                     "action", "allow",
                     "result", "allowed");
-            return true;
+            return new RateLimitDecision(true, "allowed", current, maxPerMinute);
         }
     }
 

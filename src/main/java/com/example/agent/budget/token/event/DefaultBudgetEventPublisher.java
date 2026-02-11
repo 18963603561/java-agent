@@ -6,6 +6,7 @@ import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
 import com.example.agent.streaming.sse.EventStreamService;
 import java.time.Instant;
+import java.util.HashMap;
 import java.util.Map;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Component;
@@ -39,6 +40,34 @@ public class DefaultBudgetEventPublisher implements BudgetEventPublisher {
         event.setStreamId(streamId);
         event.setTenantId(tenantContext.getTenantId());
         event.setPayload(Map.of("taskId", taskId, "totalTokens", totalTokens));
+        eventPublisher.publishEvent(event);
+    }
+
+    @Override
+    public void publishBackpressureEvent(TenantContext tenantContext,
+                                         String taskId,
+                                         int totalTokens,
+                                         int thresholdTokens) {
+        String streamId = taskId != null ? taskId : tenantContext.getTenantId();
+        long seq = eventStreamService.nextSequence(tenantContext.getTenantId(), streamId);
+        StreamEvent event = new StreamEvent();
+        event.setEventId(streamId + ":" + seq);
+        event.setSchemaVersion("v1");
+        event.setWorkflowId(streamId);
+        event.setType(EventType.BACKPRESSURE_APPLIED);
+        event.setTimestamp(Instant.now());
+        event.setSeq(seq);
+        event.setStreamId(streamId);
+        event.setTenantId(tenantContext.getTenantId());
+
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("taskId", taskId);
+        payload.put("governanceType", "budget");
+        payload.put("trigger", "budget_threshold");
+        payload.put("totalTokens", totalTokens);
+        payload.put("thresholdTokens", thresholdTokens);
+        payload.put("level", totalTokens >= thresholdTokens ? "high" : "normal");
+        event.setPayload(payload);
         eventPublisher.publishEvent(event);
     }
 

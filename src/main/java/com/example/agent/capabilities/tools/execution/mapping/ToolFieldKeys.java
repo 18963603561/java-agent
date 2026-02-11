@@ -14,8 +14,8 @@ public final class ToolFieldKeys {
     public static final String RESULT_DIGEST = "resultDigest";
     public static final String SANDBOX = "sandbox";
     public static final String SANDBOX_STATUS = "sandboxStatus";
+    public static final String GOVERNANCE_WAITING = "governanceWaiting";
 
     private ToolFieldKeys() {
     }
 }
-

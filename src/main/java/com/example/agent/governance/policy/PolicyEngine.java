@@ -2,12 +2,13 @@ package com.example.agent.governance.policy;
 
 import com.example.agent.governance.policy.domain.PolicyEvaluationCommand;
 import com.example.agent.governance.policy.domain.PolicyEvaluationResult;
+import com.example.agent.governance.policy.config.PolicyProviderProperties;
+import com.example.agent.governance.policy.spi.PolicyDecisionProvider;
 import com.example.agent.common.error.ErrorCodeException;
 import com.example.agent.security.auth.TenantContext;
-import com.example.agent.streaming.observability.MetricsPublisher;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
@@ -22,10 +23,21 @@ public class PolicyEngine {
 
     private static final Logger log = LoggerFactory.getLogger(PolicyEngine.class);
 
-    private final MetricsPublisher metricsPublisher;
+    private final Map<String, PolicyDecisionProvider> providerMap;
+    private final PolicyProviderProperties properties;
 
-    public PolicyEngine(MetricsPublisher metricsPublisher) {
-        this.metricsPublisher = metricsPublisher;
+    public PolicyEngine(List<PolicyDecisionProvider> providers,
+                        PolicyProviderProperties properties) {
+        this.properties = properties;
+        this.providerMap = new HashMap<>();
+        if (providers != null) {
+            for (PolicyDecisionProvider provider : providers) {
+                if (provider == null || !StringUtils.hasText(provider.providerId())) {
+                    continue;
+                }
+                providerMap.put(provider.providerId().trim().toLowerCase(), provider);
+            }
+        }
     }
 
     /**
@@ -38,27 +50,16 @@ public class PolicyEngine {
     public PolicyEvaluationResult evaluate(PolicyEvaluationCommand command, TenantContext tenantContext) {
         String tenantId = validateAndResolveTenantId(tenantContext);
         PolicyEvaluationCommand normalized = normalizeCommand(command);
-        String evaluationId = UUID.randomUUID().toString();
-        String risk = extractRisk(normalized.getInput());
-        if ("high".equalsIgnoreCase(risk)) {
-            metricsPublisher.increment("policy.deny.count");
-            log.warn("策略拒绝, tenantId={}, policyId={}, action={}, resource={}",
-                    tenantId,
-                    normalized.getPolicyId(),
-                    normalized.getAction(),
-                    normalized.getResource());
-            return new PolicyEvaluationResult(normalized.getPolicyId(),
-                    "DENY", "high_risk",
-                    evaluationId, List.of("risk_high"));
-        }
-        log.info("策略通过, tenantId={}, policyId={}, action={}, resource={}",
+        PolicyDecisionProvider provider = resolveProvider();
+        PolicyEvaluationResult result = provider.evaluate(normalized, tenantContext);
+        log.info("策略评估完成, tenantId={}, provider={}, policyId={}, action={}, resource={}, decision={}",
                 tenantId,
+                provider.providerId(),
                 normalized.getPolicyId(),
                 normalized.getAction(),
-                normalized.getResource());
-        return new PolicyEvaluationResult(normalized.getPolicyId(),
-                "ALLOW", "ok",
-                evaluationId, List.of("default_allow"));
+                normalized.getResource(),
+                result != null ? result.getDecision() : null);
+        return result;
     }
 
     /**
@@ -106,11 +107,20 @@ public class PolicyEngine {
         return command;
     }
 
-    private String extractRisk(Map<String, Object> input) {
-        if (input == null) {
-            return null;
+    private PolicyDecisionProvider resolveProvider() {
+        String configured = properties != null ? properties.getProvider() : null;
+        String providerId = StringUtils.hasText(configured)
+                ? configured.trim().toLowerCase()
+                : "local";
+        PolicyDecisionProvider provider = providerMap.get(providerId);
+        if (provider != null) {
+            return provider;
         }
-        Object value = input.get("risk");
-        return value != null ? value.toString() : null;
+        PolicyDecisionProvider fallback = providerMap.get("local");
+        if (fallback != null) {
+            log.warn("策略提供者未命中，回退local, configuredProvider={}", providerId);
+            return fallback;
+        }
+        throw new IllegalStateException("policy_provider_missing");
     }
 }

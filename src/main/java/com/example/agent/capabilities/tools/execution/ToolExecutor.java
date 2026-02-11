@@ -4,6 +4,7 @@ import com.example.agent.security.auth.TenantContext;
 import com.example.agent.budget.token.application.TokenBudgetManager;
 import com.example.agent.budget.token.model.TokenUsageRecord;
 import com.example.agent.common.error.ErrorCodeException;
+import com.example.agent.common.error.GovernanceRejectionException;
 import com.example.agent.api.http.dto.TaskRequest;
 import com.example.agent.capabilities.context.runtime.ContextRuntimeKeys;
 import com.example.agent.capabilities.llm.provider.ModelRouter;
@@ -24,6 +25,8 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.time.Instant;
+import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.ObjectProvider;
@@ -228,7 +231,36 @@ public class ToolExecutor {
                                        String usageId,
                                        String toolName,
                                        String taskId) {
-        return executeWithArguments(request, tenantContext, usageId, toolName, taskId, null);
+        return execute(request, tenantContext, usageId, toolName, taskId, taskId, null);
+    }
+
+    /**
+     * 执行工具调用并返回结果（显式传入工作流事件上下文）。
+     *
+     * @param request 任务请求
+     * @param tenantContext 租户上下文
+     * @param usageId 计量幂等键
+     * @param toolName 工具名称
+     * @param taskId 任务标识
+     * @param workflowId 工作流标识
+     * @param seqCounter 事件序列计数器
+     * @return 执行结果
+     */
+    public Map<String, Object> execute(TaskRequest request,
+                                       TenantContext tenantContext,
+                                       String usageId,
+                                       String toolName,
+                                       String taskId,
+                                       String workflowId,
+                                       AtomicLong seqCounter) {
+        return executeWithArguments(request,
+                tenantContext,
+                usageId,
+                toolName,
+                taskId,
+                workflowId,
+                seqCounter,
+                null);
     }
 
     /**
@@ -248,15 +280,51 @@ public class ToolExecutor {
                                                     String toolName,
                                                     String taskId,
                                                     Map<String, Object> toolArguments) {
+        return executeWithArguments(request,
+                tenantContext,
+                usageId,
+                toolName,
+                taskId,
+                taskId,
+                null,
+                toolArguments);
+    }
+
+    /**
+     * 执行工具调用并返回结果（使用外部传入参数，并显式携带工作流事件上下文）。
+     *
+     * @param request 任务请求
+     * @param tenantContext 租户上下文
+     * @param usageId 计量幂等键
+     * @param toolName 工具名称
+     * @param taskId 任务标识
+     * @param workflowId 工作流标识
+     * @param seqCounter 事件序列计数器
+     * @param toolArguments 工具调用参数
+     * @return 执行结果
+     */
+    public Map<String, Object> executeWithArguments(TaskRequest request,
+                                                    TenantContext tenantContext,
+                                                    String usageId,
+                                                    String toolName,
+                                                    String taskId,
+                                                    String workflowId,
+                                                    AtomicLong seqCounter,
+                                                    Map<String, Object> toolArguments) {
         ToolExecutionRequest executionRequest = executionMapper.toExecutionRequest(
                 request, tenantContext, usageId, toolName, taskId);
         ToolInvocationArguments invocationArguments = executionMapper.toInvocationArguments(request, toolArguments);
-        ToolExecutionResult executionResult = executeInternal(executionRequest, invocationArguments);
+        ToolExecutionResult executionResult = executeInternal(executionRequest,
+                invocationArguments,
+                workflowId,
+                seqCounter);
         return executionMapper.toResultMap(executionResult);
     }
 
     private ToolExecutionResult executeInternal(ToolExecutionRequest executionRequest,
-                                                ToolInvocationArguments invocationArguments) {
+                                                ToolInvocationArguments invocationArguments,
+                                                String workflowId,
+                                                AtomicLong seqCounter) {
         ToolExecutionRequest validatedRequest = ToolRequestValidator.requireNonNull(executionRequest, "executionRequest");
         TaskRequest taskRequest = ToolRequestValidator.requireNonNull(validatedRequest.getTaskRequest(), "request");
         TenantContext validatedTenant = ToolRequestValidator.requireTenantContext(validatedRequest.getTenantContext());
@@ -335,8 +403,21 @@ public class ToolExecutor {
             } catch (ErrorCodeException ex) {
                 executionTracer.recordCallFailure(metricsPublisher, traceId);
                 if (isRetryable(ex) && attempt < maxAttempts) {
+                    // 可重试业务异常：先发布等待事件，再进行退避。
+                    Duration waitDuration = retryPolicy.nextDelay(attempt);
                     executionTracer.logRetryableError(log, validatedTenant.getTenantId(), resolvedTool,
                             attempt, ex.getErrorCode(), traceId);
+                    Map<String, Object> waitingPayload = buildWaitingPayload(validatedTenant,
+                            workflowId,
+                            resolvedTool,
+                            ex,
+                            attempt,
+                            waitDuration);
+                    publishWaitingAndBackpressure(validatedTenant,
+                            workflowId,
+                            seqCounter,
+                            waitingPayload,
+                            ex.getErrorCode());
                     retryPolicy.sleepBeforeRetry(attempt);
                     continue;
                 }
@@ -346,8 +427,21 @@ public class ToolExecutor {
             } catch (Exception ex) {
                 executionTracer.recordCallFailure(metricsPublisher, traceId);
                 if (attempt < maxAttempts) {
+                    // 系统异常退避：输出等待事件，帮助定位重试耗时。
+                    Duration waitDuration = retryPolicy.nextDelay(attempt);
                     executionTracer.logSystemRetry(log, validatedTenant.getTenantId(), resolvedTool,
                             attempt, traceId, ex);
+                    Map<String, Object> waitingPayload = buildSystemWaitingPayload(validatedTenant,
+                            workflowId,
+                            resolvedTool,
+                            attempt,
+                            waitDuration,
+                            ex);
+                    publishWaitingAndBackpressure(validatedTenant,
+                            workflowId,
+                            seqCounter,
+                            waitingPayload,
+                            "MCP_UNAVAILABLE");
                     retryPolicy.sleepBeforeRetry(attempt);
                     continue;
                 }
@@ -592,6 +686,77 @@ public class ToolExecutor {
         return "MCP_UNAVAILABLE".equals(code)
                 || "CIRCUIT_OPEN".equals(code)
                 || "RATE_LIMITED".equals(code);
+    }
+
+    /**
+     * 发布等待与背压事件。
+     *
+     * <p>说明：仅在显式提供工作流上下文时发布事件，避免伪造序列导致事件乱序。</p>
+     */
+    private void publishWaitingAndBackpressure(TenantContext tenantContext,
+                                               String workflowId,
+                                               AtomicLong seqCounter,
+                                               Map<String, Object> waitingPayload,
+                                               String errorCode) {
+        if (tenantContext == null
+                || seqCounter == null
+                || workflowId == null
+                || workflowId.isBlank()) {
+            return;
+        }
+        executionTracer.publishWaitingEvent(tenantContext, workflowId, seqCounter, waitingPayload);
+        if ("RATE_LIMITED".equals(errorCode) || "CIRCUIT_OPEN".equals(errorCode)) {
+            // 限流/熔断重试：补发背压事件，保证治理矩阵完整。
+            executionTracer.publishBackpressureEvent(tenantContext, workflowId, seqCounter, waitingPayload);
+        }
+    }
+
+    private Map<String, Object> buildWaitingPayload(TenantContext tenantContext,
+                                                    String workflowId,
+                                                    String toolName,
+                                                    ErrorCodeException exception,
+                                                    int attempt,
+                                                    Duration waitDuration) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("governanceType", "retry_backoff");
+        payload.put("trigger", exception != null ? exception.getErrorCode() : "retry");
+        payload.put("toolName", toolName);
+        payload.put("attempt", attempt);
+        payload.put("delayMs", waitDuration != null ? waitDuration.toMillis() : 0L);
+        payload.put("tenantId", tenantContext != null ? tenantContext.getTenantId() : null);
+        payload.put("requestId", tenantContext != null ? tenantContext.getRequestId() : null);
+        payload.put("traceId", tenantContext != null ? tenantContext.getTraceId() : null);
+        payload.put("workflowId", workflowId);
+        payload.put("timestamp", Instant.now().toString());
+        if (exception instanceof GovernanceRejectionException governanceRejection
+                && governanceRejection.getContext() != null
+                && !governanceRejection.getContext().isEmpty()) {
+            payload.put("governanceContext", governanceRejection.getContext());
+        }
+        return payload;
+    }
+
+    private Map<String, Object> buildSystemWaitingPayload(TenantContext tenantContext,
+                                                          String workflowId,
+                                                          String toolName,
+                                                          int attempt,
+                                                          Duration waitDuration,
+                                                          Exception exception) {
+        Map<String, Object> payload = new HashMap<>();
+        payload.put("governanceType", "retry_backoff");
+        payload.put("trigger", "system_retry");
+        payload.put("toolName", toolName);
+        payload.put("attempt", attempt);
+        payload.put("delayMs", waitDuration != null ? waitDuration.toMillis() : 0L);
+        payload.put("tenantId", tenantContext != null ? tenantContext.getTenantId() : null);
+        payload.put("requestId", tenantContext != null ? tenantContext.getRequestId() : null);
+        payload.put("traceId", tenantContext != null ? tenantContext.getTraceId() : null);
+        payload.put("workflowId", workflowId);
+        payload.put("timestamp", Instant.now().toString());
+        if (exception != null && exception.getMessage() != null) {
+            payload.put("error", exception.getMessage());
+        }
+        return payload;
     }
 
 }

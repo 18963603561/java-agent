@@ -1,390 +1,447 @@
 server:
-  # 说明: 监听端口 可选项: - 1-65535 默认项: - 8080
+  # 璇存槑: 鐩戝惉绔彛 鍙€夐」: - 1-65535 榛樿椤? - 8080
   port: 8080
 
 spring:
   application:
-    # 说明: 应用程序名称 可选项: - 任意字符串 默认项: - java-agent
+    # 璇存槑: 搴旂敤绋嬪簭鍚嶇О 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - java-agent
     name: java-agent
   autoconfigure:
-    # 说明: 自动配置排除列表 可选项: - 以逗号分隔的类名 - 空字符串 默认项: - ""
+    # 璇存槑: 鑷姩閰嶇疆鎺掗櫎鍒楄〃 鍙€夐」: - 浠ラ€楀彿鍒嗛殧鐨勭被鍚?- 绌哄瓧绗︿覆 榛樿椤? - ""
     exclude: ""
   datasource:
-    # 说明: 数据库连接地址 可选项: - 任意连接地址 默认项: - jdbc:postgresql://localhost:5433/agent
+    # 璇存槑: 鏁版嵁搴撹繛鎺ュ湴鍧€ 鍙€夐」: - 浠绘剰杩炴帴鍦板潃 榛樿椤? - jdbc:postgresql://localhost:5433/agent
     url: jdbc:postgresql://localhost:5432/agent
-    # 说明: 数据库用户名 可选项: - 任意字符串 默认项: - agent
+    # 璇存槑: 鏁版嵁搴撶敤鎴峰悕 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - agent
     username: pg
-    # 说明: 数据库密码 可选项: - 任意字符串 默认项: - agent
+    # 璇存槑: 鏁版嵁搴撳瘑鐮?鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - agent
     password: pg
-    # 说明: 数据库驱动类名 可选项: - 完整类名 默认项: - org.postgresql.Driver
+    # 璇存槑: 鏁版嵁搴撻┍鍔ㄧ被鍚?鍙€夐」: - 瀹屾暣绫诲悕 榛樿椤? - org.postgresql.Driver
     driver-class-name: org.postgresql.Driver
   data:
     redis:
-      # 说明: 缓存服务主机 可选项: - 主机名或地址 默认项: - localhost
+      # 璇存槑: 缂撳瓨鏈嶅姟涓绘満 鍙€夐」: - 涓绘満鍚嶆垨鍦板潃 榛樿椤? - localhost
       host: localhost
-      # 说明: 缓存服务端口 可选项: - 1-65535 默认项: - 6379
+      # 璇存槑: 缂撳瓨鏈嶅姟绔彛 鍙€夐」: - 1-65535 榛樿椤? - 6379
       port: 6379
 
 management:
   endpoints:
     web:
       exposure:
-        # 说明: 暴露的端点列表 可选项: - 以逗号分隔的端点名称 默认项: - health - info - metrics
+        # 璇存槑: 鏆撮湶鐨勭鐐瑰垪琛?鍙€夐」: - 浠ラ€楀彿鍒嗛殧鐨勭鐐瑰悕绉?榛樿椤? - health - info - metrics
         include: health,info,metrics
   endpoint:
     health:
       probes:
-        # 说明: 启用运行状况探测 可选项: - true - false 默认项: - true
+        # 璇存槑: 鍚敤杩愯鐘跺喌鎺㈡祴 鍙€夐」: - true - false 榛樿椤? - true
         enabled: true
   tracing:
     sampling:
-      # 说明: 采样比例 可选项: - 0.0-1.0 默认项: - 1.0
+      # 璇存槑: 閲囨牱姣斾緥 鍙€夐」: - 0.0-1.0 榛樿椤? - 1.0
       probability: 1.0
 
 logging:
   level:
-    # 说明: 根日志级别 可选项: - trace - debug - info - warn - error 默认项: - debug
+    # 璇存槑: 鏍规棩蹇楃骇鍒?鍙€夐」: - trace - debug - info - warn - error 榛樿椤? - debug
     root: info
-    # 说明: 应用程序日志级别 可选项: - trace - debug - info - warn - error 默认项: - debug
+    # 璇存槑: 搴旂敤绋嬪簭鏃ュ織绾у埆 鍙€夐」: - trace - debug - info - warn - error 榛樿椤? - debug
     com.example.agent: debug
 
 auth:
   api-keys:
-    # 说明: 接口密钥配置集合, 键为密钥别名 可选项: - 任意字符串键 默认项: - demo-key
+    # 璇存槑: 鎺ュ彛瀵嗛挜閰嶇疆闆嗗悎, 閿负瀵嗛挜鍒悕 鍙€夐」: - 浠绘剰瀛楃涓查敭 榛樿椤? - demo-key
     demo-key:
-      # 说明: 绑定的用户标识 可选项: - 任意字符串 默认项: - demo-user
+      # 璇存槑: 缁戝畾鐨勭敤鎴锋爣璇?鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - demo-user
       user-id: demo-user
-      # 说明: 角色列表 可选项: - ROLE_USER - ROLE_ADMIN 默认项: - ROLE_USER
+      # 璇存槑: 瑙掕壊鍒楄〃 鍙€夐」: - ROLE_USER - ROLE_ADMIN 榛樿椤? - ROLE_USER
       roles:
         - ROLE_USER
   trusted-upstream:
-    # 说明: 启用可信上游鉴权 可选项: - true - false 默认项: - false
+    # 璇存槑: 鍚敤鍙俊涓婃父閴存潈 鍙€夐」: - true - false 榛樿椤? - false
     enabled: false
-    # 说明: 可信上游令牌 可选项: - 任意字符串 默认项: - change-me
+    # 璇存槑: 鍙俊涓婃父浠ょ墝 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - change-me
     token: change-me
-    # 说明: 可信令牌请求头名称 可选项: - 任意字符串 默认项: - X-Trusted-Token
+    # 璇存槑: 鍙俊浠ょ墝璇锋眰澶村悕绉?鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - X-Trusted-Token
     token-header: X-Trusted-Token
 
 tenant:
-  # 说明: 白名单路径 可选项: - 任意路径 默认项: - /actuator/health - /actuator/info
+  # 璇存槑: 鐧藉悕鍗曡矾寰?鍙€夐」: - 浠绘剰璺緞 榛樿椤? - /actuator/health - /actuator/info
   whitelist-paths:
     - /actuator/health
     - /actuator/info
 
 agent:
+  dag:
+    distributed:
+      # 璇存槑: DAG 閭浼犺緭瀹炵幇銆傚彲閫夊€? inprocess / redis
+      transport: inprocess
+      # 璇存槑: 褰撳墠瀹炰緥鏍囪瘑 鍙€夐」: - 浠绘剰瀛楃涓?榛樿鍊? - instance-local
+      instance-id: instance-local
+      # 璇存槑: 褰撳墠鍙敤瀹炰緥鍒楄〃 鍙€夐」: - 瀛楃涓插垪琛?榛樿鍊? - [instance-local]
+      active-instances:
+        - instance-local
+      # 璇存槑: 鍗曟杞娑堟伅鎵归噺澶у皬 鍙€夐」: - 姝ｆ暣鏁?榛樿鍊? - 128
+      poll-batch-size: 128
+      # 璇存槑: 娑堟伅鏈€澶ф姇閫掓鏁?鍙€夐」: - 姝ｆ暣鏁?榛樿鍊? - 6
+      max-delivery-attempts: 6
+      # 璇存槑: nack 鏈€灏忛€€閬挎绉?鍙€夐」: - 姝ｆ暣鏁?榛樿鍊? - 100
+      nack-backoff-min-ms: 100
+      # 璇存槑: nack 鏈€澶ч€€閬挎绉?鍙€夐」: - 姝ｆ暣鏁?榛樿鍊? - 5000
+      nack-backoff-max-ms: 5000
+      # 璇存槑: 鑺傜偣绉熺害 TTL 姣 鍙€夐」: - 姝ｆ暣鏁?榛樿鍊? - 30000
+      lease-ttl-ms: 30000
+      # 璇存槑: 鍘婚噸閿?TTL 姣 鍙€夐」: - 姝ｆ暣鏁?榛樿鍊? - 3600000
+      dedup-ttl-ms: 3600000
+  multiagent:
+    storage:
+      # 璇存槑: 瀛樺偍瑁呴厤妯″紡銆傚彲閫夊€? inmemory / persistent
+      mode: inmemory
+    dag:
+      supervision:
+        # 璇存槑: DAG澶辫触闃堝€硷紝鍙Е鍙戝叏灞€缁堟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 2
+        max-failures: 2
+        # 璇存槑: 鍗曡妭鐐规渶澶ч噸璇曟鏁帮紙涓嶅惈棣栨鎵ц锛?鍙€夐」: - 闈炶礋鏁存暟 榛樿椤? - 1
+        max-retries-per-node: 1
+        # 璇存槑: 鍗曡妭鐐规墽琛岃秴鏃舵绉?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 30000
+        node-timeout-ms: 30000
+        # 璇存槑: 澶辫触浼犳挱绛栫暐 鍙€夐」: - FAIL_FAST - PARTIAL_SUCCESS 榛樿椤? - PARTIAL_SUCCESS
+        failure-policy: PARTIAL_SUCCESS
+      backpressure:
+        # 璇存槑: 鍚屾椂婵€娲荤殑鏈€澶ц妭鐐规暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 4
+        max-active-nodes: 4
+        # 璇存槑: 灏辩华闃熷垪鏈€澶у閲?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 2048
+        max-ready-queue-size: 2048
+        # 璇存槑: 鍗曡妭鐐归偖绠卞閲?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 128
+        mailbox-capacity: 128
+        # 璇存槑: 绛夊緟瓒呮椂姣 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 30000
+        wait-timeout-ms: 30000
+        # 璇存槑: 閫€閬挎渶灏忔绉?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 200
+        backoff-min-ms: 200
+        # 璇存槑: 閫€閬挎渶澶ф绉?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 5000
+        backoff-max-ms: 5000
+  policy:
+    # 璇存槑: 绛栫暐鍐崇瓥鎻愪緵鑰呯被鍨?鍙€夐」: - local - opa 榛樿椤? - local
+    provider: local
+    opa:
+      # 璇存槑: OPA鏈嶅姟鍦板潃 鍙€夐」: - 鍙闂甎RL 榛樿椤? - http://localhost:8181
+      url: http://localhost:8181
+      # 璇存槑: OPA璇勪及璺緞 鍙€夐」: - 缁濆璺緞 榛樿椤? - /v1/data/agent/policy/evaluate
+      path: /v1/data/agent/policy/evaluate
+      # 璇存槑: OPA璇锋眰瓒呮椂姣 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 3000
+      timeout-ms: 3000
+      # 璇存槑: OPA寮傚父鏃舵槸鍚︽嫆缁?鍙€夐」: - true - false 榛樿椤? - true
+      fail-closed: true
   reflection:
     enabled: false
   openapi:
-    # 说明: 接口合约文件路径 可选项: - 任意路径 默认项: - specs/001-agent-core-spec/contracts/openapi.yaml
+    # 璇存槑: 鎺ュ彛鍚堢害鏂囦欢璺緞 鍙€夐」: - 浠绘剰璺緞 榛樿椤? - specs/001-agent-core-spec/contracts/openapi.yaml
     contract-path: specs/001-agent-core-spec/contracts/openapi.yaml
   runtime:
-    # 说明: 最大重试次数 可选项: - 非负整数 默认项: - 1
+    # 璇存槑: 鏈€澶ч噸璇曟鏁?鍙€夐」: - 闈炶礋鏁存暟 榛樿椤? - 1
     max-retries: 1
-    # 说明: 是否启用直达工具路径 可选项: - true - false 默认值: - true
+    # 璇存槑: 鏄惁鍚敤鐩磋揪宸ュ叿璺緞 鍙€夐」: - true - false 榛樿鍊? - true
     direct-tool:
       enabled: true
-    # 说明: 最大迭代次数 可选项: - 正整数 默认项: - 10
+    # 璇存槑: 鏈€澶ц凯浠ｆ鏁?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 10
     maxIterations: 10
-    # 说明: 最小迭代次数 可选项: - 正整数 默认项: - 1
+    # 璇存槑: 鏈€灏忚凯浠ｆ鏁?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 1
     minIterations: 1
-    # 说明: 观测窗口大小 可选项: - 正整数 默认项: - 3
+    # 璇存槑: 瑙傛祴绐楀彛澶у皬 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 3
     observationWindow: 3
     raw:
-      # 说明: 原始结果存储模式 可选项: - redis - size-aware - mem 默认项: - redis
+      # 璇存槑: 鍘熷缁撴灉瀛樺偍妯″紡 鍙€夐」: - redis - size-aware - mem 榛樿椤? - redis
       store-mode: redis
-      # 说明: Redis 原始结果 key 前缀 可选项: - 任意字符串 默认项: - raw
+      # 璇存槑: Redis 鍘熷缁撴灉 key 鍓嶇紑 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - raw
       redis-key-prefix: raw
-      # 说明: Redis 原始结果 TTL 秒数 可选项: - 正整数 默认项: - 604800
+      # 璇存槑: Redis 鍘熷缁撴灉 TTL 绉掓暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 604800
       redis-ttl-seconds: 604800
-      # 说明: 阈值模式内存上限字节 可选项: - 正整数 默认项: - 1048576
+      # 璇存槑: 闃堝€兼ā寮忓唴瀛樹笂闄愬瓧鑺?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 1048576
       size-aware-threshold-bytes: 1048576
-      # 说明: 阈值模式文件存储目录 可选项: - 有效目录 默认项: - ./data/raw
+      # 璇存槑: 闃堝€兼ā寮忔枃浠跺瓨鍌ㄧ洰褰?鍙€夐」: - 鏈夋晥鐩綍 榛樿椤? - ./data/raw
       file-base-dir: ./data/raw
-      # 说明: 阈值模式文件下载基础地址 可选项: - 有效URL 默认项: - http://127.0.0.1:8080/api/v1/raw/files
+      # 璇存槑: 闃堝€兼ā寮忔枃浠朵笅杞藉熀纭€鍦板潃 鍙€夐」: - 鏈夋晥URL 榛樿椤? - http://127.0.0.1:8080/api/v1/raw/files
       file-public-base-url: http://127.0.0.1:8080/api/v1/raw/files
   summary:
-    # 说明: 是否启用步骤输出摘要，默认关闭便于灰度回滚 可选项: - true - false 默认值: - false
+    # 璇存槑: 鏄惁鍚敤姝ラ杈撳嚭鎽樿锛岄粯璁ゅ叧闂究浜庣伆搴﹀洖婊?鍙€夐」: - true - false 榛樿鍊? - false
     enable: true
-    # 说明: 摘要整体序列化最大字符数 可选项: - 非负整数 默认值: - 4000
+    # 璇存槑: 鎽樿鏁翠綋搴忓垪鍖栨渶澶у瓧绗︽暟 鍙€夐」: - 闈炶礋鏁存暟 榛樿鍊? - 4000
     max-chars: 0
-    # 说明: 列表类字段最多保留的元素数量 可选项: - 非负整数 默认值: - 20
+    # 璇存槑: 鍒楄〃绫诲瓧娈垫渶澶氫繚鐣欑殑鍏冪礌鏁伴噺 鍙€夐」: - 闈炶礋鏁存暟 榛樿鍊? - 20
     max-list-items: 20
-    # 说明: 单个字段字符串的最大字符数 可选项: - 非负整数 默认值: - 200
+    # 璇存槑: 鍗曚釜瀛楁瀛楃涓茬殑鏈€澶у瓧绗︽暟 鍙€夐」: - 闈炶礋鏁存暟 榛樿鍊? - 200
     max-field-chars: 0
   final-output:
-    # 说明: 最终输出提示词摘要最大字符数 可选项: - 非负整数 默认值: - 800
+    # 璇存槑: 鏈€缁堣緭鍑烘彁绀鸿瘝鎽樿鏈€澶у瓧绗︽暟 鍙€夐」: - 闈炶礋鏁存暟 榛樿鍊? - 800
     prompt-summary-max-chars: 800
   cot:
-    # 说明: 最大推理步数 可选项: - 正整数 默认项: - 4
+    # 璇存槑: 鏈€澶ф帹鐞嗘鏁?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 4
     max-steps: 4
-    # 说明: 历史步骤摘要最多保留条数 可选项: - 正整数 默认项: - 10
+    # 璇存槑: 鍘嗗彶姝ラ鎽樿鏈€澶氫繚鐣欐潯鏁?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 10
     max-step-summaries: 10
-    # 说明: 温度覆盖值 可选项: - 0.0-2.0 默认项: - 0.2
+    # 璇存槑: 娓╁害瑕嗙洊鍊?鍙€夐」: - 0.0-2.0 榛樿椤? - 0.2
     temperature-override: 0.2
-    # 说明: 推理模型提示标识 可选项: - 已配置模型标识 默认项: - reflect
+    # 璇存槑: 鎺ㄧ悊妯″瀷鎻愮ず鏍囪瘑 鍙€夐」: - 宸查厤缃ā鍨嬫爣璇?榛樿椤? - reflect
     model-hint: reflect
-    # 说明: 是否发出推理步骤事件 可选项: - true - false 默认项: - false
+    # 璇存槑: 鏄惁鍙戝嚭鎺ㄧ悊姝ラ浜嬩欢 鍙€夐」: - true - false 榛樿椤? - false
     emit-step-events: false
-    # 说明: 最终答案最大字符数 可选项: - 正整数 默认项: - 400
+    # 璇存槑: 鏈€缁堢瓟妗堟渶澶у瓧绗︽暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 400
     max-final-answer-chars: 400
   planner:
     llm-enabled: true
-    # 说明: TOOL 步骤是否强制要求 arguments 完整 可选项: - true - false 默认项: - false
+    # 璇存槑: TOOL 姝ラ鏄惁寮哄埗瑕佹眰 arguments 瀹屾暣 鍙€夐」: - true - false 榛樿椤? - false
     strict-tool-arguments: false
   capability-evaluation:
-    # 说明: 启用能力评估 可选项: - true - false 默认项: - true
+    # 璇存槑: 鍚敤鑳藉姏璇勪及 鍙€夐」: - true - false 榛樿椤? - true
     enabled: false
-    # 说明: 风险阈值 可选项: - 0.0-1.0 默认项: - 0.7
+    # 璇存槑: 椋庨櫓闃堝€?鍙€夐」: - 0.0-1.0 榛樿椤? - 0.7
     risk-threshold: 0.7
-    # 说明: 复杂度阈值 可选项: - 0.0-1.0 默认项: - 0.7
+    # 璇存槑: 澶嶆潅搴﹂槇鍊?鍙€夐」: - 0.0-1.0 榛樿椤? - 0.7
     complexity-threshold: 0.7
-    # 说明: 高于风险阈值时强制审批 可选项: - true - false 默认项: - true
+    # 璇存槑: 楂樹簬椋庨櫓闃堝€兼椂寮哄埗瀹℃壒 鍙€夐」: - true - false 榛樿椤? - true
     force-approval-above-risk: true
-    # 说明: 预算阈值令牌数 可选项: - 非负整数 默认项: - 10000
+    # 璇存槑: 棰勭畻闃堝€间护鐗屾暟 鍙€夐」: - 闈炶礋鏁存暟 榛樿椤? - 10000
     budget-threshold-tokens: 10000
-    # 说明: 默认策略 可选项: - tool - memory - manual 默认项: - tool
+    # 璇存槑: 榛樿绛栫暐 鍙€夐」: - tool - memory - manual 榛樿椤? - tool
     default-strategy: tool
-    # 说明: 风险基线分值 可选项: - 0.0-1.0 默认项: - 0.2
+    # 璇存槑: 椋庨櫓鍩虹嚎鍒嗗€?鍙€夐」: - 0.0-1.0 榛樿椤? - 0.2
     base-risk-score: 0.2
-    # 说明: 复杂度超过阈值的风险加权 可选项: - 0.0-1.0 默认项: - 0.4
+    # 璇存槑: 澶嶆潅搴﹁秴杩囬槇鍊肩殑椋庨櫓鍔犳潈 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.4
     complexity-risk-weight: 0.4
-    # 说明: 工具摘要缺失的风险加权 可选项: - 0.0-1.0 默认项: - 0.2
+    # 璇存槑: 宸ュ叿鎽樿缂哄け鐨勯闄╁姞鏉?鍙€夐」: - 0.0-1.0 榛樿椤? - 0.2
     missing-tool-summary-risk-weight: 0.2
-    # 说明: 单个失败类型风险加权 可选项: - 0.0-1.0 默认项: - 0.05
+    # 璇存槑: 鍗曚釜澶辫触绫诲瀷椋庨櫓鍔犳潈 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.05
     failure-type-risk-weight-per-item: 0.05
-    # 说明: 失败类型风险加权上限 可选项: - 0.0-1.0 默认项: - 0.2
+    # 璇存槑: 澶辫触绫诲瀷椋庨櫓鍔犳潈涓婇檺 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.2
     failure-type-risk-weight-max: 0.2
-    # 说明: 预算压力触发复杂度阈值 可选项: - 0.0-1.0 默认项: - 0.7
+    # 璇存槑: 棰勭畻鍘嬪姏瑙﹀彂澶嶆潅搴﹂槇鍊?鍙€夐」: - 0.0-1.0 榛樿椤? - 0.7
     budget-risk-complexity-threshold: 0.7
-    # 说明: 预算压力触发令牌阈值 可选项: - 非负整数 默认项: - 3000
+    # 璇存槑: 棰勭畻鍘嬪姏瑙﹀彂浠ょ墝闃堝€?鍙€夐」: - 闈炶礋鏁存暟 榛樿椤? - 3000
     budget-risk-token-threshold: 3000
-    # 说明: 预算压力风险加权 可选项: - 0.0-1.0 默认项: - 0.1
+    # 璇存槑: 棰勭畻鍘嬪姏椋庨櫓鍔犳潈 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.1
     budget-risk-weight: 0.1
-    # 说明: 高风险默认策略 可选项: - thought_tree - tool - memory 默认项: - thought_tree
+    # 璇存槑: 楂橀闄╅粯璁ょ瓥鐣?鍙€夐」: - thought_tree - tool - memory 榛樿椤? - thought_tree
     high-risk-strategy: thought_tree
-    # 说明: 调研关键词列表 默认项: 调研/研究/资料/来源/证据/报告
+    # 璇存槑: 璋冪爺鍏抽敭璇嶅垪琛?榛樿椤? 璋冪爺/鐮旂┒/璧勬枡/鏉ユ簮/璇佹嵁/鎶ュ憡
     research-keywords:
-      - 调研
-      - 研究
-      - 资料
-      - 来源
-      - 证据
-      - 报告
-    # 说明: 辩论关键词列表 默认项: 辩论/利弊/对比/比较/观点
+      - 璋冪爺
+      - 鐮旂┒
+      - 璧勬枡
+      - 鏉ユ簮
+      - 璇佹嵁
+      - 鎶ュ憡
+    # 璇存槑: 杈╄鍏抽敭璇嶅垪琛?榛樿椤? 杈╄/鍒╁紛/瀵规瘮/姣旇緝/瑙傜偣
     debate-keywords:
-      - 辩论
-      - 利弊
-      - 对比
-      - 比较
-      - 观点
-    # 说明: 风险规则启停与过滤配置（可通过白名单/黑名单控制）
+      - 杈╄
+      - 鍒╁紛
+      - 瀵规瘮
+      - 姣旇緝
+      - 瑙傜偣
+    # 璇存槑: 椋庨櫓瑙勫垯鍚仠涓庤繃婊ら厤缃紙鍙€氳繃鐧藉悕鍗?榛戝悕鍗曟帶鍒讹級
     risk-rules:
       enabled: true
       whitelist: []
       blacklist: []
-    # 说明: 策略规则启停与过滤配置（可通过白名单/黑名单控制）
+    # 璇存槑: 绛栫暐瑙勫垯鍚仠涓庤繃婊ら厤缃紙鍙€氳繃鐧藉悕鍗?榛戝悕鍗曟帶鍒讹級
     strategy-rules:
       enabled: true
       whitelist: []
       blacklist: []
-    # 说明: 按租户覆盖规则集，键为租户标识
-    tenants: {}
-    # 说明: 按场景覆盖规则集，键为场景标识
-    scenes: {}
+    # 璇存槑: 鎸夌鎴疯鐩栬鍒欓泦锛岄敭涓虹鎴锋爣璇?    tenants: {}
+    # 璇存槑: 鎸夊満鏅鐩栬鍒欓泦锛岄敭涓哄満鏅爣璇?    scenes: {}
   storage:
-    # 说明: 存储方式 可选项: - 实现支持的取值 默认项: - postgres
+    # 璇存槑: 瀛樺偍鏂瑰紡 鍙€夐」: - 瀹炵幇鏀寔鐨勫彇鍊?榛樿椤? - postgres
     mode: postgres
   sse:
-    # 说明: 流式响应超时秒数 可选项: - 正整数 默认项: - 30
+    # 璇存槑: 娴佸紡鍝嶅簲瓒呮椂绉掓暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 30
     timeoutSeconds: 120
-    # 说明: 最大流消息大小 可选项: - 正整数 默认项: - 1024
+    # 璇存槑: 鏈€澶ф祦娑堟伅澶у皬 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 1024
     max-stream-size: 1024
   idempotency:
-    # 说明: 启用幂等性缓存 可选项: - true - false 默认项: - true
+    # 璇存槑: 鍚敤骞傜瓑鎬х紦瀛?鍙€夐」: - true - false 榛樿椤? - true
     redis-enabled: true
-    # 说明: 幂等缓存存活时间秒数 可选项: - 正整数 默认项: - 86400
+    # 璇存槑: 骞傜瓑缂撳瓨瀛樻椿鏃堕棿绉掓暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 86400
     ttl-seconds: 86400
   mcp:
-    # 说明: 启用远端调用 可选项: - true - false 默认项: - false
+    # 璇存槑: 鍚敤杩滅璋冪敤 鍙€夐」: - true - false 榛樿椤? - false
     remote-enabled: true
-    # 说明: 远端失败后回退到本地 可选项: - true - false 默认项: - false
+    # 璇存槑: 杩滅澶辫触鍚庡洖閫€鍒版湰鍦?鍙€夐」: - true - false 榛樿椤? - false
     fallback-to-local: true
-    # 说明: 合并远端与本地工具清单 可选项: - true - false 默认项: - false
+    # 璇存槑: 鍚堝苟杩滅涓庢湰鍦板伐鍏锋竻鍗?鍙€夐」: - true - false 榛樿椤? - false
     merge-local-tools: true
-    # 说明: 工具调用策略 可选项: - remote-only - local-only - remote-first - local-first 默认项: - remote-first
+    # 璇存槑: 宸ュ叿璋冪敤绛栫暐 鍙€夐」: - remote-only - local-only - remote-first - local-first 榛樿椤? - remote-first
     call-strategy: remote-first
     tool-refresh:
-      # 说明: 是否启用远程工具缓存刷新 可选项: - true - false 默认值: - true
+      # 璇存槑: 鏄惁鍚敤杩滅▼宸ュ叿缂撳瓨鍒锋柊 鍙€夐」: - true - false 榛樿鍊? - true
       enabled: true
-      # 说明: 远程工具缓存刷新间隔秒数 可选项: - 非负整数 默认值: - 300
+      # 璇存槑: 杩滅▼宸ュ叿缂撳瓨鍒锋柊闂撮殧绉掓暟 鍙€夐」: - 闈炶礋鏁存暟 榛樿鍊? - 300
       ttl-seconds: 600
-      # 说明: 单次同步最大工具数量 可选项: - 非负整数 默认值: - 2000
+      # 璇存槑: 鍗曟鍚屾鏈€澶у伐鍏锋暟閲?鍙€夐」: - 闈炶礋鏁存暟 榛樿鍊? - 2000
       max-tools: 2000
     default-server-id: mcp-default
-    # 说明: 外部工具服务列表 可选项: - 列表 默认项: - 包含一个示例项
+    # 璇存槑: 澶栭儴宸ュ叿鏈嶅姟鍒楄〃 鍙€夐」: - 鍒楄〃 榛樿椤? - 鍖呭惈涓€涓ず渚嬮」
     servers:
       -
-        # 说明: 服务标识 可选项: - 任意字符串 默认项: - mcp-default
+        # 璇存槑: 鏈嶅姟鏍囪瘑 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - mcp-default
         id: mcp-default
-        # 说明: 是否可用 可选项: - true - false 默认项: - true
+        # 璇存槑: 鏄惁鍙敤 鍙€夐」: - true - false 榛樿椤? - true
         available: true
         allowed-hosts:
           - localhost
           - 127.0.0.1
-        # 说明: 远程调用协议 可选项: - rest - jsonrpc 默认项: - rest
+        # 璇存槑: 杩滅▼璋冪敤鍗忚 鍙€夐」: - rest - jsonrpc 榛樿椤? - rest
         protocol: jsonrpc
-        # 说明: 服务基础地址 说明: SSE 场景会自动拼接 sessionId 可选项: - 任意地址 默认项: - http://localhost:9999
+        # 璇存槑: 鏈嶅姟鍩虹鍦板潃 璇存槑: SSE 鍦烘櫙浼氳嚜鍔ㄦ嫾鎺?sessionId 鍙€夐」: - 浠绘剰鍦板潃 榛樿椤? - http://localhost:9999
         base-url: http://localhost:8088/mcp/test
   hook:
-    # 说明: 启用钩子 可选项: - true - false 默认项: - true
+    # 璇存槑: 鍚敤閽╁瓙 鍙€夐」: - true - false 榛樿椤? - true
     enabled: true
-    # 说明: 被拦截工具列表 可选项: - 工具名称 默认项: - []
+    # 璇存槑: 琚嫤鎴伐鍏峰垪琛?鍙€夐」: - 宸ュ叿鍚嶇О 榛樿椤? - []
     blocked-tools: []
   sandbox:
     wasi:
-      # 说明: 启用沙盒 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍚敤娌欑洅 鍙€夐」: - true - false 榛樿椤? - true
       enabled: true
-      # 说明: 沙盒阻止工具列表 可选项: - 工具名称 默认项: - []
+      # 璇存槑: 娌欑洅闃绘宸ュ叿鍒楄〃 鍙€夐」: - 宸ュ叿鍚嶇О 榛樿椤? - []
       blocked-tools: []
   model:
     http:
-      # 说明: 全局接口密钥, 模型级配置优先 可选项: - 任意字符串 - 空字符串表示不需要鉴权 默认项: - ""
+      # 璇存槑: 鍏ㄥ眬鎺ュ彛瀵嗛挜, 妯″瀷绾ч厤缃紭鍏?鍙€夐」: - 浠绘剰瀛楃涓?- 绌哄瓧绗︿覆琛ㄧず涓嶉渶瑕侀壌鏉?榛樿椤? - ""
       api-key: "sk-1101c8c7a1954494b1cac9b01b9d2447"
     models:
       planner:
-        # 说明: 模型标识 可选项: - 任意字符串 默认项: - planner
+        # 璇存槑: 妯″瀷鏍囪瘑 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - planner
         model-id: deepseek-chat
-        # 说明: 提供商 可选项: - 实现支持的取值 默认项: - local
+        # 璇存槑: 鎻愪緵鍟?鍙€夐」: - 瀹炵幇鏀寔鐨勫彇鍊?榛樿椤? - local
         provider: openai
         supports-developer-role: false
-        # 说明: 调用端点 可选项: - 任意字符串 默认项: - local
+        # 璇存槑: 璋冪敤绔偣 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - local
         endpoint: https://api.deepseek.com/v1
-        # 说明: 模型级接口密钥 可选项: - 任意字符串 - 空字符串表示不需要鉴权 默认项: - ""
+        # 璇存槑: 妯″瀷绾ф帴鍙ｅ瘑閽?鍙€夐」: - 浠绘剰瀛楃涓?- 绌哄瓧绗︿覆琛ㄧず涓嶉渶瑕侀壌鏉?榛樿椤? - ""
         api-key: ""
-        # 说明: 输入成本 可选项: - 非负数 默认项: - 0
+        # 璇存槑: 杈撳叆鎴愭湰 鍙€夐」: - 闈炶礋鏁?榛樿椤? - 0
         input-cost-usd: 0
-        # 说明: 输出成本 可选项: - 非负数 默认项: - 0
+        # 璇存槑: 杈撳嚭鎴愭湰 鍙€夐」: - 闈炶礋鏁?榛樿椤? - 0
         output-cost-usd: 0
-        # 说明: 最大令牌数 可选项: - 正整数 默认项: - 4096
+        # 璇存槑: 鏈€澶т护鐗屾暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 4096
         max-tokens: 4096
       reflect:
-        # 说明: 模型标识 可选项: - 任意字符串 默认项: - reflect
+        # 璇存槑: 妯″瀷鏍囪瘑 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - reflect
         model-id: deepseek-chat
-        # 说明: 提供商 可选项: - 实现支持的取值 默认项: - local
+        # 璇存槑: 鎻愪緵鍟?鍙€夐」: - 瀹炵幇鏀寔鐨勫彇鍊?榛樿椤? - local
         provider: openai
         supports-developer-role: false
-        # 说明: 调用端点 可选项: - 任意字符串 默认项: - local
+        # 璇存槑: 璋冪敤绔偣 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - local
         endpoint: https://api.deepseek.com/v1
-        # 说明: 模型级接口密钥 可选项: - 任意字符串 - 空字符串表示不需要鉴权 默认项: - ""
+        # 璇存槑: 妯″瀷绾ф帴鍙ｅ瘑閽?鍙€夐」: - 浠绘剰瀛楃涓?- 绌哄瓧绗︿覆琛ㄧず涓嶉渶瑕侀壌鏉?榛樿椤? - ""
         api-key: ""
-        # 说明: 输入成本 可选项: - 非负数 默认项: - 0
+        # 璇存槑: 杈撳叆鎴愭湰 鍙€夐」: - 闈炶礋鏁?榛樿椤? - 0
         input-cost-usd: 0
-        # 说明: 输出成本 可选项: - 非负数 默认项: - 0
+        # 璇存槑: 杈撳嚭鎴愭湰 鍙€夐」: - 闈炶礋鏁?榛樿椤? - 0
         output-cost-usd: 0
-        # 说明: 最大令牌数 可选项: - 正整数 默认项: - 4096
+        # 璇存槑: 鏈€澶т护鐗屾暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 4096
         max-tokens: 4096
       research:
-        # 说明: 模型标识 可选项: - 任意字符串 默认项: - research
+        # 璇存槑: 妯″瀷鏍囪瘑 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - research
         model-id: deepseek-chat
-        # 说明: 提供商 可选项: - 实现支持的取值 默认项: - local
+        # 璇存槑: 鎻愪緵鍟?鍙€夐」: - 瀹炵幇鏀寔鐨勫彇鍊?榛樿椤? - local
         provider: openai
         supports-developer-role: false
-        # 说明: 调用端点 可选项: - 任意字符串 默认项: - local
+        # 璇存槑: 璋冪敤绔偣 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - local
         endpoint: https://api.deepseek.com/v1
-        # 说明: 模型级接口密钥 可选项: - 任意字符串 - 空字符串表示不需要鉴权 默认项: - ""
+        # 璇存槑: 妯″瀷绾ф帴鍙ｅ瘑閽?鍙€夐」: - 浠绘剰瀛楃涓?- 绌哄瓧绗︿覆琛ㄧず涓嶉渶瑕侀壌鏉?榛樿椤? - ""
         api-key: ""
-        # 说明: 输入成本 可选项: - 非负数 默认项: - 0
+        # 璇存槑: 杈撳叆鎴愭湰 鍙€夐」: - 闈炶礋鏁?榛樿椤? - 0
         input-cost-usd: 0
-        # 说明: 输出成本 可选项: - 非负数 默认项: - 0
+        # 璇存槑: 杈撳嚭鎴愭湰 鍙€夐」: - 闈炶礋鏁?榛樿椤? - 0
         output-cost-usd: 0
-        # 说明: 最大令牌数 可选项: - 正整数 默认项: - 4096
+        # 璇存槑: 鏈€澶т护鐗屾暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 4096
         max-tokens: 4096
       cheap:
-        # 说明: 模型标识 可选项: - 任意字符串 默认项: - cheap
+        # 璇存槑: 妯″瀷鏍囪瘑 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - cheap
         model-id: deepseek-chat
-        # 说明: 提供商 可选项: - 实现支持的取值 默认项: - local
+        # 璇存槑: 鎻愪緵鍟?鍙€夐」: - 瀹炵幇鏀寔鐨勫彇鍊?榛樿椤? - local
         provider: openai
         supports-developer-role: false
-        # 说明: 调用端点 可选项: - 任意字符串 默认项: - local
+        # 璇存槑: 璋冪敤绔偣 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - local
         endpoint: https://api.deepseek.com/v1
-        # 说明: 模型级接口密钥 可选项: - 任意字符串 - 空字符串表示不需要鉴权 默认项: - ""
+        # 璇存槑: 妯″瀷绾ф帴鍙ｅ瘑閽?鍙€夐」: - 浠绘剰瀛楃涓?- 绌哄瓧绗︿覆琛ㄧず涓嶉渶瑕侀壌鏉?榛樿椤? - ""
         api-key: ""
-        # 说明: 输入成本 可选项: - 非负数 默认项: - 0
+        # 璇存槑: 杈撳叆鎴愭湰 鍙€夐」: - 闈炶礋鏁?榛樿椤? - 0
         input-cost-usd: 0
-        # 说明: 输出成本 可选项: - 非负数 默认项: - 0
+        # 璇存槑: 杈撳嚭鎴愭湰 鍙€夐」: - 闈炶礋鏁?榛樿椤? - 0
         output-cost-usd: 0
-        # 说明: 最大令牌数 可选项: - 正整数 默认项: - 2048
+        # 璇存槑: 鏈€澶т护鐗屾暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 2048
         max-tokens: 2048
     routes:
-      # 说明: 规划模型路由 可选项: - 已配置模型标识 默认项: - planner
+      # 璇存槑: 瑙勫垝妯″瀷璺敱 鍙€夐」: - 宸查厤缃ā鍨嬫爣璇?榛樿椤? - planner
       planner: planner
-      # 说明: 反思模型路由 可选项: - 已配置模型标识 默认项: - reflect
+      # 璇存槑: 鍙嶆€濇ā鍨嬭矾鐢?鍙€夐」: - 宸查厤缃ā鍨嬫爣璇?榛樿椤? - reflect
       reflect: reflect
-      # 说明: 研究模型路由 可选项: - 已配置模型标识 默认项: - research
+      # 璇存槑: 鐮旂┒妯″瀷璺敱 鍙€夐」: - 宸查厤缃ā鍨嬫爣璇?榛樿椤? - research
       research: research
-      # 说明: 低成本模型路由 可选项: - 已配置模型标识 默认项: - cheap
+      # 璇存槑: 浣庢垚鏈ā鍨嬭矾鐢?鍙€夐」: - 宸查厤缃ā鍨嬫爣璇?榛樿椤? - cheap
       cheap: cheap
-    # 说明: 启用回退 可选项: - true - false 默认项: - true
+    # 璇存槑: 鍚敤鍥為€€ 鍙€夐」: - true - false 榛樿椤? - true
     fallback-enabled: false
-    # 说明: 回退模型标识 可选项: - 已配置模型标识 默认项: - cheap
+    # 璇存槑: 鍥為€€妯″瀷鏍囪瘑 鍙€夐」: - 宸查厤缃ā鍨嬫爣璇?榛樿椤? - cheap
     fallback-model-id: cheap
   prompt:
     developer: ""
   profiles:
-    # 说明: 代理配置列表 可选项: - 列表 默认项: - 包含示例项
-    items:
+    # 璇存槑: 浠ｇ悊閰嶇疆鍒楄〃 鍙€夐」: - 鍒楄〃 榛樿椤? - 鍖呭惈绀轰緥椤?    items:
       -
-        # 说明: 代理标识 可选项: - 任意字符串 默认项: - planner
+        # 璇存槑: 浠ｇ悊鏍囪瘑 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - planner
         agent-id: planner
-        # 说明: 模型标识 可选项: - 已配置模型标识 默认项: - planner
+        # 璇存槑: 妯″瀷鏍囪瘑 鍙€夐」: - 宸查厤缃ā鍨嬫爣璇?榛樿椤? - planner
         model-id: planner
-        # 说明: 提示模板标识 可选项: - 任意字符串 默认项: - planner
+        # 璇存槑: 鎻愮ず妯℃澘鏍囪瘑 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - planner
         prompt: planner
-        # 说明: 允许的工具列表 可选项: - 工具名称 默认项: - demo_tool
+        # 璇存槑: 鍏佽鐨勫伐鍏峰垪琛?鍙€夐」: - 宸ュ叿鍚嶇О 榛樿椤? - demo_tool
         allow-tools:
           - demo_tool
-        # 说明: 预算令牌数 可选项: - 正整数 默认项: - 2000
+        # 璇存槑: 棰勭畻浠ょ墝鏁?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 2000
         budget-tokens: 2000
       -
-        # 说明: 代理标识 可选项: - 任意字符串 默认项: - reflector
+        # 璇存槑: 浠ｇ悊鏍囪瘑 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - reflector
         agent-id: reflector
-        # 说明: 模型标识 可选项: - 已配置模型标识 默认项: - reflect
+        # 璇存槑: 妯″瀷鏍囪瘑 鍙€夐」: - 宸查厤缃ā鍨嬫爣璇?榛樿椤? - reflect
         model-id: reflect
-        # 说明: 提示模板标识 可选项: - 任意字符串 默认项: - reflect
+        # 璇存槑: 鎻愮ず妯℃澘鏍囪瘑 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - reflect
         prompt: reflect
-        # 说明: 允许的工具列表 可选项: - 工具名称 默认项: - demo_tool
+        # 璇存槑: 鍏佽鐨勫伐鍏峰垪琛?鍙€夐」: - 宸ュ叿鍚嶇О 榛樿椤? - demo_tool
         allow-tools:
           - demo_tool
-        # 说明: 预算令牌数 可选项: - 正整数 默认项: - 2000
+        # 璇存槑: 棰勭畻浠ょ墝鏁?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 2000
         budget-tokens: 2000
   context:
     budget:
-      # 说明: 启用上下文预算分配 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍚敤涓婁笅鏂囬绠楀垎閰?鍙€夐」: - true - false 榛樿椤? - true
       enabled: true
-      # 说明: 总预算令牌数 可选项: - 非负整数 默认项: - 8192
+      # 璇存槑: 鎬婚绠椾护鐗屾暟 鍙€夐」: - 闈炶礋鏁存暟 榛樿椤? - 8192
       total-budget-tokens: 8192
       ratios:
-        # 说明: 系统策略分段比例 可选项: - 0.0-1.0 默认项: - 0.05
+        # 璇存槑: 绯荤粺绛栫暐鍒嗘姣斾緥 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.05
         system-policy: 0.05
-        # 说明: 开发者策略分段比例 可选项: - 0.0-1.0 默认项: - 0.05
+        # 璇存槑: 寮€鍙戣€呯瓥鐣ュ垎娈垫瘮渚?鍙€夐」: - 0.0-1.0 榛樿椤? - 0.05
         developer-policy: 0.05
-        # 说明: 任务意图分段比例 可选项: - 0.0-1.0 默认项: - 0.40
+        # 璇存槑: 浠诲姟鎰忓浘鍒嗘姣斾緥 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.40
         task-intent: 0.40
-        # 说明: 工作记忆分段比例 可选项: - 0.0-1.0 默认项: - 0.20
+        # 璇存槑: 宸ヤ綔璁板繂鍒嗘姣斾緥 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.20
         working-memory: 0.20
-        # 说明: 领域知识分段比例 可选项: - 0.0-1.0 默认项: - 0.10
+        # 璇存槑: 棰嗗煙鐭ヨ瘑鍒嗘姣斾緥 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.10
         domain-knowledge: 0.10
-        # 说明: 长期记忆分段比例 可选项: - 0.0-1.0 默认项: - 0.10
+        # 璇存槑: 闀挎湡璁板繂鍒嗘姣斾緥 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.10
         long-term-memory: 0.10
-        # 说明: 工具摘要分段比例 可选项: - 0.0-1.0 默认项: - 0.05
+        # 璇存槑: 宸ュ叿鎽樿鍒嗘姣斾緥 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.05
         tool-summaries: 0.05
-        # 说明: 工具模式分段比例 可选项: - 0.0-1.0 默认项: - 0.03
+        # 璇存槑: 宸ュ叿妯″紡鍒嗘姣斾緥 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.03
         tool-schema: 0.03
-        # 说明: 证据包分段比例 可选项: - 0.0-1.0 默认项: - 0.02
+        # 璇存槑: 璇佹嵁鍖呭垎娈垫瘮渚?鍙€夐」: - 0.0-1.0 榛樿椤? - 0.02
         evidence-pack: 0.02
-        # 说明: 余量分段比例 可选项: - 0.0-1.0 默认项: - 0.0
+        # 璇存槑: 浣欓噺鍒嗘姣斾緥 鍙€夐」: - 0.0-1.0 榛樿椤? - 0.0
         slack: 0.0
-      # 说明: 裁剪顺序 可选项: - evidence-pack - recalled-memories - working-memory - tool-summary - task-and-system 默认项: - [evidence-pack, recalled-memories, working-memory, tool-summary, task-and-system]
+      # 璇存槑: 瑁佸壀椤哄簭 鍙€夐」: - evidence-pack - recalled-memories - working-memory - tool-summary - task-and-system 榛樿椤? - [evidence-pack, recalled-memories, working-memory, tool-summary, task-and-system]
       trim-order:
         - evidence-pack
         - recalled-memories
@@ -392,89 +449,89 @@ agent:
         - tool-summary
         - task-and-system
     compression:
-      # 说明: 启用预算触发压缩 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍚敤棰勭畻瑙﹀彂鍘嬬缉 鍙€夐」: - true - false 榛樿椤? - true
       enabled: true
-      # 说明: 总预算超限时触发压缩 可选项: - true - false 默认项: - true
+      # 璇存槑: 鎬婚绠楄秴闄愭椂瑙﹀彂鍘嬬缉 鍙€夐」: - true - false 榛樿椤? - true
       trigger-over-total-budget: true
-      # 说明: 分区预算超限时触发压缩 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍒嗗尯棰勭畻瓒呴檺鏃惰Е鍙戝帇缂?鍙€夐」: - true - false 榛樿椤? - true
       trigger-over-section-budget: true
-      # 说明: 压缩触发最小间隔（秒），用于防抖 可选项: - 非负整数 默认项: - 30
+      # 璇存槑: 鍘嬬缉瑙﹀彂鏈€灏忛棿闅旓紙绉掞級锛岀敤浜庨槻鎶?鍙€夐」: - 闈炶礋鏁存暟 榛樿椤? - 30
       min-interval-seconds: 30
   security:
     redaction:
-      # 说明: 启用脱敏治理 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍚敤鑴辨晱娌荤悊 鍙€夐」: - true - false 榛樿椤? - true
       enabled: true
-      # 说明: 命中密钥类规则时拒写 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍛戒腑瀵嗛挜绫昏鍒欐椂鎷掑啓 鍙€夐」: - true - false 榛樿椤? - true
       reject-on-secrets: true
-      # 说明: 命中个人信息时脱敏替换 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍛戒腑涓汉淇℃伅鏃惰劚鏁忔浛鎹?鍙€夐」: - true - false 榛樿椤? - true
       redact-on-pii: true
-      # 说明: 忽略字段列表 可选项: - 通过字段名忽略 默认项: - []
+      # 璇存槑: 蹇界暐瀛楁鍒楄〃 鍙€夐」: - 閫氳繃瀛楁鍚嶅拷鐣?榛樿椤? - []
       ignore-keys: []
-      # 说明: 单次扫描最大字符数 可选项: - 非负整数 默认项: - 8000
+      # 璇存槑: 鍗曟鎵弿鏈€澶у瓧绗︽暟 鍙€夐」: - 闈炶礋鏁存暟 榛樿椤? - 8000
       max-scan-chars: 8000
 
   memory:
     vector:
-      # 说明: 启用向量存储 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍚敤鍚戦噺瀛樺偍 鍙€夐」: - true - false 榛樿椤? - true
       enabled: true
-      # 说明: 向量存储提供方 可选项: - 实现支持的取值 默认项: - qdrant
+      # 璇存槑: 鍚戦噺瀛樺偍鎻愪緵鏂?鍙€夐」: - 瀹炵幇鏀寔鐨勫彇鍊?榛樿椤? - qdrant
       provider: qdrant
-      # 说明: 向量存储地址 可选项: - 任意地址 默认项: - http://localhost:6333
+      # 璇存槑: 鍚戦噺瀛樺偍鍦板潃 鍙€夐」: - 浠绘剰鍦板潃 榛樿椤? - http://localhost:6333
       base-url: http://localhost:6333
-      # 说明: 集合名称 可选项: - 任意字符串 默认项: - memory_records
+      # 璇存槑: 闆嗗悎鍚嶇О 鍙€夐」: - 浠绘剰瀛楃涓?榛樿椤? - memory_records
       collection: memory_records
-      # 说明: 向量维度 可选项: - 正整数 默认项: - 256
+      # 璇存槑: 鍚戦噺缁村害 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 256
       dimension: 256
-      # 说明: 请求超时秒数 可选项: - 正整数 默认项: - 5
+      # 璇存槑: 璇锋眰瓒呮椂绉掓暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 5
       timeout-seconds: 5
     recall:
-      # 说明: 启用召回 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍚敤鍙洖 鍙€夐」: - true - false 榛樿椤? - true
       enabled: false
-      # 说明: 召回条数上限 可选项: - 正整数 默认项: - 10
+      # 璇存槑: 鍙洖鏉℃暟涓婇檺 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 10
       limit: 10
-      # 说明: 最小查询长度 可选项: - 正整数 默认项: - 4
+      # 璇存槑: 鏈€灏忔煡璇㈤暱搴?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 4
       min-query-length: 4
-      # 说明: 包含压缩记忆 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍖呭惈鍘嬬缉璁板繂 鍙€夐」: - true - false 榛樿椤? - true
       include-compressed: true
-      # 说明: 最大摘要字符数 可选项: - 正整数 默认项: - 800
+      # 璇存槑: 鏈€澶ф憳瑕佸瓧绗︽暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 800
       max-summary-chars: 800
-      # 说明: 最大记录字符数 可选项: - 正整数 默认项: - 500
+      # 璇存槑: 鏈€澶ц褰曞瓧绗︽暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 500
       max-record-chars: 500
     write:
-      # 说明: 允许写入 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍏佽鍐欏叆 鍙€夐」: - true - false 榛樿椤? - true
       enabled: true
-      # 说明: 保存用户查询 可选项: - true - false 默认项: - true
+      # 璇存槑: 淇濆瓨鐢ㄦ埛鏌ヨ 鍙€夐」: - true - false 榛樿椤? - true
       save-user-query: true
-      # 说明: 保存最终输出 可选项: - true - false 默认项: - true
+      # 璇存槑: 淇濆瓨鏈€缁堣緭鍑?鍙€夐」: - true - false 榛樿椤? - true
       save-final-output: true
-      # 说明: 最大记录字符数 可选项: - 正整数 默认项: - 2000
+      # 璇存槑: 鏈€澶ц褰曞瓧绗︽暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 2000
       max-record-chars: 2000
-      # 说明: 最大摘要字符数 可选项: - 正整数 默认项: - 500
+      # 璇存槑: 鏈€澶ф憳瑕佸瓧绗︽暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 500
       max-summary-chars: 500
     expire:
-      # 说明: 启用过期 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍚敤杩囨湡 鍙€夐」: - true - false 榛樿椤? - true
       enabled: true
-      # 说明: 存活时间秒数 可选项: - 正整数 默认项: - 2592000
+      # 璇存槑: 瀛樻椿鏃堕棿绉掓暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 2592000
       ttl-seconds: 2592000
-      # 说明: 读取时清理 可选项: - true - false 默认项: - true
+      # 璇存槑: 璇诲彇鏃舵竻鐞?鍙€夐」: - true - false 榛樿椤? - true
       cleanup-on-read: true
-      # 说明: 清理间隔秒数 可选项: - 正整数 默认项: - 300
+      # 璇存槑: 娓呯悊闂撮殧绉掓暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 300
       cleanup-interval-seconds: 300
   budget:
-    # 说明: 启用预算 可选项: - true - false 默认项: - true
+    # 璇存槑: 鍚敤棰勭畻 鍙€夐」: - true - false 榛樿椤? - true
     enabled: false
-    # 说明: 预算阈值令牌数 可选项: - 非负整数 默认项: - 10000
+    # 璇存槑: 棰勭畻闃堝€间护鐗屾暟 鍙€夐」: - 闈炶礋鏁存暟 榛樿椤? - 10000
     threshold-tokens: 10000
   rate-limit:
-    # 说明: 每分钟最大请求数 可选项: - 正整数 默认项: - 100
+    # 璇存槑: 姣忓垎閽熸渶澶ц姹傛暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 100
     max-per-minute: 100
     max-keys: 20000
     entry-ttl-seconds: 3600
     cleanup-interval-seconds: 30
   circuit:
-    # 说明: 失败阈值 可选项: - 正整数 默认项: - 3
+    # 璇存槑: 澶辫触闃堝€?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 3
     failure-threshold: 10
-    # 说明: 熔断打开秒数 可选项: - 正整数 默认项: - 30
+    # 璇存槑: 鐔旀柇鎵撳紑绉掓暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 30
     open-seconds: 120
     max-keys: 20000
     state-ttl-seconds: 3600
@@ -484,24 +541,24 @@ agent:
     session-max-size: 2000
     cleanup-interval-seconds: 30
   tool:
-    # 说明: 工具注入模式 可选项: - summary - full 默认项: - summary
+    # 璇存槑: 宸ュ叿娉ㄥ叆妯″紡 鍙€夐」: - summary - full 榛樿椤? - summary
     inject-mode: full
-    # 说明: 最大摘要数量 可选项: - 正整数 默认项: - 200
+    # 璇存槑: 鏈€澶ф憳瑕佹暟閲?鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 200
     max-summaries: 200
     approval:
-      # 说明: 启用高风险工具审批 可选项: - true - false 默认项: - false
+      # 璇存槑: 鍚敤楂橀闄╁伐鍏峰鎵?鍙€夐」: - true - false 榛樿椤? - false
       enabled: false
-      # 说明: 高风险工具列表 可选项: - 工具名称列表 默认项: - []
+      # 璇存槑: 楂橀闄╁伐鍏峰垪琛?鍙€夐」: - 宸ュ叿鍚嶇О鍒楄〃 榛樿椤? - []
       high-risk-tools: []
-      # 说明: 审批等待超时秒数 可选项: - 正整数 默认项: - 300
+      # 璇存槑: 瀹℃壒绛夊緟瓒呮椂绉掓暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 300
       timeout-seconds: 300
       pending-ttl-seconds: 1800
       pending-max-size: 2000
       cleanup-interval-seconds: 30
     cache:
-      # 说明: 启用缓存 可选项: - true - false 默认项: - true
+      # 璇存槑: 鍚敤缂撳瓨 鍙€夐」: - true - false 榛樿椤? - true
       redis-enabled: true
-    # 说明: 工具定义缓存存活时间秒数 可选项: - 正整数 默认项: - 300
+    # 璇存槑: 宸ュ叿瀹氫箟缂撳瓨瀛樻椿鏃堕棿绉掓暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 300
     definition-cache-ttl-seconds: 300
-    # 说明: 工具模型缓存存活时间秒数 可选项: - 正整数 默认项: - 300
+    # 璇存槑: 宸ュ叿妯″瀷缂撳瓨瀛樻椿鏃堕棿绉掓暟 鍙€夐」: - 姝ｆ暣鏁?榛樿椤? - 300
     schema-cache-ttl-seconds: 300
