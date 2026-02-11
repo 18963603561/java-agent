@@ -2,8 +2,8 @@ package com.example.agent.orchestration.multiagent.dag.actor.distributed;
 
 import com.example.agent.orchestration.multiagent.AgentRole;
 import com.example.agent.orchestration.multiagent.MultiAgentEventPublisher;
-import com.example.agent.orchestration.multiagent.dag.DagNode;
-import com.example.agent.orchestration.multiagent.dag.DagPlan;
+import com.example.agent.orchestration.multiagent.dag.domain.model.DagNode;
+import com.example.agent.orchestration.multiagent.dag.domain.model.DagPlan;
 import com.example.agent.orchestration.multiagent.dag.actor.DagActorRuntime;
 import com.example.agent.orchestration.multiagent.dag.audit.DagAuditService;
 import com.example.agent.orchestration.multiagent.dag.audit.DagAuditSnapshot;
@@ -66,4 +66,3 @@ class DagMessageSinglePathTest {
         return field.get(target);
     }
 }
-

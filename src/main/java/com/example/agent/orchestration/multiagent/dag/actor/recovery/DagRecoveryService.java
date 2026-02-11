@@ -3,9 +3,12 @@ package com.example.agent.orchestration.multiagent.dag.actor.recovery;
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagMailboxDispatcher;
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagMailboxTransport;
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagMessageEnvelope;
-import com.example.agent.orchestration.multiagent.dag.actor.state.DagRuntimeStateRepository;
 import com.example.agent.orchestration.multiagent.dag.actor.state.DagNodeRuntimeSnapshot;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagDeadLetterRepository;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagRuntimeStateRepository;
 import com.example.agent.orchestration.multiagent.handoff.WorkspaceSyncService;
+import com.example.agent.orchestration.multiagent.observability.MultiAgentMetricKeys;
+import com.example.agent.orchestration.multiagent.observability.MultiAgentTagKeys;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import java.time.Duration;
 import java.time.Instant;
@@ -102,7 +105,9 @@ public class DagRecoveryService {
                 continue;
             }
             recoveredCount++;
-            metricsPublisher.incrementWithTags("dag.recovery.detected", "nodeId", snapshot.getNodeId());
+            metricsPublisher.incrementWithTags(MultiAgentMetricKeys.DAG_RECOVERY_DETECTED,
+                    MultiAgentTagKeys.NODE_ID,
+                    snapshot.getNodeId());
             log.info("DAG恢复检测到可补偿节点, dagRunId={}, nodeId={}, remainingDependencies={}",
                     dagRunId,
                     snapshot.getNodeId(),
@@ -110,7 +115,7 @@ public class DagRecoveryService {
         }
         // 关键逻辑：恢复流程结束后统一记录耗时指标，便于观测恢复性能。
         long recoveryDurationMs = Duration.between(startedAt, Instant.now()).toMillis();
-        metricsPublisher.recordSummary("dag.recovery.duration", recoveryDurationMs);
+        metricsPublisher.recordSummary(MultiAgentMetricKeys.DAG_RECOVERY_DURATION, recoveryDurationMs);
         return recoveredCount;
     }
 
@@ -126,7 +131,7 @@ public class DagRecoveryService {
         envelope.setAvailableAtEpochMs(System.currentTimeMillis());
         envelope.setDeliveryAttempt(1);
         mailboxTransport.send(envelope);
-        metricsPublisher.increment("dag.recovery.deadletter.replayed");
+        metricsPublisher.increment(MultiAgentMetricKeys.DAG_RECOVERY_DEADLETTER_REPLAYED);
     }
 
     /**

@@ -1,24 +1,25 @@
 package com.example.agent.orchestration.multiagent.dag.actor;
 
 import com.example.agent.orchestration.multiagent.MultiAgentEventPublisher;
-import com.example.agent.orchestration.multiagent.dag.DagNode;
-import com.example.agent.orchestration.multiagent.dag.DagPlan;
+import com.example.agent.orchestration.multiagent.dag.domain.model.DagNode;
+import com.example.agent.orchestration.multiagent.dag.domain.model.DagPlan;
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagDistributedProperties;
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagMailboxDispatcher;
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagShardRouter;
 import com.example.agent.orchestration.multiagent.dag.actor.runtime.DagDependencyPropagationService;
 import com.example.agent.orchestration.multiagent.dag.actor.runtime.DagNodeExecutionService;
 import com.example.agent.orchestration.multiagent.dag.actor.runtime.DagRunFinalizeService;
-import com.example.agent.orchestration.multiagent.dag.actor.state.DagMessageDedupRepository;
 import com.example.agent.orchestration.multiagent.dag.actor.state.DagNodeLeaseService;
 import com.example.agent.orchestration.multiagent.dag.actor.state.DagNodeRuntimeSnapshot;
-import com.example.agent.orchestration.multiagent.dag.actor.state.DagRuntimeStateRepository;
-import com.example.agent.orchestration.multiagent.dag.actor.state.InMemoryDagMessageDedupRepository;
-import com.example.agent.orchestration.multiagent.dag.actor.state.InMemoryDagRuntimeStateRepository;
 import com.example.agent.orchestration.multiagent.dag.audit.DagAuditService;
 import com.example.agent.orchestration.multiagent.dag.audit.DagBackpressureRecord;
 import com.example.agent.orchestration.multiagent.dag.audit.DagRunAuditRecord;
-import com.example.agent.orchestration.multiagent.dag.audit.InMemoryDagAuditRepository;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagMessageDedupRepository;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagRuntimeStateRepository;
+import com.example.agent.orchestration.multiagent.dag.infrastructure.audit.InMemoryDagAuditRepository;
+import com.example.agent.orchestration.multiagent.dag.infrastructure.recovery.InMemoryDagDeadLetterRepository;
+import com.example.agent.orchestration.multiagent.dag.infrastructure.state.InMemoryDagMessageDedupRepository;
+import com.example.agent.orchestration.multiagent.dag.infrastructure.state.InMemoryDagRuntimeStateRepository;
 import com.example.agent.orchestration.multiagent.handoff.WorkspaceSyncService;
 import com.example.agent.orchestration.multiagent.model.ReasonCode;
 import com.example.agent.orchestration.multiagent.model.RunStatus;
@@ -120,7 +121,7 @@ public class DagActorRuntime {
                 new com.example.agent.orchestration.multiagent.dag.actor.distributed.InProcessDagMailboxTransport(),
                 new com.example.agent.streaming.observability.MetricsPublisher(
                         new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
-                new com.example.agent.orchestration.multiagent.dag.actor.recovery.InMemoryDagDeadLetterRepository());
+                new InMemoryDagDeadLetterRepository());
         DagShardRouter shardRouter = new DagShardRouter();
         DagAuditService auditService = new DagAuditService(new InMemoryDagAuditRepository());
         DagRuntimeStateRepository stateRepository = new InMemoryDagRuntimeStateRepository();
@@ -177,7 +178,7 @@ public class DagActorRuntime {
                 new com.example.agent.orchestration.multiagent.dag.actor.distributed.InProcessDagMailboxTransport(),
                 new com.example.agent.streaming.observability.MetricsPublisher(
                         new io.micrometer.core.instrument.simple.SimpleMeterRegistry()),
-                new com.example.agent.orchestration.multiagent.dag.actor.recovery.InMemoryDagDeadLetterRepository());
+                new InMemoryDagDeadLetterRepository());
         DagShardRouter shardRouter = new DagShardRouter();
         DagAuditService auditService = new DagAuditService(new InMemoryDagAuditRepository());
         DagRuntimeStateRepository stateRepository = new InMemoryDagRuntimeStateRepository();

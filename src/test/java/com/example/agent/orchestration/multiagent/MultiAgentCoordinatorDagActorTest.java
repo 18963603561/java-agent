@@ -7,8 +7,12 @@ import com.example.agent.capabilities.llm.contract.ModelScene;
 import com.example.agent.capabilities.llm.prompt.PromptAssembler;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.capabilities.llm.tooling.ModelToolResolver;
+import com.example.agent.orchestration.multiagent.role.RoleFallbackFactory;
+import com.example.agent.orchestration.multiagent.role.RolePlanParser;
+import com.example.agent.orchestration.multiagent.role.RolePlanRepairService;
+import com.example.agent.orchestration.multiagent.role.RoleResolveDiagnostics;
 import com.example.agent.orchestration.multiagent.support.StepArgumentReader;
-import com.example.agent.orchestration.multiagent.dag.DagPlanner;
+import com.example.agent.orchestration.multiagent.dag.application.planner.DagPlanner;
 import com.example.agent.orchestration.multiagent.dag.actor.DagActorRuntime;
 import com.example.agent.orchestration.multiagent.usecase.ExecutionResultAssembler;
 import com.example.agent.orchestration.multiagent.usecase.ExecutionRouteDecider;
@@ -52,7 +56,14 @@ class MultiAgentCoordinatorDagActorTest {
         ObjectMapper objectMapper = new ObjectMapper();
         MultiAgentInputSummaryBuilder inputSummaryBuilder = new MultiAgentInputSummaryBuilder();
         MultiAgentPromptBuilder promptBuilder = new MultiAgentPromptBuilder(objectMapper, promptAssembler);
-        MultiAgentRoleResolver roleResolver = new MultiAgentRoleResolver(objectMapper, repairService, profileProperties);
+        RolePlanParser rolePlanParser = new RolePlanParser(objectMapper);
+        RolePlanRepairService rolePlanRepairService = new RolePlanRepairService(objectMapper, repairService);
+        RoleFallbackFactory roleFallbackFactory = new RoleFallbackFactory(profileProperties);
+        RoleResolveDiagnostics roleResolveDiagnostics = new RoleResolveDiagnostics();
+        MultiAgentRoleResolver roleResolver = new MultiAgentRoleResolver(rolePlanParser,
+                rolePlanRepairService,
+                roleFallbackFactory,
+                roleResolveDiagnostics);
         MultiAgentEventPublisher multiAgentEventPublisher = new MultiAgentEventPublisher(eventPublisher, eventStreamService);
         MultiAgentRoutingPolicy routingPolicy = new MultiAgentRoutingPolicy();
         StepArgumentReader stepArgumentReader = new StepArgumentReader();

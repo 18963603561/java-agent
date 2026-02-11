@@ -5,10 +5,13 @@ import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagDistr
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagMailboxDispatcher;
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagShardRouter;
 import com.example.agent.orchestration.multiagent.dag.actor.recovery.DagDeadLetterMessage;
-import com.example.agent.orchestration.multiagent.dag.actor.recovery.DagDeadLetterRepository;
 import com.example.agent.orchestration.multiagent.dag.actor.recovery.DagRecoveryService;
 import com.example.agent.orchestration.multiagent.dag.actor.state.DagNodeLeaseService;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagDeadLetterRepository;
 import com.example.agent.orchestration.multiagent.model.RunStatus;
+import com.example.agent.orchestration.multiagent.observability.MultiAgentEventKeys;
+import com.example.agent.orchestration.multiagent.observability.MultiAgentMetricKeys;
+import com.example.agent.orchestration.multiagent.observability.MultiAgentTagKeys;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import java.time.Instant;
@@ -148,7 +151,9 @@ public class DagControlService {
                     command.getDagRunId(),
                     normalizedCommand,
                     exception);
-            metricsPublisher.incrementWithTags("dag.control.failed", "command", normalizedCommand);
+            metricsPublisher.incrementWithTags(MultiAgentMetricKeys.DAG_CONTROL_FAILED,
+                    MultiAgentTagKeys.COMMAND,
+                    normalizedCommand);
             result = buildFailedResult(command, RunStatus.ERROR, exception.getMessage());
         }
 
@@ -157,7 +162,9 @@ public class DagControlService {
             idempotencyIndex.put(idempotencyKey, copyResult(result));
         }
         if (RunStatus.SUCCESS.code().equalsIgnoreCase(result.getStatus())) {
-            metricsPublisher.incrementWithTags("dag.control.success", "command", normalizedCommand);
+            metricsPublisher.incrementWithTags(MultiAgentMetricKeys.DAG_CONTROL_SUCCESS,
+                    MultiAgentTagKeys.COMMAND,
+                    normalizedCommand);
         }
         return result;
     }
@@ -253,7 +260,7 @@ public class DagControlService {
     private DagControlResult doResume(DagControlCommand command) {
         commandState.put(buildStateKey(command.getWorkflowId(), command.getDagRunId()), RunStatus.RUNNING.code());
         int dispatched = dagMailboxDispatcher.dispatchDagRun(command.getDagRunId());
-        metricsPublisher.recordSummary("dag.control.resume.dispatched", dispatched);
+        metricsPublisher.recordSummary(MultiAgentMetricKeys.DAG_CONTROL_RESUME_DISPATCHED, dispatched);
         return buildSuccessResult(command, RunStatus.RUNNING, "DAG运行已恢复, dispatched=" + dispatched);
     }
 
@@ -262,7 +269,7 @@ public class DagControlService {
      */
     private DagControlResult doRebalance(DagControlCommand command) {
         int pendingCount = queryPendingCount(command.getDagRunId());
-        metricsPublisher.recordSummary("dag.control.rebalance.pending", pendingCount);
+        metricsPublisher.recordSummary(MultiAgentMetricKeys.DAG_CONTROL_REBALANCE_PENDING, pendingCount);
         return buildSuccessResult(command,
                 RunStatus.RUNNING,
                 "重平衡已触发, pendingCount=" + pendingCount + ", instanceCount=" + queryActiveInstances().size());
@@ -352,10 +359,10 @@ public class DagControlService {
             return;
         }
         Map<String, Object> details = new HashMap<>();
-        details.put("dagRunId", result.getDagRunId());
-        details.put("command", result.getCommand());
-        details.put("status", result.getStatus());
-        details.put("message", result.getMessage());
+        details.put(MultiAgentEventKeys.DAG_RUN_ID, result.getDagRunId());
+        details.put(MultiAgentTagKeys.COMMAND, result.getCommand());
+        details.put(MultiAgentEventKeys.STATUS, result.getStatus());
+        details.put(MultiAgentEventKeys.MESSAGE, result.getMessage());
         details.put("deduplicated", result.isDeduplicated());
         // 关键逻辑：通过 TEAM_STATUS 汇总控制面动作结果，便于统一观测。
         eventPublisher.publishTeamStatus(tenantContext,
@@ -397,4 +404,3 @@ public class DagControlService {
         return String.valueOf(workflowId) + ":" + String.valueOf(dagRunId);
     }
 }
-

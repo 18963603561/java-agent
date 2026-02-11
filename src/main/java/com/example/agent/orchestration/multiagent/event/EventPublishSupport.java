@@ -1,5 +1,6 @@
 package com.example.agent.orchestration.multiagent.event;
 
+import com.example.agent.orchestration.multiagent.observability.MultiAgentEventKeys;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
@@ -68,19 +69,19 @@ public class EventPublishSupport {
             return;
         }
         if (StringUtils.hasText(dagRunId)) {
-            payload.put("dagRunId", dagRunId);
+            payload.put(MultiAgentEventKeys.DAG_RUN_ID, dagRunId);
         }
         if (StringUtils.hasText(nodeId)) {
-            payload.put("nodeId", nodeId);
+            payload.put(MultiAgentEventKeys.NODE_ID, nodeId);
         }
         if (attempt != null && attempt > 0) {
-            payload.put("attempt", attempt);
+            payload.put(MultiAgentEventKeys.ATTEMPT, attempt);
         }
         if (StringUtils.hasText(reasonCode)) {
-            payload.put("reasonCode", reasonCode);
+            payload.put(MultiAgentEventKeys.REASON_CODE, reasonCode);
         }
         if (StringUtils.hasText(messageId)) {
-            payload.put("messageId", messageId);
+            payload.put(MultiAgentEventKeys.MESSAGE_ID, messageId);
         }
     }
 
@@ -106,13 +107,13 @@ public class EventPublishSupport {
                                               String workflowId,
                                               Map<String, Object> payload) {
         Map<String, Object> safePayload = payload == null ? new HashMap<>() : new HashMap<>(payload);
-        if (!safePayload.containsKey("workflowId")) {
-            safePayload.put("workflowId", workflowId);
+        if (!safePayload.containsKey(MultiAgentEventKeys.WORKFLOW_ID)) {
+            safePayload.put(MultiAgentEventKeys.WORKFLOW_ID, workflowId);
         }
-        if (!safePayload.containsKey("tenantId") && StringUtils.hasText(tenantContext.getTenantId())) {
-            safePayload.put("tenantId", tenantContext.getTenantId());
+        if (!safePayload.containsKey(MultiAgentEventKeys.TENANT_ID)
+                && StringUtils.hasText(tenantContext.getTenantId())) {
+            safePayload.put(MultiAgentEventKeys.TENANT_ID, tenantContext.getTenantId());
         }
         return safePayload;
     }
 }
-

@@ -1,10 +1,10 @@
 package com.example.agent.orchestration.multiagent.config;
 
-import com.example.agent.orchestration.multiagent.dag.actor.recovery.DagDeadLetterRepository;
-import com.example.agent.orchestration.multiagent.dag.actor.state.DagMessageDedupRepository;
-import com.example.agent.orchestration.multiagent.dag.actor.state.DagRuntimeStateRepository;
-import com.example.agent.orchestration.multiagent.dag.audit.DagAuditRepository;
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagMailboxTransport;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagAuditRepository;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagDeadLetterRepository;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagMessageDedupRepository;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagRuntimeStateRepository;
 import com.example.agent.orchestration.multiagent.handoff.HandoffRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

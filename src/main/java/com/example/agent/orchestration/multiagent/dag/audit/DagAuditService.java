@@ -1,5 +1,6 @@
 package com.example.agent.orchestration.multiagent.dag.audit;
 
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagAuditRepository;
 import java.time.Instant;
 import java.util.List;
 import java.util.Optional;

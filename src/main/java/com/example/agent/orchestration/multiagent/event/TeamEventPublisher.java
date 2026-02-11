@@ -1,6 +1,7 @@
 package com.example.agent.orchestration.multiagent.event;
 
 import com.example.agent.orchestration.multiagent.AgentRole;
+import com.example.agent.orchestration.multiagent.observability.MultiAgentEventKeys;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
 import java.util.HashMap;
@@ -36,14 +37,14 @@ public class TeamEventPublisher {
                 workflowId,
                 seqCounter,
                 EventType.TEAM_RECRUITED,
-                Map.of("teamSize", safeRoles.size()));
+                Map.of(MultiAgentEventKeys.TEAM_SIZE, safeRoles.size()));
         for (AgentRole role : safeRoles) {
             Map<String, Object> payload = new HashMap<>();
-            payload.put("roleId", role.getRoleId());
-            payload.put("name", role.getName());
-            payload.put("description", role.getDescription());
+            payload.put(MultiAgentEventKeys.ROLE_ID, role.getRoleId());
+            payload.put(MultiAgentEventKeys.NAME, role.getName());
+            payload.put(MultiAgentEventKeys.DESCRIPTION, role.getDescription());
             if (role.getModelId() != null) {
-                payload.put("modelId", role.getModelId());
+                payload.put(MultiAgentEventKeys.MODEL_ID, role.getModelId());
             }
             publishSupport.publishEvent(tenantContext,
                     workflowId,
@@ -62,7 +63,7 @@ public class TeamEventPublisher {
                                   String status,
                                   Map<String, Object> details) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("status", status);
+        payload.put(MultiAgentEventKeys.STATUS, status);
         if (details != null && !details.isEmpty()) {
             payload.putAll(details);
         }
@@ -73,4 +74,3 @@ public class TeamEventPublisher {
                 payload);
     }
 }
-

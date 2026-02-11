@@ -6,7 +6,8 @@ import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagMailb
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagMailboxTransport;
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagMessageEnvelope;
 import com.example.agent.orchestration.multiagent.dag.actor.state.DagNodeRuntimeSnapshot;
-import com.example.agent.orchestration.multiagent.dag.actor.state.InMemoryDagRuntimeStateRepository;
+import com.example.agent.orchestration.multiagent.dag.infrastructure.state.InMemoryDagRuntimeStateRepository;
+import com.example.agent.orchestration.multiagent.dag.infrastructure.recovery.InMemoryDagDeadLetterRepository;
 import com.example.agent.orchestration.multiagent.handoff.WorkspaceSyncService;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;

@@ -1,5 +1,6 @@
 package com.example.agent.orchestration.multiagent.dag.audit;
 
+import com.example.agent.orchestration.multiagent.dag.infrastructure.audit.InMemoryDagAuditRepository;
 import java.time.Instant;
 import java.util.List;
 import org.junit.jupiter.api.Test;
@@ -69,4 +70,3 @@ class DagAuditRepositoryTest {
         assertTrue(repository.findRunRecordsByWorkflow("wf-c").isEmpty());
     }
 }
-

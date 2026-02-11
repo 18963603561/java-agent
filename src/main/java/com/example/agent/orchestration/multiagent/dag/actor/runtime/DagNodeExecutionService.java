@@ -1,7 +1,7 @@
 package com.example.agent.orchestration.multiagent.dag.actor.runtime;
 
 import com.example.agent.orchestration.multiagent.MultiAgentEventPublisher;
-import com.example.agent.orchestration.multiagent.dag.DagNode;
+import com.example.agent.orchestration.multiagent.dag.domain.model.DagNode;
 import com.example.agent.orchestration.multiagent.dag.actor.DagBackpressurePolicy;
 import com.example.agent.orchestration.multiagent.dag.actor.DagNodeActor;
 import com.example.agent.orchestration.multiagent.dag.actor.DagNodeExecutionStatus;
@@ -12,11 +12,12 @@ import com.example.agent.orchestration.multiagent.model.ReasonCode;
 import com.example.agent.orchestration.multiagent.model.RunStatus;
 import com.example.agent.orchestration.multiagent.dag.actor.state.DagNodeLeaseService;
 import com.example.agent.orchestration.multiagent.dag.actor.state.DagNodeRuntimeSnapshot;
-import com.example.agent.orchestration.multiagent.dag.actor.state.DagRuntimeStateRepository;
 import com.example.agent.orchestration.multiagent.dag.audit.DagAuditService;
 import com.example.agent.orchestration.multiagent.dag.audit.DagNodeAttemptRecord;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagRuntimeStateRepository;
 import com.example.agent.orchestration.multiagent.handoff.WorkspaceSyncService;
 import com.example.agent.security.auth.TenantContext;
+import com.example.agent.orchestration.multiagent.observability.MultiAgentEventKeys;
 import java.time.Instant;
 import java.util.List;
 import java.util.Map;
@@ -129,7 +130,8 @@ public class DagNodeExecutionService {
                     }
                     workspaceSyncService.append(context.workflowId(),
                             topic,
-                            Map.of("nodeId", nodeId, "roleId", roleId));
+                            Map.of(MultiAgentEventKeys.NODE_ID, nodeId,
+                                    MultiAgentEventKeys.ROLE_ID, roleId));
                     eventPublisher.publishWorkspaceUpdated(context.tenantContext(),
                             context.workflowId(),
                             context.seqCounter(),
@@ -326,8 +328,8 @@ public class DagNodeExecutionService {
                 context.workflowId(),
                 context.seqCounter(),
                 RunStatus.DAG_NODE_FAILED.code(),
-                Map.of("nodeId", nodeId,
-                        "roleId", roleId,
+                Map.of(MultiAgentEventKeys.NODE_ID, nodeId,
+                        MultiAgentEventKeys.ROLE_ID, roleId,
                         "failedCount", failedCount,
                         "maxFailures", dagSupervisorPolicy.getMaxFailures(),
                         "activeNodes", context.activeNodes().get()));

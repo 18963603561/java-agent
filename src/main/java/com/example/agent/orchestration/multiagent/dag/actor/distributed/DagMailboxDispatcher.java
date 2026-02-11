@@ -2,7 +2,9 @@ package com.example.agent.orchestration.multiagent.dag.actor.distributed;
 
 import com.example.agent.orchestration.multiagent.dag.actor.DagNodeActor;
 import com.example.agent.orchestration.multiagent.dag.actor.recovery.DagDeadLetterMessage;
-import com.example.agent.orchestration.multiagent.dag.actor.recovery.DagDeadLetterRepository;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagDeadLetterRepository;
+import com.example.agent.orchestration.multiagent.observability.MultiAgentMetricKeys;
+import com.example.agent.orchestration.multiagent.observability.MultiAgentTagKeys;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import java.time.Instant;
 import java.util.Collections;
@@ -100,7 +102,7 @@ public class DagMailboxDispatcher {
             return 0;
         }
         // 关键逻辑：记录当前待分发消息量，支撑 mailbox lag 可观测性。
-        metricsPublisher.recordSummary("dag.mailbox.lag", envelopes.size());
+        metricsPublisher.recordSummary(MultiAgentMetricKeys.DAG_MAILBOX_LAG, envelopes.size());
         int dispatched = 0;
         for (DagMessageEnvelope envelope : envelopes) {
             if (envelope == null || !dagRunId.equals(envelope.getDagRunId())) {
@@ -114,7 +116,9 @@ public class DagMailboxDispatcher {
                 if (envelope.getDeliveryAttempt() >= distributedProperties.getMaxDeliveryAttempts()) {
                     writeDeadLetter(envelope, "handler_missing_exhausted");
                     mailboxTransport.ack(envelope.getEnvelopeId(), distributedProperties.getInstanceId());
-                    metricsPublisher.incrementWithTags("dag.dispatch.dlq", "reason", "handler_missing");
+                    metricsPublisher.incrementWithTags(MultiAgentMetricKeys.DAG_DISPATCH_DLQ,
+                            MultiAgentTagKeys.REASON,
+                            "handler_missing");
                     continue;
                 }
                 long backoffMs = calculateBackoff(envelope.getDeliveryAttempt());
@@ -122,21 +126,25 @@ public class DagMailboxDispatcher {
                         distributedProperties.getInstanceId(),
                         backoffMs,
                         "handler_missing");
-                metricsPublisher.incrementWithTags("dag.dispatch.nack", "reason", "handler_missing");
+                metricsPublisher.incrementWithTags(MultiAgentMetricKeys.DAG_DISPATCH_NACK,
+                        MultiAgentTagKeys.REASON,
+                        "handler_missing");
                 continue;
             }
             try {
                 // 关键逻辑：执行本地 handler 消费消息，成功后 ack。
                 handler.accept(envelope.getMessage());
                 mailboxTransport.ack(envelope.getEnvelopeId(), distributedProperties.getInstanceId());
-                metricsPublisher.increment("dag.dispatch.ack");
+                metricsPublisher.increment(MultiAgentMetricKeys.DAG_DISPATCH_ACK);
                 dispatched++;
             } catch (Exception exception) {
                 // 关键逻辑：超过重试上限的异常消息进入死信。
                 if (envelope.getDeliveryAttempt() >= distributedProperties.getMaxDeliveryAttempts()) {
                     writeDeadLetter(envelope, exception.getClass().getSimpleName());
                     mailboxTransport.ack(envelope.getEnvelopeId(), distributedProperties.getInstanceId());
-                    metricsPublisher.incrementWithTags("dag.dispatch.dlq", "reason", "handler_error");
+                    metricsPublisher.incrementWithTags(MultiAgentMetricKeys.DAG_DISPATCH_DLQ,
+                            MultiAgentTagKeys.REASON,
+                            "handler_error");
                     continue;
                 }
                 // 关键逻辑：消费异常时按退避策略重投递。
@@ -145,7 +153,9 @@ public class DagMailboxDispatcher {
                         distributedProperties.getInstanceId(),
                         backoffMs,
                         exception.getClass().getSimpleName());
-                metricsPublisher.incrementWithTags("dag.dispatch.nack", "reason", "handler_error");
+                metricsPublisher.incrementWithTags(MultiAgentMetricKeys.DAG_DISPATCH_NACK,
+                        MultiAgentTagKeys.REASON,
+                        "handler_error");
                 log.error("DAG消息分发失败, dagRunId={}, nodeId={}, envelopeId={}",
                         envelope.getDagRunId(),
                         envelope.getNodeId(),
@@ -184,7 +194,7 @@ public class DagMailboxDispatcher {
             envelope.setCreatedAt(Instant.now());
         }
         mailboxTransport.send(envelope);
-        metricsPublisher.increment("dag.dispatch.sent");
+        metricsPublisher.increment(MultiAgentMetricKeys.DAG_DISPATCH_SENT);
     }
 
     /**

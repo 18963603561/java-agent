@@ -2,8 +2,8 @@ package com.example.agent.orchestration.multiagent.dag.actor;
 
 import com.example.agent.orchestration.multiagent.AgentRole;
 import com.example.agent.orchestration.multiagent.MultiAgentEventPublisher;
-import com.example.agent.orchestration.multiagent.dag.DagNode;
-import com.example.agent.orchestration.multiagent.dag.DagPlan;
+import com.example.agent.orchestration.multiagent.dag.domain.model.DagNode;
+import com.example.agent.orchestration.multiagent.dag.domain.model.DagPlan;
 import com.example.agent.orchestration.multiagent.handoff.WorkspaceSyncService;
 import com.example.agent.security.auth.TenantContext;
 import java.util.List;

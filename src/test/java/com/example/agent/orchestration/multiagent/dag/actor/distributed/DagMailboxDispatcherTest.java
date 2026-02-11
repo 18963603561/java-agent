@@ -3,7 +3,7 @@ package com.example.agent.orchestration.multiagent.dag.actor.distributed;
 import com.example.agent.orchestration.multiagent.dag.actor.DagMessage;
 import com.example.agent.orchestration.multiagent.dag.actor.DagMessageType;
 import com.example.agent.orchestration.multiagent.dag.actor.DagNodeActor;
-import com.example.agent.orchestration.multiagent.dag.actor.recovery.InMemoryDagDeadLetterRepository;
+import com.example.agent.orchestration.multiagent.dag.infrastructure.recovery.InMemoryDagDeadLetterRepository;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;

@@ -15,11 +15,15 @@ import com.example.agent.orchestration.multiagent.MultiAgentEventPublisher;
 import com.example.agent.orchestration.multiagent.MultiAgentInputSummaryBuilder;
 import com.example.agent.orchestration.multiagent.MultiAgentPromptBuilder;
 import com.example.agent.orchestration.multiagent.MultiAgentRoleResolver;
+import com.example.agent.orchestration.multiagent.role.RoleFallbackFactory;
+import com.example.agent.orchestration.multiagent.role.RolePlanParser;
+import com.example.agent.orchestration.multiagent.role.RolePlanRepairService;
+import com.example.agent.orchestration.multiagent.role.RoleResolveDiagnostics;
 import com.example.agent.orchestration.multiagent.support.StepArgumentReader;
 import com.example.agent.orchestration.multiagent.usecase.ExecutionResultAssembler;
 import com.example.agent.orchestration.multiagent.usecase.ExecutionRouteDecider;
 import com.example.agent.orchestration.multiagent.usecase.MultiAgentExecutionUseCase;
-import com.example.agent.orchestration.multiagent.dag.DagPlanner;
+import com.example.agent.orchestration.multiagent.dag.application.planner.DagPlanner;
 import com.example.agent.orchestration.multiagent.dag.actor.DagActorRuntime;
 import com.example.agent.orchestration.multiagent.handoff.HandoffService;
 import com.example.agent.orchestration.multiagent.handoff.HandoffStateMachine;
@@ -60,7 +64,14 @@ class MultiAgentCoordinatorTest {
         ObjectMapper objectMapper = new ObjectMapper();
         MultiAgentInputSummaryBuilder inputSummaryBuilder = new MultiAgentInputSummaryBuilder();
         MultiAgentPromptBuilder promptBuilder = new MultiAgentPromptBuilder(objectMapper, promptAssembler);
-        MultiAgentRoleResolver roleResolver = new MultiAgentRoleResolver(objectMapper, repairService, profileProperties);
+        RolePlanParser rolePlanParser = new RolePlanParser(objectMapper);
+        RolePlanRepairService rolePlanRepairService = new RolePlanRepairService(objectMapper, repairService);
+        RoleFallbackFactory roleFallbackFactory = new RoleFallbackFactory(profileProperties);
+        RoleResolveDiagnostics roleResolveDiagnostics = new RoleResolveDiagnostics();
+        MultiAgentRoleResolver roleResolver = new MultiAgentRoleResolver(rolePlanParser,
+                rolePlanRepairService,
+                roleFallbackFactory,
+                roleResolveDiagnostics);
         MultiAgentEventPublisher eventHandler = new MultiAgentEventPublisher(eventPublisher, eventStreamService);
         MultiAgentRoutingPolicy routingPolicy = new MultiAgentRoutingPolicy();
         StepArgumentReader stepArgumentReader = new StepArgumentReader();

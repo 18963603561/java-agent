@@ -2,8 +2,8 @@ package com.example.agent.orchestration.multiagent.usecase;
 
 import com.example.agent.orchestration.multiagent.AgentRole;
 import com.example.agent.orchestration.multiagent.MultiAgentExecutionMode;
-import com.example.agent.orchestration.multiagent.dag.DagPlan;
-import com.example.agent.orchestration.multiagent.dag.DagPlanner;
+import com.example.agent.orchestration.multiagent.dag.domain.model.DagPlan;
+import com.example.agent.orchestration.multiagent.dag.application.planner.DagPlanner;
 import com.example.agent.orchestration.multiagent.dag.actor.DagActorRuntime;
 import com.example.agent.orchestration.multiagent.model.DagExecutionResult;
 import com.example.agent.orchestration.multiagent.model.MultiAgentExecutionResult;

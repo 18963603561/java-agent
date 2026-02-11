@@ -1,8 +1,8 @@
 package com.example.agent.orchestration.multiagent.dag.actor;
 
-import com.example.agent.orchestration.multiagent.dag.DagNode;
+import com.example.agent.orchestration.multiagent.dag.domain.model.DagNode;
 import com.example.agent.orchestration.multiagent.dag.actor.distributed.DagDistributedProperties;
-import com.example.agent.orchestration.multiagent.dag.actor.state.DagMessageDedupRepository;
+import com.example.agent.orchestration.multiagent.dag.domain.port.DagMessageDedupRepository;
 import java.util.Objects;
 import java.util.function.Consumer;
 import org.slf4j.Logger;

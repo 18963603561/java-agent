@@ -4,7 +4,7 @@ import com.example.agent.orchestration.multiagent.dag.audit.DagAuditService;
 import com.example.agent.orchestration.multiagent.dag.audit.DagBackpressureRecord;
 import com.example.agent.orchestration.multiagent.dag.audit.DagNodeAttemptRecord;
 import com.example.agent.orchestration.multiagent.dag.audit.DagRunAuditRecord;
-import com.example.agent.orchestration.multiagent.dag.audit.InMemoryDagAuditRepository;
+import com.example.agent.orchestration.multiagent.dag.infrastructure.audit.InMemoryDagAuditRepository;
 import java.time.Instant;
 import org.junit.jupiter.api.Test;
 
@@ -63,4 +63,3 @@ class DagDiagnosisServiceTest {
         assertFalse(report.getRecommendations().isEmpty());
     }
 }
-

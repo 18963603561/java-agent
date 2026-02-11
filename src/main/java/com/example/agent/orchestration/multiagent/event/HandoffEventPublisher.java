@@ -2,6 +2,7 @@ package com.example.agent.orchestration.multiagent.event;
 
 import com.example.agent.orchestration.multiagent.handoff.HandoffRecord;
 import com.example.agent.orchestration.multiagent.handoff.HandoffRequest;
+import com.example.agent.orchestration.multiagent.observability.MultiAgentEventKeys;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
 import java.util.HashMap;
@@ -35,10 +36,10 @@ public class HandoffEventPublisher {
         Map<String, Object> payload = new HashMap<>();
         appendHandoffRecordPayload(payload, record);
         if (request != null) {
-            payload.put("fromAgent", request.getFromAgent());
-            payload.put("toAgent", request.getToAgent());
-            payload.put("context", request.getContext());
-            payload.put("idempotencyKey", request.getIdempotencyKey());
+            payload.put(MultiAgentEventKeys.FROM_AGENT, request.getFromAgent());
+            payload.put(MultiAgentEventKeys.TO_AGENT, request.getToAgent());
+            payload.put(MultiAgentEventKeys.CONTEXT, request.getContext());
+            payload.put(MultiAgentEventKeys.IDEMPOTENCY_KEY, request.getIdempotencyKey());
         }
         publishSupport.publishEvent(tenantContext,
                 workflowId,
@@ -58,12 +59,13 @@ public class HandoffEventPublisher {
                                         String reason) {
         Map<String, Object> payload = new HashMap<>();
         appendHandoffRecordPayload(payload, record);
-        payload.put("status", record != null && record.getStatus() != null ? record.getStatus().name() : null);
-        payload.put("reason", reason);
+        payload.put(MultiAgentEventKeys.STATUS,
+                record != null && record.getStatus() != null ? record.getStatus().name() : null);
+        payload.put(MultiAgentEventKeys.REASON, reason);
         if (request != null) {
-            payload.put("fromAgent", request.getFromAgent());
-            payload.put("toAgent", request.getToAgent());
-            payload.put("idempotencyKey", request.getIdempotencyKey());
+            payload.put(MultiAgentEventKeys.FROM_AGENT, request.getFromAgent());
+            payload.put(MultiAgentEventKeys.TO_AGENT, request.getToAgent());
+            payload.put(MultiAgentEventKeys.IDEMPOTENCY_KEY, request.getIdempotencyKey());
         }
         publishSupport.publishEvent(tenantContext,
                 workflowId,
@@ -83,10 +85,10 @@ public class HandoffEventPublisher {
                                    String message,
                                    String topic) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("fromRoleId", fromRoleId);
-        payload.put("toRoleId", toRoleId);
-        payload.put("message", message);
-        payload.put("topic", topic);
+        payload.put(MultiAgentEventKeys.FROM_ROLE_ID, fromRoleId);
+        payload.put(MultiAgentEventKeys.TO_ROLE_ID, toRoleId);
+        payload.put(MultiAgentEventKeys.MESSAGE, message);
+        payload.put(MultiAgentEventKeys.TOPIC, topic);
         publishSupport.publishEvent(tenantContext,
                 workflowId,
                 seqCounter,
@@ -104,9 +106,9 @@ public class HandoffEventPublisher {
                                        String message,
                                        String topic) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("roleId", roleId);
-        payload.put("message", message);
-        payload.put("topic", topic);
+        payload.put(MultiAgentEventKeys.ROLE_ID, roleId);
+        payload.put(MultiAgentEventKeys.MESSAGE, message);
+        payload.put(MultiAgentEventKeys.TOPIC, topic);
         publishSupport.publishEvent(tenantContext,
                 workflowId,
                 seqCounter,
@@ -123,8 +125,8 @@ public class HandoffEventPublisher {
                                         String topic,
                                         String source) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("topic", topic);
-        payload.put("source", source);
+        payload.put(MultiAgentEventKeys.TOPIC, topic);
+        payload.put(MultiAgentEventKeys.SOURCE, source);
         publishSupport.publishEvent(tenantContext,
                 workflowId,
                 seqCounter,
@@ -139,13 +141,14 @@ public class HandoffEventPublisher {
         if (payload == null || record == null) {
             return;
         }
-        payload.put("handoffId", record.getHandoffId());
-        payload.put("version", record.getVersion());
-        payload.put("status", record.getStatus() != null ? record.getStatus().name() : null);
-        payload.put("errorCode", record.getErrorCode());
-        payload.put("failureReason", record.getFailureReason());
-        payload.put("createdAt", record.getCreatedAt() != null ? record.getCreatedAt().toString() : null);
-        payload.put("updatedAt", record.getUpdatedAt() != null ? record.getUpdatedAt().toString() : null);
+        payload.put(MultiAgentEventKeys.HANDOFF_ID, record.getHandoffId());
+        payload.put(MultiAgentEventKeys.VERSION, record.getVersion());
+        payload.put(MultiAgentEventKeys.STATUS, record.getStatus() != null ? record.getStatus().name() : null);
+        payload.put(MultiAgentEventKeys.ERROR_CODE, record.getErrorCode());
+        payload.put(MultiAgentEventKeys.FAILURE_REASON, record.getFailureReason());
+        payload.put(MultiAgentEventKeys.CREATED_AT,
+                record.getCreatedAt() != null ? record.getCreatedAt().toString() : null);
+        payload.put(MultiAgentEventKeys.UPDATED_AT,
+                record.getUpdatedAt() != null ? record.getUpdatedAt().toString() : null);
     }
 }
-

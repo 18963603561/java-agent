@@ -1,8 +1,8 @@
 package com.example.agent.orchestration.multiagent.dag.actor.runtime;
 
 import com.example.agent.orchestration.multiagent.MultiAgentEventPublisher;
-import com.example.agent.orchestration.multiagent.dag.DagNode;
-import com.example.agent.orchestration.multiagent.dag.DagPlan;
+import com.example.agent.orchestration.multiagent.dag.domain.model.DagNode;
+import com.example.agent.orchestration.multiagent.dag.domain.model.DagPlan;
 import com.example.agent.orchestration.multiagent.dag.actor.DagActorRuntime;
 import com.example.agent.orchestration.multiagent.dag.actor.DagNodeRuntimeState;
 import com.example.agent.orchestration.multiagent.dag.actor.DagSupervisorPolicy;

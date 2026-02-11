@@ -4,7 +4,7 @@ import com.example.agent.history.eventlog.InMemoryEventLogRepository;
 import com.example.agent.history.eventlog.EventLogRecord;
 import com.example.agent.orchestration.multiagent.dag.audit.DagAuditService;
 import com.example.agent.orchestration.multiagent.dag.audit.DagRunAuditRecord;
-import com.example.agent.orchestration.multiagent.dag.audit.InMemoryDagAuditRepository;
+import com.example.agent.orchestration.multiagent.dag.infrastructure.audit.InMemoryDagAuditRepository;
 import java.time.Instant;
 import java.util.Map;
 import org.junit.jupiter.api.Test;

@@ -1,5 +1,6 @@
 package com.example.agent.orchestration.multiagent.event;
 
+import com.example.agent.orchestration.multiagent.observability.MultiAgentEventKeys;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.streaming.domain.EventType;
 import java.util.HashMap;
@@ -51,8 +52,8 @@ public class DagEventPublisher {
                                       String dagRunId,
                                       Integer attempt) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("nodeId", nodeId);
-        payload.put("roleId", roleId);
+        payload.put(MultiAgentEventKeys.NODE_ID, nodeId);
+        payload.put(MultiAgentEventKeys.ROLE_ID, roleId);
         publishSupport.appendDagReplayAnchor(payload, dagRunId, nodeId, attempt, null, null);
         publishSupport.publishEvent(tenantContext,
                 workflowId,
@@ -92,9 +93,9 @@ public class DagEventPublisher {
                                         String dagRunId,
                                         Integer attempt) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("nodeId", nodeId);
-        payload.put("roleId", roleId);
-        payload.put("producedTopics", producedTopics == null ? List.of() : producedTopics);
+        payload.put(MultiAgentEventKeys.NODE_ID, nodeId);
+        payload.put(MultiAgentEventKeys.ROLE_ID, roleId);
+        payload.put(MultiAgentEventKeys.PRODUCED_TOPICS, producedTopics == null ? List.of() : producedTopics);
         publishSupport.appendDagReplayAnchor(payload, dagRunId, nodeId, attempt, null, null);
         publishSupport.publishEvent(tenantContext,
                 workflowId,
@@ -136,9 +137,9 @@ public class DagEventPublisher {
                                      Integer attempt,
                                      String reasonCode) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("nodeId", nodeId);
-        payload.put("roleId", roleId);
-        payload.put("reason", reason);
+        payload.put(MultiAgentEventKeys.NODE_ID, nodeId);
+        payload.put(MultiAgentEventKeys.ROLE_ID, roleId);
+        payload.put(MultiAgentEventKeys.REASON, reason);
         publishSupport.appendDagReplayAnchor(payload, dagRunId, nodeId, attempt, reasonCode, null);
         publishSupport.publishEvent(tenantContext,
                 workflowId,
@@ -208,12 +209,12 @@ public class DagEventPublisher {
                                       String dagRunId,
                                       String reasonCode) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("nodeId", nodeId);
-        payload.put("roleId", roleId);
-        payload.put("reason", reason);
-        payload.put("delayMs", delayMs);
-        payload.put("waitedMs", waitedMs);
-        payload.put("attempt", attempt);
+        payload.put(MultiAgentEventKeys.NODE_ID, nodeId);
+        payload.put(MultiAgentEventKeys.ROLE_ID, roleId);
+        payload.put(MultiAgentEventKeys.REASON, reason);
+        payload.put(MultiAgentEventKeys.DELAY_MS, delayMs);
+        payload.put(MultiAgentEventKeys.WAITED_MS, waitedMs);
+        payload.put(MultiAgentEventKeys.ATTEMPT, attempt);
         publishSupport.appendDagReplayAnchor(payload, dagRunId, nodeId, attempt, reasonCode, null);
         publishSupport.publishEvent(tenantContext,
                 workflowId,
@@ -281,11 +282,11 @@ public class DagEventPublisher {
                                               Integer attempt,
                                               String reasonCode) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("nodeId", nodeId);
-        payload.put("reason", reason);
-        payload.put("queueSize", queueSize);
-        payload.put("capacity", capacity);
-        payload.put("delayMs", delayMs);
+        payload.put(MultiAgentEventKeys.NODE_ID, nodeId);
+        payload.put(MultiAgentEventKeys.REASON, reason);
+        payload.put(MultiAgentEventKeys.QUEUE_SIZE, queueSize);
+        payload.put(MultiAgentEventKeys.CAPACITY, capacity);
+        payload.put(MultiAgentEventKeys.DELAY_MS, delayMs);
         publishSupport.appendDagReplayAnchor(payload, dagRunId, nodeId, attempt, reasonCode, null);
         publishSupport.publishEvent(tenantContext,
                 workflowId,
@@ -331,11 +332,11 @@ public class DagEventPublisher {
                                        String dagRunId,
                                        String reasonCode) {
         Map<String, Object> payload = new HashMap<>();
-        payload.put("nodeId", nodeId);
-        payload.put("roleId", roleId);
-        payload.put("attempt", attempt);
-        payload.put("delayMs", delayMs);
-        payload.put("reason", reason);
+        payload.put(MultiAgentEventKeys.NODE_ID, nodeId);
+        payload.put(MultiAgentEventKeys.ROLE_ID, roleId);
+        payload.put(MultiAgentEventKeys.ATTEMPT, attempt);
+        payload.put(MultiAgentEventKeys.DELAY_MS, delayMs);
+        payload.put(MultiAgentEventKeys.REASON, reason);
         publishSupport.appendDagReplayAnchor(payload, dagRunId, nodeId, attempt, reasonCode, null);
         publishSupport.publishEvent(tenantContext,
                 workflowId,
@@ -344,4 +345,3 @@ public class DagEventPublisher {
                 payload);
     }
 }
-
