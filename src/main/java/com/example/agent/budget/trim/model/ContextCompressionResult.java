@@ -57,6 +57,21 @@ public class ContextCompressionResult {
      */
     private boolean stillOverBudget;
 
+    /**
+     * 压缩执行来源。
+     */
+    private String executionSource;
+
+    /**
+     * 压缩失败原因。
+     */
+    private String failureReason;
+
+    /**
+     * 是否发生降级。
+     */
+    private boolean fallbackApplied;
+
     public ContextSnapshot getSnapshot() {
         return snapshot;
     }
@@ -135,5 +150,29 @@ public class ContextCompressionResult {
 
     public void setStillOverBudget(boolean stillOverBudget) {
         this.stillOverBudget = stillOverBudget;
+    }
+
+    public String getExecutionSource() {
+        return executionSource;
+    }
+
+    public void setExecutionSource(String executionSource) {
+        this.executionSource = executionSource;
+    }
+
+    public String getFailureReason() {
+        return failureReason;
+    }
+
+    public void setFailureReason(String failureReason) {
+        this.failureReason = failureReason;
+    }
+
+    public boolean isFallbackApplied() {
+        return fallbackApplied;
+    }
+
+    public void setFallbackApplied(boolean fallbackApplied) {
+        this.fallbackApplied = fallbackApplied;
     }
 }

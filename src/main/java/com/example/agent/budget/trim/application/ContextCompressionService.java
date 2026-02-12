@@ -3,16 +3,20 @@ package com.example.agent.budget.trim.application;
 import com.example.agent.budget.core.ContextBudgetAllocation;
 import com.example.agent.budget.core.ContextSection;
 import com.example.agent.budget.trim.estimator.ContextTokenEstimator;
-import com.example.agent.budget.trim.model.CompressionExecutionResult;
 import com.example.agent.budget.trim.model.CompressionSummaryApplyResult;
 import com.example.agent.budget.trim.model.ContextCompressionRequest;
 import com.example.agent.budget.trim.model.ContextCompressionResult;
 import com.example.agent.budget.trim.model.ContextTrimReport;
 import com.example.agent.budget.trim.config.ContextCompressionProperties;
+import com.example.agent.capabilities.context.compression.application.CompressionExecutionRouter;
+import com.example.agent.capabilities.context.compression.application.CompressionModelMapper;
+import com.example.agent.capabilities.context.compression.application.port.CompressionTelemetryPort;
+import com.example.agent.capabilities.context.compression.domain.model.CompressionCommand;
+import com.example.agent.capabilities.context.compression.domain.model.CompressionOutcome;
+import com.example.agent.capabilities.context.compression.domain.policy.CompressionTriggerPolicy;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.capabilities.memory.policy.TokenEstimator;
-import com.example.agent.streaming.observability.MetricsPublisher;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,26 +32,29 @@ public class ContextCompressionService {
     private static final Logger log = LoggerFactory.getLogger(ContextCompressionService.class);
 
     private final ContextTokenEstimator contextTokenEstimator;
-    private final MetricsPublisher metricsPublisher;
+    private final CompressionTelemetryPort telemetryPort;
     private final ContextCompressionProperties properties;
     private final CompressionTriggerPolicy triggerPolicy;
     private final CompressionCooldownService cooldownService;
-    private final CompressionExecutionService executionService;
+    private final CompressionExecutionRouter executionRouter;
+    private final CompressionModelMapper compressionModelMapper;
     private final CompressionSummaryApplier summaryApplier;
 
     public ContextCompressionService(TokenEstimator tokenEstimator,
-                                     MetricsPublisher metricsPublisher,
+                                     CompressionTelemetryPort telemetryPort,
                                      ContextCompressionProperties properties,
                                      CompressionTriggerPolicy triggerPolicy,
                                      CompressionCooldownService cooldownService,
-                                     CompressionExecutionService executionService,
+                                     CompressionExecutionRouter executionRouter,
+                                     CompressionModelMapper compressionModelMapper,
                                      CompressionSummaryApplier summaryApplier) {
         this.contextTokenEstimator = new ContextTokenEstimator(tokenEstimator);
-        this.metricsPublisher = metricsPublisher;
+        this.telemetryPort = telemetryPort;
         this.properties = properties;
         this.triggerPolicy = triggerPolicy;
         this.cooldownService = cooldownService;
-        this.executionService = executionService;
+        this.executionRouter = executionRouter;
+        this.compressionModelMapper = compressionModelMapper;
         this.summaryApplier = summaryApplier;
     }
 
@@ -66,7 +73,8 @@ public class ContextCompressionService {
         ContextSnapshot snapshot = request.getSnapshot();
         result.setSnapshot(snapshot);
 
-        if (properties != null && !properties.isEnabled()) {
+        // 配置判定：关闭压缩开关时直接返回，避免进入后续重路径。
+        if (properties != null && properties.getTrigger() != null && !properties.getTrigger().isEnabled()) {
             return result;
         }
 
@@ -89,8 +97,9 @@ public class ContextCompressionService {
         String workflowId = request.getWorkflowId();
         String sessionId = request.getSessionId();
         String cooldownKey = resolveCooldownKey(workflowId, sessionId);
+        // 冷却判定：命中冷却窗口则跳过本次压缩并打点。
         if (StringUtils.hasText(cooldownKey) && cooldownService.isInCooldown(cooldownKey)) {
-            metricsPublisher.incrementWithTags("context_compression_skipped_total", "cooldown", "true");
+            telemetryPort.incrementWithTags("context_compression_skipped_total", "cooldown", "true");
             result.setSkippedCooldown(true);
             return result;
         }
@@ -101,9 +110,22 @@ public class ContextCompressionService {
             return result;
         }
 
-        CompressionExecutionResult executionResult = executionService.execute(request, request.getTenantContext());
-        result.setDurationMs(executionResult.getDurationMs());
-        if (!executionResult.isSuccess()) {
+        // 模型映射：将请求转换为压缩命令，隔离调用方与执行域对象。
+        CompressionCommand command = compressionModelMapper.toCommand(request, request.getTenantContext());
+        // 执行路由：根据模式解析路由到 rule/llm 执行器。
+        CompressionOutcome outcome = compressionModelMapper.toOutcome(executionRouter.execute(command));
+        if (outcome == null || outcome.getExecutionResult() == null) {
+            return result;
+        }
+        result.setExecutionSource(outcome.getExecutionResult().getSource());
+        result.setFailureReason(outcome.getExecutionResult().getFailureReason());
+        result.setFallbackApplied(outcome.getExecutionResult().isFallbackApplied());
+        result.setDurationMs(outcome.getExecutionResult().getDurationMs());
+        if (!outcome.getExecutionResult().isSuccess()) {
+            // 失败打点：记录压缩失败原因与来源，支撑故障分析与降级评估。
+            telemetryPort.incrementWithTags("context_compression_failed_total",
+                    "source", sanitizeTag(outcome.getExecutionResult().getSource()),
+                    "reason", sanitizeTag(outcome.getExecutionResult().getFailureReason()));
             return result;
         }
 
@@ -111,7 +133,8 @@ public class ContextCompressionService {
             cooldownService.markCompressed(cooldownKey);
         }
 
-        CompressionSummaryApplyResult applyResult = summaryApplier.apply(snapshot, executionResult.getCompressed());
+        // 摘要回填：将压缩结果写回快照工作记忆与长期记忆引用。
+        CompressionSummaryApplyResult applyResult = summaryApplier.apply(snapshot, outcome.getExecutionResult().getCompressed());
         result.setSummaryVersion(applyResult.getSummaryVersion());
 
         Map<ContextSection, Integer> sectionAfterCompress = contextTokenEstimator.estimateSectionTokens(snapshot);
@@ -119,8 +142,9 @@ public class ContextCompressionService {
         result.setAfterCompressTokens(afterCompressTokens);
 
         boolean stillOverBudget = triggerPolicy.isOverBudget(allocation, sectionAfterCompress, afterCompressTokens);
+        // 超预算判定：压缩后仍超预算时告警并记录指标。
         if (stillOverBudget) {
-            metricsPublisher.increment("context_compression_still_over_budget_total");
+            telemetryPort.increment("context_compression_still_over_budget_total");
             log.warn("上下文压缩后仍超预算, tenantId={}, workflowId={}, afterCompressTokens={}, totalBudgetTokens={}",
                     resolveTenantId(request.getTenantContext(), snapshot), workflowId, afterCompressTokens,
                     allocation.getTotalTokens());
@@ -130,6 +154,8 @@ public class ContextCompressionService {
         result.setTriggerReason(reason);
         result.setStillOverBudget(stillOverBudget);
         recordTriggerMetrics(reason);
+        telemetryPort.incrementWithTags("context_compression_success_total",
+                "source", sanitizeTag(outcome.getExecutionResult().getSource()));
 
         log.info("上下文压缩完成, tenantId={}, workflowId={}, beforeTokens={}, afterTrimTokens={}, afterCompressTokens={}, "
                         + "triggerReason={}, compressionDurationMs={}, summaryVersion={}",
@@ -139,7 +165,7 @@ public class ContextCompressionService {
                 tokenView.afterTrimTokens(),
                 afterCompressTokens,
                 reason,
-                executionResult.getDurationMs(),
+                outcome.getExecutionResult().getDurationMs(),
                 result.getSummaryVersion());
         return result;
     }
@@ -180,10 +206,13 @@ public class ContextCompressionService {
             return;
         }
         if (reason.contains("OVER_TOTAL")) {
-            metricsPublisher.incrementWithTags("context_compression_trigger_total", "reason", "OVER_TOTAL");
+            telemetryPort.incrementWithTags("context_compression_trigger_total", "reason", "OVER_TOTAL");
         }
         if (reason.contains("OVER_SECTION")) {
-            metricsPublisher.incrementWithTags("context_compression_trigger_total", "reason", "OVER_SECTION");
+            telemetryPort.incrementWithTags("context_compression_trigger_total", "reason", "OVER_SECTION");
+        }
+        if (reason.contains("OVER_RATIO")) {
+            telemetryPort.incrementWithTags("context_compression_trigger_total", "reason", "OVER_RATIO");
         }
     }
 
@@ -198,6 +227,16 @@ public class ContextCompressionService {
             return snapshot.getRuntimeMeta().getTenantId();
         }
         return null;
+    }
+
+    /**
+     * 清洗标签值。
+     */
+    private String sanitizeTag(String value) {
+        if (!StringUtils.hasText(value)) {
+            return "unknown";
+        }
+        return value;
     }
 
     /**

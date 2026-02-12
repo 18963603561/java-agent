@@ -16,5 +16,7 @@ public enum ModelScene {
     // 研究场景：检索/引用/摘要型任务
     RESEARCH,
     // 低成本场景：预算敏感型调用
-    CHEAP
+    CHEAP,
+    // 上下文压缩场景：用于上下文压缩摘要生成
+    CONTEXT_COMPRESS
 }

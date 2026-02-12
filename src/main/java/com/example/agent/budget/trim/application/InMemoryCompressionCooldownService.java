@@ -26,7 +26,9 @@ public class InMemoryCompressionCooldownService implements CompressionCooldownSe
         if (!StringUtils.hasText(key)) {
             return false;
         }
-        int intervalSeconds = properties != null ? properties.getMinIntervalSeconds() : 0;
+        int intervalSeconds = properties != null && properties.getTrigger() != null
+                ? properties.getTrigger().getMinIntervalSeconds()
+                : 0;
         if (intervalSeconds <= 0) {
             return false;
         }

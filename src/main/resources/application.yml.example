@@ -799,6 +799,12 @@ agent:
       # 默认项:
       # - cheap
       cheap: cheap
+      # 说明: 上下文压缩模型路由
+      # 可选项:
+      # - 已配置模型标识
+      # 默认项:
+      # - cheap
+      context_compress: cheap
     # 说明: 启用回退
     # 可选项:
     # - true
@@ -1004,6 +1010,94 @@ agent:
       # 默认项:
       # - 30
       min-interval-seconds: 30
+      mode:
+        # 说明: 压缩模式
+        # 可选项:
+        # - rule
+        # - llm
+        # - hybrid
+        # 默认项:
+        # - rule
+        type: rule
+      trigger:
+        # 说明: 启用压缩触发
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - true
+        enabled: true
+        # 说明: 启用总预算触发
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - true
+        over-total-budget-enabled: true
+        # 说明: 启用分区预算触发
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - true
+        over-section-budget-enabled: true
+        # 说明: 最小触发间隔（秒）
+        # 可选项:
+        # - 非负整数
+        # 默认项:
+        # - 30
+        min-interval-seconds: 30
+        # 说明: 压缩触发比例阈值
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.85
+        compression-trigger-ratio: 0.85
+        # 说明: 压缩目标比例阈值
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.70
+        compression-target-ratio: 0.70
+      window:
+        # 说明: 三段滑窗首段保留条数
+        # 可选项:
+        # - 非负整数
+        # 默认项:
+        # - 2
+        primers-count: 2
+        # 说明: 三段滑窗尾段保留条数
+        # 可选项:
+        # - 非负整数
+        # 默认项:
+        # - 6
+        recents-count: 6
+      llm:
+        # 说明: 压缩模型场景
+        # 可选项:
+        # - context_compress
+        # 默认项:
+        # - context_compress
+        scene: context_compress
+        # 说明: 压缩超时毫秒
+        # 可选项:
+        # - 正整数
+        # 默认项:
+        # - 3000
+        timeout-ms: 3000
+        # 说明: 压缩重试次数
+        # 可选项:
+        # - 非负整数
+        # 默认项:
+        # - 0
+        retry: 0
+        # 说明: 压缩失败降级策略
+        # 可选项:
+        # - rule
+        # - none
+        # 默认项:
+        # - rule
+        fallback: rule
   security:
     redaction:
       # 说明: 启用脱敏治理

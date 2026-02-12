@@ -79,7 +79,7 @@ class BudgetArchitectureGuardTest {
     void budgetFlowShouldNotUseNullAllocationAsControlSignal() throws IOException {
         List<String> targetFiles = List.of(
                 "src/main/java/com/example/agent/budget/trim/application/ContextCompressionService.java",
-                "src/main/java/com/example/agent/budget/trim/application/DefaultCompressionTriggerPolicy.java",
+                "src/main/java/com/example/agent/capabilities/context/compression/domain/policy/DefaultCompressionTriggerPolicy.java",
                 "src/main/java/com/example/agent/budget/trim/application/DefaultContextPruner.java",
                 "src/main/java/com/example/agent/capabilities/llm/prompt/PromptTrimEngine.java",
                 "src/main/java/com/example/agent/capabilities/context/DefaultContextBuilder.java"

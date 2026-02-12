@@ -382,6 +382,7 @@ agent:
       research: research
       # 璇存槑: 浣庢垚鏈ā鍨嬭矾鐢?鍙€夐」: - 宸查厤缃ā鍨嬫爣璇?榛樿椤? - cheap
       cheap: cheap
+      context_compress: cheap
     # 璇存槑: 鍚敤鍥為€€ 鍙€夐」: - true - false 榛樿椤? - true
     fallback-enabled: false
     # 璇存槑: 鍥為€€妯″瀷鏍囪瘑 鍙€夐」: - 宸查厤缃ā鍨嬫爣璇?榛樿椤? - cheap
@@ -457,6 +458,23 @@ agent:
       trigger-over-section-budget: true
       # 璇存槑: 鍘嬬缉瑙﹀彂鏈€灏忛棿闅旓紙绉掞級锛岀敤浜庨槻鎶?鍙€夐」: - 闈炶礋鏁存暟 榛樿椤? - 30
       min-interval-seconds: 30
+      mode:
+        type: rule
+      trigger:
+        enabled: true
+        over-total-budget-enabled: true
+        over-section-budget-enabled: true
+        min-interval-seconds: 30
+        compression-trigger-ratio: 0.85
+        compression-target-ratio: 0.70
+      window:
+        primers-count: 2
+        recents-count: 6
+      llm:
+        scene: context_compress
+        timeout-ms: 3000
+        retry: 0
+        fallback: rule
   security:
     redaction:
       # 璇存槑: 鍚敤鑴辨晱娌荤悊 鍙€夐」: - true - false 榛樿椤? - true

@@ -10,7 +10,24 @@ import com.example.agent.capabilities.memory.model.MemoryRecord;
 import com.example.agent.capabilities.memory.MemoryStore;
 import com.example.agent.capabilities.memory.policy.TokenEstimator;
 import com.example.agent.capabilities.memory.model.WorkingMemorySummary;
+import com.example.agent.capabilities.context.compression.application.CompressionExecutionRouter;
+import com.example.agent.capabilities.context.compression.application.CompressionModelMapper;
+import com.example.agent.capabilities.context.compression.application.DefaultCompressionModeResolver;
+import com.example.agent.capabilities.context.compression.application.LlmCompressionOrchestrator;
+import com.example.agent.capabilities.context.compression.domain.policy.DefaultCompressionFallbackPolicy;
+import com.example.agent.capabilities.context.compression.domain.policy.DefaultCompressionTriggerPolicy;
+import com.example.agent.capabilities.context.compression.infrastructure.llm.LlmCompressionExecutorAdapter;
+import com.example.agent.capabilities.context.compression.infrastructure.rule.RuleCompressionExecutorAdapter;
+import com.example.agent.capabilities.context.compression.infrastructure.telemetry.MetricsCompressionTelemetryAdapter;
+import com.example.agent.capabilities.context.compression.parser.CompressionResponseParser;
+import com.example.agent.capabilities.context.compression.parser.DefaultCompressionValidationPolicy;
+import com.example.agent.capabilities.context.compression.prompt.DefaultCompressionPromptBuilder;
+import com.example.agent.capabilities.context.compression.summary.CompressionSummaryGuard;
+import com.example.agent.capabilities.llm.client.ModelInvocationService;
+import com.example.agent.security.redaction.RedactionProperties;
+import com.example.agent.security.redaction.RedactionService;
 import com.example.agent.streaming.observability.MetricsPublisher;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import io.micrometer.core.instrument.simple.SimpleMeterRegistry;
 import java.time.Instant;
 import java.util.EnumMap;
@@ -23,12 +40,10 @@ import com.example.agent.budget.core.ContextBudgetAllocationState;
 import com.example.agent.budget.trim.model.ContextTrimReport;
 import com.example.agent.budget.trim.application.ContextCompressionService;
 import com.example.agent.budget.trim.config.ContextCompressionProperties;
+import com.example.agent.budget.trim.estimator.ContextTokenEstimator;
 import com.example.agent.budget.trim.model.ContextCompressionRequest;
 import com.example.agent.budget.trim.model.ContextCompressionResult;
-import com.example.agent.budget.trim.estimator.ContextTokenEstimator;
-import com.example.agent.budget.trim.application.DefaultCompressionExecutionService;
 import com.example.agent.budget.trim.application.DefaultCompressionSummaryApplier;
-import com.example.agent.budget.trim.application.DefaultCompressionTriggerPolicy;
 import com.example.agent.budget.trim.application.InMemoryCompressionCooldownService;
 import com.example.agent.budget.core.ContextSection;
 
@@ -50,14 +65,7 @@ class ContextCompressionServiceTest {
         ContextCompressionProperties properties = new ContextCompressionProperties();
         properties.setMinIntervalSeconds(0);
 
-        ContextCompressionService controller = new ContextCompressionService(
-                new TokenEstimator(),
-                new MetricsPublisher(new SimpleMeterRegistry()),
-                properties,
-                new DefaultCompressionTriggerPolicy(properties),
-                new InMemoryCompressionCooldownService(properties),
-                new DefaultCompressionExecutionService(memoryStore, new MetricsPublisher(new SimpleMeterRegistry())),
-                new DefaultCompressionSummaryApplier());
+        ContextCompressionService controller = createController(memoryStore, properties);
 
         ContextBudgetAllocation allocation = buildAllocation(50, 20);
         ContextTrimReport trimReport = buildTrimReport(300, 200, 150);
@@ -89,14 +97,7 @@ class ContextCompressionServiceTest {
         ContextCompressionProperties properties = new ContextCompressionProperties();
         properties.setMinIntervalSeconds(60);
 
-        ContextCompressionService controller = new ContextCompressionService(
-                new TokenEstimator(),
-                new MetricsPublisher(new SimpleMeterRegistry()),
-                properties,
-                new DefaultCompressionTriggerPolicy(properties),
-                new InMemoryCompressionCooldownService(properties),
-                new DefaultCompressionExecutionService(memoryStore, new MetricsPublisher(new SimpleMeterRegistry())),
-                new DefaultCompressionSummaryApplier());
+        ContextCompressionService controller = createController(memoryStore, properties);
 
         ContextBudgetAllocation allocation = buildAllocation(50, 20);
         ContextTrimReport trimReport = buildTrimReport(300, 200, 150);
@@ -128,14 +129,7 @@ class ContextCompressionServiceTest {
         ContextCompressionProperties properties = new ContextCompressionProperties();
         properties.setEnabled(false);
 
-        ContextCompressionService controller = new ContextCompressionService(
-                new TokenEstimator(),
-                new MetricsPublisher(new SimpleMeterRegistry()),
-                properties,
-                new DefaultCompressionTriggerPolicy(properties),
-                new InMemoryCompressionCooldownService(properties),
-                new DefaultCompressionExecutionService(memoryStore, new MetricsPublisher(new SimpleMeterRegistry())),
-                new DefaultCompressionSummaryApplier());
+        ContextCompressionService controller = createController(memoryStore, properties);
 
         ContextBudgetAllocation allocation = buildAllocation(50, 20);
         ContextTrimReport trimReport = buildTrimReport(300, 200, 150);
@@ -162,14 +156,7 @@ class ContextCompressionServiceTest {
         ContextCompressionProperties properties = new ContextCompressionProperties();
 
         TokenEstimator tokenEstimator = new TokenEstimator();
-        ContextCompressionService controller = new ContextCompressionService(
-                tokenEstimator,
-                new MetricsPublisher(new SimpleMeterRegistry()),
-                properties,
-                new DefaultCompressionTriggerPolicy(properties),
-                new InMemoryCompressionCooldownService(properties),
-                new DefaultCompressionExecutionService(memoryStore, new MetricsPublisher(new SimpleMeterRegistry())),
-                new DefaultCompressionSummaryApplier());
+        ContextCompressionService controller = createController(memoryStore, properties, tokenEstimator);
 
         ContextSnapshot snapshot = buildSnapshot("a".repeat(120), "b".repeat(60));
         ContextBudgetAllocation allocation = buildAllocation(99999, 99999);
@@ -199,14 +186,7 @@ class ContextCompressionServiceTest {
         ContextCompressionProperties properties = new ContextCompressionProperties();
 
         TokenEstimator tokenEstimator = new TokenEstimator();
-        ContextCompressionService controller = new ContextCompressionService(
-                tokenEstimator,
-                new MetricsPublisher(new SimpleMeterRegistry()),
-                properties,
-                new DefaultCompressionTriggerPolicy(properties),
-                new InMemoryCompressionCooldownService(properties),
-                new DefaultCompressionExecutionService(memoryStore, new MetricsPublisher(new SimpleMeterRegistry())),
-                new DefaultCompressionSummaryApplier());
+        ContextCompressionService controller = createController(memoryStore, properties, tokenEstimator);
 
         ContextSnapshot snapshot = buildSnapshot("", "");
         ContextBudgetAllocation allocation = buildAllocation(99999, 99999);
@@ -232,14 +212,7 @@ class ContextCompressionServiceTest {
         ContextCompressionProperties properties = new ContextCompressionProperties();
         properties.setMinIntervalSeconds(0);
 
-        ContextCompressionService controller = new ContextCompressionService(
-                new TokenEstimator(),
-                new MetricsPublisher(new SimpleMeterRegistry()),
-                properties,
-                new DefaultCompressionTriggerPolicy(properties),
-                new InMemoryCompressionCooldownService(properties),
-                new DefaultCompressionExecutionService(memoryStore, new MetricsPublisher(new SimpleMeterRegistry())),
-                new DefaultCompressionSummaryApplier());
+        ContextCompressionService controller = createController(memoryStore, properties);
 
         ContextBudgetAllocation allocation = buildAllocation(40, 10);
         ContextTrimReport trimReport = buildTrimReport(200, 160, 120);
@@ -274,14 +247,7 @@ class ContextCompressionServiceTest {
         MemoryStore memoryStore = Mockito.mock(MemoryStore.class);
         ContextCompressionProperties properties = new ContextCompressionProperties();
 
-        ContextCompressionService controller = new ContextCompressionService(
-                new TokenEstimator(),
-                new MetricsPublisher(new SimpleMeterRegistry()),
-                properties,
-                new DefaultCompressionTriggerPolicy(properties),
-                new InMemoryCompressionCooldownService(properties),
-                new DefaultCompressionExecutionService(memoryStore, new MetricsPublisher(new SimpleMeterRegistry())),
-                new DefaultCompressionSummaryApplier());
+        ContextCompressionService controller = createController(memoryStore, properties);
 
         ContextBudgetAllocation allocation = ContextBudgetAllocation.disabled(
                 ContextBudgetAllocationState.DISABLED_BY_CONFIG,
@@ -301,6 +267,51 @@ class ContextCompressionServiceTest {
 
         assertFalse(result.isTriggered());
         verify(memoryStore, times(0)).compress(any(), eq(tenantContext));
+    }
+
+    /**
+     * 构造压缩服务测试实例。
+     */
+    private ContextCompressionService createController(MemoryStore memoryStore, ContextCompressionProperties properties) {
+        // 默认估算器：用于大多数压缩场景测试。
+        return createController(memoryStore, properties, new TokenEstimator());
+    }
+
+    /**
+     * 构造压缩服务测试实例（可注入自定义估算器）。
+     */
+    private ContextCompressionService createController(MemoryStore memoryStore,
+                                                       ContextCompressionProperties properties,
+                                                       TokenEstimator tokenEstimator) {
+        MetricsPublisher metricsPublisher = new MetricsPublisher(new SimpleMeterRegistry());
+        // 构造规则执行器：复用现有 MemoryStore 压缩能力。
+        RuleCompressionExecutorAdapter ruleExecutor = new RuleCompressionExecutorAdapter(memoryStore, metricsPublisher);
+        // 构造 LLM 编排服务：注入 mock 模型调用，确保测试聚焦路由与降级行为。
+        LlmCompressionOrchestrator orchestrator = new LlmCompressionOrchestrator(
+                Mockito.mock(ModelInvocationService.class),
+                new DefaultCompressionPromptBuilder(),
+                new CompressionResponseParser(new ObjectMapper(), new DefaultCompressionValidationPolicy()),
+                new CompressionSummaryGuard(new RedactionService(new RedactionProperties(), metricsPublisher)),
+                properties);
+        // 构造 LLM 执行器：通过编排服务执行真实解析与治理链路。
+        LlmCompressionExecutorAdapter llmExecutor = new LlmCompressionExecutorAdapter(orchestrator);
+        // 构造模式解析器：读取压缩配置决定执行路径。
+        DefaultCompressionModeResolver modeResolver = new DefaultCompressionModeResolver(properties);
+        // 构造路由器：组合 rule/llm 执行器并统一输出结果。
+        CompressionExecutionRouter router = new CompressionExecutionRouter(
+                modeResolver,
+                List.of(ruleExecutor, llmExecutor),
+                new DefaultCompressionFallbackPolicy(properties));
+        // 构造压缩服务：注入触发策略、冷却策略、路由与模型映射。
+        return new ContextCompressionService(
+                tokenEstimator,
+                new MetricsCompressionTelemetryAdapter(metricsPublisher),
+                properties,
+                new DefaultCompressionTriggerPolicy(properties),
+                new InMemoryCompressionCooldownService(properties),
+                router,
+                new CompressionModelMapper(),
+                new DefaultCompressionSummaryApplier());
     }
 
     private ContextBudgetAllocation buildAllocation(int totalTokens, int workingMemoryBudget) {

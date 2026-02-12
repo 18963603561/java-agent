@@ -7,7 +7,6 @@ import com.example.agent.budget.token.application.ContextBudgetAllocator;
 import com.example.agent.budget.core.ContextBudgetPolicy;
 import com.example.agent.budget.config.ContextBudgetProperties;
 import com.example.agent.budget.token.application.ContextBudgetRequest;
-import com.example.agent.budget.trim.application.ContextCompressionService;
 import com.example.agent.budget.trim.model.ContextCompressionRequest;
 import com.example.agent.budget.trim.model.ContextCompressionResult;
 import com.example.agent.budget.trim.model.ContextPruneRequest;
@@ -24,6 +23,7 @@ import com.example.agent.capabilities.context.builder.ContextSnapshotFactory;
 import com.example.agent.capabilities.context.builder.budget.ContextBudgetRequestFactory;
 import com.example.agent.capabilities.context.builder.exception.ContextBuildException;
 import com.example.agent.capabilities.context.builder.policy.ContextPolicyResolver;
+import com.example.agent.capabilities.context.compression.ContextCompressionFacade;
 import com.example.agent.capabilities.context.model.BudgetState;
 import com.example.agent.capabilities.context.model.BuildMetrics;
 import com.example.agent.capabilities.context.model.ContextPolicy;
@@ -72,7 +72,7 @@ public class DefaultContextBuilder implements ContextBuilder {
     /**
      * 压缩控制器，用于触发摘要压缩。
      */
-    private final ContextCompressionService compressionService;
+    private final ContextCompressionFacade compressionFacade;
     /**
      * 预算配置属性。
      */
@@ -113,7 +113,7 @@ public class DefaultContextBuilder implements ContextBuilder {
      * @param budgetAllocator 预算分配器
      * @param contextPruner 剪枝器
      * @param contextTrimmer 裁剪器
-     * @param compressionService 压缩服务
+     * @param compressionFacade 压缩门面
      * @param budgetProperties 预算配置
      * @param contextEventPublisher 事件发布器
      * @param metricsPublisher 指标发布器
@@ -123,7 +123,7 @@ public class DefaultContextBuilder implements ContextBuilder {
                                  ContextBudgetAllocator budgetAllocator,
                                  ContextPruner contextPruner,
                                  ContextTrimmer contextTrimmer,
-                                 ContextCompressionService compressionService,
+                                 ContextCompressionFacade compressionFacade,
                                  ContextBudgetProperties budgetProperties,
                                  ContextEventPublisher contextEventPublisher,
                                  MetricsPublisher metricsPublisher,
@@ -133,7 +133,7 @@ public class DefaultContextBuilder implements ContextBuilder {
         this.budgetAllocator = budgetAllocator;
         this.contextPruner = contextPruner;
         this.contextTrimmer = contextTrimmer;
-        this.compressionService = compressionService;
+        this.compressionFacade = compressionFacade;
         this.budgetProperties = budgetProperties;
         this.contextEventPublisher = contextEventPublisher;
         this.metricsPublisher = metricsPublisher;
@@ -148,7 +148,7 @@ public class DefaultContextBuilder implements ContextBuilder {
                                  ContextBudgetAllocator budgetAllocator,
                                  ContextPruner contextPruner,
                                  ContextTrimmer contextTrimmer,
-                                 ContextCompressionService compressionService,
+                                 ContextCompressionFacade compressionFacade,
                                  ContextBudgetProperties budgetProperties,
                                  ContextEventPublisher contextEventPublisher,
                                  MetricsPublisher metricsPublisher) {
@@ -156,7 +156,7 @@ public class DefaultContextBuilder implements ContextBuilder {
                 budgetAllocator,
                 contextPruner,
                 contextTrimmer,
-                compressionService,
+                compressionFacade,
                 budgetProperties,
                 contextEventPublisher,
                 metricsPublisher,
@@ -279,10 +279,10 @@ public class DefaultContextBuilder implements ContextBuilder {
                     trimResult != null ? trimResult.getReport() : null);
 
             ContextCompressionResult compressionResult = null;
-            if (compressionService != null && allocation.isAllocationEnabled()) {
+            if (compressionFacade != null && allocation.isAllocationEnabled()) {
                 String sessionId = taskRequest != null ? taskRequest.getSessionId()
                         : runtimeMeta != null ? runtimeMeta.getSessionId() : null;
-                compressionResult = compressionService.compressIfNeeded(new ContextCompressionRequest(
+                compressionResult = compressionFacade.compressIfNeeded(new ContextCompressionRequest(
                         snapshot,
                         allocation,
                         trimResult != null ? trimResult.getReport() : null,

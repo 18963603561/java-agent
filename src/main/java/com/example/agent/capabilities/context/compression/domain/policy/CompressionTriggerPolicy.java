@@ -1,4 +1,4 @@
-package com.example.agent.budget.trim.application;
+package com.example.agent.capabilities.context.compression.domain.policy;
 
 import com.example.agent.budget.core.ContextBudgetAllocation;
 import com.example.agent.budget.core.ContextSection;
@@ -33,3 +33,4 @@ public interface CompressionTriggerPolicy {
                          Map<ContextSection, Integer> sectionTokens,
                          Integer totalTokens);
 }
+
