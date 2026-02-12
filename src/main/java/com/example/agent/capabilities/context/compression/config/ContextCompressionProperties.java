@@ -1,4 +1,4 @@
-package com.example.agent.capabilities.context.compression.config;
+package com.example.agent.budget.trim.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -51,14 +51,29 @@ public class ContextCompressionProperties {
     private Llm llm = new Llm();
 
     /**
-     * 摘要注入配置。
+     * 运行基线配置。
      */
-    private Injection injection = new Injection();
+    private Baseline baseline = new Baseline();
 
     /**
-     * 双轨灰度发布配置。
+     * 灰度发布配置。
      */
     private Rollout rollout = new Rollout();
+
+    /**
+     * 质量门禁配置。
+     */
+    private QualityGate qualityGate = new QualityGate();
+
+    /**
+     * 回滚治理配置。
+     */
+    private Rollback rollback = new Rollback();
+
+    /**
+     * 紧急控制配置。
+     */
+    private Emergency emergency = new Emergency();
 
     public boolean isEnabled() {
         return trigger != null ? trigger.isEnabled() : enabled;
@@ -128,12 +143,12 @@ public class ContextCompressionProperties {
         this.llm = llm == null ? new Llm() : llm;
     }
 
-    public Injection getInjection() {
-        return injection;
+    public Baseline getBaseline() {
+        return baseline;
     }
 
-    public void setInjection(Injection injection) {
-        this.injection = injection == null ? new Injection() : injection;
+    public void setBaseline(Baseline baseline) {
+        this.baseline = baseline == null ? new Baseline() : baseline;
     }
 
     public Rollout getRollout() {
@@ -142,6 +157,30 @@ public class ContextCompressionProperties {
 
     public void setRollout(Rollout rollout) {
         this.rollout = rollout == null ? new Rollout() : rollout;
+    }
+
+    public QualityGate getQualityGate() {
+        return qualityGate;
+    }
+
+    public void setQualityGate(QualityGate qualityGate) {
+        this.qualityGate = qualityGate == null ? new QualityGate() : qualityGate;
+    }
+
+    public Rollback getRollback() {
+        return rollback;
+    }
+
+    public void setRollback(Rollback rollback) {
+        this.rollback = rollback == null ? new Rollback() : rollback;
+    }
+
+    public Emergency getEmergency() {
+        return emergency;
+    }
+
+    public void setEmergency(Emergency emergency) {
+        this.emergency = emergency == null ? new Emergency() : emergency;
     }
 
     /**
@@ -338,70 +377,57 @@ public class ContextCompressionProperties {
     }
 
     /**
-     * 摘要注入配置。
+     * 运行基线配置。
      */
-    public static class Injection {
+    public static class Baseline {
 
         /**
-         * 是否启用摘要注入。
+         * 默认主模式。
          */
-        private boolean enabled = true;
+        private String defaultMode = "hybrid";
 
         /**
-         * 注入位置角色（developer/user）。
+         * 默认触发比例阈值。
          */
-        private String role = "developer";
+        private Double defaultTriggerRatio = 0.75D;
 
         /**
-         * 注入摘要最大字符数。
+         * 默认目标比例阈值。
          */
-        private int maxChars = 800;
+        private Double defaultTargetRatio = 0.375D;
 
-        /**
-         * 是否追加注入标签。
-         */
-        private boolean attachTag = true;
-
-        public boolean isEnabled() {
-            return enabled;
+        public String getDefaultMode() {
+            return defaultMode;
         }
 
-        public void setEnabled(boolean enabled) {
-            this.enabled = enabled;
+        public void setDefaultMode(String defaultMode) {
+            this.defaultMode = defaultMode;
         }
 
-        public String getRole() {
-            return role;
+        public Double getDefaultTriggerRatio() {
+            return defaultTriggerRatio;
         }
 
-        public void setRole(String role) {
-            this.role = role;
+        public void setDefaultTriggerRatio(Double defaultTriggerRatio) {
+            this.defaultTriggerRatio = defaultTriggerRatio;
         }
 
-        public int getMaxChars() {
-            return maxChars;
+        public Double getDefaultTargetRatio() {
+            return defaultTargetRatio;
         }
 
-        public void setMaxChars(int maxChars) {
-            this.maxChars = maxChars;
-        }
-
-        public boolean isAttachTag() {
-            return attachTag;
-        }
-
-        public void setAttachTag(boolean attachTag) {
-            this.attachTag = attachTag;
+        public void setDefaultTargetRatio(Double defaultTargetRatio) {
+            this.defaultTargetRatio = defaultTargetRatio;
         }
     }
 
     /**
-     * 双轨灰度发布配置。
+     * 灰度发布配置。
      */
     public static class Rollout {
 
         /**
-         * 是否启用双轨执行。
+         * 是否启用双轨灰度。
          */
         private boolean dualTrackEnabled;
 
@@ -411,17 +437,17 @@ public class ContextCompressionProperties {
         private String version = "v1";
 
         /**
-         * 全局采样比例，区间 [0,1]。
+         * 全局灰度比例。
          */
-        private Double globalRatio = 0D;
+        private Double globalRatio = 1D;
 
         /**
-         * 租户白名单（命中即开启双轨）。
+         * 灰度租户白名单。
          */
         private java.util.List<String> tenantWhitelist = new java.util.ArrayList<>();
 
         /**
-         * 场景白名单（命中即开启双轨）。
+         * 灰度场景白名单。
          */
         private java.util.List<String> sceneWhitelist = new java.util.ArrayList<>();
 
@@ -454,9 +480,7 @@ public class ContextCompressionProperties {
         }
 
         public void setTenantWhitelist(java.util.List<String> tenantWhitelist) {
-            this.tenantWhitelist = tenantWhitelist == null
-                    ? new java.util.ArrayList<>()
-                    : tenantWhitelist;
+            this.tenantWhitelist = tenantWhitelist == null ? new java.util.ArrayList<>() : tenantWhitelist;
         }
 
         public java.util.List<String> getSceneWhitelist() {
@@ -464,9 +488,207 @@ public class ContextCompressionProperties {
         }
 
         public void setSceneWhitelist(java.util.List<String> sceneWhitelist) {
-            this.sceneWhitelist = sceneWhitelist == null
-                    ? new java.util.ArrayList<>()
-                    : sceneWhitelist;
+            this.sceneWhitelist = sceneWhitelist == null ? new java.util.ArrayList<>() : sceneWhitelist;
+        }
+    }
+
+    /**
+     * 质量门禁配置。
+     */
+    public static class QualityGate {
+
+        /**
+         * 质量门禁版本。
+         */
+        private String version = "v1";
+
+        /**
+         * 最低质量分阈值，区间 [0,1]。
+         */
+        private Double minScore = 0.75D;
+
+        /**
+         * 最大解析失败率阈值，区间 [0,1]。
+         */
+        private Double maxParseFailureRate = 0.03D;
+
+        public String getVersion() {
+            return version;
+        }
+
+        public void setVersion(String version) {
+            this.version = version;
+        }
+
+        public Double getMinScore() {
+            return minScore;
+        }
+
+        public void setMinScore(Double minScore) {
+            this.minScore = minScore;
+        }
+
+        public Double getMaxParseFailureRate() {
+            return maxParseFailureRate;
+        }
+
+        public void setMaxParseFailureRate(Double maxParseFailureRate) {
+            this.maxParseFailureRate = maxParseFailureRate;
+        }
+    }
+
+    /**
+     * 回滚治理配置。
+     */
+    public static class Rollback {
+
+        /**
+         * 回滚策略版本。
+         */
+        private String version = "v1";
+
+        /**
+         * 是否启用自动回滚。
+         */
+        private boolean autoEnabled = true;
+
+        /**
+         * 触发窗口分钟数。
+         */
+        private int triggerWindowMinutes = 10;
+
+        /**
+         * 触发窗口最小样本数。
+         */
+        private int triggerWindowMinSamples = 5;
+
+        /**
+         * 最大失败率阈值。
+         */
+        private Double maxFailureRate = 0.40D;
+
+        /**
+         * 最大低分率阈值。
+         */
+        private Double maxLowScoreRate = 0.40D;
+
+        /**
+         * 最大超时率阈值。
+         */
+        private Double maxTimeoutRate = 0.30D;
+
+        /**
+         * 回滚恢复等待分钟数。
+         */
+        private int recoveryWaitMinutes = 10;
+
+        public String getVersion() {
+            return version;
+        }
+
+        public void setVersion(String version) {
+            this.version = version;
+        }
+
+        public boolean isAutoEnabled() {
+            return autoEnabled;
+        }
+
+        public void setAutoEnabled(boolean autoEnabled) {
+            this.autoEnabled = autoEnabled;
+        }
+
+        public int getTriggerWindowMinutes() {
+            return triggerWindowMinutes;
+        }
+
+        public void setTriggerWindowMinutes(int triggerWindowMinutes) {
+            this.triggerWindowMinutes = triggerWindowMinutes;
+        }
+
+        public int getTriggerWindowMinSamples() {
+            return triggerWindowMinSamples;
+        }
+
+        public void setTriggerWindowMinSamples(int triggerWindowMinSamples) {
+            this.triggerWindowMinSamples = triggerWindowMinSamples;
+        }
+
+        public Double getMaxFailureRate() {
+            return maxFailureRate;
+        }
+
+        public void setMaxFailureRate(Double maxFailureRate) {
+            this.maxFailureRate = maxFailureRate;
+        }
+
+        public Double getMaxLowScoreRate() {
+            return maxLowScoreRate;
+        }
+
+        public void setMaxLowScoreRate(Double maxLowScoreRate) {
+            this.maxLowScoreRate = maxLowScoreRate;
+        }
+
+        public Double getMaxTimeoutRate() {
+            return maxTimeoutRate;
+        }
+
+        public void setMaxTimeoutRate(Double maxTimeoutRate) {
+            this.maxTimeoutRate = maxTimeoutRate;
+        }
+
+        public int getRecoveryWaitMinutes() {
+            return recoveryWaitMinutes;
+        }
+
+        public void setRecoveryWaitMinutes(int recoveryWaitMinutes) {
+            this.recoveryWaitMinutes = recoveryWaitMinutes;
+        }
+    }
+
+    /**
+     * 紧急控制配置。
+     */
+    public static class Emergency {
+
+        /**
+         * 是否强制使用规则模式。
+         */
+        private boolean forceRuleMode;
+
+        /**
+         * 是否禁用压缩能力。
+         */
+        private boolean disableCompression;
+
+        /**
+         * 是否绕过质量门禁。
+         */
+        private boolean bypassQualityGate;
+
+        public boolean isForceRuleMode() {
+            return forceRuleMode;
+        }
+
+        public void setForceRuleMode(boolean forceRuleMode) {
+            this.forceRuleMode = forceRuleMode;
+        }
+
+        public boolean isDisableCompression() {
+            return disableCompression;
+        }
+
+        public void setDisableCompression(boolean disableCompression) {
+            this.disableCompression = disableCompression;
+        }
+
+        public boolean isBypassQualityGate() {
+            return bypassQualityGate;
+        }
+
+        public void setBypassQualityGate(boolean bypassQualityGate) {
+            this.bypassQualityGate = bypassQualityGate;
         }
     }
 }

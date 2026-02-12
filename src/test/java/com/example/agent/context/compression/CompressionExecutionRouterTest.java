@@ -61,6 +61,19 @@ class CompressionExecutionRouterTest {
         assertEquals("NO_AVAILABLE_EXECUTOR", result.getFailureReason());
     }
 
+    @Test
+    void shouldUseExplicitModeWhenExecuteWithMode() {
+        CompressionExecutionRouter router = new CompressionExecutionRouter(
+                fixedModeResolver("rule"),
+                List.of(new StubExecutor("rule", true), new StubExecutor("llm", true)),
+                fallbackPolicy());
+
+        CompressionExecutionResult result = router.execute(new CompressionCommand(), "llm");
+
+        assertTrue(result.isSuccess());
+        assertEquals("llm", result.getSource());
+    }
+
     /**
      * 构造固定模式解析器。
      */

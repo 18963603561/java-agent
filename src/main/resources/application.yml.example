@@ -1072,34 +1072,6 @@ agent:
         # 默认项:
         # - 6
         recents-count: 6
-      injection:
-        # 说明: 是否启用压缩摘要注入
-        # 可选项:
-        # - true
-        # - false
-        # 默认项:
-        # - true
-        enabled: true
-        # 说明: 压缩摘要注入角色
-        # 可选项:
-        # - developer
-        # - user
-        # 默认项:
-        # - developer
-        role: developer
-        # 说明: 压缩摘要注入最大字符数
-        # 可选项:
-        # - 正整数
-        # 默认项:
-        # - 800
-        max-chars: 800
-        # 说明: 是否在注入文本添加标签
-        # 可选项:
-        # - true
-        # - false
-        # 默认项:
-        # - true
-        attach-tag: true
       llm:
         # 说明: 压缩模型场景
         # 可选项:
@@ -1126,38 +1098,150 @@ agent:
         # 默认项:
         # - rule
         fallback: rule
+      baseline:
+        # 说明: 默认压缩模式
+        # 可选项:
+        # - rule
+        # - llm
+        # - hybrid
+        # 默认项:
+        # - hybrid
+        default-mode: hybrid
+        # 说明: 默认触发比例阈值
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.75
+        default-trigger-ratio: 0.75
+        # 说明: 默认目标比例阈值
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.375
+        default-target-ratio: 0.375
       rollout:
-        # 说明: 是否开启双轨灰度实验
+        # 说明: 启用双轨灰度
         # 可选项:
         # - true
         # - false
         # 默认项:
         # - false
         dual-track-enabled: false
-        # 说明: 灰度策略版本号
+        # 说明: 灰度策略版本
         # 可选项:
         # - 非空字符串
         # 默认项:
         # - v1
         version: v1
-        # 说明: 全局双轨采样比例
+        # 说明: 全局灰度比例
         # 可选项:
         # - 0.0-1.0
         # 默认项:
-        # - 0.0
-        global-ratio: 0.0
-        # 说明: 租户白名单，命中时强制启用双轨
+        # - 1.0
+        global-ratio: 1.0
+        # 说明: 灰度租户白名单
         # 可选项:
-        # - 字符串列表
+        # - 字符串数组
         # 默认项:
         # - []
         tenant-whitelist: []
-        # 说明: 场景白名单，命中时强制启用双轨
+        # 说明: 灰度场景白名单
         # 可选项:
-        # - 字符串列表
+        # - 字符串数组
         # 默认项:
         # - []
         scene-whitelist: []
+      quality-gate:
+        # 说明: 质量门禁版本
+        # 可选项:
+        # - 非空字符串
+        # 默认项:
+        # - v1
+        version: v1
+        # 说明: 最低质量分阈值
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.75
+        min-score: 0.75
+        # 说明: 最大解析失败率阈值
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.03
+        max-parse-failure-rate: 0.03
+      rollback:
+        # 说明: 回滚策略版本
+        # 可选项:
+        # - 非空字符串
+        # 默认项:
+        # - v1
+        version: v1
+        # 说明: 启用自动回滚
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - true
+        auto-enabled: true
+        # 说明: 回滚触发窗口分钟数
+        # 可选项:
+        # - 正整数
+        # 默认项:
+        # - 10
+        trigger-window-minutes: 10
+        # 说明: 回滚触发最小样本数
+        # 可选项:
+        # - 正整数
+        # 默认项:
+        # - 5
+        trigger-window-min-samples: 5
+        # 说明: 最大失败率阈值
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.4
+        max-failure-rate: 0.4
+        # 说明: 最大低分率阈值
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.4
+        max-low-score-rate: 0.4
+        # 说明: 最大超时率阈值
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.3
+        max-timeout-rate: 0.3
+        # 说明: 回滚恢复等待分钟数
+        # 可选项:
+        # - 非负整数
+        # 默认项:
+        # - 10
+        recovery-wait-minutes: 10
+      emergency:
+        # 说明: 强制使用规则压缩模式
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - false
+        force-rule-mode: false
+        # 说明: 禁用压缩能力
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - false
+        disable-compression: false
+        # 说明: 绕过质量门禁
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - false
+        bypass-quality-gate: false
   security:
     redaction:
       # 说明: 启用脱敏治理

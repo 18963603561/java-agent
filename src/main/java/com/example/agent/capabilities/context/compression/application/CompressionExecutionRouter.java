@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.context.compression.application;
 
-import com.example.agent.capabilities.context.compression.contract.CompressionExecutionResult;
+import com.example.agent.budget.trim.model.CompressionExecutionResult;
 import com.example.agent.capabilities.context.compression.application.port.CompressionExecutor;
 import com.example.agent.capabilities.context.compression.application.port.CompressionModeResolver;
 import com.example.agent.capabilities.context.compression.domain.model.CompressionCommand;
@@ -55,7 +55,9 @@ public class CompressionExecutionRouter {
      * @return 执行结果
      */
     public CompressionExecutionResult execute(CompressionCommand command) {
+        // 模式解析：优先使用模式解析器结果，缺失时回退 rule。
         String mode = modeResolver != null ? modeResolver.resolveMode() : MODE_RULE;
+        // 调用重载方法：复用统一执行流程并支持外部显式传入模式。
         return execute(command, mode);
     }
 
@@ -67,6 +69,7 @@ public class CompressionExecutionRouter {
      * @return 执行结果
      */
     public CompressionExecutionResult execute(CompressionCommand command, String mode) {
+        // 模式归一化：空模式时回退 rule，避免映射 miss。
         String resolvedMode = StringUtils.hasText(mode) ? mode.trim().toLowerCase() : MODE_RULE;
         // 主路径：优先按配置模式命中执行器。
         CompressionExecutor targetExecutor = executors.get(resolvedMode);
@@ -101,20 +104,9 @@ public class CompressionExecutionRouter {
         // 失败路径：当无任何可用执行器时返回失败原因，避免抛异常中断主链路。
         CompressionExecutionResult failed = new CompressionExecutionResult();
         failed.setSuccess(false);
-        failed.setSource(StringUtils.hasText(resolvedMode) ? resolvedMode : MODE_RULE);
+        failed.setSource(resolvedMode);
         failed.setFailureReason("NO_AVAILABLE_EXECUTOR");
         return failed;
-    }
-
-    /**
-     * 解析当前配置模式。
-     */
-    public String resolveConfiguredMode() {
-        String mode = modeResolver != null ? modeResolver.resolveMode() : MODE_RULE;
-        if (!StringUtils.hasText(mode)) {
-            return MODE_RULE;
-        }
-        return mode.trim().toLowerCase();
     }
 
     /**
@@ -155,4 +147,3 @@ public class CompressionExecutionRouter {
         return mapping;
     }
 }
-

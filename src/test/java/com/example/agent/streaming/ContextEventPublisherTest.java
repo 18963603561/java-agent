@@ -7,6 +7,7 @@ import com.example.agent.capabilities.context.evidence.EvidencePack;
 import com.example.agent.capabilities.context.evidence.EvidenceStats;
 import com.example.agent.capabilities.context.evidence.EvidenceType;
 import com.example.agent.capabilities.context.model.WorkingMemory;
+import com.example.agent.budget.trim.model.ContextCompressionResult;
 import com.example.agent.budget.core.ContextBudgetAllocationState;
 import com.example.agent.streaming.domain.EventType;
 import com.example.agent.streaming.domain.StreamEvent;
@@ -21,8 +22,8 @@ import org.mockito.Mockito;
 import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import com.example.agent.streaming.payload.ContextBudgetSummary;
-import com.example.agent.streaming.payload.ContextEventPublisher;
 import com.example.agent.streaming.payload.ContextSnapshotStage;
+import com.example.agent.streaming.payload.ContextEventPublisher;
 import com.example.agent.streaming.sse.EventStreamService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -203,38 +204,68 @@ class ContextEventPublisherTest {
     }
 
     @Test
-    void publishSnapshotStageShouldEmitCompressionStageEventWhenStageIsCompression() {
+    void publishSnapshotStageShouldIncludeCompressionGovernanceFields() {
         TestEventPublisher eventPublisher = new TestEventPublisher();
         EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
         ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService,
                 new MetricsPublisher(new SimpleMeterRegistry()));
 
         ContextSnapshot snapshot = new ContextSnapshot();
-        snapshot.setSnapshotId("snap-c1");
-        WorkingMemory memory = new WorkingMemory();
-        snapshot.setWorkingMemory(memory);
+        snapshot.setSnapshotId("snap-stage-1");
+        snapshot.setWorkingMemory(new WorkingMemory());
+
+        ContextCompressionResult compressionResult = new ContextCompressionResult();
+        compressionResult.setTriggered(true);
+        compressionResult.setTriggerReason("OVER_TOTAL");
+        compressionResult.setBeforeTokens(200);
+        compressionResult.setAfterTrimTokens(160);
+        compressionResult.setAfterCompressTokens(120);
+        compressionResult.setDurationMs(50L);
+        compressionResult.setSummaryVersion("v2");
+        compressionResult.setWinnerSource("rule");
+        compressionResult.setRollbackApplied(true);
+        compressionResult.setRollbackReason("timeout_rate_exceeded");
+        compressionResult.setRolloutVersion("rollout-v3");
+        compressionResult.setQualityGateVersion("quality-v2");
+        compressionResult.setRollbackPolicyVersion("rollback-v5");
+        compressionResult.setQualityScore(0.82D);
 
         TenantContext tenantContext = new TenantContext("t6", "u6", List.of(), "req", "trace");
-        publisher.publishSnapshotStage(tenantContext,
-                "wf-c1",
+        publisher.publishSnapshotStage(
+                tenantContext,
+                "wf-stage-1",
                 new AtomicLong(0),
                 snapshot,
-                "snap-c1",
                 null,
                 null,
                 null,
+                compressionResult,
                 null,
-                ContextSnapshotStage.CONTEXT_COMPRESSION_SKIPPED,
-                100,
-                100);
+                ContextSnapshotStage.CONTEXT_COMPRESSED,
+                160,
+                120);
 
-        StreamEvent stageEvent = eventPublisher.findFirst(EventType.CONTEXT_SNAPSHOT_STAGE);
-        assertNotNull(stageEvent);
-        assertEquals(ContextSnapshotStage.CONTEXT_COMPRESSION_SKIPPED.name(), stageEvent.getPayload().get("stage"));
-
-        StreamEvent compressionEvent = eventPublisher.findFirst(EventType.CONTEXT_COMPRESSION_STAGE);
-        assertNotNull(compressionEvent);
-        assertEquals(ContextSnapshotStage.CONTEXT_COMPRESSION_SKIPPED.name(), compressionEvent.getPayload().get("stage"));
+        StreamEvent event = eventPublisher.findFirst(EventType.CONTEXT_SNAPSHOT_STAGE);
+        assertNotNull(event);
+        Object summaryObj = event.getPayload().get("compressionSummary");
+        assertNotNull(summaryObj);
+        assertTrue(summaryObj instanceof com.example.agent.streaming.payload.ContextCompressionSummary);
+        com.example.agent.streaming.payload.ContextCompressionSummary summary =
+                (com.example.agent.streaming.payload.ContextCompressionSummary) summaryObj;
+        assertEquals("rule", summary.getWinnerSource());
+        assertEquals(Boolean.TRUE, summary.getRollbackApplied());
+        assertEquals("timeout_rate_exceeded", summary.getRollbackReason());
+        assertEquals("rollout-v3", summary.getRolloutVersion());
+        assertEquals("quality-v2", summary.getQualityGateVersion());
+        assertEquals("rollback-v5", summary.getRollbackPolicyVersion());
+        assertEquals(0.82D, summary.getQualityScore());
+        assertEquals("rule", event.getPayload().get("compressionWinnerSource"));
+        assertEquals(Boolean.TRUE, event.getPayload().get("compressionRollbackApplied"));
+        assertEquals("timeout_rate_exceeded", event.getPayload().get("compressionRollbackReason"));
+        assertEquals("rollout-v3", event.getPayload().get("compressionRolloutVersion"));
+        assertEquals("quality-v2", event.getPayload().get("compressionQualityGateVersion"));
+        assertEquals("rollback-v5", event.getPayload().get("compressionRollbackPolicyVersion"));
+        assertEquals(0.82D, event.getPayload().get("compressionQualityScore"));
     }
 
     static class TestEventPublisher implements ApplicationEventPublisher {

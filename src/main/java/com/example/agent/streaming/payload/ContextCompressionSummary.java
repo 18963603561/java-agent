@@ -31,44 +31,19 @@ public class ContextCompressionSummary {
     private String summaryVersion;
 
     /**
-     * 是否整形滑窗。
+     * 压缩最终生效来源。
      */
-    private boolean windowShaped;
+    private String winnerSource;
 
     /**
-     * 滑窗整形原因。
+     * 是否应用自动回滚。
      */
-    private String shapeReason;
+    private Boolean rollbackApplied;
 
     /**
-     * 首段保留条数。
+     * 自动回滚原因。
      */
-    private Integer primersRetained;
-
-    /**
-     * 尾段保留条数。
-     */
-    private Integer recentsRetained;
-
-    /**
-     * 中段窗口条数。
-     */
-    private Integer middleWindowSize;
-
-    /**
-     * 是否注入摘要。
-     */
-    private boolean summaryInjected;
-
-    /**
-     * 摘要注入原因。
-     */
-    private String summaryInjectReason;
-
-    /**
-     * 是否启用双轨。
-     */
-    private boolean dualTrackEnabled;
+    private String rollbackReason;
 
     /**
      * 灰度版本。
@@ -76,34 +51,19 @@ public class ContextCompressionSummary {
     private String rolloutVersion;
 
     /**
-     * 灰度决策原因。
+     * 质量门禁版本。
      */
-    private String rolloutReason;
+    private String qualityGateVersion;
 
     /**
-     * 主轨来源。
+     * 回滚策略版本。
      */
-    private String primarySource;
+    private String rollbackPolicyVersion;
 
     /**
-     * 影子轨来源。
+     * 质量评分。
      */
-    private String shadowSource;
-
-    /**
-     * 对比记录标识。
-     */
-    private String comparisonRecordId;
-
-    /**
-     * 回滚原因。
-     */
-    private String rollbackReason;
-
-    /**
-     * 胜出来源。
-     */
-    private String winnerSource;
+    private Double qualityScore;
 
     public String getTriggerReason() {
         return triggerReason;
@@ -145,108 +105,20 @@ public class ContextCompressionSummary {
         this.summaryVersion = summaryVersion;
     }
 
-    public boolean isWindowShaped() {
-        return windowShaped;
+    public String getWinnerSource() {
+        return winnerSource;
     }
 
-    public void setWindowShaped(boolean windowShaped) {
-        this.windowShaped = windowShaped;
+    public void setWinnerSource(String winnerSource) {
+        this.winnerSource = winnerSource;
     }
 
-    public String getShapeReason() {
-        return shapeReason;
+    public Boolean getRollbackApplied() {
+        return rollbackApplied;
     }
 
-    public void setShapeReason(String shapeReason) {
-        this.shapeReason = shapeReason;
-    }
-
-    public Integer getPrimersRetained() {
-        return primersRetained;
-    }
-
-    public void setPrimersRetained(Integer primersRetained) {
-        this.primersRetained = primersRetained;
-    }
-
-    public Integer getRecentsRetained() {
-        return recentsRetained;
-    }
-
-    public void setRecentsRetained(Integer recentsRetained) {
-        this.recentsRetained = recentsRetained;
-    }
-
-    public Integer getMiddleWindowSize() {
-        return middleWindowSize;
-    }
-
-    public void setMiddleWindowSize(Integer middleWindowSize) {
-        this.middleWindowSize = middleWindowSize;
-    }
-
-    public boolean isSummaryInjected() {
-        return summaryInjected;
-    }
-
-    public void setSummaryInjected(boolean summaryInjected) {
-        this.summaryInjected = summaryInjected;
-    }
-
-    public String getSummaryInjectReason() {
-        return summaryInjectReason;
-    }
-
-    public void setSummaryInjectReason(String summaryInjectReason) {
-        this.summaryInjectReason = summaryInjectReason;
-    }
-
-    public boolean isDualTrackEnabled() {
-        return dualTrackEnabled;
-    }
-
-    public void setDualTrackEnabled(boolean dualTrackEnabled) {
-        this.dualTrackEnabled = dualTrackEnabled;
-    }
-
-    public String getRolloutVersion() {
-        return rolloutVersion;
-    }
-
-    public void setRolloutVersion(String rolloutVersion) {
-        this.rolloutVersion = rolloutVersion;
-    }
-
-    public String getRolloutReason() {
-        return rolloutReason;
-    }
-
-    public void setRolloutReason(String rolloutReason) {
-        this.rolloutReason = rolloutReason;
-    }
-
-    public String getPrimarySource() {
-        return primarySource;
-    }
-
-    public void setPrimarySource(String primarySource) {
-        this.primarySource = primarySource;
-    }
-
-    public String getShadowSource() {
-        return shadowSource;
-    }
-
-    public void setShadowSource(String shadowSource) {
-        this.shadowSource = shadowSource;
-    }
-
-    public String getComparisonRecordId() {
-        return comparisonRecordId;
-    }
-
-    public void setComparisonRecordId(String comparisonRecordId) {
-        this.comparisonRecordId = comparisonRecordId;
+    public void setRollbackApplied(Boolean rollbackApplied) {
+        this.rollbackApplied = rollbackApplied;
     }
 
     public String getRollbackReason() {
@@ -257,11 +129,35 @@ public class ContextCompressionSummary {
         this.rollbackReason = rollbackReason;
     }
 
-    public String getWinnerSource() {
-        return winnerSource;
+    public String getRolloutVersion() {
+        return rolloutVersion;
     }
 
-    public void setWinnerSource(String winnerSource) {
-        this.winnerSource = winnerSource;
+    public void setRolloutVersion(String rolloutVersion) {
+        this.rolloutVersion = rolloutVersion;
+    }
+
+    public String getQualityGateVersion() {
+        return qualityGateVersion;
+    }
+
+    public void setQualityGateVersion(String qualityGateVersion) {
+        this.qualityGateVersion = qualityGateVersion;
+    }
+
+    public String getRollbackPolicyVersion() {
+        return rollbackPolicyVersion;
+    }
+
+    public void setRollbackPolicyVersion(String rollbackPolicyVersion) {
+        this.rollbackPolicyVersion = rollbackPolicyVersion;
+    }
+
+    public Double getQualityScore() {
+        return qualityScore;
+    }
+
+    public void setQualityScore(Double qualityScore) {
+        this.qualityScore = qualityScore;
     }
 }

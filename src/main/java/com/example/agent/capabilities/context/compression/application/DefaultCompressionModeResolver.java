@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.context.compression.application;
 
-import com.example.agent.capabilities.context.compression.config.ContextCompressionProperties;
+import com.example.agent.budget.trim.config.ContextCompressionProperties;
 import com.example.agent.capabilities.context.compression.application.port.CompressionModeResolver;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -24,6 +24,13 @@ public class DefaultCompressionModeResolver implements CompressionModeResolver {
 
     @Override
     public String resolveMode() {
+        // 紧急策略判定：当启用强制规则模式时直接回退到 rule。
+        if (properties != null
+                && properties.getEmergency() != null
+                && properties.getEmergency().isForceRuleMode()) {
+            return MODE_RULE;
+        }
+        // 空配置兜底：缺失模式配置时直接回退 rule。
         if (properties == null || properties.getMode() == null) {
             return MODE_RULE;
         }
@@ -35,5 +42,3 @@ public class DefaultCompressionModeResolver implements CompressionModeResolver {
         return configuredMode.trim().toLowerCase();
     }
 }
-
-
