@@ -7,8 +7,8 @@ import com.example.agent.budget.token.application.ContextBudgetAllocator;
 import com.example.agent.budget.core.ContextBudgetPolicy;
 import com.example.agent.budget.config.ContextBudgetProperties;
 import com.example.agent.budget.token.application.ContextBudgetRequest;
-import com.example.agent.budget.trim.model.ContextCompressionRequest;
-import com.example.agent.budget.trim.model.ContextCompressionResult;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionRequest;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import com.example.agent.budget.trim.model.ContextPruneRequest;
 import com.example.agent.budget.trim.model.ContextPruneResult;
 import com.example.agent.budget.trim.application.ContextPruner;
@@ -304,6 +304,7 @@ public class DefaultContextBuilder implements ContextBuilder {
                     allocation,
                     pruneResult,
                     trimResult != null ? trimResult.getReport() : null,
+                    compressionResult,
                     metrics);
 
             boolean trimmed = trimResult != null
@@ -404,13 +405,20 @@ public class DefaultContextBuilder implements ContextBuilder {
                                          ContextSnapshot snapshot,
                                          ContextBudgetAllocation allocation,
                                          ContextCompressionResult compressionResult) {
-        if (contextEventPublisher == null || tenantContext == null || workflowId == null
-                || compressionResult == null || !compressionResult.isTriggered()) {
+        // 依赖守卫：缺少发布依赖或压缩结果时直接返回，避免发布空事件。
+        if (contextEventPublisher == null || tenantContext == null || workflowId == null || compressionResult == null) {
             return;
         }
+        // 阶段判定：未触发压缩时发布跳过阶段，触发时继续发布压缩完成阶段。
+        ContextSnapshotStage stage = compressionResult.isTriggered()
+                ? ContextSnapshotStage.CONTEXT_COMPRESSED
+                : ContextSnapshotStage.CONTEXT_COMPRESSION_SKIPPED;
         Integer beforeTokens = compressionResult.getAfterTrimTokens() != null
                 ? compressionResult.getAfterTrimTokens()
                 : compressionResult.getBeforeTokens();
+        Integer afterTokens = compressionResult.getAfterCompressTokens() != null
+                ? compressionResult.getAfterCompressTokens()
+                : beforeTokens;
         contextEventPublisher.publishSnapshotStage(
                 tenantContext,
                 workflowId,
@@ -421,9 +429,9 @@ public class DefaultContextBuilder implements ContextBuilder {
                 null,
                 compressionResult,
                 null,
-                ContextSnapshotStage.CONTEXT_COMPRESSED,
+                stage,
                 beforeTokens,
-                compressionResult.getAfterCompressTokens());
+                afterTokens);
     }
 
     /**

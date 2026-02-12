@@ -1,5 +1,6 @@
 package com.example.agent.capabilities.context.compression.application.model;
 
+import com.example.agent.capabilities.context.compression.domain.model.HistoryWindowShapeResult;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.security.auth.TenantContext;
 
@@ -34,6 +35,11 @@ public class LlmCompressionCommand {
      * 触发原因。
      */
     private String triggerReason;
+
+    /**
+     * 历史窗口整形结果。
+     */
+    private HistoryWindowShapeResult windowShapeResult;
 
     public ContextSnapshot getSnapshot() {
         return snapshot;
@@ -74,5 +80,12 @@ public class LlmCompressionCommand {
     public void setTriggerReason(String triggerReason) {
         this.triggerReason = triggerReason;
     }
-}
 
+    public HistoryWindowShapeResult getWindowShapeResult() {
+        return windowShapeResult;
+    }
+
+    public void setWindowShapeResult(HistoryWindowShapeResult windowShapeResult) {
+        this.windowShapeResult = windowShapeResult;
+    }
+}

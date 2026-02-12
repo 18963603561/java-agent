@@ -470,11 +470,22 @@ agent:
       window:
         primers-count: 2
         recents-count: 6
+      injection:
+        enabled: true
+        role: developer
+        max-chars: 800
+        attach-tag: true
       llm:
         scene: context_compress
         timeout-ms: 3000
         retry: 0
         fallback: rule
+      rollout:
+        dual-track-enabled: false
+        version: v1
+        global-ratio: 0.0
+        tenant-whitelist: []
+        scene-whitelist: []
   security:
     redaction:
       # 璇存槑: 鍚敤鑴辨晱娌荤悊 鍙€夐」: - true - false 榛樿椤? - true

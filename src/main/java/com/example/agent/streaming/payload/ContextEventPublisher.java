@@ -3,7 +3,7 @@ package com.example.agent.streaming.payload;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.budget.core.ContextBudgetAllocationState;
 import com.example.agent.budget.core.ContextBudgetAllocation;
-import com.example.agent.budget.trim.model.ContextCompressionResult;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import com.example.agent.budget.trim.model.ContextPruneResult;
 import com.example.agent.budget.core.ContextSection;
 import com.example.agent.budget.trim.model.ContextTrimReport;
@@ -31,6 +31,7 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import com.example.agent.streaming.sse.EventStreamService;
@@ -46,13 +47,26 @@ public class ContextEventPublisher {
     private final ApplicationEventPublisher eventPublisher;
     private final EventStreamService eventStreamService;
     private final MetricsPublisher metricsPublisher;
+    private final CompressionStageEventAssembler compressionStageEventAssembler;
 
     public ContextEventPublisher(ApplicationEventPublisher eventPublisher,
                                  EventStreamService eventStreamService,
                                  MetricsPublisher metricsPublisher) {
+        this(eventPublisher, eventStreamService, metricsPublisher, new CompressionStageEventAssembler());
+    }
+
+    /**
+     * 构造上下文事件发布器（可注入压缩事件装配器）。
+     */
+    @Autowired
+    public ContextEventPublisher(ApplicationEventPublisher eventPublisher,
+                                 EventStreamService eventStreamService,
+                                 MetricsPublisher metricsPublisher,
+                                 CompressionStageEventAssembler compressionStageEventAssembler) {
         this.eventPublisher = eventPublisher;
         this.eventStreamService = eventStreamService;
         this.metricsPublisher = metricsPublisher;
+        this.compressionStageEventAssembler = compressionStageEventAssembler;
     }
 
     /**
@@ -150,6 +164,18 @@ public class ContextEventPublisher {
         Map<String, Object> payloadMap = buildStagePayload(payload);
         publishEvent(tenantContext, workflowId, seqCounter, EventType.CONTEXT_SNAPSHOT_STAGE, payloadMap);
 
+        // 压缩阶段发布：当阶段属于压缩链路时，发布类型化压缩阶段事件契约。
+        if (stage.isCompressionStage()) {
+            publishCompressionStageEvent(tenantContext,
+                    workflowId,
+                    seqCounter,
+                    snapshot,
+                    resolvedSnapshotId,
+                    stage,
+                    compressionResult,
+                    payload);
+        }
+
         int truncatedCount = promptTruncatedSections != null ? promptTruncatedSections.size() : 0;
         log.info("上下文快照阶段事件, tenantId={}, workflowId={}, stage={}, snapshotId={}, beforeTokens={}, afterTokens={}, "
                         + "truncatedSectionsCount={}",
@@ -161,6 +187,47 @@ public class ContextEventPublisher {
                 afterTokens,
                 truncatedCount);
         recordStageMetrics(stage, payloadMap);
+    }
+
+    /**
+     * 发布压缩阶段事件。
+     */
+    private void publishCompressionStageEvent(TenantContext tenantContext,
+                                              String workflowId,
+                                              AtomicLong seqCounter,
+                                              ContextSnapshot snapshot,
+                                              String snapshotId,
+                                              ContextSnapshotStage stage,
+                                              ContextCompressionResult compressionResult,
+                                              ContextSnapshotEventPayload stagePayload) {
+        // 依赖守卫：缺少装配器时跳过发布，避免影响主快照事件链路。
+        if (compressionStageEventAssembler == null) {
+            return;
+        }
+        CompressionStageEventAssembler.EvidenceStatsSummaryView evidenceStats =
+                new CompressionStageEventAssembler.EvidenceStatsSummaryView(
+                        Boolean.TRUE.equals(stagePayload.getEvidencePackPresent()),
+                        stagePayload.getEvidencePackVersion(),
+                        safeInt(stagePayload.getEvidenceToolCount()),
+                        safeInt(stagePayload.getEvidenceMemoryCount()),
+                        safeInt(stagePayload.getEvidenceResearchCount()),
+                        safeInt(stagePayload.getEvidenceTruncationCount()),
+                        safeInt(stagePayload.getEvidenceApproxChars()));
+        // 载荷装配：统一构建压缩阶段事件 payload，确保字段语义稳定。
+        CompressionStageEventPayload payload = compressionStageEventAssembler.assemble(
+                tenantContext.getTenantId(),
+                workflowId,
+                snapshotId,
+                stage,
+                snapshot,
+                compressionStageEventAssembler.buildCompressionSummary(compressionResult),
+                evidenceStats);
+        // 载荷转换：将类型化载荷转换为流式事件 payload map。
+        Map<String, Object> payloadMap = buildCompressionStagePayload(payload);
+        // 事件发布：发布压缩阶段专用事件，供订阅端精确消费。
+        publishEvent(tenantContext, workflowId, seqCounter, EventType.CONTEXT_COMPRESSION_STAGE, payloadMap);
+        // 对比发布：当命中双轨实验时发布压缩对比事件，支撑运营侧回放。
+        publishCompressionComparisonEvent(tenantContext, workflowId, seqCounter, payload);
     }
 
     private List<String> resolveSections(ContextSnapshot snapshot) {
@@ -281,6 +348,21 @@ public class ContextEventPublisher {
         summary.setAfterTokens(result.getAfterCompressTokens());
         summary.setDurationMs(result.getDurationMs());
         summary.setSummaryVersion(result.getSummaryVersion());
+        summary.setWindowShaped(result.isWindowShaped());
+        summary.setShapeReason(result.getShapeReason());
+        summary.setPrimersRetained(result.getPrimersRetained());
+        summary.setRecentsRetained(result.getRecentsRetained());
+        summary.setMiddleWindowSize(result.getMiddleWindowSize());
+        summary.setSummaryInjected(result.isSummaryInjected());
+        summary.setSummaryInjectReason(result.getSummaryInjectReason());
+        summary.setDualTrackEnabled(result.isDualTrackEnabled());
+        summary.setRolloutVersion(result.getRolloutVersion());
+        summary.setRolloutReason(result.getRolloutReason());
+        summary.setPrimarySource(result.getPrimarySource());
+        summary.setShadowSource(result.getShadowSource());
+        summary.setComparisonRecordId(result.getComparisonRecordId());
+        summary.setRollbackReason(result.getRollbackReason());
+        summary.setWinnerSource(result.getWinnerSource());
         return summary;
     }
 
@@ -352,6 +434,111 @@ public class ContextEventPublisher {
             map.put("evidencePackVersion", payload.getEvidencePackVersion());
         }
         return map;
+    }
+
+    /**
+     * 构建压缩阶段事件载荷。
+     */
+    private Map<String, Object> buildCompressionStagePayload(CompressionStageEventPayload payload) {
+        Map<String, Object> map = new HashMap<>();
+        // 空值守卫：载荷为空时返回空映射，避免发布异常。
+        if (payload == null) {
+            return map;
+        }
+        // 字段映射：按契约顺序写入基础标识字段。
+        appendIfPresent(map, "tenantId", payload.getTenantId());
+        appendIfPresent(map, "workflowId", payload.getWorkflowId());
+        appendIfPresent(map, "snapshotId", payload.getSnapshotId());
+        // 阶段映射：阶段存在时写入阶段名称，便于订阅端按字符串过滤。
+        if (payload.getStage() != null) {
+            map.put("stage", payload.getStage().name());
+        }
+        // 契约映射：写入压缩摘要及证据统计字段。
+        appendIfPresent(map, "compressionSummary", payload.getCompressionSummary());
+        appendIfPresent(map, "evidencePackPresent", payload.getEvidencePackPresent());
+        appendIfPresent(map, "evidenceToolCount", payload.getEvidenceToolCount());
+        appendIfPresent(map, "evidenceMemoryCount", payload.getEvidenceMemoryCount());
+        appendIfPresent(map, "evidenceResearchCount", payload.getEvidenceResearchCount());
+        appendIfPresent(map, "evidenceTruncationCount", payload.getEvidenceTruncationCount());
+        appendIfPresent(map, "evidenceApproxChars", payload.getEvidenceApproxChars());
+        appendIfPresent(map, "evidencePackVersion", payload.getEvidencePackVersion());
+        return map;
+    }
+
+    /**
+     * 发布压缩对比事件。
+     */
+    private void publishCompressionComparisonEvent(TenantContext tenantContext,
+                                                   String workflowId,
+                                                   AtomicLong seqCounter,
+                                                   CompressionStageEventPayload payload) {
+        // 条件判定：压缩摘要缺失或未开启双轨时不发布对比事件。
+        if (payload == null || payload.getCompressionSummary() == null
+                || !payload.getCompressionSummary().isDualTrackEnabled()) {
+            return;
+        }
+        CompressionComparisonEventPayload comparisonPayload = new CompressionComparisonEventPayload();
+        comparisonPayload.setTenantId(payload.getTenantId());
+        comparisonPayload.setWorkflowId(payload.getWorkflowId());
+        comparisonPayload.setSnapshotId(payload.getSnapshotId());
+        comparisonPayload.setRolloutVersion(payload.getCompressionSummary().getRolloutVersion());
+        comparisonPayload.setPrimarySource(payload.getCompressionSummary().getPrimarySource());
+        comparisonPayload.setShadowSource(payload.getCompressionSummary().getShadowSource());
+        comparisonPayload.setWinner(payload.getCompressionSummary().getWinnerSource());
+        comparisonPayload.setRollbackReason(payload.getCompressionSummary().getRollbackReason());
+        comparisonPayload.setComparisonRecordId(payload.getCompressionSummary().getComparisonRecordId());
+        // 载荷转换：转换为 map 后发布对比事件。
+        publishEvent(tenantContext,
+                workflowId,
+                seqCounter,
+                EventType.CONTEXT_COMPRESSION_COMPARISON,
+                buildComparisonPayload(comparisonPayload));
+    }
+
+    /**
+     * 构建压缩对比事件载荷。
+     */
+    private Map<String, Object> buildComparisonPayload(CompressionComparisonEventPayload payload) {
+        Map<String, Object> map = new HashMap<>();
+        // 空值守卫：载荷为空时返回空映射。
+        if (payload == null) {
+            return map;
+        }
+        appendIfPresent(map, "tenantId", payload.getTenantId());
+        appendIfPresent(map, "workflowId", payload.getWorkflowId());
+        appendIfPresent(map, "snapshotId", payload.getSnapshotId());
+        appendIfPresent(map, "rolloutVersion", payload.getRolloutVersion());
+        appendIfPresent(map, "primarySource", payload.getPrimarySource());
+        appendIfPresent(map, "shadowSource", payload.getShadowSource());
+        appendIfPresent(map, "winner", payload.getWinner());
+        appendIfPresent(map, "rollbackReason", payload.getRollbackReason());
+        appendIfPresent(map, "qualityScore", payload.getQualityScore());
+        appendIfPresent(map, "comparisonRecordId", payload.getComparisonRecordId());
+        return map;
+    }
+
+    /**
+     * 当值存在时写入载荷映射。
+     */
+    private void appendIfPresent(Map<String, Object> map, String key, Object value) {
+        // 参数守卫：缺少目标映射或键时不写入，避免污染载荷结构。
+        if (map == null || key == null) {
+            return;
+        }
+        // 值判定：仅在值非空时写入，保证事件契约字段语义稳定。
+        if (value != null) {
+            map.put(key, value);
+        }
+    }
+
+    /**
+     * 安全转换整数。
+     */
+    private int safeInt(Integer value) {
+        if (value == null) {
+            return 0;
+        }
+        return value;
     }
 
     private void recordStageMetrics(ContextSnapshotStage stage, Map<String, Object> payload) {
@@ -778,5 +965,4 @@ public class ContextEventPublisher {
         }
     }
 }
-
 

@@ -161,5 +161,9 @@ public enum EventType {
     // 上下文裁剪事件
     CONTEXT_PRUNED,
     // 上下文快照阶段事件
-    CONTEXT_SNAPSHOT_STAGE
+    CONTEXT_SNAPSHOT_STAGE,
+    // 上下文压缩阶段事件
+    CONTEXT_COMPRESSION_STAGE,
+    // 上下文压缩双轨对比事件
+    CONTEXT_COMPRESSION_COMPARISON
 }

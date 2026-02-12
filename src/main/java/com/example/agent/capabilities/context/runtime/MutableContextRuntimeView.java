@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.context.runtime;
 
 import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import com.example.agent.budget.trim.model.ContextPruneResult;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.evidence.EvidencePack;
@@ -124,6 +125,16 @@ public class MutableContextRuntimeView extends ContextRuntimeView {
     }
 
     /**
+     * 写入压缩结果。
+     */
+    public void putContextCompression(ContextCompressionResult compressionResult) {
+        if (values == null || compressionResult == null) {
+            return;
+        }
+        values.put(ContextRuntimeKeys.CONTEXT_COMPRESSION, compressionResult);
+    }
+
+    /**
      * 写入提示词装配输入。
      */
     public void putPromptAssemblyInput(Object promptAssemblyInput) {
@@ -133,5 +144,6 @@ public class MutableContextRuntimeView extends ContextRuntimeView {
         values.put(ContextRuntimeKeys.PROMPT_ASSEMBLY_INPUT, promptAssemblyInput);
     }
 }
+
 
 

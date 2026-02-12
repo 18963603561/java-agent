@@ -22,6 +22,7 @@ import org.springframework.context.ApplicationEvent;
 import org.springframework.context.ApplicationEventPublisher;
 import com.example.agent.streaming.payload.ContextBudgetSummary;
 import com.example.agent.streaming.payload.ContextEventPublisher;
+import com.example.agent.streaming.payload.ContextSnapshotStage;
 import com.example.agent.streaming.sse.EventStreamService;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -199,6 +200,41 @@ class ContextEventPublisherTest {
         ContextBudgetSummary summary = (ContextBudgetSummary) budgetSummaryObj;
         assertEquals(ContextBudgetAllocationState.DISABLED_BY_DEPENDENCY, summary.getAllocationState());
         assertEquals("missing_allocation", summary.getAllocationReason());
+    }
+
+    @Test
+    void publishSnapshotStageShouldEmitCompressionStageEventWhenStageIsCompression() {
+        TestEventPublisher eventPublisher = new TestEventPublisher();
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        ContextEventPublisher publisher = new ContextEventPublisher(eventPublisher, eventStreamService,
+                new MetricsPublisher(new SimpleMeterRegistry()));
+
+        ContextSnapshot snapshot = new ContextSnapshot();
+        snapshot.setSnapshotId("snap-c1");
+        WorkingMemory memory = new WorkingMemory();
+        snapshot.setWorkingMemory(memory);
+
+        TenantContext tenantContext = new TenantContext("t6", "u6", List.of(), "req", "trace");
+        publisher.publishSnapshotStage(tenantContext,
+                "wf-c1",
+                new AtomicLong(0),
+                snapshot,
+                "snap-c1",
+                null,
+                null,
+                null,
+                null,
+                ContextSnapshotStage.CONTEXT_COMPRESSION_SKIPPED,
+                100,
+                100);
+
+        StreamEvent stageEvent = eventPublisher.findFirst(EventType.CONTEXT_SNAPSHOT_STAGE);
+        assertNotNull(stageEvent);
+        assertEquals(ContextSnapshotStage.CONTEXT_COMPRESSION_SKIPPED.name(), stageEvent.getPayload().get("stage"));
+
+        StreamEvent compressionEvent = eventPublisher.findFirst(EventType.CONTEXT_COMPRESSION_STAGE);
+        assertNotNull(compressionEvent);
+        assertEquals(ContextSnapshotStage.CONTEXT_COMPRESSION_SKIPPED.name(), compressionEvent.getPayload().get("stage"));
     }
 
     static class TestEventPublisher implements ApplicationEventPublisher {

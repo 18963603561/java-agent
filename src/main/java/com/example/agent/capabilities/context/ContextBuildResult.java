@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.context;
 
 import com.example.agent.budget.core.ContextBudgetAllocation;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import com.example.agent.budget.trim.model.ContextPruneResult;
 import com.example.agent.budget.trim.model.ContextTrimReport;
 import com.example.agent.capabilities.context.model.BuildMetrics;
@@ -34,6 +35,11 @@ public class ContextBuildResult {
     private final ContextTrimReport trimReport;
 
     /**
+     * 压缩结果，可为空。
+     */
+    private final ContextCompressionResult compressionResult;
+
+    /**
      * 构建指标，构建成功时必填。
      */
     private final BuildMetrics metrics;
@@ -45,12 +51,14 @@ public class ContextBuildResult {
      * @param budgetAllocation 预算分配
      * @param pruneResult 剪枝结果
      * @param trimReport 裁剪报告
+     * @param compressionResult 压缩结果
      * @param metrics 构建指标，不允许为空
      */
     public ContextBuildResult(ContextSnapshot snapshot,
                               ContextBudgetAllocation budgetAllocation,
                               ContextPruneResult pruneResult,
                               ContextTrimReport trimReport,
+                              ContextCompressionResult compressionResult,
                               BuildMetrics metrics) {
         if (snapshot == null) {
             throw new IllegalArgumentException("context snapshot must not be null");
@@ -62,6 +70,7 @@ public class ContextBuildResult {
         this.budgetAllocation = budgetAllocation;
         this.pruneResult = pruneResult;
         this.trimReport = trimReport;
+        this.compressionResult = compressionResult;
         this.metrics = metrics;
     }
 
@@ -81,9 +90,14 @@ public class ContextBuildResult {
         return trimReport;
     }
 
+    public ContextCompressionResult getCompressionResult() {
+        return compressionResult;
+    }
+
     public BuildMetrics getMetrics() {
         return metrics;
     }
 }
+
 
 

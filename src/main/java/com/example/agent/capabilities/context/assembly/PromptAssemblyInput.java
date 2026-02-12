@@ -64,6 +64,11 @@ public class PromptAssemblyInput {
      */
     private Map<String, Object> assemblyMetadata;
 
+    /**
+     * 注入后的上下文摘要文本。
+     */
+    private String contextSummaryText;
+
     public String getSystemText() {
         return systemText;
     }
@@ -151,5 +156,12 @@ public class PromptAssemblyInput {
     public void setAssemblyMetadata(Map<String, Object> assemblyMetadata) {
         this.assemblyMetadata = assemblyMetadata;
     }
-}
 
+    public String getContextSummaryText() {
+        return contextSummaryText;
+    }
+
+    public void setContextSummaryText(String contextSummaryText) {
+        this.contextSummaryText = contextSummaryText;
+    }
+}

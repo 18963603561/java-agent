@@ -733,6 +733,14 @@ public interface WasiSandboxExecutor {
   - `streamId`、`seq`、`eventId`
 - **`TaskStreamRequest`**
   - `workflowId`、`types`、`lastEventId`、`cursor`
+- **`ContextCompressionSummary`**
+  - `triggerReason`、`beforeTokens`、`afterTokens`、`durationMs`、`summaryVersion`、`windowShaped`、
+    `shapeReason`、`primersRetained`、`recentsRetained`、`middleWindowSize`、`summaryInjected`、
+    `summaryInjectReason`
+- **`CompressionStageEventPayload`**
+  - `tenantId`、`workflowId`、`snapshotId`、`stage`、`compressionSummary`、`evidencePackPresent`、
+    `evidenceToolCount`、`evidenceMemoryCount`、`evidenceResearchCount`、`evidenceTruncationCount`、
+    `evidenceApproxChars`、`evidencePackVersion`
 - **`TaskRequest`**
   - `query`、`sessionId`、`context`、`idempotencyKey`（可选）
 - **`TaskResponse`**
@@ -845,6 +853,14 @@ public interface WasiSandboxExecutor {
 - 高级推理: `THOUGHT_EXPANDED`、`THOUGHT_PRUNED`、`DEBATE_ROUND_STARTED`、`DEBATE_ROUND_COMPLETED`、`RESEARCH_SOURCE_ADDED`、`RESEARCH_SYNTHESIZED`
 - 生产治理: `REPLAY_STARTED`、`REPLAY_COMPLETED`、`BACKPRESSURE_APPLIED`、`CIRCUIT_OPENED`、`CIRCUIT_HALF_OPEN`
 - 策略与沙箱: `POLICY_EVALUATED`、`POLICY_DENIED`、`SANDBOX_VIOLATION`、`MODEL_FALLBACK_APPLIED`
+- 上下文链路: `CONTEXT_SNAPSHOT_CREATED`、`CONTEXT_PRUNED`、`CONTEXT_SNAPSHOT_STAGE`、`CONTEXT_COMPRESSION_STAGE`
+
+**上下文压缩阶段枚举（`ContextSnapshotStage`）**:
+
+- 规划与工具阶段: `PLAN_ASSEMBLED`、`TOOL_OBSERVED`
+- 裁剪阶段: `CONTEXT_TRIMMED`
+- 压缩阶段: `CONTEXT_COMPRESSION_TRIGGERED`、`CONTEXT_COMPRESSION_SHAPED`、`CONTEXT_COMPRESSION_EXECUTED`、
+  `CONTEXT_COMPRESSION_INJECTED`、`CONTEXT_COMPRESSION_SKIPPED`、`CONTEXT_COMPRESSION_FAILED`、`CONTEXT_COMPRESSED`
 
 ### 事件模型与顺序约束
 
@@ -1003,6 +1019,10 @@ public interface WasiSandboxExecutor {
 - 高级推理：`reasoning.tot.branch.count`、`reasoning.debate.round.count`、`research.citation.count`
 - 生产治理：`replay.count`、`rate.limit.count`、`circuit.open.count`
 - 企业安全：`policy.deny.count`、`sandbox.violation.count`、`model.fallback.count`
+- 上下文压缩：`context_compression_trigger_total`、`context_compression_shape_total`、
+  `context_compression_summary_injection_total`、`context_compression_success_total`、
+  `context_compression_failed_total`、`context_compression_skipped_total`、
+  `context_compression_observation_total`、`context_compression_duration_ms`
 
 ## `MVP` 与迭代版本拆分
 

@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.context.compression.domain.policy;
 
-import com.example.agent.budget.trim.model.CompressionExecutionResult;
+import com.example.agent.capabilities.context.compression.contract.CompressionExecutionResult;
 
 /**
  * 压缩降级策略。
@@ -16,4 +16,5 @@ public interface CompressionFallbackPolicy {
      */
     boolean shouldFallback(String mode, CompressionExecutionResult executionResult);
 }
+
 

@@ -61,13 +61,20 @@ class EvidencePackCitationWritePathTest {
 
         TenantContext tenantContext = new TenantContext("t1", "u1", List.of(), "req", "trace");
         publisher.publishSnapshotStage(tenantContext, "wf-1", new AtomicLong(0), snapshot, "snap-1",
-                null, null, null, null, ContextSnapshotStage.PLAN_ASSEMBLED, null, null);
+                null, null, null, null, ContextSnapshotStage.CONTEXT_COMPRESSION_SKIPPED, null, null);
 
         StreamEvent event = eventPublisher.findFirst(EventType.CONTEXT_SNAPSHOT_STAGE);
         assertNotNull(event);
         Object countValue = event.getPayload().get("evidenceResearchCount");
         assertNotNull(countValue);
         assertEquals(2, ((Number) countValue).intValue());
+
+        StreamEvent compressionEvent = eventPublisher.findFirst(EventType.CONTEXT_COMPRESSION_STAGE);
+        assertNotNull(compressionEvent);
+        assertEquals(ContextSnapshotStage.CONTEXT_COMPRESSION_SKIPPED.name(), compressionEvent.getPayload().get("stage"));
+        Object compressionCountValue = compressionEvent.getPayload().get("evidenceResearchCount");
+        assertNotNull(compressionCountValue);
+        assertEquals(2, ((Number) compressionCountValue).intValue());
     }
 
     static class TestEventPublisher implements ApplicationEventPublisher {

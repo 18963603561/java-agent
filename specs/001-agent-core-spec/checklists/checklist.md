@@ -93,6 +93,10 @@
 - [ ] CHK053 是否完成限流背压事件验证？（通过: 触发 `RATE_LIMITED` 时事件流包含 `BACKPRESSURE_APPLIED` 与 `TOOL_ERROR`，且 payload 含 `governanceType`、`trigger`、`toolName`；不通过: 任一事件缺失或关键字段缺失）[Blocker][`Governance`][Spec §Production 治理][Task T-P2-BP-04][Task T-P2-BP-07]
 - [ ] CHK054 是否完成熔断治理事件验证？（通过: 触发 `CIRCUIT_OPEN` 时事件流包含 `CIRCUIT_OPENED`、`BACKPRESSURE_APPLIED`、`TOOL_ERROR`，且 payload 含 `circuitState` 与 `errorCode`；不通过: 任一事件缺失或关键字段缺失）[Blocker][`Governance`][Spec §Production 治理][Task T-P2-BP-04][Task T-P2-BP-07]
 - [ ] CHK055 是否完成重试等待事件验证？（通过: 可重试退避阶段出现 `WAITING` 事件，payload 含 `delayMs`、`attempt`、`trigger`；不通过: 事件缺失或关键字段缺失）[Blocker][`Governance`][Spec §Production 治理][Task T-P2-BP-05][Task T-P2-BP-07]
+- [ ] CHK056 是否完成上下文压缩阶段事件契约验证？（通过: `CONTEXT_COMPRESSION_STAGE` 事件包含 `stage`、`compressionSummary`、`evidence*` 字段；不通过: 任一关键字段缺失）[Blocker][`Observability`][Spec §DTO 与事件类型定义][Task P3-PKG-002]
+- [ ] CHK057 是否完成压缩阶段枚举完整性验证？（通过: `ContextSnapshotStage` 覆盖 `TRIGGERED/SHAPED/EXECUTED/INJECTED/SKIPPED/FAILED/COMPRESSED`；不通过: 任一阶段缺失）[Recommended][`Contract`][Spec §DTO 与事件类型定义][Task P3-PKG-002]
+- [ ] CHK058 是否完成运行时压缩结果类型化读取验证？（通过: 消费侧通过 `ContextRuntimeView.getContextCompression()` 读取，不再手工 `Map` key；不通过: 仍存在手工 key 读取）[Blocker][`Architecture`][Spec §模块边界与职责约束][Task P3-PKG-004]
+- [ ] CHK059 是否完成压缩观测指标统一命名验证？（通过: 使用统一指标键 `context_compression_*` 且标签键一致；不通过: 存在散落命名或口径冲突）[Recommended][`Observability`][Spec §观测指标][Task P3-PKG-003]
 
 ## Notes
 

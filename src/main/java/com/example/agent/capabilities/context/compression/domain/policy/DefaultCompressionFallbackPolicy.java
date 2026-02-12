@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.context.compression.domain.policy;
 
-import com.example.agent.budget.trim.config.ContextCompressionProperties;
-import com.example.agent.budget.trim.model.CompressionExecutionResult;
+import com.example.agent.capabilities.context.compression.config.ContextCompressionProperties;
+import com.example.agent.capabilities.context.compression.contract.CompressionExecutionResult;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -36,4 +36,6 @@ public class DefaultCompressionFallbackPolicy implements CompressionFallbackPoli
         return StringUtils.hasText(fallback) && "rule".equalsIgnoreCase(fallback.trim());
     }
 }
+
+
 

@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.context.compression;
 
-import com.example.agent.budget.trim.model.ContextCompressionRequest;
-import com.example.agent.budget.trim.model.ContextCompressionResult;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionRequest;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 
 /**
  * 上下文压缩门面。
@@ -18,4 +18,5 @@ public interface ContextCompressionFacade {
      */
     ContextCompressionResult compressIfNeeded(ContextCompressionRequest request);
 }
+
 

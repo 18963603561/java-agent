@@ -1,6 +1,6 @@
 package com.example.agent.context.compression;
 
-import com.example.agent.budget.trim.config.ContextCompressionProperties;
+import com.example.agent.capabilities.context.compression.config.ContextCompressionProperties;
 import com.example.agent.capabilities.context.compression.application.LlmCompressionOrchestrator;
 import com.example.agent.capabilities.context.compression.application.model.LlmCompressionCommand;
 import com.example.agent.capabilities.context.compression.application.model.LlmCompressionResult;
@@ -109,4 +109,5 @@ class LlmCompressionOrchestratorTest {
         return command;
     }
 }
+
 

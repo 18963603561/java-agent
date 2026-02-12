@@ -1,5 +1,7 @@
 package com.example.agent.capabilities.context.compression.application.port;
 
+import com.example.agent.capabilities.context.compression.observability.CompressionObservation;
+
 /**
  * 压缩可观测性端口。
  *
@@ -29,5 +31,11 @@ public interface CompressionTelemetryPort {
      * @param value 指标值
      */
     void recordSummary(String metric, double value);
-}
 
+    /**
+     * 记录压缩观测。
+     *
+     * @param observation 压缩观测对象
+     */
+    void recordObservation(CompressionObservation observation);
+}

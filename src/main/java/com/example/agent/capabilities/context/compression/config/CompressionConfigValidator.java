@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.context.compression.config;
 
-import com.example.agent.budget.trim.config.ContextCompressionProperties;
+import com.example.agent.capabilities.context.compression.config.ContextCompressionProperties;
 import jakarta.annotation.PostConstruct;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -70,6 +70,13 @@ public class CompressionConfigValidator {
             validateRatio(result,
                     properties.getTrigger().getCompressionTargetRatio(),
                     "target_ratio_invalid");
+            // 关系校验：触发比例必须大于等于目标比例，保证压缩触发与达标语义一致。
+            if (properties.getTrigger().getCompressionTriggerRatio() != null
+                    && properties.getTrigger().getCompressionTargetRatio() != null
+                    && properties.getTrigger().getCompressionTriggerRatio()
+                    < properties.getTrigger().getCompressionTargetRatio()) {
+                result.addError("trigger_target_ratio_relation_invalid");
+            }
             // 间隔校验：最小间隔不得为负。
             if (properties.getTrigger().getMinIntervalSeconds() < 0) {
                 result.addError("min_interval_invalid");
@@ -108,6 +115,43 @@ public class CompressionConfigValidator {
             }
             if (properties.getWindow().getRecentsCount() < 0) {
                 result.addError("window_recents_invalid");
+            }
+            // 组合校验：首尾窗口都为零时失去三段滑窗意义。
+            if (properties.getWindow().getPrimersCount() == 0 && properties.getWindow().getRecentsCount() == 0) {
+                result.addWarning("window_segments_both_zero");
+            }
+        }
+
+        if (properties.getInjection() == null) {
+            result.addWarning("injection_missing_use_default");
+        } else {
+            // 注入角色校验：仅允许 developer/user。
+            if (!StringUtils.hasText(properties.getInjection().getRole())) {
+                result.addError("injection_role_missing");
+            } else {
+                String role = properties.getInjection().getRole().trim().toLowerCase();
+                if (!"developer".equals(role) && !"user".equals(role)) {
+                    result.addError("injection_role_invalid");
+                }
+            }
+            if (properties.getInjection().getMaxChars() <= 0) {
+                result.addError("injection_max_chars_invalid");
+            }
+        }
+
+        // 灰度配置校验：缺少灰度配置时输出告警并沿用默认值。
+        if (properties.getRollout() == null) {
+            result.addWarning("rollout_missing_use_default");
+        } else {
+            // 版本校验：灰度版本必须非空，便于审计回放。
+            if (!StringUtils.hasText(properties.getRollout().getVersion())) {
+                result.addError("rollout_version_missing");
+            }
+            // 比例校验：全局比例必须位于 [0,1] 区间。
+            if (properties.getRollout().getGlobalRatio() == null
+                    || properties.getRollout().getGlobalRatio() < 0D
+                    || properties.getRollout().getGlobalRatio() > 1D) {
+                result.addError("rollout_global_ratio_invalid");
             }
         }
         return result;

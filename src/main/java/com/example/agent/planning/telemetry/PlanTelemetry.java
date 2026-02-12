@@ -3,6 +3,7 @@ package com.example.agent.planning.telemetry;
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.capabilities.context.assembly.ContextAssembler;
 import com.example.agent.capabilities.context.assembly.ContextAssemblyCommand;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.assembly.PromptAssemblyInput;
 import com.example.agent.budget.core.ContextBudgetAllocation;
@@ -15,6 +16,8 @@ import com.example.agent.capabilities.llm.prompt.PromptBundle;
 import com.example.agent.planning.PlanningFieldKeys;
 import com.example.agent.streaming.payload.ContextEventPublisher;
 import com.example.agent.streaming.payload.ContextSnapshotStage;
+import com.example.agent.capabilities.context.runtime.ContextRuntimeReadContext;
+import com.example.agent.capabilities.context.runtime.ContextRuntimeView;
 import com.example.agent.capabilities.context.runtime.ContextRuntimeViews;
 import com.example.agent.capabilities.context.runtime.MutableContextRuntimeView;
 import java.util.List;
@@ -92,6 +95,7 @@ public class PlanTelemetry {
                     .snapshot(contextSnapshot)
                     .allocation(contextBudget)
                     .pruneResult(contextPrune)
+                    .compressionResult(resolveCompressionResult(context, tenantId, workflowId))
                     .tenantId(tenantId)
                     .workflowId(workflowId)
                     .userText(prompt)
@@ -259,6 +263,28 @@ public class PlanTelemetry {
             sum += value == null ? 0 : value;
         }
         return sum;
+    }
+
+    /**
+     * 解析压缩结果。
+     */
+    private ContextCompressionResult resolveCompressionResult(Map<String, Object> context,
+                                                              String tenantId,
+                                                              String workflowId) {
+        // 空值守卫：无运行时上下文时不读取压缩结果。
+        if (context == null || context.isEmpty()) {
+            return null;
+        }
+        // 诊断上下文：构建读取上下文用于定位类型化读取问题来源。
+        ContextRuntimeReadContext readContext = new ContextRuntimeReadContext(
+                tenantId,
+                workflowId,
+                null,
+                "plan_assemble");
+        // 统一读取：通过运行时视图获取类型化压缩结果，避免手工 key 读取。
+        ContextRuntimeView runtimeView = ContextRuntimeViews.readOnly(context, log, null, readContext);
+        // 结果返回：输出压缩结果给上下文装配命令复用。
+        return runtimeView.getContextCompression();
     }
 }
 

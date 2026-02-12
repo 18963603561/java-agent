@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.context.assembly;
 
 import com.example.agent.budget.core.ContextBudgetAllocation;
-import com.example.agent.budget.trim.model.ContextCompressionResult;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import com.example.agent.budget.trim.model.ContextPruneResult;
 import com.example.agent.budget.trim.model.ContextTrimReport;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
@@ -36,6 +36,11 @@ public class DefaultContextAssembler implements ContextAssembler {
     private final PromptContextPolicyApplier policyApplier;
 
     /**
+     * 摘要注入策略。
+     */
+    private final ContextSummaryInjectionPolicy summaryInjectionPolicy;
+
+    /**
      * 构造默认装配器。
      *
      * @param promptTemplate 提示词模板
@@ -43,10 +48,12 @@ public class DefaultContextAssembler implements ContextAssembler {
      */
     public DefaultContextAssembler(PromptTemplate promptTemplate,
                                    TokenEstimator tokenEstimator,
-                                   MetricsPublisher metricsPublisher) {
+                                   MetricsPublisher metricsPublisher,
+                                   ContextSummaryInjectionPolicy summaryInjectionPolicy) {
         this.promptTemplate = promptTemplate;
         this.tokenEstimator = tokenEstimator;
         this.policyApplier = new PromptContextPolicyApplier(metricsPublisher);
+        this.summaryInjectionPolicy = summaryInjectionPolicy;
     }
 
     /**
@@ -82,6 +89,10 @@ public class DefaultContextAssembler implements ContextAssembler {
             input.setPolicyVersion(allocation.getVersion());
         }
         policyApplier.applySystemDeveloper(input, snapshot, promptTemplate, false);
+        // 摘要注入：在通用角色文本填充后注入压缩摘要，保证注入点稳定可控。
+        if (summaryInjectionPolicy != null) {
+            summaryInjectionPolicy.inject(input, snapshot, compressionResult);
+        }
         policyApplier.applyUserText(input, snapshot, userText, false);
         input.setTruncatedSections(buildTruncatedSections(trimReport, pruneResult, compressionResult));
 
@@ -103,6 +114,13 @@ public class DefaultContextAssembler implements ContextAssembler {
             assemblyMeta.put("compressionReason", compressionResult.getTriggerReason());
             assemblyMeta.put("compressionBeforeTokens", compressionResult.getBeforeTokens());
             assemblyMeta.put("compressionAfterTokens", compressionResult.getAfterCompressTokens());
+            assemblyMeta.put("windowShaped", compressionResult.isWindowShaped());
+            assemblyMeta.put("shapeReason", compressionResult.getShapeReason());
+            assemblyMeta.put("primersRetained", compressionResult.getPrimersRetained());
+            assemblyMeta.put("recentsRetained", compressionResult.getRecentsRetained());
+            assemblyMeta.put("middleWindowSize", compressionResult.getMiddleWindowSize());
+            assemblyMeta.put("summaryInjected", compressionResult.isSummaryInjected());
+            assemblyMeta.put("summaryInjectReason", compressionResult.getSummaryInjectReason());
         }
         input.setAssemblyMetadata(assemblyMeta);
 
@@ -170,6 +188,7 @@ public class DefaultContextAssembler implements ContextAssembler {
         return text == null ? 0 : text.length();
     }
 }
+
 
 
 

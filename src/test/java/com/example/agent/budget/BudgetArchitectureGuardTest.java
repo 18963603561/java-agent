@@ -24,6 +24,8 @@ class BudgetArchitectureGuardTest {
             "src/main/java/com/example/agent/budget/token/application/TokenBudgetManager.java";
     private static final String COMPRESSION_SERVICE_FILE =
             "src/main/java/com/example/agent/budget/trim/application/ContextCompressionService.java";
+    private static final String CAPABILITIES_COMPRESSION_ROOT =
+            "src/main/java/com/example/agent/capabilities/context/compression";
 
     private static final List<String> TOKEN_FORBIDDEN_IMPORTS = List.of(
             "import com.example.agent.budget.trim."
@@ -69,10 +71,38 @@ class BudgetArchitectureGuardTest {
                 "import com.example.agent.capabilities.memory.model.CompressionRequest;",
                 "private String applyCompressedSummary(",
                 "private String resolveTriggerReason(",
-                "private boolean isInCooldown("
+                "private boolean isInCooldown(",
+                "import com.example.agent.capabilities.context.compression.experiment.infrastructure.repository.InMemoryCompressionComparisonRepository;",
+                "new InMemoryCompressionComparisonRepository("
         );
         List<String> violations = collectFileViolations(file, forbidden);
         assertTrue(violations.isEmpty(), "ContextCompressionService 存在未拆分职责实现:\n" + String.join("\n", violations));
+    }
+
+    @Test
+    void compressionExperimentDomainShouldNotDependOnInfrastructureRepositoryImplementation() throws IOException {
+        Path root = Path.of("src/main/java/com/example/agent/capabilities/context/compression/experiment");
+        List<String> forbidden = List.of(
+                "import com.example.agent.capabilities.context.compression.experiment.infrastructure.repository.InMemoryCompressionComparisonRepository;"
+        );
+        List<String> violations = collectViolations(root, forbidden);
+        assertTrue(violations.isEmpty(), "compression.experiment 领域层出现基础设施实现依赖:\n" + String.join("\n", violations));
+    }
+
+    @Test
+    void capabilitiesCompressionPackageShouldNotDependOnBudgetTrimPackage() throws IOException {
+        // 定位压缩能力包根目录，用于扫描该目录下的全部 Java 源文件。
+        Path root = Path.of(CAPABILITIES_COMPRESSION_ROOT);
+        // 定义禁止依赖前缀，约束能力域不得反向依赖预算裁剪实现。
+        List<String> forbidden = List.of(
+                "import com.example.agent.budget.trim.",
+                "com.example.agent.budget.trim."
+        );
+        // 执行全量扫描并收集违规依赖条目，输出文件与行号用于定位。
+        List<String> violations = collectViolations(root, forbidden);
+        // 断言违规列表为空，若存在违规则以明细信息阻断提交。
+        assertTrue(violations.isEmpty(), "capabilities.context.compression 出现对 budget.trim 的反向依赖:\n"
+                + String.join("\n", violations));
     }
 
     @Test
@@ -193,4 +223,3 @@ class BudgetArchitectureGuardTest {
         }
     }
 }
-

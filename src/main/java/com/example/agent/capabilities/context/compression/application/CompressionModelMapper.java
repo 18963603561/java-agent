@@ -1,9 +1,10 @@
 package com.example.agent.capabilities.context.compression.application;
 
-import com.example.agent.budget.trim.model.CompressionExecutionResult;
-import com.example.agent.budget.trim.model.ContextCompressionRequest;
+import com.example.agent.capabilities.context.compression.contract.CompressionExecutionResult;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionRequest;
 import com.example.agent.capabilities.context.compression.domain.model.CompressionCommand;
 import com.example.agent.capabilities.context.compression.domain.model.CompressionOutcome;
+import com.example.agent.capabilities.context.compression.domain.model.HistoryWindowShapeResult;
 import com.example.agent.security.auth.TenantContext;
 import org.springframework.stereotype.Component;
 
@@ -26,6 +27,22 @@ public class CompressionModelMapper {
         CompressionCommand command = new CompressionCommand();
         command.setRequest(request);
         command.setTenantContext(tenantContext);
+        return command;
+    }
+
+    /**
+     * 构建带窗口整形结果的压缩命令对象。
+     *
+     * @param request 压缩请求
+     * @param tenantContext 租户上下文
+     * @param windowShapeResult 历史窗口整形结果
+     * @return 压缩命令
+     */
+    public CompressionCommand toCommand(ContextCompressionRequest request,
+                                        TenantContext tenantContext,
+                                        HistoryWindowShapeResult windowShapeResult) {
+        CompressionCommand command = toCommand(request, tenantContext);
+        command.setWindowShapeResult(windowShapeResult);
         return command;
     }
 

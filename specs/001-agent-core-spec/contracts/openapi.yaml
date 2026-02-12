@@ -731,6 +731,73 @@ components:
           type: string
         payload:
           type: object
+          description: 当 type=CONTEXT_COMPRESSION_STAGE 时建议使用 CompressionStageEventPayload
+    ContextCompressionSummary:
+      type: object
+      properties:
+        triggerReason:
+          type: string
+        beforeTokens:
+          type: integer
+        afterTokens:
+          type: integer
+        durationMs:
+          type: integer
+          format: int64
+        summaryVersion:
+          type: string
+        windowShaped:
+          type: boolean
+        shapeReason:
+          type: string
+        primersRetained:
+          type: integer
+        recentsRetained:
+          type: integer
+        middleWindowSize:
+          type: integer
+        summaryInjected:
+          type: boolean
+        summaryInjectReason:
+          type: string
+    CompressionStageEventPayload:
+      type: object
+      properties:
+        tenantId:
+          type: string
+        workflowId:
+          type: string
+        snapshotId:
+          type: string
+        stage:
+          type: string
+          enum:
+            - PLAN_ASSEMBLED
+            - TOOL_OBSERVED
+            - CONTEXT_TRIMMED
+            - CONTEXT_COMPRESSION_TRIGGERED
+            - CONTEXT_COMPRESSION_SHAPED
+            - CONTEXT_COMPRESSION_EXECUTED
+            - CONTEXT_COMPRESSION_INJECTED
+            - CONTEXT_COMPRESSION_SKIPPED
+            - CONTEXT_COMPRESSION_FAILED
+            - CONTEXT_COMPRESSED
+        compressionSummary:
+          $ref: '#/components/schemas/ContextCompressionSummary'
+        evidencePackPresent:
+          type: boolean
+        evidenceToolCount:
+          type: integer
+        evidenceMemoryCount:
+          type: integer
+        evidenceResearchCount:
+          type: integer
+        evidenceTruncationCount:
+          type: integer
+        evidenceApproxChars:
+          type: integer
+        evidencePackVersion:
+          type: string
     EventLogRecord:
       type: object
       properties:

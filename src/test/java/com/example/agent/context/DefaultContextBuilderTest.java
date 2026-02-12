@@ -14,7 +14,9 @@ import com.example.agent.budget.trim.model.ContextTrimRequest;
 import com.example.agent.budget.trim.model.ContextTrimResult;
 import com.example.agent.budget.trim.application.ContextTrimmer;
 import com.example.agent.budget.trim.application.DefaultContextTrimmer;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import com.example.agent.api.http.dto.TaskRequest;
+import com.example.agent.capabilities.context.compression.ContextCompressionFacade;
 import com.example.agent.capabilities.memory.model.ConversationSummary;
 import com.example.agent.capabilities.memory.recall.MemoryRecallResult;
 import com.example.agent.capabilities.memory.model.MemoryRecord;
@@ -260,6 +262,64 @@ class DefaultContextBuilderTest {
     }
 
     @Test
+    void buildPublishesCompressionSkippedStageWhenCompressionNotTriggered() {
+        ContextBudgetAllocator budgetAllocator = Mockito.mock(ContextBudgetAllocator.class);
+        ContextCompressionFacade compressionFacade = Mockito.mock(ContextCompressionFacade.class);
+        ContextBudgetProperties budgetProperties = new ContextBudgetProperties();
+        budgetProperties.setTotalBudgetTokens(200);
+
+        TestEventPublisher eventPublisher = new TestEventPublisher();
+        EventStreamService eventStreamService = Mockito.mock(EventStreamService.class);
+        when(eventStreamService.nextSequence(any(), any())).thenReturn(1L);
+        ContextEventPublisher contextEventPublisher = new ContextEventPublisher(
+                eventPublisher,
+                eventStreamService,
+                new MetricsPublisher(new SimpleMeterRegistry()));
+
+        DefaultContextBuilder builder = new DefaultContextBuilder(null,
+                budgetAllocator,
+                null,
+                null,
+                compressionFacade,
+                budgetProperties,
+                contextEventPublisher,
+                new MetricsPublisher(new SimpleMeterRegistry()));
+        ReflectionTestUtils.setField(builder, "defaultTokenBudget", 200);
+
+        ContextBudgetAllocation allocation = new ContextBudgetAllocation();
+        allocation.setTotalTokens(200);
+        allocation.setAllocationState(ContextBudgetAllocationState.ENABLED);
+        when(budgetAllocator.allocate(any(ContextBudgetRequest.class))).thenReturn(allocation);
+
+        ContextCompressionResult compressionResult = new ContextCompressionResult();
+        compressionResult.setTriggered(false);
+        compressionResult.setTriggerReason("UNDER_THRESHOLD");
+        compressionResult.setBeforeTokens(120);
+        compressionResult.setAfterTrimTokens(100);
+        when(compressionFacade.compressIfNeeded(any())).thenReturn(compressionResult);
+
+        TaskRequest request = new TaskRequest();
+        request.setQuery("q");
+        request.setSessionId("s1");
+
+        TenantContext tenantContext = new TenantContext("t1", "u1", List.of(), "req", "trace");
+
+        ContextBuildRequest buildRequest = new ContextBuildRequest();
+        buildRequest.setTaskRequest(request);
+        buildRequest.setTenantContext(tenantContext);
+        buildRequest.setWorkflowId("wf-1");
+
+        builder.build(buildRequest);
+
+        StreamEvent stageEvent = eventPublisher.findFirst(EventType.CONTEXT_SNAPSHOT_STAGE,
+                ContextSnapshotStage.CONTEXT_COMPRESSION_SKIPPED.name());
+        assertNotNull(stageEvent);
+        StreamEvent compressionEvent = eventPublisher.findFirst(EventType.CONTEXT_COMPRESSION_STAGE,
+                ContextSnapshotStage.CONTEXT_COMPRESSION_SKIPPED.name());
+        assertNotNull(compressionEvent);
+    }
+
+    @Test
     void buildShouldKeepDisabledAllocationAndSkipPruneAndTrim() {
         ContextBudgetAllocator budgetAllocator = Mockito.mock(ContextBudgetAllocator.class);
         ContextPruner contextPruner = Mockito.mock(ContextPruner.class);
@@ -321,8 +381,17 @@ class DefaultContextBuilderTest {
                     .findFirst()
                     .orElse(null);
         }
+
+        public StreamEvent findFirst(EventType type, String stage) {
+            return events.stream()
+                    .filter(event -> event.getType() == type)
+                    .filter(event -> stage.equals(event.getPayload().get("stage")))
+                    .findFirst()
+                    .orElse(null);
+        }
     }
 }
+
 
 
 

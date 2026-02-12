@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.context.compression.application;
 
-import com.example.agent.budget.trim.config.ContextCompressionProperties;
+import com.example.agent.capabilities.context.compression.config.ContextCompressionProperties;
 import com.example.agent.capabilities.context.compression.application.port.CompressionModeResolver;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
@@ -35,4 +35,5 @@ public class DefaultCompressionModeResolver implements CompressionModeResolver {
         return configuredMode.trim().toLowerCase();
     }
 }
+
 

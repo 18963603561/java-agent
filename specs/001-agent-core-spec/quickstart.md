@@ -21,11 +21,38 @@
 - `agent.policy.opaUrl`
 - `agent.sandbox.wasi.enabled`
 - `agent.model.fallback.enabled`
+- `agent.context.compression.enabled`
+- `agent.context.compression.mode`
+- `agent.context.compression.trigger-threshold-ratio`
+- `agent.context.compression.window.primer-size`
+- `agent.context.compression.window.recent-size`
+- `agent.context.compression.window.middle-max-size`
+- `agent.context.compression.injection.enabled`
+- `agent.context.compression.injection.max-chars`
 
 说明：
 - `agent.runtime.maxIterations` 为 ReAct 最大轮次上限。
 - `agent.runtime.minIterations` 为 ReAct 最小轮次下限。
 - `agent.runtime.observationWindow` 为观察窗口条数。
+- `agent.context.compression.mode` 支持 `rule`/`llm`，用于切换压缩执行路径。
+
+压缩配置示例：
+
+```yaml
+agent:
+  context:
+    compression:
+      enabled: true
+      mode: llm
+      trigger-threshold-ratio: 0.85
+      window:
+        primer-size: 4
+        recent-size: 8
+        middle-max-size: 24
+      injection:
+        enabled: true
+        max-chars: 800
+```
 
 ## 启动应用
 - 使用 `Maven` 启动：`./mvnw spring-boot:run`
@@ -148,6 +175,12 @@
    - `POLICY_DENY`：触发策略拒绝，期望 `HTTP 403`，`ErrorResponse.code=POLICY_DENIED`（别名 `POLICY_DENY`）。
    - `SANDBOX_DENY`：触发沙箱拒绝的工具调用，期望 `HTTP 403`，`ErrorResponse.code=SANDBOX_DENIED`（别名 `SANDBOX_DENY`）。
    - `HOOK_BLOCKED`：启用阻断型 `Hook` 调用 `/api/v1/mcp/tools/call`，期望 `HTTP 409`，`ErrorResponse.code=HOOK_BLOCKED`。
+
+10. 上下文压缩链路验证：
+   - 触发上下文压缩后，`SSE` 事件需同时出现 `CONTEXT_SNAPSHOT_STAGE` 与 `CONTEXT_COMPRESSION_STAGE`。
+   - `CONTEXT_COMPRESSION_STAGE` 的 `payload` 需包含 `stage`、`compressionSummary`、`evidenceResearchCount` 等字段。
+   - 压缩被跳过时，`stage` 需为 `CONTEXT_COMPRESSION_SKIPPED`，并保留证据统计字段。
+   - 压缩成功时，`compressionSummary` 需包含 `triggerReason`、`windowShaped`、`summaryInjected`、`summaryInjectReason`。
 
 
 ## ???????Chain-of-Thought

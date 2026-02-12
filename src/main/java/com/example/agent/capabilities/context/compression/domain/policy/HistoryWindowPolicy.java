@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.context.compression.domain.policy;
 
-import com.example.agent.capabilities.context.model.ContextSnapshot;
+import com.example.agent.capabilities.context.compression.domain.model.HistoryWindowShapeCommand;
+import com.example.agent.capabilities.context.compression.domain.model.HistoryWindowShapeResult;
 
 /**
  * 历史窗口策略。
@@ -10,11 +11,10 @@ import com.example.agent.capabilities.context.model.ContextSnapshot;
 public interface HistoryWindowPolicy {
 
     /**
-     * 对上下文快照执行历史窗口整形。
+     * 执行历史窗口整形。
      *
-     * @param snapshot 上下文快照
-     * @return 整形后的上下文快照
+     * @param command 历史窗口整形命令
+     * @return 历史窗口整形结果
      */
-    ContextSnapshot shape(ContextSnapshot snapshot);
+    HistoryWindowShapeResult shape(HistoryWindowShapeCommand command);
 }
-

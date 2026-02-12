@@ -1,7 +1,7 @@
 package com.example.agent.capabilities.context.compression.infrastructure.rule;
 
-import com.example.agent.budget.trim.model.CompressionExecutionResult;
-import com.example.agent.budget.trim.model.ContextCompressionRequest;
+import com.example.agent.capabilities.context.compression.contract.CompressionExecutionResult;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionRequest;
 import com.example.agent.capabilities.context.compression.application.port.CompressionExecutor;
 import com.example.agent.capabilities.context.compression.domain.model.CompressionCommand;
 import com.example.agent.capabilities.memory.MemoryStore;
@@ -113,4 +113,5 @@ public class RuleCompressionExecutorAdapter implements CompressionExecutor {
         }
     }
 }
+
 

@@ -47,6 +47,6 @@ public final class ContextRuntimeKeys {
     public static final String SNAPSHOT_ID = "snapshotId";
     public static final String CONTEXT_BUDGET = "contextBudget";
     public static final String CONTEXT_PRUNE = "contextPrune";
+    public static final String CONTEXT_COMPRESSION = "contextCompression";
     public static final String PROMPT_ASSEMBLY_INPUT = "promptAssemblyInput";
 }
-

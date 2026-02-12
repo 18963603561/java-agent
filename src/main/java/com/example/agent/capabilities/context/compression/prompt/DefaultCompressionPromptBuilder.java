@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.context.compression.prompt;
 
 import com.example.agent.capabilities.context.compression.application.model.LlmCompressionCommand;
+import com.example.agent.capabilities.context.compression.domain.model.HistoryWindowShapeResult;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.model.LongTermMemory;
 import com.example.agent.capabilities.context.model.MemoryRef;
@@ -38,6 +39,15 @@ public class DefaultCompressionPromptBuilder implements CompressionPromptBuilder
         builder.append("workflowId=").append(command.getWorkflowId()).append('\n');
         builder.append("sessionId=").append(command.getSessionId()).append('\n');
         builder.append("triggerReason=").append(command.getTriggerReason()).append('\n');
+        HistoryWindowShapeResult windowShapeResult = command.getWindowShapeResult();
+        // 窗口元数据写入：将三段滑窗结果作为提示上下文，辅助模型理解压缩窗口范围。
+        if (windowShapeResult != null) {
+            builder.append("windowShaped=").append(windowShapeResult.isWindowShaped()).append('\n');
+            builder.append("shapeReason=").append(windowShapeResult.getShapeReason()).append('\n');
+            builder.append("primersRetained=").append(windowShapeResult.getPrimersRetained()).append('\n');
+            builder.append("recentsRetained=").append(windowShapeResult.getRecentsRetained()).append('\n');
+            builder.append("middleWindowSize=").append(windowShapeResult.getMiddleWindowSize()).append('\n');
+        }
 
         // 工作记忆写入：优先使用 summary，按上限裁剪避免提示词过长。
         String workingSummary = workingMemory != null ? workingMemory.getSummary() : null;
@@ -86,4 +96,3 @@ public class DefaultCompressionPromptBuilder implements CompressionPromptBuilder
         return value.substring(0, maxChars);
     }
 }
-

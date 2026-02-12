@@ -1,4 +1,4 @@
-package com.example.agent.budget.trim.model;
+package com.example.agent.capabilities.context.compression.contract;
 
 import com.example.agent.security.auth.TenantContext;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
@@ -22,7 +22,7 @@ public class ContextCompressionRequest {
     /**
      * 裁剪报告，用于判断触发条件。
      */
-    private ContextTrimReport trimReport;
+    private CompressionTrimReportView trimReport;
 
     /**
      * 租户上下文。
@@ -44,7 +44,7 @@ public class ContextCompressionRequest {
 
     public ContextCompressionRequest(ContextSnapshot snapshot,
                                      ContextBudgetAllocation allocation,
-                                     ContextTrimReport trimReport,
+                                     CompressionTrimReportView trimReport,
                                      TenantContext tenantContext,
                                      String workflowId,
                                      String sessionId) {
@@ -72,11 +72,11 @@ public class ContextCompressionRequest {
         this.allocation = allocation == null ? ContextBudgetAllocation.EMPTY : allocation;
     }
 
-    public ContextTrimReport getTrimReport() {
+    public CompressionTrimReportView getTrimReport() {
         return trimReport;
     }
 
-    public void setTrimReport(ContextTrimReport trimReport) {
+    public void setTrimReport(CompressionTrimReportView trimReport) {
         this.trimReport = trimReport;
     }
 

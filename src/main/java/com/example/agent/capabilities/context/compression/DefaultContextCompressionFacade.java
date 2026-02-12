@@ -1,8 +1,8 @@
 package com.example.agent.capabilities.context.compression;
 
-import com.example.agent.budget.trim.application.ContextCompressionService;
-import com.example.agent.budget.trim.model.ContextCompressionRequest;
-import com.example.agent.budget.trim.model.ContextCompressionResult;
+import com.example.agent.capabilities.context.compression.application.port.ContextCompressionOrchestrationPort;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionRequest;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import org.springframework.stereotype.Component;
 
 /**
@@ -16,9 +16,9 @@ public class DefaultContextCompressionFacade implements ContextCompressionFacade
     /**
      * 压缩编排服务。
      */
-    private final ContextCompressionService compressionService;
+    private final ContextCompressionOrchestrationPort compressionService;
 
-    public DefaultContextCompressionFacade(ContextCompressionService compressionService) {
+    public DefaultContextCompressionFacade(ContextCompressionOrchestrationPort compressionService) {
         this.compressionService = compressionService;
     }
 

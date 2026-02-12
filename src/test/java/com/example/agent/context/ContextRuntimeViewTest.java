@@ -1,5 +1,6 @@
 package com.example.agent.context;
 
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import com.example.agent.capabilities.context.evidence.EvidencePack;
 import com.example.agent.capabilities.context.runtime.ContextRuntimeView;
 import com.example.agent.capabilities.context.runtime.ContextRuntimeViews;
@@ -61,6 +62,18 @@ class ContextRuntimeViewTest {
                 null);
 
         assertEquals(evidencePack, view.getEvidencePack());
+    }
+
+    @Test
+    void readContextCompressionShouldReturnTypedObject() {
+        ContextCompressionResult compressionResult = new ContextCompressionResult();
+        compressionResult.setTriggered(true);
+        ContextRuntimeView view = ContextRuntimeViews.readOnly(
+                Map.of("contextCompression", compressionResult),
+                LOG,
+                null);
+
+        assertEquals(compressionResult, view.getContextCompression());
     }
 }
 

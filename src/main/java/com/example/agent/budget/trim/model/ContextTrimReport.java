@@ -1,5 +1,6 @@
 package com.example.agent.budget.trim.model;
 
+import com.example.agent.capabilities.context.compression.contract.CompressionTrimReportView;
 import com.example.agent.budget.core.ContextSection;
 import java.util.List;
 import java.util.Map;
@@ -8,7 +9,7 @@ import java.util.Map;
 /**
  * 上下文裁剪报告，用于记录裁剪前后与原因。
  */
-public class ContextTrimReport {
+public class ContextTrimReport implements CompressionTrimReportView {
 
     /**
      * 报告版本号，默认 v1。

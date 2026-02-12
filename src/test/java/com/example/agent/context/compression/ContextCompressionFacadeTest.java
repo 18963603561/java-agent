@@ -1,8 +1,8 @@
 package com.example.agent.context.compression;
 
-import com.example.agent.budget.trim.application.ContextCompressionService;
-import com.example.agent.budget.trim.model.ContextCompressionRequest;
-import com.example.agent.budget.trim.model.ContextCompressionResult;
+import com.example.agent.capabilities.context.compression.application.port.ContextCompressionOrchestrationPort;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionRequest;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import com.example.agent.capabilities.context.compression.DefaultContextCompressionFacade;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -20,7 +20,7 @@ class ContextCompressionFacadeTest {
 
     @Test
     void shouldDelegateToCompressionService() {
-        ContextCompressionService compressionService = Mockito.mock(ContextCompressionService.class);
+        ContextCompressionOrchestrationPort compressionService = Mockito.mock(ContextCompressionOrchestrationPort.class);
         DefaultContextCompressionFacade facade = new DefaultContextCompressionFacade(compressionService);
 
         ContextCompressionResult expected = new ContextCompressionResult();

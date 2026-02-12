@@ -1,6 +1,7 @@
 package com.example.agent.capabilities.context.runtime;
 
 import com.example.agent.capabilities.context.evidence.EvidencePack;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import com.example.agent.streaming.observability.MetricsPublisher;
 import java.util.ArrayList;
 import java.util.List;
@@ -212,6 +213,24 @@ public class ContextRuntimeView {
     }
 
     /**
+     * 读取上下文压缩结果。
+     */
+    public ContextCompressionResult getContextCompression() {
+        Object value = getRaw(ContextRuntimeKeys.CONTEXT_COMPRESSION);
+        // 空值守卫：压缩结果未写入时返回空值，保持调用方幂等处理。
+        if (value == null) {
+            return null;
+        }
+        // 类型校验：仅允许读取已结构化的压缩结果对象。
+        if (value instanceof ContextCompressionResult compressionResult) {
+            return compressionResult;
+        }
+        // 异常观测：类型不匹配时记录统一告警与指标，帮助定位上下文污染来源。
+        recordTypeMismatch(ContextRuntimeKeys.CONTEXT_COMPRESSION, "ContextCompressionResult", value, null);
+        return null;
+    }
+
+    /**
      * 读取原始值。
      */
     protected Object getRaw(String key) {
@@ -267,3 +286,4 @@ public class ContextRuntimeView {
         return StringUtils.hasText(value) ? value : "unknown";
     }
 }
+

@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.context.compression.application;
 
-import com.example.agent.budget.trim.model.CompressionExecutionResult;
+import com.example.agent.capabilities.context.compression.contract.CompressionExecutionResult;
 import com.example.agent.capabilities.context.compression.application.port.CompressionExecutor;
 import com.example.agent.capabilities.context.compression.application.port.CompressionModeResolver;
 import com.example.agent.capabilities.context.compression.domain.model.CompressionCommand;
@@ -56,14 +56,26 @@ public class CompressionExecutionRouter {
      */
     public CompressionExecutionResult execute(CompressionCommand command) {
         String mode = modeResolver != null ? modeResolver.resolveMode() : MODE_RULE;
+        return execute(command, mode);
+    }
+
+    /**
+     * 按指定模式执行压缩。
+     *
+     * @param command 压缩命令
+     * @param mode 指定模式
+     * @return 执行结果
+     */
+    public CompressionExecutionResult execute(CompressionCommand command, String mode) {
+        String resolvedMode = StringUtils.hasText(mode) ? mode.trim().toLowerCase() : MODE_RULE;
         // 主路径：优先按配置模式命中执行器。
-        CompressionExecutor targetExecutor = executors.get(mode);
+        CompressionExecutor targetExecutor = executors.get(resolvedMode);
         if (targetExecutor != null) {
             // 调用执行器：由目标执行器返回统一结果对象。
             CompressionExecutionResult targetResult = targetExecutor.execute(command);
             // 降级判定：执行失败时由策略决定是否回退 rule 执行器。
-            if (fallbackPolicy != null && fallbackPolicy.shouldFallback(mode, targetResult)) {
-                CompressionExecutionResult fallbackResult = executeRuleFallback(command, mode);
+            if (fallbackPolicy != null && fallbackPolicy.shouldFallback(resolvedMode, targetResult)) {
+                CompressionExecutionResult fallbackResult = executeRuleFallback(command, resolvedMode);
                 if (fallbackResult == null) {
                     return targetResult;
                 }
@@ -78,20 +90,31 @@ public class CompressionExecutionRouter {
         }
 
         // 降级路径：配置模式无执行器时告警并回退 rule。
-        log.warn("压缩模式未命中执行器，回退规则压缩, mode={}", mode);
-        CompressionExecutionResult modeFallback = executeRuleFallback(command, mode);
+        log.warn("压缩模式未命中执行器，回退规则压缩, mode={}", resolvedMode);
+        CompressionExecutionResult modeFallback = executeRuleFallback(command, resolvedMode);
         if (modeFallback != null) {
             modeFallback.setFallbackApplied(true);
-            modeFallback.setFailureReason("MODE_NOT_SUPPORTED:" + mode);
+            modeFallback.setFailureReason("MODE_NOT_SUPPORTED:" + resolvedMode);
             return modeFallback;
         }
 
         // 失败路径：当无任何可用执行器时返回失败原因，避免抛异常中断主链路。
         CompressionExecutionResult failed = new CompressionExecutionResult();
         failed.setSuccess(false);
-        failed.setSource(StringUtils.hasText(mode) ? mode : MODE_RULE);
+        failed.setSource(StringUtils.hasText(resolvedMode) ? resolvedMode : MODE_RULE);
         failed.setFailureReason("NO_AVAILABLE_EXECUTOR");
         return failed;
+    }
+
+    /**
+     * 解析当前配置模式。
+     */
+    public String resolveConfiguredMode() {
+        String mode = modeResolver != null ? modeResolver.resolveMode() : MODE_RULE;
+        if (!StringUtils.hasText(mode)) {
+            return MODE_RULE;
+        }
+        return mode.trim().toLowerCase();
     }
 
     /**
@@ -132,3 +155,4 @@ public class CompressionExecutionRouter {
         return mapping;
     }
 }
+

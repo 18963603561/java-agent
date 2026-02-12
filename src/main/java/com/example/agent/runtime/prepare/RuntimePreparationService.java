@@ -299,6 +299,9 @@ public class RuntimePreparationService {
         if (buildResult.getPruneResult() != null) {
             runtimeView.putContextPrune(buildResult.getPruneResult());
         }
+        if (buildResult.getCompressionResult() != null) {
+            runtimeView.putContextCompression(buildResult.getCompressionResult());
+        }
     }
 
     /**

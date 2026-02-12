@@ -1,6 +1,6 @@
 package com.example.agent.context.compression;
 
-import com.example.agent.budget.trim.model.CompressionExecutionResult;
+import com.example.agent.capabilities.context.compression.contract.CompressionExecutionResult;
 import com.example.agent.capabilities.context.compression.application.CompressionExecutionRouter;
 import com.example.agent.capabilities.context.compression.application.port.CompressionExecutor;
 import com.example.agent.capabilities.context.compression.application.port.CompressionModeResolver;
@@ -114,3 +114,4 @@ class CompressionExecutionRouterTest {
         }
     }
 }
+

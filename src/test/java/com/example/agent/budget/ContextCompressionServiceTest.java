@@ -14,11 +14,18 @@ import com.example.agent.capabilities.context.compression.application.Compressio
 import com.example.agent.capabilities.context.compression.application.CompressionModelMapper;
 import com.example.agent.capabilities.context.compression.application.DefaultCompressionModeResolver;
 import com.example.agent.capabilities.context.compression.application.LlmCompressionOrchestrator;
+import com.example.agent.capabilities.context.compression.experiment.application.CompressionDualTrackOrchestrator;
+import com.example.agent.capabilities.context.compression.experiment.application.guard.CompressionRollbackGuard;
 import com.example.agent.capabilities.context.compression.domain.policy.DefaultCompressionFallbackPolicy;
 import com.example.agent.capabilities.context.compression.domain.policy.DefaultCompressionTriggerPolicy;
+import com.example.agent.capabilities.context.compression.domain.policy.ThreeSegmentHistoryWindowPolicy;
+import com.example.agent.capabilities.context.compression.experiment.infrastructure.evaluator.RuleBasedCompressionQualityEvaluator;
+import com.example.agent.capabilities.context.compression.experiment.infrastructure.policy.DefaultCompressionRolloutPolicy;
+import com.example.agent.capabilities.context.compression.experiment.infrastructure.repository.InMemoryCompressionComparisonRepository;
 import com.example.agent.capabilities.context.compression.infrastructure.llm.LlmCompressionExecutorAdapter;
 import com.example.agent.capabilities.context.compression.infrastructure.rule.RuleCompressionExecutorAdapter;
 import com.example.agent.capabilities.context.compression.infrastructure.telemetry.MetricsCompressionTelemetryAdapter;
+import com.example.agent.capabilities.context.compression.observability.CompressionObservationFactory;
 import com.example.agent.capabilities.context.compression.parser.CompressionResponseParser;
 import com.example.agent.capabilities.context.compression.parser.DefaultCompressionValidationPolicy;
 import com.example.agent.capabilities.context.compression.prompt.DefaultCompressionPromptBuilder;
@@ -39,10 +46,10 @@ import com.example.agent.budget.core.ContextBudgetAllocation;
 import com.example.agent.budget.core.ContextBudgetAllocationState;
 import com.example.agent.budget.trim.model.ContextTrimReport;
 import com.example.agent.budget.trim.application.ContextCompressionService;
-import com.example.agent.budget.trim.config.ContextCompressionProperties;
+import com.example.agent.capabilities.context.compression.config.ContextCompressionProperties;
 import com.example.agent.budget.trim.estimator.ContextTokenEstimator;
-import com.example.agent.budget.trim.model.ContextCompressionRequest;
-import com.example.agent.budget.trim.model.ContextCompressionResult;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionRequest;
+import com.example.agent.capabilities.context.compression.contract.ContextCompressionResult;
 import com.example.agent.budget.trim.application.DefaultCompressionSummaryApplier;
 import com.example.agent.budget.trim.application.InMemoryCompressionCooldownService;
 import com.example.agent.budget.core.ContextSection;
@@ -310,8 +317,16 @@ class ContextCompressionServiceTest {
                 new DefaultCompressionTriggerPolicy(properties),
                 new InMemoryCompressionCooldownService(properties),
                 router,
+                new CompressionDualTrackOrchestrator(
+                        router,
+                        new DefaultCompressionRolloutPolicy(properties),
+                        new InMemoryCompressionComparisonRepository(),
+                        new RuleBasedCompressionQualityEvaluator(),
+                        new CompressionRollbackGuard(properties)),
                 new CompressionModelMapper(),
-                new DefaultCompressionSummaryApplier());
+                new ThreeSegmentHistoryWindowPolicy(),
+                new DefaultCompressionSummaryApplier(),
+                new CompressionObservationFactory());
     }
 
     private ContextBudgetAllocation buildAllocation(int totalTokens, int workingMemoryBudget) {
@@ -367,7 +382,6 @@ class ContextCompressionServiceTest {
         return record;
     }
 }
-
 
 
 

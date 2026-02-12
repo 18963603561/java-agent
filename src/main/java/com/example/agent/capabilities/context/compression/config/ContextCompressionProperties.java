@@ -1,4 +1,4 @@
-package com.example.agent.budget.trim.config;
+package com.example.agent.capabilities.context.compression.config;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
@@ -49,6 +49,16 @@ public class ContextCompressionProperties {
      * LLM 压缩配置。
      */
     private Llm llm = new Llm();
+
+    /**
+     * 摘要注入配置。
+     */
+    private Injection injection = new Injection();
+
+    /**
+     * 双轨灰度发布配置。
+     */
+    private Rollout rollout = new Rollout();
 
     public boolean isEnabled() {
         return trigger != null ? trigger.isEnabled() : enabled;
@@ -116,6 +126,22 @@ public class ContextCompressionProperties {
 
     public void setLlm(Llm llm) {
         this.llm = llm == null ? new Llm() : llm;
+    }
+
+    public Injection getInjection() {
+        return injection;
+    }
+
+    public void setInjection(Injection injection) {
+        this.injection = injection == null ? new Injection() : injection;
+    }
+
+    public Rollout getRollout() {
+        return rollout;
+    }
+
+    public void setRollout(Rollout rollout) {
+        this.rollout = rollout == null ? new Rollout() : rollout;
     }
 
     /**
@@ -308,6 +334,139 @@ public class ContextCompressionProperties {
 
         public void setFallback(String fallback) {
             this.fallback = fallback;
+        }
+    }
+
+    /**
+     * 摘要注入配置。
+     */
+    public static class Injection {
+
+        /**
+         * 是否启用摘要注入。
+         */
+        private boolean enabled = true;
+
+        /**
+         * 注入位置角色（developer/user）。
+         */
+        private String role = "developer";
+
+        /**
+         * 注入摘要最大字符数。
+         */
+        private int maxChars = 800;
+
+        /**
+         * 是否追加注入标签。
+         */
+        private boolean attachTag = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getRole() {
+            return role;
+        }
+
+        public void setRole(String role) {
+            this.role = role;
+        }
+
+        public int getMaxChars() {
+            return maxChars;
+        }
+
+        public void setMaxChars(int maxChars) {
+            this.maxChars = maxChars;
+        }
+
+        public boolean isAttachTag() {
+            return attachTag;
+        }
+
+        public void setAttachTag(boolean attachTag) {
+            this.attachTag = attachTag;
+        }
+    }
+
+    /**
+     * 双轨灰度发布配置。
+     */
+    public static class Rollout {
+
+        /**
+         * 是否启用双轨执行。
+         */
+        private boolean dualTrackEnabled;
+
+        /**
+         * 灰度策略版本。
+         */
+        private String version = "v1";
+
+        /**
+         * 全局采样比例，区间 [0,1]。
+         */
+        private Double globalRatio = 0D;
+
+        /**
+         * 租户白名单（命中即开启双轨）。
+         */
+        private java.util.List<String> tenantWhitelist = new java.util.ArrayList<>();
+
+        /**
+         * 场景白名单（命中即开启双轨）。
+         */
+        private java.util.List<String> sceneWhitelist = new java.util.ArrayList<>();
+
+        public boolean isDualTrackEnabled() {
+            return dualTrackEnabled;
+        }
+
+        public void setDualTrackEnabled(boolean dualTrackEnabled) {
+            this.dualTrackEnabled = dualTrackEnabled;
+        }
+
+        public String getVersion() {
+            return version;
+        }
+
+        public void setVersion(String version) {
+            this.version = version;
+        }
+
+        public Double getGlobalRatio() {
+            return globalRatio;
+        }
+
+        public void setGlobalRatio(Double globalRatio) {
+            this.globalRatio = globalRatio;
+        }
+
+        public java.util.List<String> getTenantWhitelist() {
+            return tenantWhitelist;
+        }
+
+        public void setTenantWhitelist(java.util.List<String> tenantWhitelist) {
+            this.tenantWhitelist = tenantWhitelist == null
+                    ? new java.util.ArrayList<>()
+                    : tenantWhitelist;
+        }
+
+        public java.util.List<String> getSceneWhitelist() {
+            return sceneWhitelist;
+        }
+
+        public void setSceneWhitelist(java.util.List<String> sceneWhitelist) {
+            this.sceneWhitelist = sceneWhitelist == null
+                    ? new java.util.ArrayList<>()
+                    : sceneWhitelist;
         }
     }
 }

@@ -1,4 +1,4 @@
-package com.example.agent.budget.trim.model;
+package com.example.agent.capabilities.context.compression.contract;
 
 import com.example.agent.capabilities.memory.model.MemoryRecord;
 
@@ -51,6 +51,26 @@ public class CompressionExecutionResult {
      * 重试次数。
      */
     private int retryCount;
+
+    /**
+     * 触发比例阈值。
+     */
+    private Double triggerRatio;
+
+    /**
+     * 目标比例阈值。
+     */
+    private Double targetRatio;
+
+    /**
+     * 实际压缩后占比。
+     */
+    private Double actualRatio;
+
+    /**
+     * 是否达成目标比例。
+     */
+    private Boolean targetMet;
 
     public MemoryRecord getCompressed() {
         return compressed;
@@ -122,5 +142,37 @@ public class CompressionExecutionResult {
 
     public void setRetryCount(int retryCount) {
         this.retryCount = retryCount;
+    }
+
+    public Double getTriggerRatio() {
+        return triggerRatio;
+    }
+
+    public void setTriggerRatio(Double triggerRatio) {
+        this.triggerRatio = triggerRatio;
+    }
+
+    public Double getTargetRatio() {
+        return targetRatio;
+    }
+
+    public void setTargetRatio(Double targetRatio) {
+        this.targetRatio = targetRatio;
+    }
+
+    public Double getActualRatio() {
+        return actualRatio;
+    }
+
+    public void setActualRatio(Double actualRatio) {
+        this.actualRatio = actualRatio;
+    }
+
+    public Boolean getTargetMet() {
+        return targetMet;
+    }
+
+    public void setTargetMet(Boolean targetMet) {
+        this.targetMet = targetMet;
     }
 }

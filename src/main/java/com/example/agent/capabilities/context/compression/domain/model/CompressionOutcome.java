@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.context.compression.domain.model;
 
-import com.example.agent.budget.trim.model.CompressionExecutionResult;
+import com.example.agent.capabilities.context.compression.contract.CompressionExecutionResult;
 
 /**
  * 压缩结果领域对象。
@@ -22,4 +22,5 @@ public class CompressionOutcome {
         this.executionResult = executionResult;
     }
 }
+
 

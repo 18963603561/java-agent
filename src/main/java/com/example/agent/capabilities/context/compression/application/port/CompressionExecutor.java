@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.context.compression.application.port;
 
-import com.example.agent.budget.trim.model.CompressionExecutionResult;
+import com.example.agent.capabilities.context.compression.contract.CompressionExecutionResult;
 import com.example.agent.capabilities.context.compression.domain.model.CompressionCommand;
 
 /**
@@ -25,4 +25,5 @@ public interface CompressionExecutor {
      */
     CompressionExecutionResult execute(CompressionCommand command);
 }
+
 

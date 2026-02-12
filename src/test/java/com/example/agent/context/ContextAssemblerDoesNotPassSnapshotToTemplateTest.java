@@ -2,6 +2,8 @@ package com.example.agent.context;
 
 import com.example.agent.capabilities.llm.prompt.DefaultPromptTemplate;
 import org.junit.jupiter.api.Test;
+import com.example.agent.capabilities.context.assembly.DefaultContextSummaryInjectionPolicy;
+import com.example.agent.capabilities.context.compression.config.ContextCompressionProperties;
 import com.example.agent.capabilities.context.assembly.ContextAssemblyCommand;
 import com.example.agent.capabilities.context.model.ContextSnapshot;
 import com.example.agent.capabilities.context.assembly.DefaultContextAssembler;
@@ -18,7 +20,11 @@ class ContextAssemblerDoesNotPassSnapshotToTemplateTest {
 
     @Test
     void assembleShouldNotLeakRuntimeFields() {
-        DefaultContextAssembler assembler = new DefaultContextAssembler(new DefaultPromptTemplate(), null, null);
+        DefaultContextAssembler assembler = new DefaultContextAssembler(
+                new DefaultPromptTemplate(),
+                null,
+                null,
+                new DefaultContextSummaryInjectionPolicy(new ContextCompressionProperties(), null));
         ContextSnapshot snapshot = new ContextSnapshot();
         snapshot.setSnapshotId("snapshot-002");
 
@@ -51,3 +57,4 @@ class ContextAssemblerDoesNotPassSnapshotToTemplateTest {
         assertEquals(Boolean.FALSE, input.getAssemblyMetadata().get("compressed"));
     }
 }
+

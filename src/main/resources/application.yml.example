@@ -1072,6 +1072,34 @@ agent:
         # 默认项:
         # - 6
         recents-count: 6
+      injection:
+        # 说明: 是否启用压缩摘要注入
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - true
+        enabled: true
+        # 说明: 压缩摘要注入角色
+        # 可选项:
+        # - developer
+        # - user
+        # 默认项:
+        # - developer
+        role: developer
+        # 说明: 压缩摘要注入最大字符数
+        # 可选项:
+        # - 正整数
+        # 默认项:
+        # - 800
+        max-chars: 800
+        # 说明: 是否在注入文本添加标签
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - true
+        attach-tag: true
       llm:
         # 说明: 压缩模型场景
         # 可选项:
@@ -1098,6 +1126,38 @@ agent:
         # 默认项:
         # - rule
         fallback: rule
+      rollout:
+        # 说明: 是否开启双轨灰度实验
+        # 可选项:
+        # - true
+        # - false
+        # 默认项:
+        # - false
+        dual-track-enabled: false
+        # 说明: 灰度策略版本号
+        # 可选项:
+        # - 非空字符串
+        # 默认项:
+        # - v1
+        version: v1
+        # 说明: 全局双轨采样比例
+        # 可选项:
+        # - 0.0-1.0
+        # 默认项:
+        # - 0.0
+        global-ratio: 0.0
+        # 说明: 租户白名单，命中时强制启用双轨
+        # 可选项:
+        # - 字符串列表
+        # 默认项:
+        # - []
+        tenant-whitelist: []
+        # 说明: 场景白名单，命中时强制启用双轨
+        # 可选项:
+        # - 字符串列表
+        # 默认项:
+        # - []
+        scene-whitelist: []
   security:
     redaction:
       # 说明: 启用脱敏治理

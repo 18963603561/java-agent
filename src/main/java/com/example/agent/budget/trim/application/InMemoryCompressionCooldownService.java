@@ -1,6 +1,6 @@
 package com.example.agent.budget.trim.application;
 
-import com.example.agent.budget.trim.config.ContextCompressionProperties;
+import com.example.agent.capabilities.context.compression.config.ContextCompressionProperties;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;

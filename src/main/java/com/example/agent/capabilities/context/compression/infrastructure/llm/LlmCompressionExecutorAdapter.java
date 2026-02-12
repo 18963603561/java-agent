@@ -1,6 +1,6 @@
 package com.example.agent.capabilities.context.compression.infrastructure.llm;
 
-import com.example.agent.budget.trim.model.CompressionExecutionResult;
+import com.example.agent.capabilities.context.compression.contract.CompressionExecutionResult;
 import com.example.agent.capabilities.context.compression.application.LlmCompressionOrchestrator;
 import com.example.agent.capabilities.context.compression.application.model.LlmCompressionCommand;
 import com.example.agent.capabilities.context.compression.application.model.LlmCompressionResult;
@@ -57,6 +57,7 @@ public class LlmCompressionExecutorAdapter implements CompressionExecutor {
         llmCommand.setWorkflowId(command.getRequest().getWorkflowId());
         llmCommand.setSessionId(command.getRequest().getSessionId());
         llmCommand.setTriggerReason(command.getRequest().getTrimReport() != null ? "TRIM_REPORT" : "BUDGET_TRIGGER");
+        llmCommand.setWindowShapeResult(command.getWindowShapeResult());
 
         // 执行编排：由 LLM 编排服务完成调用、解析与治理。
         LlmCompressionResult llmResult = llmCompressionOrchestrator.compress(llmCommand);
@@ -95,3 +96,4 @@ public class LlmCompressionExecutorAdapter implements CompressionExecutor {
         return record;
     }
 }
+

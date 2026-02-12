@@ -2,7 +2,7 @@ package com.example.agent.capabilities.context.compression.domain.policy;
 
 import com.example.agent.budget.core.ContextBudgetAllocation;
 import com.example.agent.budget.core.ContextSection;
-import com.example.agent.budget.trim.config.ContextCompressionProperties;
+import com.example.agent.capabilities.context.compression.config.ContextCompressionProperties;
 import java.util.Map;
 import org.springframework.stereotype.Component;
 
@@ -164,4 +164,5 @@ public class DefaultCompressionTriggerPolicy implements CompressionTriggerPolicy
         builder.append(reasonCode);
     }
 }
+
 
