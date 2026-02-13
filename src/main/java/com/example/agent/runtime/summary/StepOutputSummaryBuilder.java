@@ -1,25 +1,31 @@
 package com.example.agent.runtime.summary;
 
+import com.example.agent.runtime.contract.RuntimeOutputFieldExtractor;
 import com.example.agent.runtime.contract.RuntimeOutputKeys;
-import com.example.agent.runtime.summary.SummaryComputationModels.OutputSnapshot;
-import com.example.agent.runtime.summary.SummaryComputationModels.SummaryLimits;
-import com.example.agent.runtime.summary.SummaryComputationModels.TruncationState;
+import com.example.agent.runtime.model.SemanticSummary;
+import com.example.agent.runtime.model.SummarySourceRef;
+import com.example.agent.runtime.summary.audit.SemanticSummarySampler;
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * 步骤输出摘要构建门面。
+ * 步骤输出摘要构建器（语义摘要版）。
  *
- * <p>用途：编排摘要构建流程，聚合输出摘要、工具摘要、步骤摘要、输入摘要与 digest。
- * <p>输入：摘要输入契约、输出对象、工具名与异常。
- * <p>输出：统一摘要结构映射。
- * <p>边界：摘要开关关闭时返回空映射。
+ * <p>用途：基于语义摘要生成步骤摘要结构，向下游提供稳定的 summary 视图。</p>
+ * <p>输入：步骤摘要构建输入契约。</p>
+ * <p>输出：语义摘要映射（text/highlights/openQuestions/risks/sourceRefs）。</p>
+ * <p>边界：摘要开关关闭时返回空映射。</p>
  */
 @Component
 public class StepOutputSummaryBuilder {
+
+    private static final Logger log = LoggerFactory.getLogger(StepOutputSummaryBuilder.class);
 
     /**
      * 摘要配置。
@@ -27,35 +33,35 @@ public class StepOutputSummaryBuilder {
     private final StepSummaryProperties properties;
 
     /**
-     * 快照服务。
+     * 语义摘要服务。
      */
-    private final SummarySnapshotService summarySnapshotService;
+    private final SemanticSummaryService semanticSummaryService;
 
     /**
-     * 输入清理服务。
+     * 语义摘要质量评分器。
      */
-    private final SummaryInputSanitizer summaryInputSanitizer;
+    private final SemanticSummaryQualityScorer qualityScorer;
 
     /**
-     * 文本摘要服务。
+     * 语义摘要抽检器。
      */
-    private final StepSummaryTextService stepSummaryTextService;
+    private final SemanticSummarySampler summarySampler;
 
     /**
-     * 摘要辅助服务。
+     * 语义摘要观测记录器。
      */
-    private final SummaryDigestService summaryDigestService;
+    private final SemanticSummaryMetricsRecorder metricsRecorder;
 
     public StepOutputSummaryBuilder(StepSummaryProperties properties,
-                                    SummarySnapshotService summarySnapshotService,
-                                    SummaryInputSanitizer summaryInputSanitizer,
-                                    StepSummaryTextService stepSummaryTextService,
-                                    SummaryDigestService summaryDigestService) {
+                                    SemanticSummaryService semanticSummaryService,
+                                    SemanticSummaryQualityScorer qualityScorer,
+                                    SemanticSummarySampler summarySampler,
+                                    SemanticSummaryMetricsRecorder metricsRecorder) {
         this.properties = properties;
-        this.summarySnapshotService = summarySnapshotService;
-        this.summaryInputSanitizer = summaryInputSanitizer;
-        this.stepSummaryTextService = stepSummaryTextService;
-        this.summaryDigestService = summaryDigestService;
+        this.semanticSummaryService = semanticSummaryService;
+        this.qualityScorer = qualityScorer;
+        this.summarySampler = summarySampler;
+        this.metricsRecorder = metricsRecorder;
     }
 
     /**
@@ -74,208 +80,254 @@ public class StepOutputSummaryBuilder {
      * @return 摘要结果
      */
     public Map<String, Object> build(StepSummaryBuildInput input) {
-        if (!isEnabled()) {
+        StepSummaryBuildInput safeInput = input;
+        // 输入为空时构造安全默认对象，避免空指针。
+        if (safeInput == null) {
+            // 构建默认输入，确保后续字段读取有默认值。
+            safeInput = StepSummaryBuildInput.builder().build();
+        }
+
+        // 解析请求级覆盖配置。
+        SummaryRequestOverrides overrides = resolveOverrides(safeInput);
+        // 判断摘要是否启用，未启用直接返回空映射。
+        boolean summaryEnabled = resolveSummaryEnabled(overrides);
+        if (!summaryEnabled) {
+            // 返回空映射，保持摘要链路幂等。
             return Collections.emptyMap();
         }
 
-        StepSummaryBuildInput safeInput = input == null ? StepSummaryBuildInput.builder().build() : input;
-
-        String stepId = safeInput.getStepId();
-        String stepType = safeInput.getStepType();
-        String status = safeInput.getStatus();
-        Integer attempt = safeInput.getAttempt();
-        Map<String, Object> effectiveInput = safeInput.getStepInput();
-        Object output = safeInput.getOutput();
-        String toolName = safeInput.getToolName();
-        Object error = safeInput.getError();
-        String inputSource = safeInput.getInputSource();
-
-        SummaryLimits limits = SummaryLimits.from(properties);
-        TruncationState truncation = new TruncationState();
-
-        OutputSnapshot snapshot = summarySnapshotService.buildSnapshot(output, limits, truncation);
-        String resolvedToolName = stepSummaryTextService.resolveToolName(toolName, output);
-
-        Map<String, Object> outputSummary = new LinkedHashMap<>();
-        putIfNotNull(outputSummary, "status", status);
-        if (output == null) {
-            outputSummary.put("hasOutput", false);
-            putIfNotNull(outputSummary, "stepId", stepId);
-            putIfNotNull(outputSummary, "type", stepType);
-            outputSummary.put("summary", "no output");
+        // 解析摘要场景决策，供观测与日志使用。
+        SemanticSummaryScenarioDecision scenarioDecision = resolveScenarioDecisionSafe(safeInput);
+        // 读取摘要场景对象。
+        SemanticSummaryScenario scenario = scenarioDecision.getScenario();
+        // 读取场景命中来源。
+        SemanticSummaryScenarioSource scenarioSource = scenarioDecision.getSource();
+        // 解析原始引用，便于日志追踪。
+        String rawRef = resolveRawRef(safeInput);
+        // 判断是否需要记录摘要日志。
+        boolean logEnabled = metricsRecorder != null && metricsRecorder.shouldLog();
+        // 判断是否需要记录开始日志，命中时输出开始日志。
+        if (logEnabled) {
+            // 记录摘要生成开始日志，包含关键定位字段。
+            log.info("语义摘要生成开始, workflowId={}, stepId={}, stepType={}, rawRef={}, scenario={}, scenarioSource={}",
+                    null,
+                    safeInput.getStepId(),
+                    safeInput.getStepType(),
+                    rawRef,
+                    scenario.getCode(),
+                    scenarioSource.getCode());
         }
-        if (attempt != null) {
-            outputSummary.put("attempt", attempt);
+        // 记录摘要生成起始时间。
+        long summaryStart = System.nanoTime();
+        // 调用语义摘要服务生成语义摘要对象。
+        SemanticSummary semanticSummary = semanticSummaryService.buildSummary(safeInput);
+        // 计算摘要生成耗时（毫秒）。
+        long durationMs = (System.nanoTime() - summaryStart) / 1_000_000;
+        // 判断观测记录器是否存在，存在时记录生成指标。
+        if (metricsRecorder != null) {
+            // 记录摘要生成观测指标（耗时/截断/空摘要）。
+            metricsRecorder.recordGeneration(safeInput, scenario, semanticSummary, durationMs);
         }
-        if (snapshot.getKeys() != null && !snapshot.getKeys().isEmpty()) {
-            outputSummary.put("keyFields", snapshot.getKeys());
+        // 判断是否需要记录完成日志，命中时输出完成日志。
+        if (logEnabled) {
+            // 记录摘要生成完成日志，包含关键定位字段。
+            log.info("语义摘要生成完成, workflowId={}, stepId={}, stepType={}, rawRef={}, scenario={}, scenarioSource={}, truncated={}, durationMs={}",
+                    null,
+                    safeInput.getStepId(),
+                    safeInput.getStepType(),
+                    rawRef,
+                    scenario.getCode(),
+                    scenarioSource.getCode(),
+                    semanticSummary != null && semanticSummary.isTruncated(),
+                    durationMs);
         }
-        if (StringUtils.hasText(snapshot.getSample())) {
-            outputSummary.put("sample", snapshot.getSample());
+        // 构建语义摘要映射，作为统一 summary 输出。
+        Map<String, Object> summaryMap = buildSemanticSummary(semanticSummary);
+        // 调用质量评分器计算摘要质量。
+        SemanticSummaryQuality quality = qualityScorer != null ? qualityScorer.score(safeInput, semanticSummary) : null;
+        // 将质量评分写入摘要映射。
+        applyQuality(summaryMap, quality);
+        // 判断观测记录器是否存在，存在时记录质量指标。
+        if (metricsRecorder != null) {
+            // 记录摘要质量观测指标。
+            metricsRecorder.recordQuality(scenario, quality);
         }
-        String errorText = stepSummaryTextService.resolveErrorText(error, limits, truncation);
-        if (StringUtils.hasText(errorText)) {
-            outputSummary.put("error", errorText);
+        // 调用摘要抽检器进行抽样审计。
+        if (summarySampler != null) {
+            // 触发抽检逻辑并获取抽检原因。
+            String sampleReason = summarySampler.sample(safeInput, summaryMap, quality);
+            // 判断抽检原因是否有效，存在时记录抽检指标。
+            if (StringUtils.hasText(sampleReason) && metricsRecorder != null) {
+                // 记录摘要抽检命中指标。
+                metricsRecorder.recordAuditSample(scenario, sampleReason);
+            }
         }
-
-        Object toolResultPayload = extractToolResultPayload(output);
-        OutputSnapshot toolSnapshot = toolResultPayload != null
-                ? summarySnapshotService.buildSnapshot(toolResultPayload, limits, truncation)
-                : snapshot;
-
-        Map<String, Object> toolResultSummary = new LinkedHashMap<>();
-        if (StringUtils.hasText(resolvedToolName)) {
-            toolResultSummary.put(RuntimeOutputKeys.TOOL_NAME, resolvedToolName);
-        }
-        if (toolSnapshot.getKeys() != null && !toolSnapshot.getKeys().isEmpty()) {
-            toolResultSummary.put("resultKeys", toolSnapshot.getKeys());
-        }
-        if (StringUtils.hasText(toolSnapshot.getSample()) && !toolSnapshot.getSample().equals(snapshot.getSample())) {
-            toolResultSummary.put("sample", toolSnapshot.getSample());
-        }
-
-        Map<String, Object> stepSummary = new LinkedHashMap<>();
-        putIfNotNull(stepSummary, "stepId", stepId);
-        putIfNotNull(stepSummary, "type", stepType);
-        putIfNotNull(stepSummary, "status", status);
-        if (attempt != null) {
-            stepSummary.put("attempt", attempt);
-        }
-        if (StringUtils.hasText(resolvedToolName)) {
-            stepSummary.put(RuntimeOutputKeys.TOOL_NAME, resolvedToolName);
-        }
-        String summaryText = stepSummaryTextService.buildStepSummaryText(
-                stepType,
-                status,
-                resolvedToolName,
-                snapshot,
-                limits,
-                truncation
-        );
-        if (StringUtils.hasText(summaryText)) {
-            stepSummary.put("summary", summaryText);
-        }
-
-        TruncationState inputTruncation = new TruncationState();
-        Map<String, Object> inputSummary = buildInputSummary(
-                effectiveInput,
-                resolvedToolName,
-                limits,
-                inputTruncation,
-                inputSource
-        );
-        OutputSnapshot inputSnapshot = summarySnapshotService.buildSnapshot(effectiveInput, limits, inputTruncation);
-
-        Map<String, Object> inputDigest = new LinkedHashMap<>();
-        inputDigest.put(RuntimeOutputKeys.KEY_COUNT, inputSnapshot.getKeyCount());
-        inputDigest.put(RuntimeOutputKeys.KEYS, inputSnapshot.getKeys());
-        inputDigest.put(RuntimeOutputKeys.CHAR_COUNT, inputSnapshot.getCharCount());
-        inputDigest.put(RuntimeOutputKeys.TRUNCATED, inputTruncation.isTruncated());
-
-        Map<String, Object> outputDigest = new LinkedHashMap<>();
-        outputDigest.put(RuntimeOutputKeys.KEY_COUNT, snapshot.getKeyCount());
-        outputDigest.put(RuntimeOutputKeys.KEYS, snapshot.getKeys());
-        outputDigest.put(RuntimeOutputKeys.CHAR_COUNT, snapshot.getCharCount());
-        outputDigest.put(RuntimeOutputKeys.TRUNCATED, truncation.isTruncated());
-
-        Map<String, Object> result = new LinkedHashMap<>();
-        result.put(RuntimeOutputKeys.OUTPUT_SUMMARY, outputSummary);
-        result.put(RuntimeOutputKeys.TOOL_RESULT_SUMMARY, toolResultSummary);
-        result.put(RuntimeOutputKeys.STEP_SUMMARY, stepSummary);
-        if (inputSummary != null && !inputSummary.isEmpty()) {
-            result.put(RuntimeOutputKeys.INPUT_SUMMARY, inputSummary);
-        }
-        if (inputSnapshot.getKeyCount() > 0 || inputSnapshot.getCharCount() > 0) {
-            result.put(RuntimeOutputKeys.INPUT_DIGEST, inputDigest);
-        }
-        result.put(RuntimeOutputKeys.OUTPUT_DIGEST, outputDigest);
-        result.put(RuntimeOutputKeys.TRUNCATED, truncation.isTruncated());
-        return result;
+        // 返回构建完成的摘要映射。
+        return summaryMap;
     }
 
-    private Object extractToolResultPayload(Object output) {
-        if (!(output instanceof Map<?, ?> map) || map.isEmpty()) {
+    private SummaryRequestOverrides resolveOverrides(StepSummaryBuildInput input) {
+        // 调用覆盖配置解析器解析请求级覆盖。
+        return SummaryRequestOverrides.fromInput(input);
+    }
+
+    private boolean resolveSummaryEnabled(SummaryRequestOverrides overrides) {
+        // 判断覆盖配置是否存在且包含启用开关，存在时优先使用覆盖值。
+        if (overrides != null && overrides.getEnabled() != null) {
+            // 返回覆盖配置中的启用开关。
+            return overrides.getEnabled();
+        }
+        // 返回全局配置的启用开关。
+        return isEnabled();
+    }
+
+    private SemanticSummaryScenarioDecision resolveScenarioDecisionSafe(StepSummaryBuildInput input) {
+        // 判断摘要服务是否可用，不可用时返回默认场景决策。
+        if (semanticSummaryService == null) {
+            // 返回默认场景决策，避免空指针。
+            return SemanticSummaryScenarioDecision.defaultDecision();
+        }
+        // 调用摘要服务解析场景决策。
+        return semanticSummaryService.resolveScenarioDecision(input);
+    }
+
+    private SemanticSummaryScenario resolveScenarioSafe(StepSummaryBuildInput input) {
+        // 调用场景决策解析方法获取场景。
+        SemanticSummaryScenarioDecision decision = resolveScenarioDecisionSafe(input);
+        // 返回场景对象。
+        return decision.getScenario();
+    }
+
+    private String resolveRawRef(StepSummaryBuildInput input) {
+        // 判断输入或输出是否为空，空时直接返回空引用。
+        if (input == null || input.getOutput() == null) {
             return null;
         }
-        Object rawResult = map.get(RuntimeOutputKeys.RAW_RESULT);
-        if (rawResult != null) {
-            return rawResult;
+        // 判断输出是否为映射且非空，非映射时直接返回空引用。
+        if (!(input.getOutput() instanceof Map<?, ?> map) || map.isEmpty()) {
+            return null;
         }
-        Object result = map.get(RuntimeOutputKeys.RESULT);
-        if (result != null) {
-            return result;
+        // 初始化可读输出映射容器。
+        Map<String, Object> outputMap = new LinkedHashMap<>();
+        // 循环遍历输出映射条目，逐项写入容器。
+        for (Map.Entry<?, ?> entry : map.entrySet()) {
+            // 写入条目键值，统一键为字符串。
+            outputMap.put(String.valueOf(entry.getKey()), entry.getValue());
         }
-        return null;
+        // 调用字段提取器解析原始引用。
+        return RuntimeOutputFieldExtractor.resolveRawRef(outputMap);
     }
 
-    private Map<String, Object> buildInputSummary(Map<String, Object> input,
-                                                  String toolName,
-                                                  SummaryLimits limits,
-                                                  TruncationState truncation,
-                                                  String source) {
-        if ((input == null || input.isEmpty()) && !StringUtils.hasText(toolName)) {
-            return Collections.emptyMap();
+    private Map<String, Object> buildSemanticSummary(SemanticSummary summary) {
+        Map<String, Object> summaryMap = new LinkedHashMap<>();
+        // 摘要对象为空时直接返回空映射，避免空指针。
+        if (summary == null) {
+            // 返回空映射，保持摘要结构可控。
+            return summaryMap;
         }
-        Map<String, Object> summary = new LinkedHashMap<>();
-        String resolvedToolName = stepSummaryTextService.resolveToolName(toolName, input);
-        if (StringUtils.hasText(resolvedToolName)) {
-            summary.put(RuntimeOutputKeys.TOOL_NAME, resolvedToolName);
+        // 写入摘要文本字段，作为语义摘要核心内容。
+        putIfHasText(summaryMap, RuntimeOutputKeys.SUMMARY_TEXT, summary.getText());
+        // 写入摘要高亮列表，便于快速回顾关键点。
+        if (summary.getHighlights() != null && !summary.getHighlights().isEmpty()) {
+            // 写入高亮列表，增强摘要信息量。
+            summaryMap.put(RuntimeOutputKeys.SUMMARY_HIGHLIGHTS, summary.getHighlights());
         }
-        if (input != null && !input.isEmpty()) {
-            summaryDigestService.putTextSummary(summary, "query", input.get("query"), limits, truncation);
-            summaryDigestService.putTextSummary(summary, "question", input.get("question"), limits, truncation);
-            summaryDigestService.putTextSummary(summary, "topic", input.get("topic"), limits, truncation);
-
-            Object arguments = input.get("arguments");
-            Object sanitizedArguments = summaryInputSanitizer.sanitizeInputValue(
-                    arguments,
-                    limits,
-                    truncation,
-                    2,
-                    new java.util.IdentityHashMap<>()
-            );
-            summaryDigestService.putStructuredSummary(summary, "arguments", sanitizedArguments);
-
-            Object filters = input.containsKey("filters") ? input.get("filters")
-                    : input.containsKey("filter") ? input.get("filter")
-                    : input.get("conditions");
-            Object sanitizedFilters = summaryInputSanitizer.sanitizeInputValue(
-                    filters,
-                    limits,
-                    truncation,
-                    2,
-                    new java.util.IdentityHashMap<>()
-            );
-            summaryDigestService.putStructuredSummary(summary, "filters", sanitizedFilters);
-
-            Object timeRange = input.containsKey("timeRange") ? input.get("timeRange")
-                    : input.containsKey("dateRange") ? input.get("dateRange")
-                    : input.get("range");
-            Object sanitizedTimeRange = summaryInputSanitizer.sanitizeInputValue(
-                    timeRange,
-                    limits,
-                    truncation,
-                    2,
-                    new java.util.IdentityHashMap<>()
-            );
-            summaryDigestService.putStructuredSummary(summary, "timeRange", sanitizedTimeRange);
-
-            summaryDigestService.putTextSummary(summary, "from", input.get("from"), limits, truncation);
-            summaryDigestService.putTextSummary(summary, "to", input.get("to"), limits, truncation);
-            summaryDigestService.putTextSummary(summary, "startTime", input.get("startTime"), limits, truncation);
-            summaryDigestService.putTextSummary(summary, "endTime", input.get("endTime"), limits, truncation);
+        // 写入未解决问题列表，提示待补充信息。
+        if (summary.getOpenQuestions() != null && !summary.getOpenQuestions().isEmpty()) {
+            // 写入未解决问题列表，便于后续回归。
+            summaryMap.put(RuntimeOutputKeys.SUMMARY_OPEN_QUESTIONS, summary.getOpenQuestions());
         }
-        if (summary.isEmpty()) {
-            return Collections.emptyMap();
+        // 写入风险提示列表，标识潜在风险点。
+        if (summary.getRisks() != null && !summary.getRisks().isEmpty()) {
+            // 写入风险列表，提示注意事项。
+            summaryMap.put(RuntimeOutputKeys.SUMMARY_RISKS, summary.getRisks());
         }
-        if (StringUtils.hasText(source)) {
-            summary.put("source", source);
+        // 写入来源引用列表，保证可追踪性。
+        if (summary.getSourceRefs() != null && !summary.getSourceRefs().isEmpty()) {
+            // 写入来源引用列表，方便定位原始数据。
+            summaryMap.put(RuntimeOutputKeys.SUMMARY_SOURCE_REFS, toSourceRefMaps(summary.getSourceRefs()));
         }
-        return summary;
+        // 写入截断标记，提示摘要是否完整。
+        summaryMap.put(RuntimeOutputKeys.TRUNCATED, summary.isTruncated());
+        // 返回语义摘要映射。
+        return summaryMap;
     }
 
-    private void putIfNotNull(Map<String, Object> target, String key, Object value) {
-        if (value != null) {
+    private void applyQuality(Map<String, Object> summaryMap, SemanticSummaryQuality quality) {
+        // 判断摘要映射是否为空，空时直接返回。
+        if (summaryMap == null || summaryMap.isEmpty()) {
+            // 直接返回，避免对空摘要追加质量信息。
+            return;
+        }
+        // 判断质量对象是否为空，空时直接返回。
+        if (quality == null) {
+            // 直接返回，避免写入空质量字段。
+            return;
+        }
+        // 将质量对象转换为映射。
+        Map<String, Object> qualityMap = quality.toMap();
+        // 判断质量映射是否为空，非空时写入质量字段。
+        if (qualityMap != null && !qualityMap.isEmpty()) {
+            // 写入摘要质量映射，供下游消费。
+            summaryMap.put(RuntimeOutputKeys.SUMMARY_QUALITY, qualityMap);
+        }
+        // 判断质量告警是否存在，存在时写入摘要告警字段。
+        if (quality.getWarnings() != null && !quality.getWarnings().isEmpty()) {
+            // 写入摘要告警列表，提示低质量原因。
+            summaryMap.put(RuntimeOutputKeys.SUMMARY_WARNINGS, quality.getWarnings());
+        }
+    }
+
+    private List<Map<String, Object>> toSourceRefMaps(List<SummarySourceRef> refs) {
+        // 判断来源引用列表是否为空，空时返回空列表。
+        if (refs == null || refs.isEmpty()) {
+            // 返回空列表，避免空指针。
+            return List.of();
+        }
+        // 初始化来源引用映射列表。
+        List<Map<String, Object>> items = new java.util.ArrayList<>();
+        // 循环遍历来源引用列表，逐条转换为映射。
+        for (SummarySourceRef ref : refs) {
+            // 判断引用是否为空，空时跳过。
+            if (ref == null) {
+                // 跳过空引用，继续处理下一条。
+                continue;
+            }
+            // 初始化引用映射容器。
+            Map<String, Object> item = new LinkedHashMap<>();
+            // 判断引用类型是否为空，非空时写入类型字段。
+            if (ref.getType() != null) {
+                // 写入引用类型编码。
+                item.put(RuntimeOutputKeys.SUMMARY_SOURCE_REF_TYPE, ref.getType().getCode());
+            }
+            // 判断引用值是否为空，非空时写入值字段。
+            if (StringUtils.hasText(ref.getValue())) {
+                // 写入引用值字段。
+                item.put(RuntimeOutputKeys.SUMMARY_SOURCE_REF_VALUE, ref.getValue());
+            }
+            // 判断引用路径是否为空，非空时写入路径字段。
+            if (StringUtils.hasText(ref.getPath())) {
+                // 写入引用路径字段。
+                item.put(RuntimeOutputKeys.SUMMARY_SOURCE_REF_PATH, ref.getPath());
+            }
+            // 判断映射是否为空，非空时写入列表。
+            if (!item.isEmpty()) {
+                // 写入引用映射到列表。
+                items.add(item);
+            }
+        }
+        // 返回转换后的来源引用映射列表。
+        return items;
+    }
+
+    private void putIfHasText(Map<String, Object> target, String key, String value) {
+        // 校验目标映射与键名有效性，避免写入空键。
+        if (target == null || !StringUtils.hasText(key)) {
+            return;
+        }
+        // 仅在值非空时写入，避免污染摘要结构。
+        if (StringUtils.hasText(value)) {
+            // 写入非空字段，保证摘要结构稳定。
             target.put(key, value);
         }
     }

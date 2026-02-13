@@ -13,9 +13,19 @@ public class StructuredQuality {
     private Double confidence;
 
     /**
+     * 完整度。
+     */
+    private Double completeness;
+
+    /**
      * 告警列表。
      */
     private List<String> warnings;
+
+    /**
+     * 缺失字段列表。
+     */
+    private List<String> missingFields;
 
     /**
      * 是否截断。
@@ -30,12 +40,28 @@ public class StructuredQuality {
         this.confidence = confidence;
     }
 
+    public Double getCompleteness() {
+        return completeness;
+    }
+
+    public void setCompleteness(Double completeness) {
+        this.completeness = completeness;
+    }
+
     public List<String> getWarnings() {
         return warnings;
     }
 
     public void setWarnings(List<String> warnings) {
         this.warnings = warnings;
+    }
+
+    public List<String> getMissingFields() {
+        return missingFields;
+    }
+
+    public void setMissingFields(List<String> missingFields) {
+        this.missingFields = missingFields;
     }
 
     public Boolean getTruncated() {

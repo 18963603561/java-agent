@@ -1,5 +1,7 @@
 package com.example.agent.reflection.model;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
+
 /**
  * 反思输出摘要对象。
  *
@@ -16,8 +18,8 @@ public class ReflectionOutputSummary {
         this.summary = summary;
     }
 
+    @JsonProperty("text")
     public String getSummary() {
         return summary;
     }
 }
-

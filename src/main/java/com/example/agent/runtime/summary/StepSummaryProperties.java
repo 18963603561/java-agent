@@ -32,7 +32,7 @@ public class StepSummaryProperties {
     /**
      * 是否启用原始结果受控输出。
      */
-    private boolean rawEnable = true;
+    private boolean rawEnable = false;
 
     /**
      * 原始结果快照最大字符数。

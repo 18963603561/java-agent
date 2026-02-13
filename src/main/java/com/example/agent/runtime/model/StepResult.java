@@ -26,14 +26,14 @@ public class StepResult {
     private StepResultRaw raw;
 
     /**
-     * 结构化结果。
+     * 结构化主结果。
      */
-    private StructuredResult<? extends StructuredData> structured;
+    private StructuredResult<? extends StructuredData> result;
 
     /**
-     * 摘要信息。
+     * 语义摘要。
      */
-    private StepResultSummary summary;
+    private SemanticSummary summary;
 
     /**
      * 引用集合。
@@ -69,19 +69,19 @@ public class StepResult {
         this.raw = raw;
     }
 
-    public StructuredResult<? extends StructuredData> getStructured() {
-        return structured;
+    public StructuredResult<? extends StructuredData> getResult() {
+        return result;
     }
 
-    public void setStructured(StructuredResult<? extends StructuredData> structured) {
-        this.structured = structured;
+    public void setResult(StructuredResult<? extends StructuredData> result) {
+        this.result = result;
     }
 
-    public StepResultSummary getSummary() {
+    public SemanticSummary getSummary() {
         return summary;
     }
 
-    public void setSummary(StepResultSummary summary) {
+    public void setSummary(SemanticSummary summary) {
         this.summary = summary;
     }
 
@@ -101,4 +101,3 @@ public class StepResult {
         this.errors = errors;
     }
 }
-

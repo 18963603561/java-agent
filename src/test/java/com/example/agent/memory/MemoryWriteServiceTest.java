@@ -48,37 +48,129 @@ class MemoryWriteServiceTest {
 
     @Test
     void saveTaskMemoryWritesQueryAndFinalOutput() {
+        // 构建内存仓库。
         InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        // 构建内存存储。
         MemoryStore store = buildStore(repository);
+        // 构建写入配置。
         MemoryWriteProperties properties = new MemoryWriteProperties();
+        // 启用记忆写入。
         properties.setEnabled(true);
+        // 启用用户查询写入。
         properties.setSaveUserQuery(true);
+        // 启用最终输出写入。
         properties.setSaveFinalOutput(true);
+        // 设置记录最大字符数。
         properties.setMaxRecordChars(500);
+        // 设置摘要最大字符数。
         properties.setMaxSummaryChars(200);
+        // 构建脱敏服务。
         RedactionService redactionService = buildRedactionService();
+        // 构建指标发布器。
         MetricsPublisher metricsPublisher = new MetricsPublisher(new SimpleMeterRegistry());
+        // 构建写入服务。
         MemoryWriteService service = buildWriteService(store, properties, new ObjectMapper(), redactionService,
                 metricsPublisher);
+        // 构建租户上下文。
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
+        // 构建任务请求。
         TaskRequest request = new TaskRequest();
+        // 设置查询文本。
         request.setQuery("ping");
+        // 设置会话标识。
         request.setSessionId("session-1");
+        // 设置请求上下文。
         request.setContext(Map.of());
 
-        RuntimeResult result = new RuntimeResult();
-        result.setPlanSummary("plan-summary");
-        result.setFinalOutput(Map.of("answer", "pong"));
+        // 构建最终输出的 meta 映射。
+        Map<String, Object> meta = new java.util.HashMap<>();
+        // 写入模型标识。
+        meta.put("modelId", "model-1");
+        // 构建结构化 data 映射。
+        Map<String, Object> resultData = new java.util.HashMap<>();
+        // 写入结构化答案字段。
+        resultData.put("answer", "pong");
+        // 构建结构化 result 映射。
+        Map<String, Object> resultMap = new java.util.HashMap<>();
+        // 写入结果类型字段。
+        resultMap.put("kind", "DEFAULT");
+        // 写入结构版本字段。
+        resultMap.put("schemaVersion", 1);
+        // 写入结构化数据字段。
+        resultMap.put("data", resultData);
+        // 构建决策映射。
+        Map<String, Object> decision = new java.util.HashMap<>();
+        // 写入决策重试字段。
+        decision.put("retry", false);
+        // 构建语义摘要映射。
+        Map<String, Object> summary = new java.util.HashMap<>();
+        // 写入语义摘要文本字段。
+        summary.put("text", "pong-summary");
+        // 构建最终输出映射。
+        Map<String, Object> finalOutput = new java.util.HashMap<>();
+        // 写入元信息字段。
+        finalOutput.put("meta", meta);
+        // 写入结构化结果字段。
+        finalOutput.put("result", resultMap);
+        // 写入决策字段。
+        finalOutput.put("decision", decision);
+        // 写入语义摘要字段。
+        finalOutput.put("summary", summary);
 
-        service.saveTaskMemory(request, result, tenantContext, "task-1");
+        // 构建运行结果。
+        RuntimeResult runtimeResult = new RuntimeResult();
+        // 写入规划摘要。
+        runtimeResult.setPlanSummary("plan-summary");
+        // 写入最终输出。
+        runtimeResult.setFinalOutput(finalOutput);
 
+        // 调用记忆写入入口。
+        service.saveTaskMemory(request, runtimeResult, tenantContext, "task-1");
+
+        // 读取写入记录列表。
         List<MemoryRecord> records = repository.findBySession("tenant-a", "session-1");
+        // 校验记录数量。
         assertEquals(2, records.size());
-        assertTrue(records.stream().anyMatch(item -> "ping".equals(item.getContent())));
-        assertTrue(records.stream().anyMatch(item -> item.getContent() != null
-                && item.getContent().contains("\"answer\"")));
-        assertTrue(records.stream().allMatch(item -> "task-1".equals(item.getTaskId())));
+        // 初始化查询记录标记。
+        boolean foundQuery = false;
+        // 初始化摘要记录标记。
+        boolean foundSummary = false;
+        // 初始化结果内容标记。
+        boolean foundResult = false;
+        // 初始化任务标识一致性标记。
+        boolean taskIdMatched = true;
+        // 循环遍历记录集合。
+        for (MemoryRecord record : records) {
+            // 判断记录内容是否等于查询文本。
+            if ("ping".equals(record.getContent())) {
+                // 标记查询记录存在。
+                foundQuery = true;
+            }
+            // 判断摘要是否等于语义摘要文本。
+            if ("pong-summary".equals(record.getSummary())) {
+                // 标记摘要记录存在。
+                foundSummary = true;
+            }
+            // 判断内容是否包含结构化结果字段。
+            if (record.getContent() != null && record.getContent().contains("\"result\"")) {
+                // 标记结果内容存在。
+                foundResult = true;
+            }
+            // 判断任务标识是否一致。
+            if (!"task-1".equals(record.getTaskId())) {
+                // 标记任务标识不一致。
+                taskIdMatched = false;
+            }
+        }
+        // 校验查询记录存在。
+        assertTrue(foundQuery);
+        // 校验摘要记录存在。
+        assertTrue(foundSummary);
+        // 校验结果内容存在。
+        assertTrue(foundResult);
+        // 校验任务标识一致。
+        assertTrue(taskIdMatched);
     }
 
     @Test
@@ -113,38 +205,86 @@ class MemoryWriteServiceTest {
 
     @Test
     void saveTaskMemoryShouldFallbackWhenSerializeFailed() {
+        // 构建内存仓库。
         InMemoryMemoryRepository repository = new InMemoryMemoryRepository();
+        // 构建内存存储。
         MemoryStore store = buildStore(repository);
+        // 构建写入配置。
         MemoryWriteProperties properties = new MemoryWriteProperties();
+        // 启用记忆写入。
         properties.setEnabled(true);
+        // 关闭用户查询写入。
         properties.setSaveUserQuery(false);
+        // 启用最终输出写入。
         properties.setSaveFinalOutput(true);
+        // 设置记录最大字符数。
         properties.setMaxRecordChars(500);
+        // 设置摘要最大字符数。
         properties.setMaxSummaryChars(200);
+        // 构建脱敏服务。
         RedactionService redactionService = buildRedactionService();
+        // 构建指标注册器。
         SimpleMeterRegistry meterRegistry = new SimpleMeterRegistry();
+        // 构建指标发布器。
         MetricsPublisher metricsPublisher = new MetricsPublisher(meterRegistry);
 
+        // 构建对象序列化器。
         ObjectMapper objectMapper = new ObjectMapper();
+        // 注册异常序列化模块，模拟序列化失败。
         objectMapper.registerModule(new com.fasterxml.jackson.databind.module.SimpleModule()
                 .addSerializer(BadValue.class, new BadValueSerializer()));
 
+        // 构建写入服务。
         MemoryWriteService service = buildWriteService(store, properties, objectMapper, redactionService,
                 metricsPublisher);
+        // 构建租户上下文。
         TenantContext tenantContext = new TenantContext("tenant-a", "user-1", List.of(), "req-1", "trace-1");
 
+        // 构建任务请求。
         TaskRequest request = new TaskRequest();
+        // 设置会话标识。
         request.setSessionId("session-serialize");
+        // 设置请求上下文。
         request.setContext(Map.of("workflowId", "wf-serialize"));
 
-        RuntimeResult result = new RuntimeResult();
-        result.setFinalOutput(Map.of("bad", new BadValue("x")));
+        // 构建结构化 data 映射。
+        Map<String, Object> resultData = new java.util.HashMap<>();
+        // 写入异常值，触发序列化失败。
+        resultData.put("bad", new BadValue("x"));
+        // 构建结构化 result 映射。
+        Map<String, Object> resultMap = new java.util.HashMap<>();
+        // 写入结果类型字段。
+        resultMap.put("kind", "DEFAULT");
+        // 写入结构版本字段。
+        resultMap.put("schemaVersion", 1);
+        // 写入结构化数据字段。
+        resultMap.put("data", resultData);
+        // 构建语义摘要映射。
+        Map<String, Object> summary = new java.util.HashMap<>();
+        // 写入语义摘要文本字段。
+        summary.put("text", "bad-summary");
+        // 构建最终输出映射。
+        Map<String, Object> finalOutput = new java.util.HashMap<>();
+        // 写入结构化结果字段。
+        finalOutput.put("result", resultMap);
+        // 写入语义摘要字段。
+        finalOutput.put("summary", summary);
 
-        service.saveTaskMemory(request, result, tenantContext, "task-serialize");
+        // 构建运行结果。
+        RuntimeResult runtimeResult = new RuntimeResult();
+        // 写入最终输出。
+        runtimeResult.setFinalOutput(finalOutput);
 
+        // 调用记忆写入入口。
+        service.saveTaskMemory(request, runtimeResult, tenantContext, "task-serialize");
+
+        // 读取写入记录列表。
         List<MemoryRecord> records = repository.findBySession("tenant-a", "session-serialize");
+        // 校验记录数量。
         assertEquals(1, records.size());
+        // 读取序列化降级计数器。
         Counter counter = meterRegistry.find("memory_write_output_serialize_fallback_total").counter();
+        // 校验降级计数器存在且计数增加。
         assertTrue(counter != null && counter.count() >= 1.0);
     }
 
@@ -261,5 +401,3 @@ class MemoryWriteServiceTest {
         }
     }
 }
-
-

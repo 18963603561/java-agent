@@ -43,6 +43,14 @@ public final class OutputKeys {
      */
     public static final String RESULT = RuntimeOutputKeys.RESULT;
     /**
+     * 元信息容器。
+     */
+    public static final String META = RuntimeOutputKeys.META;
+    /**
+     * 决策容器。
+     */
+    public static final String DECISION = RuntimeOutputKeys.DECISION;
+    /**
      * 原始容器（兼容字段）。
      */
     public static final String RAW = RuntimeOutputKeys.RAW;
@@ -93,9 +101,41 @@ public final class OutputKeys {
      */
     public static final String OUTPUT_DIGEST = RuntimeOutputKeys.OUTPUT_DIGEST;
     /**
-     * 摘要文本字段。
+     * 摘要容器字段（顶层）。
      */
     public static final String SUMMARY = RuntimeOutputKeys.SUMMARY;
+    /**
+     * 语义摘要文本字段。
+     */
+    public static final String SUMMARY_TEXT = RuntimeOutputKeys.SUMMARY_TEXT;
+    /**
+     * 语义摘要高亮字段。
+     */
+    public static final String SUMMARY_HIGHLIGHTS = RuntimeOutputKeys.SUMMARY_HIGHLIGHTS;
+    /**
+     * 语义摘要未解决问题字段。
+     */
+    public static final String SUMMARY_OPEN_QUESTIONS = RuntimeOutputKeys.SUMMARY_OPEN_QUESTIONS;
+    /**
+     * 语义摘要风险字段。
+     */
+    public static final String SUMMARY_RISKS = RuntimeOutputKeys.SUMMARY_RISKS;
+    /**
+     * 语义摘要来源引用字段。
+     */
+    public static final String SUMMARY_SOURCE_REFS = RuntimeOutputKeys.SUMMARY_SOURCE_REFS;
+    /**
+     * 摘要来源引用类型字段。
+     */
+    public static final String SUMMARY_SOURCE_REF_TYPE = RuntimeOutputKeys.SUMMARY_SOURCE_REF_TYPE;
+    /**
+     * 摘要来源引用值字段。
+     */
+    public static final String SUMMARY_SOURCE_REF_VALUE = RuntimeOutputKeys.SUMMARY_SOURCE_REF_VALUE;
+    /**
+     * 摘要来源引用路径字段。
+     */
+    public static final String SUMMARY_SOURCE_REF_PATH = RuntimeOutputKeys.SUMMARY_SOURCE_REF_PATH;
     /**
      * 截断标记字段。
      */

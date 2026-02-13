@@ -23,6 +23,11 @@ public class ReflectionContext {
     private final ReflectionOutputSummary outputSummary;
 
     /**
+     * 结构化结果映射。
+     */
+    private final java.util.Map<String, Object> result;
+
+    /**
      * 输出指纹对象。
      */
     private final ReflectionOutputDigest outputDigest;
@@ -32,6 +37,7 @@ public class ReflectionContext {
         this.attempt = builder.attempt;
         this.outputSummary = builder.outputSummary;
         this.outputDigest = builder.outputDigest;
+        this.result = builder.result;
     }
 
     public static Builder builder() {
@@ -54,6 +60,10 @@ public class ReflectionContext {
         return outputDigest;
     }
 
+    public java.util.Map<String, Object> getResult() {
+        return result;
+    }
+
     /**
      * 反思上下文构建器。
      */
@@ -63,6 +73,7 @@ public class ReflectionContext {
         private Integer attempt;
         private ReflectionOutputSummary outputSummary;
         private ReflectionOutputDigest outputDigest;
+        private java.util.Map<String, Object> result;
 
         public Builder stepType(String stepType) {
             this.stepType = stepType;
@@ -84,9 +95,13 @@ public class ReflectionContext {
             return this;
         }
 
+        public Builder result(java.util.Map<String, Object> result) {
+            this.result = result;
+            return this;
+        }
+
         public ReflectionContext build() {
             return new ReflectionContext(this);
         }
     }
 }
-

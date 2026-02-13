@@ -18,6 +18,7 @@ import com.example.agent.reflection.strategy.ReflectionLlmInvocationExecutor;
 import com.example.agent.reflection.strategy.ReflectionPromptTraceRecorder;
 import com.example.agent.reflection.strategy.ReflectionStrategySelector;
 import com.example.agent.streaming.observability.MetricsPublisher;
+import com.example.agent.runtime.contract.RuntimeOutputKeys;
 import com.example.agent.runtime.model.StepSpec;
 import com.example.agent.runtime.step.contract.StepExecutionOutput;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
@@ -271,62 +272,101 @@ class ReflectionServiceTest {
 
     @Test
     void reflectPromptFillsDigestSummaryWhenMissing() throws Exception {
+        // 构建反思配置对象。
         ReflectionProperties properties = new ReflectionProperties();
+        // 启用反思能力开关。
         properties.setEnabled(true);
+        // 启用 LLM 反思开关。
         properties.setLlmEnabled(true);
+        // 关闭回退开关以验证提示词。
         properties.setFallbackEnabled(false);
+        // 构建指标发布器模拟对象。
         MetricsPublisher metricsPublisher = Mockito.mock(MetricsPublisher.class);
+        // 构建模型调用服务模拟对象。
         ModelInvocationService modelInvocationService = Mockito.mock(ModelInvocationService.class);
+        // 构建工具解析器模拟对象。
         ModelToolResolver modelToolResolver = Mockito.mock(ModelToolResolver.class);
+        // 构建提示组装器模拟对象。
         PromptAssembler promptAssembler = Mockito.mock(PromptAssembler.class);
+        // 构建 JSON 序列化工具。
+        ObjectMapper objectMapper = new ObjectMapper();
+        // 构建输出修复服务模拟对象。
+        JsonOutputRepairService repairService = Mockito.mock(JsonOutputRepairService.class);
+        // 调用工厂方法创建反思服务。
         ReflectionService service = createService(properties, metricsPublisher,
-                modelInvocationService, modelToolResolver, promptAssembler, new ObjectMapper(),
-                Mockito.mock(JsonOutputRepairService.class));
+                modelInvocationService, modelToolResolver, promptAssembler, objectMapper, repairService);
 
+        // 构建模型返回内容。
         String content = "{\"score\":0.9,\"retry\":false,\"notes\":\"ok\"}";
-        when(modelInvocationService.invoke(any(ModelRequest.class), eq(ModelScene.REFLECT),
-                any(TenantContext.class), any(), any(), eq("reflect"), any()))
-                .thenReturn(new ModelResponse("reflect", content, 10, 5));
+        // 配置模型调用模拟返回。
+        org.mockito.stubbing.OngoingStubbing<ModelResponse> stubbing = when(modelInvocationService.invoke(
+                any(ModelRequest.class), eq(ModelScene.REFLECT),
+                any(TenantContext.class), any(), any(), eq("reflect"), any()));
+        // 写入模型返回结果。
+        stubbing.thenReturn(new ModelResponse("reflect", content, 10, 5));
 
+        // 初始化语义摘要映射。
         Map<String, Object> summaryView = new java.util.HashMap<>();
-        summaryView.put("outputSummary", new java.util.HashMap<>());
-        summaryView.put("outputDigest", Map.of(
-                "keyCount", 12,
-                "keys", List.of("a", "b", "c"),
-                "charCount", 2048,
-                "truncated", true
-        ));
-        StepExecutionOutput output = StepExecutionOutput.fromPayload(Map.of()).withSummary(summaryView);
+        // 写入语义摘要文本字段。
+        summaryView.put(RuntimeOutputKeys.SUMMARY_TEXT, "语义摘要");
+        // 写入截断标记字段。
+        summaryView.put(RuntimeOutputKeys.TRUNCATED, false);
+        // 构建步骤输出载荷。
+        Map<String, Object> payload = Map.of();
+        // 生成步骤输出对象。
+        StepExecutionOutput output = StepExecutionOutput.fromPayload(payload);
+        // 注入语义摘要映射到步骤输出。
+        StepExecutionOutput outputWithSummary = output.withSummary(summaryView);
 
+        // 构建步骤定义。
         StepSpec step = new StepSpec("TOOL", Map.of());
-        ReflectionResult result = service.reflect(step, output,
+        // 调用反思服务执行反思。
+        ReflectionResult result = service.reflect(step, outputWithSummary,
                 new TenantContext("t1", "u1", List.of(), "req", "trace"), 1,
                 "wf-1", new java.util.concurrent.atomic.AtomicLong(0));
 
+        // 校验反思结果不为空。
         assertNotNull(result);
 
+        // 构建参数捕获器。
         ArgumentCaptor<ModelRequest> captor = ArgumentCaptor.forClass(ModelRequest.class);
+        // 验证模型调用并捕获请求。
         Mockito.verify(modelInvocationService).invoke(captor.capture(), eq(ModelScene.REFLECT),
                 any(TenantContext.class), any(), any(), eq("reflect"), any());
+        // 读取提示词内容。
         String prompt = captor.getValue().getPrompt();
+        // 校验提示词不为空。
         assertNotNull(prompt);
+        // 校验提示词不包含原始字段。
         assertFalse(prompt.contains("contextSnapshot"));
+        // 校验提示词不包含原始字段。
         assertFalse(prompt.contains("contextBudget"));
+        // 校验提示词不包含原始字段。
         assertFalse(prompt.contains("evidencePack"));
+        // 校验提示词不包含原始字段。
         assertFalse(prompt.contains("tokenUsage"));
 
+        // 定义上下文标记。
         String marker = "REFLECTION_CONTEXT_JSON:";
+        // 查找标记位置。
         int index = prompt.indexOf(marker);
+        // 校验标记位置有效。
         assertTrue(index > -1);
-        String contextJson = prompt.substring(index + marker.length()).trim();
-        Map<String, Object> context = new ObjectMapper().readValue(contextJson, new TypeReference<Map<String, Object>>() {
+        // 截取上下文 JSON。
+        String contextJson = prompt.substring(index + marker.length());
+        // 清理上下文 JSON 前后空白。
+        String trimmedContextJson = contextJson.trim();
+        // 解析上下文 JSON 为映射。
+        Map<String, Object> context = objectMapper.readValue(trimmedContextJson, new TypeReference<Map<String, Object>>() {
         });
-        Object summaryObj = ((Map<?, ?>) context.get("outputSummary")).get("summary");
+        // 读取摘要对象。
+        Object summaryObj = ((Map<?, ?>) context.get("outputSummary")).get("text");
+        // 校验摘要对象不为空。
         assertNotNull(summaryObj);
+        // 转换摘要文本。
         String summary = summaryObj.toString();
-        assertTrue(summary.contains("keyCount=12"));
-        assertTrue(summary.contains("keys="));
-        assertTrue(summary.contains("truncated=true"));
+        // 校验摘要文本等于语义摘要。
+        assertEquals("语义摘要", summary);
     }
 
     @Test

@@ -12,8 +12,9 @@ import com.example.agent.capabilities.llm.prompt.PromptBundle;
 import com.example.agent.capabilities.llm.repair.JsonOutputRepairService;
 import com.example.agent.capabilities.llm.repair.JsonOutputSchema;
 import com.example.agent.runtime.model.StepResult;
-import com.example.agent.runtime.model.StepResultDigest;
-import com.example.agent.runtime.model.StepResultSummary;
+import com.example.agent.runtime.model.SemanticSummary;
+import com.example.agent.runtime.model.SummarySourceRef;
+import com.example.agent.runtime.structured.result.StructuredResult;
 import com.example.agent.capabilities.llm.prompt.PromptTrace;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -294,108 +295,136 @@ public class FinalOutputService {
      * 生成仅包含必要信息的步骤列表，避免提示词注入原始输出。
      */
     private List<Map<String, Object>> buildStepSummaries(List<StepResult> stepOutputs) {
+        // 判断步骤输出列表是否为空，空时直接返回空列表。
         if (stepOutputs == null || stepOutputs.isEmpty()) {
+            // 返回空列表，避免空指针。
             return List.of();
         }
+        // 初始化摘要列表容器。
         List<Map<String, Object>> summaries = new ArrayList<>();
+        // 循环遍历步骤输出列表，逐条生成摘要。
         for (StepResult step : stepOutputs) {
+            // 判断步骤是否为空，空时跳过。
             if (step == null) {
+                // 跳过空步骤，继续处理下一条。
                 continue;
             }
+            // 初始化单步摘要容器。
             Map<String, Object> summary = new HashMap<>();
+            // 判断元信息是否存在，存在时写入元信息字段。
             if (step.getMeta() != null) {
+                // 写入步骤标识字段。
                 summary.put("stepId", toText(step.getMeta().getStepId()));
+                // 写入步骤类型字段。
                 summary.put("type", toText(step.getMeta().getType()));
+                // 判断步骤状态是否存在，存在时写入状态字段。
                 if (step.getMeta().getStatus() != null) {
+                    // 写入状态字段，便于结果评估。
                     summary.put("status", step.getMeta().getStatus().name());
                 }
+                // 判断工具名称是否为空，存在时写入工具字段。
                 if (StringUtils.hasText(step.getMeta().getToolName())) {
+                    // 写入工具名称字段，便于追踪来源。
                     summary.put(OutputKeys.TOOL_NAME, step.getMeta().getToolName());
                 }
+                // 判断模型标识是否为空，存在时写入模型字段。
                 if (StringUtils.hasText(step.getMeta().getModelId())) {
+                    // 写入模型标识字段，便于诊断。
                     summary.put("modelId", step.getMeta().getModelId());
                 }
             }
+            // 调用摘要解析方法，提取语义摘要文本。
             StepSummaryData data = resolveStepSummaryData(step.getSummary());
+            // 写入缺省状态字段，确保状态存在。
             summary.putIfAbsent("status", data.status);
+            // 写入摘要文本字段，供最终输出提示词使用。
             summary.put("summary", data.summary);
 
-            Map<String, Object> rawData = step.getRaw() != null ? step.getRaw().getData() : null;
-            if (rawData != null && !rawData.isEmpty()) {
-                Object answer = rawData.get("answer");
-                if (answer != null) {
-                    summary.put("answer", truncateText(String.valueOf(answer), DEFAULT_STEP_ANSWER_MAX_CHARS));
-                }
-                Object highlights = rawData.get("highlights");
-                if (highlights != null) {
-                    summary.put("highlights", truncateText(String.valueOf(highlights), DEFAULT_STEP_HIGHLIGHTS_MAX_CHARS));
-                }
-                Object toolStatus = rawData.get("toolStatus");
-                if (toolStatus != null) {
-                    summary.put("toolStatus", String.valueOf(toolStatus));
-                }
-                Object mode = rawData.get("mode");
-                if (mode != null) {
-                    summary.put("mode", String.valueOf(mode));
-                }
-                if (!summary.containsKey(OutputKeys.TOOL_NAME)) {
-                    Object toolName = rawData.get(OutputKeys.TOOL_NAME);
-                    if (toolName != null && StringUtils.hasText(toolName.toString())) {
-                        summary.put(OutputKeys.TOOL_NAME, toolName.toString());
-                    }
-                }
+            // 读取语义摘要对象，补充摘要扩展字段。
+            SemanticSummary semanticSummary = step.getSummary();
+            // 判断高亮列表是否为空，非空时写入高亮字段。
+            if (semanticSummary != null && semanticSummary.getHighlights() != null
+                    && !semanticSummary.getHighlights().isEmpty()) {
+                // 写入高亮列表字段。
+                summary.put("highlights", semanticSummary.getHighlights());
             }
+            // 判断未解决问题列表是否为空，非空时写入字段。
+            if (semanticSummary != null && semanticSummary.getOpenQuestions() != null
+                    && !semanticSummary.getOpenQuestions().isEmpty()) {
+                // 写入未解决问题字段。
+                summary.put("openQuestions", semanticSummary.getOpenQuestions());
+            }
+            // 判断风险列表是否为空，非空时写入字段。
+            if (semanticSummary != null && semanticSummary.getRisks() != null
+                    && !semanticSummary.getRisks().isEmpty()) {
+                // 写入风险字段。
+                summary.put("risks", semanticSummary.getRisks());
+            }
+            // 判断来源引用列表是否为空，非空时写入字段。
+            if (semanticSummary != null && semanticSummary.getSourceRefs() != null
+                    && !semanticSummary.getSourceRefs().isEmpty()) {
+                // 写入来源引用字段。
+                summary.put("sourceRefs", toSourceRefMaps(semanticSummary.getSourceRefs()));
+            }
+
+            // 读取结构化结果对象，强化结构化主路径。
+            StructuredResult<?> structured = step.getResult();
+            // 判断结构化结果是否存在且包含数据，存在时写入结果字段。
+            if (structured != null && structured.getData() != null && !structured.dataAsMap().isEmpty()) {
+                // 写入结构化结果字段，便于下游分析。
+                summary.put("result", buildResultPayload(structured));
+            }
+            // 写入单步摘要到列表容器。
             summaries.add(summary);
         }
+        // 返回构建后的摘要列表。
         return summaries;
     }
 
     /**
      * 从输出中提取摘要与状态，优先使用 stepSummary.summary。
      */
-    private StepSummaryData resolveStepSummaryData(StepResultSummary summaryModel) {
+    private StepSummaryData resolveStepSummaryData(SemanticSummary summaryModel) {
+        // 初始化摘要数据容器。
         StepSummaryData data = new StepSummaryData();
+        // 判断摘要对象是否存在，存在时读取摘要文本。
         if (summaryModel != null) {
-            Map<String, Object> stepSummary = summaryModel.getStepSummary();
-            if (stepSummary != null) {
-                data.status = toText(stepSummary.get("status"));
-                Object summaryValue = stepSummary.get("summary");
-                if (summaryValue != null && StringUtils.hasText(summaryValue.toString())) {
-                    data.summary = summaryValue.toString();
-                } else if (!stepSummary.isEmpty()) {
-                    data.summary = toJsonSafe(stepSummary);
-                }
-            }
-            if (!StringUtils.hasText(data.status) && summaryModel.getOutputSummary() != null) {
-                data.status = toText(summaryModel.getOutputSummary().get("status"));
-            }
-            if (!StringUtils.hasText(data.summary)) {
-                data.summary = buildDigestSummary(summaryModel.getOutputDigest());
-            }
+            // 读取摘要文本字段。
+            data.summary = summaryModel.getText();
         }
+        // 摘要文本为空时写入默认占位文本。
         if (!StringUtils.hasText(data.summary)) {
+            // 写入默认占位文本，避免空摘要。
             data.summary = "(summary disabled)";
         }
+        // 统一截断摘要文本长度。
         data.summary = truncateSummary(data.summary);
+        // 返回摘要数据对象。
         return data;
     }
 
-    private String buildDigestSummary(StepResultDigest digest) {
-        if (digest == null) {
-            return null;
+    private Map<String, Object> buildResultPayload(StructuredResult<?> structured) {
+        // 初始化结构化结果映射容器。
+        Map<String, Object> result = new HashMap<>();
+        // 判断结构化结果是否为空，空时直接返回空映射。
+        if (structured == null) {
+            // 返回空映射，避免空指针。
+            return result;
         }
-        StringBuilder builder = new StringBuilder("digest");
-        appendDigestField(builder, "keyCount", digest.getKeyCount());
-        appendDigestField(builder, "charCount", digest.getCharCount());
-        appendDigestField(builder, "truncated", digest.getTruncated());
-        return builder.toString();
-    }
-
-    private void appendDigestField(StringBuilder builder, String field, Object value) {
-        if (value == null) {
-            return;
+        // 判断结果类型是否存在，存在时写入 kind 字段。
+        if (structured.getKind() != null) {
+            // 写入 kind 字段，标识语义类型。
+            result.put("kind", structured.getKind().name());
         }
-        builder.append(' ').append(field).append('=').append(value);
+        // 判断结构版本是否存在，存在时写入 schemaVersion 字段。
+        if (structured.getSchemaVersion() != null) {
+            // 写入 schemaVersion 字段，保证版本可追踪。
+            result.put("schemaVersion", structured.getSchemaVersion());
+        }
+        // 写入结构化数据字段，作为主结果数据。
+        result.put("data", structured.dataAsMap());
+        // 返回结构化结果映射。
+        return result;
     }
 
     private String toJsonSafe(Object value) {
@@ -426,6 +455,48 @@ public class FinalOutputService {
             return text.substring(0, maxChars);
         }
         return text.substring(0, endIndex) + SUMMARY_TRUNCATED_SUFFIX;
+    }
+
+    private List<Map<String, Object>> toSourceRefMaps(List<SummarySourceRef> refs) {
+        // 判断来源引用列表是否为空，空时返回空列表。
+        if (refs == null || refs.isEmpty()) {
+            // 返回空列表，避免空指针。
+            return List.of();
+        }
+        // 初始化来源引用映射列表。
+        List<Map<String, Object>> items = new ArrayList<>();
+        // 循环遍历来源引用列表，逐条转换为映射。
+        for (SummarySourceRef ref : refs) {
+            // 判断引用是否为空，空时跳过。
+            if (ref == null) {
+                // 跳过空引用，继续处理下一条。
+                continue;
+            }
+            // 初始化引用映射容器。
+            Map<String, Object> item = new HashMap<>();
+            // 判断引用类型是否为空，非空时写入类型字段。
+            if (ref.getType() != null) {
+                // 写入引用类型编码。
+                item.put(OutputKeys.SUMMARY_SOURCE_REF_TYPE, ref.getType().getCode());
+            }
+            // 判断引用值是否为空，非空时写入值字段。
+            if (StringUtils.hasText(ref.getValue())) {
+                // 写入引用值字段。
+                item.put(OutputKeys.SUMMARY_SOURCE_REF_VALUE, ref.getValue());
+            }
+            // 判断引用路径是否为空，非空时写入路径字段。
+            if (StringUtils.hasText(ref.getPath())) {
+                // 写入引用路径字段。
+                item.put(OutputKeys.SUMMARY_SOURCE_REF_PATH, ref.getPath());
+            }
+            // 判断映射是否为空，非空时写入列表。
+            if (!item.isEmpty()) {
+                // 写入引用映射到列表。
+                items.add(item);
+            }
+        }
+        // 返回转换后的来源引用映射列表。
+        return items;
     }
 
     private String truncateText(String text, int maxChars) {

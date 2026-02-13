@@ -2,7 +2,6 @@ package com.example.agent.runtime.step.contract;
 
 import com.example.agent.runtime.output.OutputFieldExtractor;
 import com.example.agent.runtime.output.OutputKeys;
-import com.example.agent.runtime.summary.StepOutputSummaryView;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -198,15 +197,6 @@ public final class StepExecutionOutput {
 
     public String getFallbackReason() {
         return fallbackReason;
-    }
-
-    /**
-     * 生成用于反思阶段的摘要视图。
-     *
-     * @return 反思视图
-     */
-    public StepOutputSummaryView toReflectionView() {
-        return StepOutputSummaryView.from(summary);
     }
 
     private static boolean hasText(String value) {
