@@ -1256,7 +1256,7 @@ agent:
       # - false
       # 默认项:
       # - true
-      enabled: false
+      enabled: true
       # 说明: 召回条数上限
       # 可选项:
       # - 正整数
@@ -1356,7 +1356,7 @@ agent:
     # - false
     # 默认项:
     # - true
-    enabled: false
+    enabled: true
     # 说明: 预算阈值令牌数
     # 可选项:
     # - 非负整数
