@@ -10,6 +10,8 @@ import com.example.agent.capabilities.tools.sandbox.SandboxResult;
 import com.example.agent.security.auth.TenantContext;
 import java.util.HashMap;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
@@ -19,6 +21,11 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class ToolInvocationService {
+
+    /**
+     * 日志记录器。
+     */
+    private static final Logger log = LoggerFactory.getLogger(ToolInvocationService.class);
 
     /**
      * 执行单次工具调用并返回合并结果。
@@ -39,7 +46,14 @@ public class ToolInvocationService {
                                       String resolvedTool,
                                       McpToolCallRequest callRequest,
                                       Map<String, Object> arguments) {
-        SandboxResult sandboxResult = sandboxExecutor.execute(resolvedTool, taskRequest, tenantContext, arguments);
+        SandboxResult sandboxResult = null;
+        // 涉及外部依赖调用：优先执行沙箱策略检查，补充策略上下文用于后续结果合并。
+        if (sandboxExecutor != null) {
+            sandboxResult = sandboxExecutor.execute(resolvedTool, taskRequest, tenantContext, arguments);
+        } else {
+            log.debug("沙箱执行器为空，跳过沙箱执行。tool={}", resolvedTool);
+        }
+        // 涉及外部依赖调用：执行 MCP 工具调用，获取工具主结果。
         McpToolCallResponse callResponse = mcpToolClient.callTool(callRequest, tenantContext);
         return mergeResult(callResponse, sandboxResult);
     }

@@ -45,6 +45,11 @@ paths:
           in: query
           schema:
             type: integer
+        - name: responseMode
+          in: query
+          schema:
+            type: string
+            enum: [compact, full]
       responses:
         '200':
           description: 查询成功
@@ -61,6 +66,11 @@ paths:
           required: true
           schema:
             type: string
+        - name: responseMode
+          in: query
+          schema:
+            type: string
+            enum: [compact, full]
       responses:
         '200':
           description: 查询成功
@@ -652,10 +662,13 @@ components:
           type: string
           enum: [ASYNC, SYNC]
           description: SYNC 会在超时时间内等待结果，超时退化为 202
-        waitTimeoutMs:
-          type: integer
-          format: int64
-          description: SYNC 等待超时时间（毫秒），仅 SYNC 生效，超出上限按上限处理
+          waitTimeoutMs:
+            type: integer
+            format: int64
+            description: SYNC 等待超时时间（毫秒），仅 SYNC 生效，超出上限按上限处理
+          responseMode:
+            type: string
+            enum: [compact, full]
     TaskResponse:
       type: object
       properties:

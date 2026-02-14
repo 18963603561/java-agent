@@ -33,11 +33,21 @@ public final class SummaryRequestOverrides {
      */
     private final Integer maxListItems;
 
-    private SummaryRequestOverrides(Boolean enabled, String scenario, Integer maxChars, Integer maxListItems) {
+    /**
+     * 摘要策略覆盖编码。
+     */
+    private final String strategy;
+
+    private SummaryRequestOverrides(Boolean enabled,
+                                    String scenario,
+                                    Integer maxChars,
+                                    Integer maxListItems,
+                                    String strategy) {
         this.enabled = enabled;
         this.scenario = scenario;
         this.maxChars = maxChars;
         this.maxListItems = maxListItems;
+        this.strategy = strategy;
     }
 
     /**
@@ -78,13 +88,19 @@ public final class SummaryRequestOverrides {
         Integer maxChars = resolveInteger(overrides.get("maxChars"));
         // 解析列表最大条目数。
         Integer maxListItems = resolveInteger(overrides.get("maxListItems"));
+        // 解析摘要策略覆盖。
+        String strategy = resolveString(overrides.get("strategy"));
         // 判断是否全部为空，全部为空则返回 null。
-        if (enabled == null && scenario == null && maxChars == null && maxListItems == null) {
+        if (enabled == null
+                && scenario == null
+                && maxChars == null
+                && maxListItems == null
+                && strategy == null) {
             // 返回空对象，避免产生空覆盖配置。
             return null;
         }
         // 构建覆盖配置对象并返回。
-        return new SummaryRequestOverrides(enabled, scenario, maxChars, maxListItems);
+        return new SummaryRequestOverrides(enabled, scenario, maxChars, maxListItems, strategy);
     }
 
     public Boolean getEnabled() {
@@ -101,6 +117,10 @@ public final class SummaryRequestOverrides {
 
     public Integer getMaxListItems() {
         return maxListItems;
+    }
+
+    public String getStrategy() {
+        return strategy;
     }
 
     private static Map<String, Object> resolveOverrides(Map<String, Object> stepInput) {

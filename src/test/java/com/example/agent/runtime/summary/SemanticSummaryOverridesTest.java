@@ -34,6 +34,25 @@ class SemanticSummaryOverridesTest {
     }
 
     @Test
+    void shouldResolveStrategyFromOverride() {
+        // 构建覆盖配置映射。
+        Map<String, Object> overrides = Map.of("strategy", "template");
+        // 构建上下文映射。
+        Map<String, Object> context = Map.of("summary", overrides);
+        // 构建步骤输入映射。
+        Map<String, Object> stepInput = Map.of("context", context);
+        // 构建摘要输入。
+        StepSummaryBuildInput input = StepSummaryBuildInput.builder()
+                .stepInput(stepInput)
+                .build();
+
+        // 调用覆盖解析器解析覆盖配置。
+        SummaryRequestOverrides parsed = SummaryRequestOverrides.fromInput(input);
+        // 校验策略覆盖解析正确。
+        assertEquals("template", parsed.getStrategy());
+    }
+
+    @Test
     void shouldApplyBudgetOverrides() {
         // 构建基础摘要配置。
         StepSummaryProperties properties = new StepSummaryProperties();
@@ -68,5 +87,34 @@ class SemanticSummaryOverridesTest {
         assertEquals(2, budget.getMaxRisks());
         // 校验来源引用列表覆盖。
         assertEquals(2, budget.getMaxSourceRefs());
+    }
+
+    @Test
+    void shouldKeepUnlimitedBudgetWhenOverrideMaxCharsIsZero() {
+        // 构建基础摘要配置。
+        StepSummaryProperties properties = new StepSummaryProperties();
+        // 设置默认最大字符数。
+        properties.setMaxChars(200);
+        // 设置默认列表最大条目数。
+        properties.setMaxListItems(5);
+        // 构建场景配置。
+        SemanticSummaryScenarioProperties scenarioProperties = new SemanticSummaryScenarioProperties();
+        // 构建预算解析器。
+        SemanticSummaryBudgetResolver resolver = new SemanticSummaryBudgetResolver(properties, scenarioProperties);
+        // 构建覆盖配置映射。
+        Map<String, Object> overrides = Map.of("maxChars", 0);
+        // 构建上下文映射。
+        Map<String, Object> context = Map.of("summary", overrides);
+        // 构建步骤输入映射。
+        Map<String, Object> stepInput = Map.of("context", context);
+        // 构建摘要输入。
+        StepSummaryBuildInput input = StepSummaryBuildInput.builder()
+                .stepInput(stepInput)
+                .build();
+
+        // 调用预算解析器解析预算。
+        SemanticSummaryBudget budget = resolver.resolveBudget(input, SemanticSummaryScenario.DEFAULT);
+        // 校验最大字符数为 0（不限制）。
+        assertEquals(0, budget.getMaxChars());
     }
 }

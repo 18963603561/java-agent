@@ -198,8 +198,24 @@ public class StepResultAssembler {
                 // 遍历结果映射条目并写入容器。
                 map.forEach((key, value) -> resultMap.put(String.valueOf(key), value));
             } else {
-                // 写入原始输出，保证结果可用。
-                resultMap.putAll(rawOutput);
+                // 读取 rawResult 字段，优先提取工具输出原始数据。
+                Object rawResult = rawOutput.get(OutputKeys.RAW_RESULT);
+                // 判断 rawResult 是否为映射，映射时提取内层优先数据。
+                if (rawResult instanceof Map<?, ?> rawMap) {
+                    // 读取 rawResult 内的 result 字段，可能包含业务数据。
+                    Object nestedResult = rawMap.get(OutputKeys.RESULT);
+                    // 判断 nestedResult 是否为映射，映射时拷贝键值。
+                    if (nestedResult instanceof Map<?, ?> nestedMap) {
+                        // 遍历 nestedResult 映射条目并写入容器。
+                        nestedMap.forEach((key, value) -> resultMap.put(String.valueOf(key), value));
+                    } else {
+                        // 遍历 rawResult 映射条目并写入容器。
+                        rawMap.forEach((key, value) -> resultMap.put(String.valueOf(key), value));
+                    }
+                } else {
+                    // 写入原始输出，保证结果可用。
+                    resultMap.putAll(rawOutput);
+                }
             }
         }
         // 读取工具名称，优先使用步骤输出中的工具。

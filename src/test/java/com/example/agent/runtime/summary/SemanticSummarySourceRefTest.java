@@ -25,8 +25,10 @@ class SemanticSummarySourceRefTest {
         SemanticSummaryBudgetResolver budgetResolver = new SemanticSummaryBudgetResolver(properties, scenarioProperties);
         // 构建摘要服务。
         SemanticSummaryService summaryService = new SemanticSummaryService(properties, policyResolver, budgetResolver);
+        // 构建策略解析器。
+        SummaryStrategyResolver strategyResolver = new SummaryStrategyResolver(properties, scenarioProperties);
         // 构建摘要构建器。
-        StepOutputSummaryBuilder builder = new StepOutputSummaryBuilder(properties, summaryService, null, null, null);
+        StepOutputSummaryBuilder builder = new StepOutputSummaryBuilder(properties, summaryService, null, null, null, strategyResolver);
 
         // 构建结果数据映射。
         Map<String, Object> data = new LinkedHashMap<>();

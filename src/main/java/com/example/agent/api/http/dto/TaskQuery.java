@@ -27,6 +27,12 @@ public class TaskQuery {
     @Max(value = 100, message = "分页大小不能超过 100")
     private Integer size;
 
+    /**
+     * 响应模式，可选值：compact/full。
+     * <p>用途：仅影响查询接口的返回结构。
+     */
+    private String responseMode;
+
     public TaskQuery() {
     }
 
@@ -52,5 +58,13 @@ public class TaskQuery {
 
     public void setSize(Integer size) {
         this.size = size;
+    }
+
+    public String getResponseMode() {
+        return responseMode;
+    }
+
+    public void setResponseMode(String responseMode) {
+        this.responseMode = responseMode;
     }
 }

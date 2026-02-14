@@ -31,6 +31,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ServerWebExchange;
 
@@ -106,7 +107,7 @@ public class TaskController {
 
         TaskSubmitCommand command = taskHttpMapper.toSubmitCommand(request);
         TaskSubmissionResult submitResult = taskSubmissionService.submitTask(command, tenantContext);
-        TaskResponse response = taskHttpMapper.toTaskResponse(submitResult);
+        TaskResponse response = taskHttpMapper.toTaskResponse(submitResult, request.getResponseMode());
 
         log.info("任务提交完成, tenantId={}, userId={}, taskId={}, traceId={}",
                 tenantContext.getTenantId(), tenantContext.getUserId(), response.getTaskId(),
@@ -127,13 +128,15 @@ public class TaskController {
     @GetMapping("/api/v1/tasks/{taskId}")
     public ApiResponse<TaskStatusResponse> getTask(@PathVariable("taskId") String taskId,
                                                    @RequestHeader(value = "X-API-Key", required = false) String apiKey,
+                                                   @RequestParam(value = "responseMode", required = false)
+                                                   String responseMode,
                                                    ServerWebExchange exchange) {
         UserContext userContext = authService.authenticate(apiKey, exchange);
         TenantContext tenantContext = getTenantContext(exchange);
         tenantContext.applyUserContext(userContext);
 
         TaskStatusView view = taskQueryService.getTask(taskId, tenantContext);
-        TaskStatusResponse response = taskHttpMapper.toTaskStatusResponse(view);
+        TaskStatusResponse response = taskHttpMapper.toTaskStatusResponse(view, responseMode);
         log.info("任务状态查询, tenantId={}, userId={}, taskId={}, traceId={}",
                 tenantContext.getTenantId(), tenantContext.getUserId(), taskId,
                 resolveTraceId(tenantContext));
@@ -157,7 +160,8 @@ public class TaskController {
         tenantContext.applyUserContext(userContext);
 
         TaskListView view = taskQueryService.listTasks(taskHttpMapper.toQueryCommand(query), tenantContext);
-        TaskListResponse response = taskHttpMapper.toTaskListResponse(view);
+        TaskListResponse response = taskHttpMapper.toTaskListResponse(view,
+                query != null ? query.getResponseMode() : null);
         log.info("任务列表查询, tenantId={}, userId={}, traceId={}",
                 tenantContext.getTenantId(), tenantContext.getUserId(), resolveTraceId(tenantContext));
         return ApiResponse.success(response, tenantContext.getTraceId(), tenantContext.getRequestId());
@@ -209,4 +213,3 @@ public class TaskController {
         return tracingPublisher.currentTraceId();
     }
 }
-

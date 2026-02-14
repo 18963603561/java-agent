@@ -58,6 +58,12 @@ public class TaskRequest {
      */
     private Long waitTimeoutMs;
 
+    /**
+     * 响应模式，可选值：compact/full。
+     * <p>用途：仅影响 HTTP 返回结构，不改变任务执行主流程。
+     */
+    private String responseMode;
+
     public TaskRequest() {
     }
 
@@ -123,5 +129,13 @@ public class TaskRequest {
 
     public void setWaitTimeoutMs(Long waitTimeoutMs) {
         this.waitTimeoutMs = waitTimeoutMs;
+    }
+
+    public String getResponseMode() {
+        return responseMode;
+    }
+
+    public void setResponseMode(String responseMode) {
+        this.responseMode = responseMode;
     }
 }

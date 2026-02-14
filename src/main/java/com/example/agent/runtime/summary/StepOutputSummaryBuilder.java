@@ -4,6 +4,7 @@ import com.example.agent.runtime.contract.RuntimeOutputFieldExtractor;
 import com.example.agent.runtime.contract.RuntimeOutputKeys;
 import com.example.agent.runtime.model.SemanticSummary;
 import com.example.agent.runtime.model.SummarySourceRef;
+import java.util.ArrayList;
 import com.example.agent.runtime.summary.audit.SemanticSummarySampler;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -15,11 +16,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
 /**
- * 步骤输出摘要构建器（语义摘要版）。
+ * 步骤输出摘要构建器。
  *
- * <p>用途：基于语义摘要生成步骤摘要结构，向下游提供稳定的 summary 视图。</p>
+ * <p>用途：按策略生成步骤摘要结构，向下游提供稳定的 summary 视图。</p>
  * <p>输入：步骤摘要构建输入契约。</p>
- * <p>输出：语义摘要映射（text/highlights/openQuestions/risks/sourceRefs）。</p>
+ * <p>输出：摘要映射（text/highlights/openQuestions/risks/sourceRefs）。</p>
  * <p>边界：摘要开关关闭时返回空映射。</p>
  */
 @Component
@@ -52,16 +53,23 @@ public class StepOutputSummaryBuilder {
      */
     private final SemanticSummaryMetricsRecorder metricsRecorder;
 
+    /**
+     * 摘要策略解析器。
+     */
+    private final SummaryStrategyResolver strategyResolver;
+
     public StepOutputSummaryBuilder(StepSummaryProperties properties,
                                     SemanticSummaryService semanticSummaryService,
                                     SemanticSummaryQualityScorer qualityScorer,
                                     SemanticSummarySampler summarySampler,
-                                    SemanticSummaryMetricsRecorder metricsRecorder) {
+                                    SemanticSummaryMetricsRecorder metricsRecorder,
+                                    SummaryStrategyResolver strategyResolver) {
         this.properties = properties;
         this.semanticSummaryService = semanticSummaryService;
         this.qualityScorer = qualityScorer;
         this.summarySampler = summarySampler;
         this.metricsRecorder = metricsRecorder;
+        this.strategyResolver = strategyResolver;
     }
 
     /**
@@ -102,6 +110,17 @@ public class StepOutputSummaryBuilder {
         SemanticSummaryScenario scenario = scenarioDecision.getScenario();
         // 读取场景命中来源。
         SemanticSummaryScenarioSource scenarioSource = scenarioDecision.getSource();
+        // 解析摘要策略决策，供策略路由与日志使用。
+        SummaryStrategyDecision strategyDecision = resolveStrategyDecisionSafe(safeInput, scenario);
+        // 读取摘要策略。
+        SummaryBuildStrategy strategy = strategyDecision.getStrategy();
+        // 读取策略命中来源。
+        SummaryStrategySource strategySource = strategyDecision.getSource();
+        // 判断是否命中关闭策略，命中时直接返回空摘要。
+        if (strategy == SummaryBuildStrategy.OFF) {
+            // 返回空映射，保持与摘要开关关闭一致的语义。
+            return Collections.emptyMap();
+        }
         // 解析原始引用，便于日志追踪。
         String rawRef = resolveRawRef(safeInput);
         // 判断是否需要记录摘要日志。
@@ -109,18 +128,20 @@ public class StepOutputSummaryBuilder {
         // 判断是否需要记录开始日志，命中时输出开始日志。
         if (logEnabled) {
             // 记录摘要生成开始日志，包含关键定位字段。
-            log.info("语义摘要生成开始, workflowId={}, stepId={}, stepType={}, rawRef={}, scenario={}, scenarioSource={}",
+            log.info("语义摘要生成开始, workflowId={}, stepId={}, stepType={}, rawRef={}, scenario={}, scenarioSource={}, strategy={}, strategySource={}",
                     null,
                     safeInput.getStepId(),
                     safeInput.getStepType(),
                     rawRef,
                     scenario.getCode(),
-                    scenarioSource.getCode());
+                    scenarioSource.getCode(),
+                    strategy.getCode(),
+                    strategySource.getCode());
         }
         // 记录摘要生成起始时间。
         long summaryStart = System.nanoTime();
-        // 调用语义摘要服务生成语义摘要对象。
-        SemanticSummary semanticSummary = semanticSummaryService.buildSummary(safeInput);
+        // 按策略路由生成摘要对象。
+        SemanticSummary semanticSummary = buildByStrategy(strategy, safeInput);
         // 计算摘要生成耗时（毫秒）。
         long durationMs = (System.nanoTime() - summaryStart) / 1_000_000;
         // 判断观测记录器是否存在，存在时记录生成指标。
@@ -131,13 +152,15 @@ public class StepOutputSummaryBuilder {
         // 判断是否需要记录完成日志，命中时输出完成日志。
         if (logEnabled) {
             // 记录摘要生成完成日志，包含关键定位字段。
-            log.info("语义摘要生成完成, workflowId={}, stepId={}, stepType={}, rawRef={}, scenario={}, scenarioSource={}, truncated={}, durationMs={}",
+            log.info("语义摘要生成完成, workflowId={}, stepId={}, stepType={}, rawRef={}, scenario={}, scenarioSource={}, strategy={}, strategySource={}, truncated={}, durationMs={}",
                     null,
                     safeInput.getStepId(),
                     safeInput.getStepType(),
                     rawRef,
                     scenario.getCode(),
                     scenarioSource.getCode(),
+                    strategy.getCode(),
+                    strategySource.getCode(),
                     semanticSummary != null && semanticSummary.isTruncated(),
                     durationMs);
         }
@@ -191,11 +214,144 @@ public class StepOutputSummaryBuilder {
         return semanticSummaryService.resolveScenarioDecision(input);
     }
 
-    private SemanticSummaryScenario resolveScenarioSafe(StepSummaryBuildInput input) {
-        // 调用场景决策解析方法获取场景。
-        SemanticSummaryScenarioDecision decision = resolveScenarioDecisionSafe(input);
-        // 返回场景对象。
-        return decision.getScenario();
+    private SummaryStrategyDecision resolveStrategyDecisionSafe(StepSummaryBuildInput input,
+                                                                SemanticSummaryScenario scenario) {
+        // 判断策略解析器是否可用，不可用时返回默认策略。
+        if (strategyResolver == null) {
+            // 返回默认策略决策，避免空指针。
+            return SummaryStrategyDecision.defaultDecision();
+        }
+        // 调用策略解析器解析策略决策。
+        return strategyResolver.resolve(input, scenario);
+    }
+
+    private SemanticSummary buildByStrategy(SummaryBuildStrategy strategy, StepSummaryBuildInput input) {
+        // 判断语义摘要服务是否可用，不可用时返回空摘要。
+        if (semanticSummaryService == null) {
+            // 返回空摘要，避免空指针。
+            return null;
+        }
+        // 判断策略是否为空，空时回退语义策略。
+        if (strategy == null || strategy == SummaryBuildStrategy.SEMANTIC) {
+            // 调用语义摘要服务生成语义摘要。
+            return semanticSummaryService.buildSummary(input);
+        }
+        // 判断是否命中模板策略，命中时构建模板摘要。
+        if (strategy == SummaryBuildStrategy.TEMPLATE) {
+            // 调用模板摘要构建流程。
+            return buildTemplateSummary(input);
+        }
+        // 判断是否命中模型策略，命中时回退语义摘要。
+        if (strategy == SummaryBuildStrategy.MODEL) {
+            // 调用语义摘要服务作为稳态回退输出。
+            return semanticSummaryService.buildSummary(input);
+        }
+        // 返回语义摘要作为兜底，避免未知策略导致异常。
+        return semanticSummaryService.buildSummary(input);
+    }
+
+    private SemanticSummary buildTemplateSummary(StepSummaryBuildInput input) {
+        // 调用语义摘要服务构建基础摘要。
+        SemanticSummary baseSummary = semanticSummaryService.buildSummary(input);
+        // 判断基础摘要是否为空，空时直接返回。
+        if (baseSummary == null) {
+            // 返回空摘要，避免空指针。
+            return null;
+        }
+        // 解析模板文本。
+        String templateText = resolveTemplateText(baseSummary, input);
+        // 解析模板高亮列表。
+        List<String> templateHighlights = resolveTemplateHighlights(baseSummary, input);
+        // 返回模板化后的摘要对象，保留来源与风险信息。
+        return new SemanticSummary(templateText,
+                templateHighlights,
+                baseSummary.getOpenQuestions(),
+                baseSummary.getRisks(),
+                baseSummary.getSourceRefs(),
+                baseSummary.isTruncated());
+    }
+
+    private String resolveTemplateText(SemanticSummary baseSummary, StepSummaryBuildInput input) {
+        // 读取基础摘要文本。
+        String baseText = baseSummary.getText();
+        // 构建模板前缀。
+        String templatePrefix = resolveTemplatePrefix(input);
+        // 判断前缀与基础文本是否同时存在，命中时拼接输出。
+        if (StringUtils.hasText(templatePrefix) && StringUtils.hasText(baseText)) {
+            // 返回模板拼接文本。
+            return templatePrefix + "：" + baseText;
+        }
+        // 判断仅前缀存在，存在时返回前缀文本。
+        if (StringUtils.hasText(templatePrefix)) {
+            // 返回模板前缀文本。
+            return templatePrefix;
+        }
+        // 返回基础摘要文本。
+        return baseText;
+    }
+
+    private String resolveTemplatePrefix(StepSummaryBuildInput input) {
+        // 判断输入是否为空，空时返回默认模板前缀。
+        if (input == null) {
+            // 返回默认模板前缀。
+            return "步骤摘要";
+        }
+        // 读取步骤类型。
+        String stepType = input.getStepType();
+        // 读取步骤状态。
+        String status = input.getStatus();
+        // 读取工具名称。
+        String toolName = input.getToolName();
+        // 判断工具名称是否存在，存在时输出工具模板前缀。
+        if (StringUtils.hasText(toolName)) {
+            // 返回工具模板前缀文本。
+            return "步骤类型=" + defaultText(stepType, "unknown") + ", 状态="
+                    + defaultText(status, "unknown") + ", 工具=" + toolName;
+        }
+        // 返回通用模板前缀文本。
+        return "步骤类型=" + defaultText(stepType, "unknown") + ", 状态="
+                + defaultText(status, "unknown");
+    }
+
+    private List<String> resolveTemplateHighlights(SemanticSummary baseSummary, StepSummaryBuildInput input) {
+        // 判断基础摘要高亮是否存在，存在时复制后返回。
+        if (baseSummary.getHighlights() != null && !baseSummary.getHighlights().isEmpty()) {
+            // 返回高亮副本，避免污染原始数据。
+            return List.copyOf(baseSummary.getHighlights());
+        }
+        // 初始化模板高亮列表。
+        List<String> highlights = new ArrayList<>();
+        // 读取步骤状态。
+        String status = input != null ? input.getStatus() : null;
+        // 读取工具名称。
+        String toolName = input != null ? input.getToolName() : null;
+        // 判断状态是否存在，存在时写入状态高亮。
+        if (StringUtils.hasText(status)) {
+            // 写入状态高亮文本。
+            highlights.add("status=" + status);
+        }
+        // 判断工具名称是否存在，存在时写入工具高亮。
+        if (StringUtils.hasText(toolName)) {
+            // 写入工具高亮文本。
+            highlights.add("tool=" + toolName);
+        }
+        // 判断高亮是否为空，空时写入默认高亮。
+        if (highlights.isEmpty()) {
+            // 写入默认高亮文本。
+            highlights.add("strategy=template");
+        }
+        // 返回模板高亮列表。
+        return List.copyOf(highlights);
+    }
+
+    private String defaultText(String text, String fallback) {
+        // 判断文本是否有效，有效时返回原文本。
+        if (StringUtils.hasText(text)) {
+            // 返回原文本。
+            return text;
+        }
+        // 返回兜底文本。
+        return fallback;
     }
 
     private String resolveRawRef(StepSummaryBuildInput input) {

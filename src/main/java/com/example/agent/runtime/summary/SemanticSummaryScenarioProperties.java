@@ -110,6 +110,11 @@ public class SemanticSummaryScenarioProperties {
          */
         private String description;
 
+        /**
+         * 摘要策略。
+         */
+        private String strategy;
+
         public Integer getMaxChars() {
             return maxChars;
         }
@@ -156,6 +161,14 @@ public class SemanticSummaryScenarioProperties {
 
         public void setDescription(String description) {
             this.description = description;
+        }
+
+        public String getStrategy() {
+            return strategy;
+        }
+
+        public void setStrategy(String strategy) {
+            this.strategy = strategy;
         }
     }
 }

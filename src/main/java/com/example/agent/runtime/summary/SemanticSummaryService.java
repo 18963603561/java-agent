@@ -86,16 +86,11 @@ public class SemanticSummaryService {
         if (StringUtils.hasText(finalText)) {
             // 解析最大长度限制，避免负值。
             int maxChars = budget != null ? budget.getMaxChars() : resolveMaxSummaryChars();
-            // 判断预算是否关闭摘要文本，关闭时清空文本。
-            if (maxChars == 0) {
-                // 清空摘要文本，保留列表信息。
-                finalText = null;
-            } else {
-                // 判断是否超长并截断，记录截断标记。
-                if (maxChars > 0 && finalText.length() > maxChars) {
-                    finalText = finalText.substring(0, maxChars);
-                    truncated = true;
-                }
+            // 判断是否超长并截断，记录截断标记。
+            // 设计意图：maxChars=0 表示不限制长度，不应清空摘要文本。
+            if (maxChars > 0 && finalText.length() > maxChars) {
+                finalText = finalText.substring(0, maxChars);
+                truncated = true;
             }
         }
         // 判断摘要文本与列表均为空，空时写入兜底文本。

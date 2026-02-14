@@ -168,8 +168,24 @@ public class ReflectionContextMapper {
             // 拷贝结果映射，统一键类型。
             map.forEach((key, value) -> resultMap.put(String.valueOf(key), value));
         } else {
-            // 回退使用原始输出映射，保证结果可用。
-            resultMap.putAll(rawOutput);
+            // 读取 rawResult 字段，优先提取工具输出原始数据。
+            Object rawResult = rawOutput.get(RuntimeOutputKeys.RAW_RESULT);
+            // 判断 rawResult 是否为映射，映射时提取内层优先数据。
+            if (rawResult instanceof Map<?, ?> rawMap) {
+                // 读取 rawResult 内的 result 字段，可能包含业务数据。
+                Object nestedResult = rawMap.get(RuntimeOutputKeys.RESULT);
+                // 判断 nestedResult 是否为映射，映射时拷贝键值。
+                if (nestedResult instanceof Map<?, ?> nestedMap) {
+                    // 拷贝 nestedResult 映射，统一键类型。
+                    nestedMap.forEach((key, value) -> resultMap.put(String.valueOf(key), value));
+                } else {
+                    // 拷贝 rawResult 映射，统一键类型。
+                    rawMap.forEach((key, value) -> resultMap.put(String.valueOf(key), value));
+                }
+            } else {
+                // 回退使用原始输出映射，保证结果可用。
+                resultMap.putAll(rawOutput);
+            }
         }
         return resultMap;
     }

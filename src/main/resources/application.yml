@@ -4,7 +4,7 @@ server:
   # - 1-65535
   # 默认项:
   # - 8080
-  port: 8080
+  port: 8081
 
 spring:
   application:
@@ -171,6 +171,15 @@ tenant:
     - /actuator/info
 
 agent:
+  api:
+    response:
+      # 说明: 对外响应默认模式，可选 compact / full
+      # 可选项:
+      # - compact
+      # - full
+      # 默认值:
+      # - compact
+      default-mode: compact
   dag:
     distributed:
       # 说明: DAG 邮箱传输实现。可选值: inprocess / redis
@@ -294,6 +303,15 @@ agent:
     # 默认值:
     # - false
     enable: true
+    # 说明: 步骤摘要构建策略
+    # 可选项:
+    # - semantic
+    # - template
+    # - model
+    # - off
+    # 默认值:
+    # - semantic
+    strategy: semantic
     # 说明: 摘要整体序列化最大字符数
     # 可选项:
     # - 非负整数
@@ -312,6 +330,13 @@ agent:
     # 默认值:
     # - 200
     max-field-chars: 0
+    # 璇存槑: 鏄惁鍚敤鍘熷蹇収杈撳嚭
+    # 鍙€夐」:
+    # - true
+    # - false
+    # 榛樿鍊?
+    # - false
+    raw-enable: true
   final-output:
     # 说明: 最终输出提示词摘要最大字符数
     # 可选项:

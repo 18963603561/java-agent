@@ -29,10 +29,16 @@ public class StepSummaryProperties {
      * 单个字段字符串的最大字符数。
      */
     private int maxFieldChars = 1000;
+
+    /**
+     * 摘要策略，默认语义摘要。
+     */
+    private String strategy = "semantic";
+
     /**
      * 是否启用原始结果受控输出。
      */
-    private boolean rawEnable = false;
+    private boolean rawEnable = true;
 
     /**
      * 原始结果快照最大字符数。
@@ -84,6 +90,14 @@ public class StepSummaryProperties {
 
     public void setMaxFieldChars(int maxFieldChars) {
         this.maxFieldChars = maxFieldChars;
+    }
+
+    public String getStrategy() {
+        return strategy;
+    }
+
+    public void setStrategy(String strategy) {
+        this.strategy = strategy;
     }
 
     public boolean isRawEnable() {

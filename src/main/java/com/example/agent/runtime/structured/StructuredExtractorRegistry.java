@@ -339,11 +339,8 @@ public class StructuredExtractorRegistry {
             // 写入合并后的告警列表。
             existing.setWarnings(List.copyOf(mergedWarnings));
         }
-        // 合并截断标记，已有值优先保留。
-        if (existing.getTruncated() == null && scored.getTruncated() != null) {
-            // 写入截断标记。
-            existing.setTruncated(scored.getTruncated());
-        }
+        // 合并截断标记：统一布尔语义，任一路径截断都应上报。
+        existing.setTruncated(existing.isTruncated() || scored.isTruncated());
     }
 
     private void recordSchemaInvalidMetric(ResultKind kind, Integer schemaVersion) {

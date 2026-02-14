@@ -15,6 +15,8 @@ import com.example.agent.runtime.structured.structured.SqlData;
 import com.example.agent.runtime.structured.structured.StructuredData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
 import org.springframework.stereotype.Component;
 
 /**
@@ -26,6 +28,7 @@ import org.springframework.stereotype.Component;
  * 3. 其余场景使用默认数据实现兜底，保证兼容性。
  */
 @Component
+@Order(Ordered.LOWEST_PRECEDENCE)
 public class GenericStructuredExtractor implements StructuredExtractor {
 
     private static final Logger log = LoggerFactory.getLogger(GenericStructuredExtractor.class);

@@ -92,6 +92,8 @@ public class StructuredQualityScorer {
         quality.setWarnings(warnings);
         // 写入缺失字段列表。
         quality.setMissingFields(missingFields);
+        // 写入截断标记，统一输出布尔值，避免客户端判空分支。
+        quality.setTruncated(resolveTruncated(data));
         // 返回质量结果对象。
         return quality;
     }
@@ -172,5 +174,13 @@ public class StructuredQualityScorer {
         }
         // 其他类型默认视为有值。
         return true;
+    }
+
+    private boolean resolveTruncated(Map<String, Object> data) {
+        if (data == null || data.isEmpty()) {
+            return false;
+        }
+        Object truncated = data.get("truncated");
+        return truncated instanceof Boolean value && value;
     }
 }

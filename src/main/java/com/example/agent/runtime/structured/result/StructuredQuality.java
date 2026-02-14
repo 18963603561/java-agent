@@ -30,7 +30,7 @@ public class StructuredQuality {
     /**
      * 是否截断。
      */
-    private Boolean truncated;
+    private boolean truncated;
 
     public Double getConfidence() {
         return confidence;
@@ -64,11 +64,11 @@ public class StructuredQuality {
         this.missingFields = missingFields;
     }
 
-    public Boolean getTruncated() {
+    public boolean isTruncated() {
         return truncated;
     }
 
-    public void setTruncated(Boolean truncated) {
+    public void setTruncated(boolean truncated) {
         this.truncated = truncated;
     }
 }
